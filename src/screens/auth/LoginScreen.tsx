@@ -10,7 +10,7 @@ import {
   TextInput,
   useTheme,
 } from 'react-native-paper';
-import { useAuthStore } from '../store/authStore';
+import { useAuthStore } from '../../store/authStore';
 
 function validateEmail(email: string): string | null {
   if (!email.trim()) return 'Email is required.';
@@ -19,26 +19,18 @@ function validateEmail(email: string): string | null {
 }
 function validatePassword(password: string): string | null {
   if (!password) return 'Password is required.';
-  if (password.length < 6) return 'Password must be at least 6 characters.';
-  return null;
-}
-function validateDisplayName(name: string): string | null {
-  if (!name.trim()) return 'Name is required.';
-  if (name.trim().length < 2) return 'Name must be at least 2 characters.';
   return null;
 }
 
-export default function SignUpScreen({ navigation }: any) {
+export default function LoginScreen({ navigation }: any) {
   const theme = useTheme();
-  const { signUp, loading, error, clearError } = useAuthStore();
+  const { signIn, loading, error, clearError } = useAuthStore();
 
-  const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [snackVisible, setSnackVisible] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({
-    displayName: null as string | null,
     email: null as string | null,
     password: null as string | null,
   });
@@ -47,16 +39,15 @@ export default function SignUpScreen({ navigation }: any) {
     if (error) setSnackVisible(true);
   }, [error]);
 
-  const handleSignUp = async () => {
+  const handleSignIn = async () => {
     const errors = {
-      displayName: validateDisplayName(displayName),
       email: validateEmail(email),
       password: validatePassword(password),
     };
     setFieldErrors(errors);
     if (Object.values(errors).some(Boolean)) return;
     try {
-      await signUp(email.trim(), password, displayName.trim());
+      await signIn(email.trim(), password);
     } catch {
       // error surfaced via store → snackbar
     }
@@ -69,22 +60,10 @@ export default function SignUpScreen({ navigation }: any) {
     >
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <Surface style={styles.card} elevation={2}>
-          <Text variant="headlineMedium" style={styles.title}>Create Account</Text>
+          <Text variant="headlineMedium" style={styles.title}>Welcome Back</Text>
           <Text variant="bodyMedium" style={[styles.subtitle, { color: theme.colors.outline }]}>
-            Join the Lineage Tree
+            Sign in to Lineage Tree
           </Text>
-
-          <TextInput
-            label="Full name"
-            value={displayName}
-            onChangeText={(v) => { setDisplayName(v); setFieldErrors((e) => ({ ...e, displayName: null })); }}
-            mode="outlined"
-            autoCapitalize="words"
-            textContentType="name"
-            style={styles.input}
-            error={!!fieldErrors.displayName}
-          />
-          <HelperText type="error" visible={!!fieldErrors.displayName}>{fieldErrors.displayName}</HelperText>
 
           <TextInput
             label="Email"
@@ -106,8 +85,8 @@ export default function SignUpScreen({ navigation }: any) {
             onChangeText={(v) => { setPassword(v); setFieldErrors((e) => ({ ...e, password: null })); }}
             mode="outlined"
             secureTextEntry={!passwordVisible}
-            autoComplete="new-password"
-            textContentType="newPassword"
+            autoComplete="current-password"
+            textContentType="password"
             style={styles.input}
             error={!!fieldErrors.password}
             right={
@@ -121,18 +100,18 @@ export default function SignUpScreen({ navigation }: any) {
 
           <Button
             mode="contained"
-            onPress={handleSignUp}
+            onPress={handleSignIn}
             disabled={loading}
             contentStyle={styles.buttonContent}
             style={styles.button}
           >
             {loading
               ? <ActivityIndicator color={theme.colors.onPrimary} size="small" />
-              : 'Sign Up'}
+              : 'Sign In'}
           </Button>
 
-          <Button mode="text" onPress={() => navigation.navigate('Login')} style={styles.linkButton}>
-            Already have an account? Sign in
+          <Button mode="text" onPress={() => navigation.navigate('SignUp')} style={styles.linkButton}>
+            Don't have an account? Sign up
           </Button>
         </Surface>
       </ScrollView>
@@ -160,3 +139,4 @@ const styles = StyleSheet.create({
   buttonContent: { height: 48 },
   linkButton: { marginTop: 8 },
 });
+

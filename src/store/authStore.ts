@@ -8,16 +8,10 @@ import {
   User as FirebaseUser,
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { auth, db } from '../firebase/config';
+import { auth, db } from '../lib/firebase';
+import type { UserProfile } from '../types/user';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
-export interface UserProfile {
-  id: string;
-  email: string;
-  displayName: string;
-  createdAt: string;
-}
 
 export interface AuthState {
   user: UserProfile | null;

@@ -41,3 +41,4 @@ const styles = StyleSheet.create({
   button: { borderRadius: 8, width: '100%' },
   buttonContent: { height: 48 },
 });
+
