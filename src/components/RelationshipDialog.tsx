@@ -1,0 +1,188 @@
+import React, { useEffect, useMemo, useState } from 'react';
+import { ScrollView, StyleSheet, View } from 'react-native';
+import { Button, Chip, Dialog, HelperText, Portal, SegmentedButtons, Text } from 'react-native-paper';
+import type { PersonRecord } from '../types/person';
+import type { RelationshipRecord, RelationshipType } from '../types/relationship';
+
+interface RelationshipDialogProps {
+  visible: boolean;
+  people: PersonRecord[];
+  relationships: RelationshipRecord[];
+  loading?: boolean;
+  onDismiss: () => void;
+  onSubmit: (payload: { type: RelationshipType; fromPersonId: string; toPersonId: string }) => void | Promise<void>;
+}
+
+function formatPersonName(person: PersonRecord) {
+  return `${person.firstName} ${person.lastName}`.trim();
+}
+
+export default function RelationshipDialog({
+  visible,
+  people,
+  relationships,
+  loading = false,
+  onDismiss,
+  onSubmit,
+}: RelationshipDialogProps) {
+  const [type, setType] = useState<RelationshipType>('parent-child');
+  const [fromPersonId, setFromPersonId] = useState('');
+  const [toPersonId, setToPersonId] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!visible) {
+      return;
+    }
+
+    setType('parent-child');
+    setFromPersonId('');
+    setToPersonId('');
+    setError(null);
+  }, [visible]);
+
+  const duplicateRelationship = useMemo(() => {
+    if (!fromPersonId || !toPersonId) {
+      return false;
+    }
+
+    if (type === 'spouse') {
+      const [firstId, secondId] = [fromPersonId, toPersonId].sort();
+      return relationships.some(
+        (relationship) => relationship.type === 'spouse'
+          && relationship.fromPersonId === firstId
+          && relationship.toPersonId === secondId,
+      );
+    }
+
+    return relationships.some(
+      (relationship) => relationship.type === 'parent-child'
+        && relationship.fromPersonId === fromPersonId
+        && relationship.toPersonId === toPersonId,
+    );
+  }, [fromPersonId, relationships, toPersonId, type]);
+
+  const handleSubmit = async () => {
+    if (people.length < 2) {
+      setError('Add at least two people before creating a relationship.');
+      return;
+    }
+
+    if (!fromPersonId || !toPersonId) {
+      setError('Select both people for this relationship.');
+      return;
+    }
+
+    if (fromPersonId === toPersonId) {
+      setError(type === 'spouse'
+        ? 'A person cannot be their own spouse.'
+        : 'A person cannot be their own parent or child.');
+      return;
+    }
+
+    if (duplicateRelationship) {
+      setError('That relationship already exists.');
+      return;
+    }
+
+    await onSubmit({ type, fromPersonId, toPersonId });
+  };
+
+  const firstLabel = type === 'spouse' ? 'Select spouse A' : 'Select parent';
+  const secondLabel = type === 'spouse' ? 'Select spouse B' : 'Select child';
+
+  return (
+    <Portal>
+      <Dialog visible={visible} onDismiss={loading ? undefined : onDismiss} style={styles.dialog}>
+        <Dialog.Title>Add relationship</Dialog.Title>
+        <Dialog.ScrollArea style={styles.scrollArea}>
+          <ScrollView keyboardShouldPersistTaps="handled">
+            <SegmentedButtons
+              value={type}
+              onValueChange={(value) => {
+                setType(value as RelationshipType);
+                setError(null);
+              }}
+              buttons={[
+                { value: 'parent-child', label: 'Parent → Child' },
+                { value: 'spouse', label: 'Spouse ↔ Spouse' },
+              ]}
+            />
+
+            <View style={styles.section}>
+              <Text variant="titleSmall">{firstLabel}</Text>
+              <View style={styles.peopleWrap}>
+                {people.map((person) => (
+                  <Chip
+                    key={`from-${person.id}`}
+                    selected={fromPersonId === person.id}
+                    onPress={() => {
+                      setFromPersonId(person.id);
+                      setError(null);
+                    }}
+                    disabled={loading}
+                    style={styles.personChip}
+                  >
+                    {formatPersonName(person)}
+                  </Chip>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.section}>
+              <Text variant="titleSmall">{secondLabel}</Text>
+              <View style={styles.peopleWrap}>
+                {people.map((person) => (
+                  <Chip
+                    key={`to-${person.id}`}
+                    selected={toPersonId === person.id}
+                    onPress={() => {
+                      setToPersonId(person.id);
+                      setError(null);
+                    }}
+                    disabled={loading}
+                    style={styles.personChip}
+                  >
+                    {formatPersonName(person)}
+                  </Chip>
+                ))}
+              </View>
+            </View>
+
+            <HelperText type="error" visible={!!error || duplicateRelationship}>
+              {error ?? (duplicateRelationship ? 'That relationship already exists.' : ' ')}
+            </HelperText>
+          </ScrollView>
+        </Dialog.ScrollArea>
+        <Dialog.Actions>
+          <Button onPress={onDismiss} disabled={loading}>Cancel</Button>
+          <Button onPress={handleSubmit} disabled={loading || people.length < 2}>Save</Button>
+        </Dialog.Actions>
+      </Dialog>
+    </Portal>
+  );
+}
+
+const styles = StyleSheet.create({
+  dialog: {
+    maxHeight: '85%',
+  },
+  scrollArea: {
+    borderBottomWidth: 0,
+    borderTopWidth: 0,
+    paddingHorizontal: 0,
+  },
+  section: {
+    marginTop: 16,
+  },
+  peopleWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 8,
+  },
+  personChip: {
+    marginRight: 8,
+    marginBottom: 8,
+  },
+});
+

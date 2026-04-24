@@ -23,6 +23,15 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Allow Lineage Tree to use your camera for family photos.",
+          "photosPermission": "Allow Lineage Tree to access your family photos."
+        }
+      ]
+    ],
     "web": {
       "favicon": "./assets/favicon.png"
     }

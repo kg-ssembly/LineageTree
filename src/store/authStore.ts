@@ -50,14 +50,31 @@ function humaniseError(code: string): string {
   }
 }
 
-async function fetchUserProfile(uid: string): Promise<UserProfile | null> {
+function normaliseEmail(email: string) {
+  return email.trim().toLowerCase();
+}
+
+async function fetchUserProfile(uid: string, fallbackUser?: FirebaseUser | null): Promise<UserProfile | null> {
   const snap = await getDoc(doc(db, 'users', uid));
   if (!snap.exists()) return null;
   const data = snap.data();
+  const email = data.email ?? fallbackUser?.email ?? '';
+  const displayName = data.displayName ?? fallbackUser?.displayName ?? '';
+  const normalizedEmail = data.normalizedEmail ?? normaliseEmail(email);
+
+  if ((data.email == null && email) || (data.displayName == null && displayName) || (data.normalizedEmail == null && normalizedEmail)) {
+    await setDoc(doc(db, 'users', uid), {
+      email,
+      displayName,
+      normalizedEmail,
+    }, { merge: true });
+  }
+
   return {
     id: uid,
-    email: data.email,
-    displayName: data.displayName ?? '',
+    email,
+    normalizedEmail,
+    displayName,
     createdAt: data.createdAt?.toDate?.().toISOString() ?? data.createdAt,
   };
 }
@@ -75,7 +92,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   init: () => {
     return onAuthStateChanged(auth, async (fbUser) => {
       if (fbUser) {
-        const profile = await fetchUserProfile(fbUser.uid);
+        const profile = await fetchUserProfile(fbUser.uid, fbUser);
         set({ firebaseUser: fbUser, user: profile, loading: false });
       } else {
         set({ firebaseUser: null, user: null, loading: false });
@@ -87,7 +104,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ loading: true, error: null });
     try {
       const { user: fbUser } = await signInWithEmailAndPassword(auth, email, password);
-      const profile = await fetchUserProfile(fbUser.uid);
+      const profile = await fetchUserProfile(fbUser.uid, fbUser);
       set({ firebaseUser: fbUser, user: profile, loading: false });
     } catch (err: any) {
       set({ loading: false, error: humaniseError(err.code ?? '') });
@@ -100,9 +117,11 @@ export const useAuthStore = create<AuthState>((set) => ({
     try {
       const { user: fbUser } = await createUserWithEmailAndPassword(auth, email, password);
       await updateProfile(fbUser, { displayName });
+      const normalizedEmail = normaliseEmail(email);
       const profile: UserProfile = {
         id: fbUser.uid,
         email,
+        normalizedEmail,
         displayName,
         createdAt: new Date().toISOString(),
       };
