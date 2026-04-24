@@ -7,6 +7,7 @@ import {
   Dialog,
   HelperText,
   IconButton,
+  Menu,
   Portal,
   SegmentedButtons,
   Text,
@@ -15,11 +16,20 @@ import {
 import { DatePickerModal } from 'react-native-paper-dates';
 import type { PersonGender, PersonMutationPayload, PersonPhoto, PersonRecord } from '../types/person';
 
-export type CreateRelationshipMode = 'none' | 'parent-of' | 'child-of' | 'spouse-of';
+export type PendingRelationshipMode = 'parent-of' | 'child-of' | 'spouse-of';
+
+export interface PendingRelationshipSubmission {
+  mode: PendingRelationshipMode;
+  relatedPersonId: string;
+}
+
+interface PendingRelationshipDraft extends PendingRelationshipSubmission {
+  key: string;
+  searchQuery: string;
+}
 
 export interface PersonFormSubmission extends PersonMutationPayload {
-  createRelationshipMode?: CreateRelationshipMode;
-  relatedPersonId?: string;
+  pendingRelationships: PendingRelationshipSubmission[];
 }
 
 interface PersonFormDialogProps {
@@ -41,8 +51,7 @@ const genderOptions: Array<{ label: string; value: PersonGender }> = [
   { label: 'Other', value: 'other' },
 ];
 
-const relationshipModeOptions: Array<{ label: string; value: CreateRelationshipMode }> = [
-  { label: 'None', value: 'none' },
+const relationshipModeOptions: Array<{ label: string; value: PendingRelationshipMode }> = [
   { label: 'Parent of', value: 'parent-of' },
   { label: 'Child of', value: 'child-of' },
   { label: 'Spouse of', value: 'spouse-of' },
@@ -73,6 +82,15 @@ function formatPersonName(person: PersonRecord) {
   return `${person.firstName} ${person.lastName}`.trim();
 }
 
+function createPendingRelationshipDraft(): PendingRelationshipDraft {
+  return {
+    key: `${Date.now()}-${Math.random()}`,
+    mode: 'parent-of',
+    relatedPersonId: '',
+    searchQuery: '',
+  };
+}
+
 export default function PersonFormDialog({
   visible,
   mode,
@@ -94,8 +112,9 @@ export default function PersonFormDialog({
   const [firstNameError, setFirstNameError] = useState<string | null>(null);
   const [relationshipError, setRelationshipError] = useState<string | null>(null);
   const [birthDatePickerVisible, setBirthDatePickerVisible] = useState(false);
-  const [createRelationshipMode, setCreateRelationshipMode] = useState<CreateRelationshipMode>('none');
-  const [relatedPersonId, setRelatedPersonId] = useState('');
+  const [pendingRelationships, setPendingRelationships] = useState<PendingRelationshipDraft[]>([]);
+  const [surnameMenuVisible, setSurnameMenuVisible] = useState(false);
+  const [lastNameTouched, setLastNameTouched] = useState(false);
 
   useEffect(() => {
     if (!visible) {
@@ -113,8 +132,9 @@ export default function PersonFormDialog({
     setFirstNameError(null);
     setRelationshipError(null);
     setBirthDatePickerVisible(false);
-    setCreateRelationshipMode('none');
-    setRelatedPersonId('');
+    setPendingRelationships([]);
+    setSurnameMenuVisible(false);
+    setLastNameTouched(false);
   }, [person, visible]);
 
   const allPhotoCount = useMemo(
@@ -127,6 +147,41 @@ export default function PersonFormDialog({
     () => [...new Set(existingLastNames.map((value) => value.trim()).filter(Boolean))].sort((left, right) => left.localeCompare(right)),
     [existingLastNames],
   );
+  const relationshipCandidatesById = useMemo(
+    () => new Map(relationshipCandidates.map((candidate) => [candidate.id, candidate])),
+    [relationshipCandidates],
+  );
+
+  const suggestedLastName = useMemo(() => {
+    if (mode !== 'create') {
+      return '';
+    }
+
+    const byPriority: PendingRelationshipMode[] = ['spouse-of', 'child-of', 'parent-of'];
+
+    for (const relationshipMode of byPriority) {
+      const matchedDraft = pendingRelationships.find((draft) => draft.mode === relationshipMode && draft.relatedPersonId);
+      if (!matchedDraft) {
+        continue;
+      }
+
+      const relatedPerson = relationshipCandidatesById.get(matchedDraft.relatedPersonId);
+      const suggested = relatedPerson?.lastName?.trim() ?? '';
+      if (suggested) {
+        return suggested;
+      }
+    }
+
+    return '';
+  }, [mode, pendingRelationships, relationshipCandidatesById]);
+
+  useEffect(() => {
+    if (mode !== 'create' || !suggestedLastName || lastNameTouched) {
+      return;
+    }
+
+    setLastName(suggestedLastName);
+  }, [lastNameTouched, mode, suggestedLastName]);
 
   const addImageFromResult = (result: ImagePicker.ImagePickerResult) => {
     if (!result.canceled && result.assets.length > 0) {
@@ -185,9 +240,22 @@ export default function PersonFormDialog({
       return;
     }
 
-    if (mode === 'create' && createRelationshipMode !== 'none' && !relatedPersonId) {
-      setRelationshipError('Choose a person for the relationship you want to create.');
-      return;
+    if (mode === 'create') {
+      const hasIncompleteRelationship = pendingRelationships.some((draft) => !draft.relatedPersonId);
+      if (hasIncompleteRelationship) {
+        setRelationshipError('Choose a person for each relationship you want to create.');
+        return;
+      }
+
+      const duplicateKeys = new Set<string>();
+      for (const draft of pendingRelationships) {
+        const compositeKey = `${draft.mode}:${draft.relatedPersonId}`;
+        if (duplicateKeys.has(compositeKey)) {
+          setRelationshipError('Remove duplicate pending relationships before saving.');
+          return;
+        }
+        duplicateKeys.add(compositeKey);
+      }
     }
 
     await onSubmit({
@@ -199,8 +267,7 @@ export default function PersonFormDialog({
       existingPhotos,
       removedPhotos,
       newPhotoUris,
-      createRelationshipMode,
-      relatedPersonId: relatedPersonId || undefined,
+      pendingRelationships: pendingRelationships.map(({ mode, relatedPersonId }) => ({ mode, relatedPersonId })),
     });
   };
 
@@ -230,28 +297,49 @@ export default function PersonFormDialog({
 
               <View style={styles.sectionSpacing}>
                 <Text variant="titleSmall">Last name</Text>
-                {uniqueLastNames.length > 0 ? (
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.lastNameChipRow}>
-                    {uniqueLastNames.map((value) => (
-                      <Chip
-                        key={value}
-                        selected={lastName === value}
-                        onPress={() => setLastName(value)}
-                        style={styles.lastNameChip}
-                      >
-                        {value}
-                      </Chip>
-                    ))}
-                  </ScrollView>
-                ) : null}
+                <Menu
+                  visible={surnameMenuVisible}
+                  onDismiss={() => setSurnameMenuVisible(false)}
+                  anchor={(
+                    <Button
+                      mode="outlined"
+                      icon="chevron-down"
+                      onPress={() => setSurnameMenuVisible(true)}
+                      style={styles.fieldSpacing}
+                      disabled={loading || uniqueLastNames.length === 0}
+                    >
+                      {lastName || (uniqueLastNames.length > 0 ? 'Choose existing surname' : 'No existing surnames')}
+                    </Button>
+                  )}
+                >
+                  {uniqueLastNames.map((value) => (
+                    <Menu.Item
+                      key={value}
+                      title={value}
+                      onPress={() => {
+                        setLastName(value);
+                        setLastNameTouched(true);
+                        setSurnameMenuVisible(false);
+                      }}
+                    />
+                  ))}
+                </Menu>
                 <TextInput
                   mode="outlined"
-                  label="Select existing or type new"
+                  label="Type new surname or edit selection"
                   value={lastName}
-                  onChangeText={setLastName}
+                  onChangeText={(value) => {
+                    setLastName(value);
+                    setLastNameTouched(true);
+                  }}
                   disabled={loading}
                   style={styles.fieldSpacing}
                 />
+                {mode === 'create' && suggestedLastName ? (
+                  <HelperText type="info" visible>
+                    Suggested surname from selected relationship: {suggestedLastName}
+                  </HelperText>
+                ) : null}
               </View>
 
               <View style={styles.sectionSpacing}>
@@ -292,46 +380,70 @@ export default function PersonFormDialog({
 
               {mode === 'create' && relationshipCandidates.length > 0 ? (
                 <View style={styles.sectionSpacing}>
-                  <Text variant="titleSmall">Create relationship now</Text>
-                  <SegmentedButtons
-                    value={createRelationshipMode}
-                    onValueChange={(value) => {
-                      setCreateRelationshipMode(value as CreateRelationshipMode);
-                      if (relationshipError) {
-                        setRelationshipError(null);
-                      }
-                    }}
-                    buttons={relationshipModeOptions}
-                    style={styles.fieldSpacing}
-                  />
+                  <View style={styles.relationshipHeader}>
+                    <Text variant="titleSmall">Create relationships now</Text>
+                    <Button onPress={() => setPendingRelationships((current) => [...current, createPendingRelationshipDraft()])}>
+                      Add relationship
+                    </Button>
+                  </View>
+                  <Text variant="bodyMedium" style={styles.helperText}>
+                    Queue one or more relationships to create as soon as this person is saved.
+                  </Text>
 
-                  {createRelationshipMode !== 'none' ? (
-                    <>
-                      <Text variant="bodyMedium" style={styles.helperText}>
-                        Choose the existing person to connect with this new profile.
-                      </Text>
-                      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.relationshipChipRow}>
-                        {relationshipCandidates.map((candidate) => (
-                          <Chip
-                            key={candidate.id}
-                            selected={relatedPersonId === candidate.id}
-                            onPress={() => {
-                              setRelatedPersonId(candidate.id);
-                              if (relationshipError) {
-                                setRelationshipError(null);
-                              }
-                            }}
-                            style={styles.relationshipChip}
-                          >
-                            {formatPersonName(candidate)}
-                          </Chip>
-                        ))}
-                      </ScrollView>
-                      <HelperText type="error" visible={!!relationshipError}>
-                        {relationshipError}
-                      </HelperText>
-                    </>
-                  ) : null}
+                  {pendingRelationships.map((draft, index) => {
+                    const filteredCandidates = relationshipCandidates.filter((candidate) => formatPersonName(candidate).toLowerCase().includes(draft.searchQuery.trim().toLowerCase()));
+                    return (
+                      <View key={draft.key} style={styles.pendingRelationshipCard}>
+                        <View style={styles.relationshipHeader}>
+                          <Text variant="titleSmall">Relationship {index + 1}</Text>
+                          <IconButton
+                            icon="delete"
+                            size={18}
+                            onPress={() => setPendingRelationships((current) => current.filter((item) => item.key !== draft.key))}
+                            disabled={loading}
+                          />
+                        </View>
+                        <SegmentedButtons
+                          value={draft.mode}
+                          onValueChange={(value) => {
+                            setPendingRelationships((current) => current.map((item) => item.key === draft.key ? { ...item, mode: value as PendingRelationshipMode } : item));
+                            if (relationshipError) {
+                              setRelationshipError(null);
+                            }
+                          }}
+                          buttons={relationshipModeOptions}
+                        />
+                        <TextInput
+                          mode="outlined"
+                          label="Search person"
+                          value={draft.searchQuery}
+                          onChangeText={(value) => setPendingRelationships((current) => current.map((item) => item.key === draft.key ? { ...item, searchQuery: value } : item))}
+                          style={styles.fieldSpacing}
+                          disabled={loading}
+                        />
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.relationshipChipRow}>
+                          {filteredCandidates.map((candidate) => (
+                            <Chip
+                              key={`${draft.key}-${candidate.id}`}
+                              selected={draft.relatedPersonId === candidate.id}
+                              onPress={() => {
+                                setPendingRelationships((current) => current.map((item) => item.key === draft.key ? { ...item, relatedPersonId: candidate.id } : item));
+                                if (relationshipError) {
+                                  setRelationshipError(null);
+                                }
+                              }}
+                              style={styles.relationshipChip}
+                            >
+                              {formatPersonName(candidate)}
+                            </Chip>
+                          ))}
+                        </ScrollView>
+                      </View>
+                    );
+                  })}
+                  <HelperText type="error" visible={!!relationshipError}>
+                    {relationshipError}
+                  </HelperText>
                 </View>
               ) : null}
 
@@ -443,13 +555,6 @@ const styles = StyleSheet.create({
   sectionSpacing: {
     marginTop: 16,
   },
-  lastNameChipRow: {
-    paddingTop: 8,
-    paddingRight: 8,
-  },
-  lastNameChip: {
-    marginRight: 8,
-  },
   birthDateActions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -466,9 +571,20 @@ const styles = StyleSheet.create({
     marginRight: 8,
     marginBottom: 8,
   },
+  relationshipHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   helperText: {
-    marginTop: 12,
+    marginTop: 8,
     color: '#6B6B74',
+  },
+  pendingRelationshipCard: {
+    marginTop: 12,
+    padding: 12,
+    borderRadius: 16,
+    backgroundColor: '#F3F0FF',
   },
   relationshipChipRow: {
     paddingTop: 12,

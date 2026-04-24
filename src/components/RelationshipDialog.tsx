@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { Button, Chip, Dialog, HelperText, Portal, SegmentedButtons, Text } from 'react-native-paper';
+import { Button, Chip, Dialog, HelperText, Portal, SegmentedButtons, Text, TextInput } from 'react-native-paper';
 import type { PersonRecord } from '../types/person';
 import type { RelationshipRecord, RelationshipType } from '../types/relationship';
 
@@ -28,6 +28,8 @@ export default function RelationshipDialog({
   const [type, setType] = useState<RelationshipType>('parent-child');
   const [fromPersonId, setFromPersonId] = useState('');
   const [toPersonId, setToPersonId] = useState('');
+  const [fromSearch, setFromSearch] = useState('');
+  const [toSearch, setToSearch] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -38,6 +40,8 @@ export default function RelationshipDialog({
     setType('parent-child');
     setFromPersonId('');
     setToPersonId('');
+    setFromSearch('');
+    setToSearch('');
     setError(null);
   }, [visible]);
 
@@ -61,6 +65,15 @@ export default function RelationshipDialog({
         && relationship.toPersonId === toPersonId,
     );
   }, [fromPersonId, relationships, toPersonId, type]);
+
+  const filteredFromPeople = useMemo(
+    () => people.filter((person) => formatPersonName(person).toLowerCase().includes(fromSearch.trim().toLowerCase())),
+    [fromSearch, people],
+  );
+  const filteredToPeople = useMemo(
+    () => people.filter((person) => formatPersonName(person).toLowerCase().includes(toSearch.trim().toLowerCase())),
+    [people, toSearch],
+  );
 
   const handleSubmit = async () => {
     if (people.length < 2) {
@@ -111,8 +124,16 @@ export default function RelationshipDialog({
 
             <View style={styles.section}>
               <Text variant="titleSmall">{firstLabel}</Text>
+              <TextInput
+                mode="outlined"
+                label="Search person"
+                value={fromSearch}
+                onChangeText={setFromSearch}
+                style={styles.searchInput}
+                disabled={loading}
+              />
               <View style={styles.peopleWrap}>
-                {people.map((person) => (
+                {filteredFromPeople.map((person) => (
                   <Chip
                     key={`from-${person.id}`}
                     selected={fromPersonId === person.id}
@@ -131,8 +152,16 @@ export default function RelationshipDialog({
 
             <View style={styles.section}>
               <Text variant="titleSmall">{secondLabel}</Text>
+              <TextInput
+                mode="outlined"
+                label="Search person"
+                value={toSearch}
+                onChangeText={setToSearch}
+                style={styles.searchInput}
+                disabled={loading}
+              />
               <View style={styles.peopleWrap}>
-                {people.map((person) => (
+                {filteredToPeople.map((person) => (
                   <Chip
                     key={`to-${person.id}`}
                     selected={toPersonId === person.id}
@@ -175,6 +204,9 @@ const styles = StyleSheet.create({
   section: {
     marginTop: 16,
   },
+  searchInput: {
+    marginTop: 8,
+  },
   peopleWrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -185,4 +217,3 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
 });
-

@@ -1,3 +1,10 @@
+export type TreeDetailTabParamList = {
+  PeopleRelationshipsTab: undefined;
+  CollaboratorsTab: undefined;
+  VisualisationTab: undefined;
+  ProfileTab: undefined;
+};
+
 export type RootStackParamList = {
   Login: undefined;
   SignUp: undefined;
