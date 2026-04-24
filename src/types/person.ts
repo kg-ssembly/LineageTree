@@ -1,6 +1,6 @@
 export type PersonGender = 'unspecified' | 'female' | 'male' | 'non-binary' | 'other';
 
-export type PersonLifeEventType = 'married' | 'divorced' | 'moved' | 'graduated' | 'retired' | 'milestone' | 'custom';
+export type PersonLifeEventType = 'married' | 'divorced' | 'moved' | 'graduated' | 'retired' | 'milestone' | 'death' | 'child-born' | 'custom';
 
 export interface PersonLifeEvent {
   id: string;
@@ -113,6 +113,10 @@ export function getLifeEventTypeLabel(type: PersonLifeEventType) {
       return 'Retired';
     case 'milestone':
       return 'Milestone';
+    case 'death':
+      return 'Death';
+    case 'child-born':
+      return 'Had a child';
     default:
       return 'Custom';
   }

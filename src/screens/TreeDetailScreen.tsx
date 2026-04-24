@@ -259,64 +259,15 @@ function PeopleRelationshipsTabContent({
   );
 }
 
-function CollaboratorsTabContent({
-  selectedTree,
-  isOwner,
-  userId,
-  mutating,
-  onOpenCollaboratorDialog,
-  openConfirm,
-  onRemoveCollaborator,
-}: SharedTabProps) {
+function IntelligenceTabContent({ people, relationships }: SharedTabProps) {
   const theme = useTheme();
   return (
     <ScrollView contentContainerStyle={styles.content}>
       <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
-        <View style={styles.sectionHeader}>
-          <View style={styles.titleWrap}>
-            <Text variant="titleLarge">Collaborators</Text>
-            <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-              Owners manage access. Editors can update people and relationships. Viewers can browse the tree.
-            </Text>
-          </View>
-          {isOwner ? (
-            <Button mode="contained" icon="account-plus" onPress={onOpenCollaboratorDialog} disabled={mutating}>
-              Add collaborator
-            </Button>
-          ) : null}
-        </View>
+        <Text variant="titleLarge">Relationship intelligence</Text>
+        <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>Use this tab to explore how any two people are connected across the tree.</Text>
 
-        <View style={styles.collaboratorList}>
-          {selectedTree.collaborators.map((collaborator) => (
-            <Card key={collaborator.userId} mode="outlined" style={[styles.collaboratorCard, { backgroundColor: theme.colors.elevation.level1, borderColor: theme.colors.outlineVariant }]}>
-              <Card.Content>
-                <View style={styles.collaboratorRow}>
-                  <View style={styles.collaboratorTextWrap}>
-                    <Text variant="titleMedium">{collaborator.displayName || collaborator.email}</Text>
-                    <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>{collaborator.email}</Text>
-                    <View style={styles.collaboratorChipRow}>
-                      <Chip compact>{formatRole(collaborator.role)}</Chip>
-                      {collaborator.userId === userId ? <Chip compact icon="account">You</Chip> : null}
-                    </View>
-                  </View>
-                  {isOwner && collaborator.role !== 'owner' ? (
-                    <IconButton
-                      icon="account-remove"
-                      iconColor="#C62828"
-                      onPress={() => openConfirm(
-                        'Remove collaborator',
-                        `Remove ${collaborator.displayName || collaborator.email} from this tree?`,
-                        'Remove',
-                        async () => onRemoveCollaborator(collaborator.userId),
-                      )}
-                      disabled={mutating}
-                    />
-                  ) : null}
-                </View>
-              </Card.Content>
-            </Card>
-          ))}
-        </View>
+        <RelationshipInsightCard people={people} relationships={relationships} />
       </Surface>
     </ScrollView>
   );
@@ -346,7 +297,18 @@ function VisualisationTabContent({ people, relationships, openPersonProfile }: S
   );
 }
 
-function ProfileTabContent({ selectedTree, people, relationships, role }: SharedTabProps) {
+function ProfileTabContent({
+  selectedTree,
+  people,
+  relationships,
+  role,
+  isOwner,
+  userId,
+  mutating,
+  onOpenCollaboratorDialog,
+  openConfirm,
+  onRemoveCollaborator,
+}: SharedTabProps) {
   const theme = useTheme();
   return (
     <ScrollView contentContainerStyle={styles.content}>
@@ -377,9 +339,53 @@ function ProfileTabContent({ selectedTree, people, relationships, role }: Shared
             </Card.Content>
           </Card>
         </View>
-      </Surface>
 
-      <RelationshipInsightCard people={people} relationships={relationships} />
+        <View style={styles.collaboratorSectionWrap}>
+          <View style={styles.sectionHeader}>
+            <View style={styles.titleWrap}>
+              <Text variant="titleLarge">Collaborators</Text>
+              <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>Owners manage access. Editors can update people and relationships. Viewers can browse the tree.</Text>
+            </View>
+            {isOwner ? (
+              <Button mode="contained" icon="account-plus" onPress={onOpenCollaboratorDialog} disabled={mutating}>
+                Add collaborator
+              </Button>
+            ) : null}
+          </View>
+
+          <View style={styles.collaboratorList}>
+            {selectedTree.collaborators.map((collaborator) => (
+              <Card key={collaborator.userId} mode="outlined" style={[styles.collaboratorCard, { backgroundColor: theme.colors.elevation.level1, borderColor: theme.colors.outlineVariant }]}>
+                <Card.Content>
+                  <View style={styles.collaboratorRow}>
+                    <View style={styles.collaboratorTextWrap}>
+                      <Text variant="titleMedium">{collaborator.displayName || collaborator.email}</Text>
+                      <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>{collaborator.email}</Text>
+                      <View style={styles.collaboratorChipRow}>
+                        <Chip compact>{formatRole(collaborator.role)}</Chip>
+                        {collaborator.userId === userId ? <Chip compact icon="account">You</Chip> : null}
+                      </View>
+                    </View>
+                    {isOwner && collaborator.role !== 'owner' ? (
+                      <IconButton
+                        icon="account-remove"
+                        iconColor="#C62828"
+                        onPress={() => openConfirm(
+                          'Remove collaborator',
+                          `Remove ${collaborator.displayName || collaborator.email} from this tree?`,
+                          'Remove',
+                          async () => onRemoveCollaborator(collaborator.userId),
+                        )}
+                        disabled={mutating}
+                      />
+                    ) : null}
+                  </View>
+                </Card.Content>
+              </Card>
+            ))}
+          </View>
+        </View>
+      </Surface>
     </ScrollView>
   );
 }
@@ -617,8 +623,8 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
           tabBarIcon: ({ color, size }) => {
             const iconName = currentRoute.name === 'PeopleRelationshipsTab'
               ? 'account-group-outline'
-              : currentRoute.name === 'CollaboratorsTab'
-                ? 'account-multiple-outline'
+              : currentRoute.name === 'IntelligenceTab'
+                ? 'head-cog-outline'
                 : currentRoute.name === 'VisualisationTab'
                   ? 'family-tree'
                   : 'card-account-details-outline';
@@ -633,10 +639,10 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
           {() => <PeopleRelationshipsTabContent {...sharedTabProps} />}
         </Tab.Screen>
         <Tab.Screen
-          name="CollaboratorsTab"
-          options={{ title: 'Collaborators' }}
+          name="IntelligenceTab"
+          options={{ title: 'Insights' }}
         >
-          {() => <CollaboratorsTabContent {...sharedTabProps} />}
+          {() => <IntelligenceTabContent {...sharedTabProps} />}
         </Tab.Screen>
         <Tab.Screen
           name="VisualisationTab"
@@ -801,6 +807,9 @@ const styles = StyleSheet.create({
   profileMetricsWrap: {
     marginTop: 16,
     gap: 12,
+  },
+  collaboratorSectionWrap: {
+    marginTop: 20,
   },
   metricCard: {
     marginBottom: 0,

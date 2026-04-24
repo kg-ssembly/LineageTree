@@ -13,7 +13,7 @@ interface LifeEventDialogProps {
   onSubmit: (payload: Omit<PersonLifeEvent, 'id'>) => void | Promise<void>;
 }
 
-const lifeEventTypes: PersonLifeEventType[] = ['married', 'divorced', 'moved', 'graduated', 'retired', 'milestone', 'custom'];
+const lifeEventTypes: PersonLifeEventType[] = ['married', 'divorced', 'moved', 'graduated', 'retired', 'milestone', 'death', 'child-born', 'custom'];
 
 function formatIsoDate(date: Date) {
   const year = date.getFullYear();
@@ -36,6 +36,10 @@ function getDefaultTitle(type: PersonLifeEventType) {
       return 'Retirement';
     case 'milestone':
       return 'Family milestone';
+    case 'death':
+      return 'Passed away';
+    case 'child-born':
+      return 'Welcomed a child';
     default:
       return 'Life event';
   }

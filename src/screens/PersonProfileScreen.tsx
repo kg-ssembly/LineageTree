@@ -214,6 +214,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
       badgeLabel: getLifeEventTypeLabel(event.type),
       system: false,
     }));
+    const hasManualDeathEvent = person.lifeEvents.some((event) => event.type === 'death');
 
     if (person.birthDate) {
       items.push({
@@ -226,7 +227,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
       });
     }
 
-    if (person.deathDate) {
+    if (person.deathDate && !hasManualDeathEvent) {
       items.push({
         id: `death-${person.id}`,
         date: person.deathDate,

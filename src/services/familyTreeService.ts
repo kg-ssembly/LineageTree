@@ -155,6 +155,10 @@ function mapPerson(snapshot: QueryDocumentSnapshot): PersonRecord {
   };
 }
 
+function formatPersonName(person: Pick<PersonRecord, 'firstName' | 'lastName'>) {
+  return `${person.firstName} ${person.lastName}`.trim() || 'A child';
+}
+
 function normaliseLifeEvents(lifeEvents: PersonLifeEvent[]) {
   return lifeEvents.map((event, index) => ({
     id: event.id?.trim() || `event-${Date.now()}-${index}`,
@@ -163,6 +167,65 @@ function normaliseLifeEvents(lifeEvents: PersonLifeEvent[]) {
     date: event.date.trim(),
     description: event.description.trim(),
   }));
+}
+
+function buildChildBornLifeEvent(child: Pick<PersonRecord, 'id' | 'firstName' | 'lastName' | 'birthDate'>): PersonLifeEvent | null {
+  const birthDate = child.birthDate.trim();
+  if (!birthDate) {
+    return null;
+  }
+
+  const childName = formatPersonName(child);
+  return {
+    id: `child-born-${child.id}`,
+    type: 'child-born',
+    title: `Welcomed ${childName}`,
+    date: birthDate,
+    description: `${childName} was born on ${birthDate}.`,
+  };
+}
+
+async function updateParentLifeEventsForChild(
+  parentIds: string[],
+  child: Pick<PersonRecord, 'id' | 'treeId' | 'firstName' | 'lastName' | 'birthDate'>,
+) {
+  const uniqueParentIds = [...new Set(parentIds)];
+  if (uniqueParentIds.length === 0) {
+    return;
+  }
+
+  const childBirthEvent = buildChildBornLifeEvent(child);
+  const eventId = `child-born-${child.id}`;
+  const parentSnapshots = await Promise.all(uniqueParentIds.map((parentId) => getDoc(doc(db, PEOPLE_COLLECTION, parentId))));
+
+  await Promise.all(parentSnapshots.map(async (parentSnapshot) => {
+    if (!parentSnapshot.exists()) {
+      return;
+    }
+
+    const parentData = parentSnapshot.data();
+    if (parentData.treeId !== child.treeId) {
+      return;
+    }
+
+    const currentLifeEvents = Array.isArray(parentData.lifeEvents) ? parentData.lifeEvents.map(mapLifeEvent) : [];
+    const nextLifeEvents = childBirthEvent
+      ? [...currentLifeEvents.filter((event) => event.id !== eventId), childBirthEvent]
+      : currentLifeEvents.filter((event) => event.id !== eventId);
+
+    await updateDoc(parentSnapshot.ref, {
+      lifeEvents: normaliseLifeEvents(nextLifeEvents),
+      updatedAt: nowIso(),
+    });
+  }));
+}
+
+async function getParentIdsForChild(treeId: string, childId: string) {
+  const relationshipSnapshot = await getDocs(query(collection(db, RELATIONSHIPS_COLLECTION), where('treeId', '==', treeId)));
+  return relationshipSnapshot.docs
+    .map(mapRelationship)
+    .filter((relationship) => relationship.type === 'parent-child' && relationship.toPersonId === childId)
+    .map((relationship) => relationship.fromPersonId);
 }
 
 function resolvePreferredPhotoId(
@@ -530,12 +593,34 @@ export async function updatePerson(
     preferredPhotoId: nextPhotos.some((photo) => photo.id === preferredPhotoId) ? preferredPhotoId : '',
     updatedAt: nowIso(),
   });
+
+  const parentIds = await getParentIdsForChild(person.treeId, person.id);
+  await updateParentLifeEventsForChild(parentIds, {
+    id: person.id,
+    treeId: person.treeId,
+    firstName: input.firstName.trim(),
+    lastName: input.lastName.trim(),
+    birthDate: input.birthDate.trim(),
+  });
 }
 
 export async function deletePerson(person: PersonRecord) {
   await deletePhotos(person.photos);
 
   const relationshipSnapshot = await getDocs(query(collection(db, RELATIONSHIPS_COLLECTION), where('treeId', '==', person.treeId)));
+  const parentIds = relationshipSnapshot.docs
+    .map(mapRelationship)
+    .filter((relationship) => relationship.type === 'parent-child' && relationship.toPersonId === person.id)
+    .map((relationship) => relationship.fromPersonId);
+
+  await updateParentLifeEventsForChild(parentIds, {
+    id: person.id,
+    treeId: person.treeId,
+    firstName: person.firstName,
+    lastName: person.lastName,
+    birthDate: '',
+  });
+
   const refsToDelete = relationshipSnapshot.docs
     .filter((snapshot) => {
       const data = snapshot.data();
@@ -577,6 +662,19 @@ export async function createParentChildRelationship(
   };
 
   await setDoc(relationshipRef, relationship);
+
+  const childSnapshot = await getDoc(doc(db, PEOPLE_COLLECTION, childId));
+  if (childSnapshot.exists()) {
+    const childData = childSnapshot.data();
+    await updateParentLifeEventsForChild([parentId], {
+      id: childSnapshot.id,
+      treeId,
+      firstName: childData.firstName ?? '',
+      lastName: childData.lastName ?? '',
+      birthDate: childData.birthDate ?? '',
+    });
+  }
+
   return { id: relationshipId, ...relationship };
 }
 
@@ -615,5 +713,25 @@ export async function createSpouseRelationship(
 }
 
 export async function deleteRelationship(relationshipId: string) {
-  await deleteDoc(doc(db, RELATIONSHIPS_COLLECTION, relationshipId));
+  const relationshipRef = doc(db, RELATIONSHIPS_COLLECTION, relationshipId);
+  const relationshipSnapshot = await getDoc(relationshipRef);
+
+  if (relationshipSnapshot.exists()) {
+    const relationshipData = relationshipSnapshot.data();
+    if (relationshipData.type === 'parent-child') {
+      const childSnapshot = await getDoc(doc(db, PEOPLE_COLLECTION, relationshipData.toPersonId));
+      if (childSnapshot.exists()) {
+        const childData = childSnapshot.data();
+        await updateParentLifeEventsForChild([relationshipData.fromPersonId], {
+          id: childSnapshot.id,
+          treeId: childData.treeId ?? relationshipData.treeId,
+          firstName: childData.firstName ?? '',
+          lastName: childData.lastName ?? '',
+          birthDate: '',
+        });
+      }
+    }
+  }
+
+  await deleteDoc(relationshipRef);
 }

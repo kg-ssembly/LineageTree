@@ -45,7 +45,6 @@ export default function RelationshipInsightCard({ people, relationships }: Relat
   return (
     <Card mode="outlined" style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant }]}>
       <Card.Content>
-        <Text variant="titleLarge">Relationship intelligence</Text>
         <Text variant="bodyMedium" style={[styles.subtitle, { color: theme.colors.onSurfaceVariant }]}>
           Select two people to compute their relationship and show the connection path.
         </Text>

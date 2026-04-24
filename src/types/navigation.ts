@@ -1,6 +1,6 @@
 export type TreeDetailTabParamList = {
   PeopleRelationshipsTab: undefined;
-  CollaboratorsTab: undefined;
+  IntelligenceTab: undefined;
   VisualisationTab: undefined;
   ProfileTab: undefined;
 };
