@@ -8,19 +8,27 @@ import {
   HelperText,
   IconButton,
   Portal,
+  SegmentedButtons,
   Text,
   TextInput,
 } from 'react-native-paper';
 import { DatePickerModal } from 'react-native-paper-dates';
 import type { PersonGender, PersonMutationPayload, PersonPhoto, PersonRecord } from '../types/person';
 
-export interface PersonFormSubmission extends PersonMutationPayload {}
+export type CreateRelationshipMode = 'none' | 'parent-of' | 'child-of' | 'spouse-of';
+
+export interface PersonFormSubmission extends PersonMutationPayload {
+  createRelationshipMode?: CreateRelationshipMode;
+  relatedPersonId?: string;
+}
 
 interface PersonFormDialogProps {
   visible: boolean;
   mode: 'create' | 'edit';
   person?: PersonRecord | null;
   loading?: boolean;
+  existingLastNames?: string[];
+  relationshipCandidates?: PersonRecord[];
   onDismiss: () => void;
   onSubmit: (payload: PersonFormSubmission) => void | Promise<void>;
 }
@@ -31,6 +39,13 @@ const genderOptions: Array<{ label: string; value: PersonGender }> = [
   { label: 'Male', value: 'male' },
   { label: 'Non-binary', value: 'non-binary' },
   { label: 'Other', value: 'other' },
+];
+
+const relationshipModeOptions: Array<{ label: string; value: CreateRelationshipMode }> = [
+  { label: 'None', value: 'none' },
+  { label: 'Parent of', value: 'parent-of' },
+  { label: 'Child of', value: 'child-of' },
+  { label: 'Spouse of', value: 'spouse-of' },
 ];
 
 function formatIsoDate(date: Date) {
@@ -54,11 +69,17 @@ function formatBirthDateLabel(value: string) {
   return parsedDate ? parsedDate.toLocaleDateString() : 'Pick a date';
 }
 
+function formatPersonName(person: PersonRecord) {
+  return `${person.firstName} ${person.lastName}`.trim();
+}
+
 export default function PersonFormDialog({
   visible,
   mode,
   person,
   loading = false,
+  existingLastNames = [],
+  relationshipCandidates = [],
   onDismiss,
   onSubmit,
 }: PersonFormDialogProps) {
@@ -71,7 +92,10 @@ export default function PersonFormDialog({
   const [removedPhotos, setRemovedPhotos] = useState<PersonPhoto[]>([]);
   const [newPhotoUris, setNewPhotoUris] = useState<string[]>([]);
   const [firstNameError, setFirstNameError] = useState<string | null>(null);
+  const [relationshipError, setRelationshipError] = useState<string | null>(null);
   const [birthDatePickerVisible, setBirthDatePickerVisible] = useState(false);
+  const [createRelationshipMode, setCreateRelationshipMode] = useState<CreateRelationshipMode>('none');
+  const [relatedPersonId, setRelatedPersonId] = useState('');
 
   useEffect(() => {
     if (!visible) {
@@ -87,7 +111,10 @@ export default function PersonFormDialog({
     setRemovedPhotos([]);
     setNewPhotoUris([]);
     setFirstNameError(null);
+    setRelationshipError(null);
     setBirthDatePickerVisible(false);
+    setCreateRelationshipMode('none');
+    setRelatedPersonId('');
   }, [person, visible]);
 
   const allPhotoCount = useMemo(
@@ -96,6 +123,10 @@ export default function PersonFormDialog({
   );
 
   const selectedBirthDate = useMemo(() => parseIsoDate(birthDate), [birthDate]);
+  const uniqueLastNames = useMemo(
+    () => [...new Set(existingLastNames.map((value) => value.trim()).filter(Boolean))].sort((left, right) => left.localeCompare(right)),
+    [existingLastNames],
+  );
 
   const addImageFromResult = (result: ImagePicker.ImagePickerResult) => {
     if (!result.canceled && result.assets.length > 0) {
@@ -154,6 +185,11 @@ export default function PersonFormDialog({
       return;
     }
 
+    if (mode === 'create' && createRelationshipMode !== 'none' && !relatedPersonId) {
+      setRelationshipError('Choose a person for the relationship you want to create.');
+      return;
+    }
+
     await onSubmit({
       firstName,
       lastName,
@@ -163,6 +199,8 @@ export default function PersonFormDialog({
       existingPhotos,
       removedPhotos,
       newPhotoUris,
+      createRelationshipMode,
+      relatedPersonId: relatedPersonId || undefined,
     });
   };
 
@@ -190,14 +228,31 @@ export default function PersonFormDialog({
                 {firstNameError}
               </HelperText>
 
-              <TextInput
-                mode="outlined"
-                label="Last name"
-                value={lastName}
-                onChangeText={setLastName}
-                disabled={loading}
-                style={styles.fieldSpacing}
-              />
+              <View style={styles.sectionSpacing}>
+                <Text variant="titleSmall">Last name</Text>
+                {uniqueLastNames.length > 0 ? (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.lastNameChipRow}>
+                    {uniqueLastNames.map((value) => (
+                      <Chip
+                        key={value}
+                        selected={lastName === value}
+                        onPress={() => setLastName(value)}
+                        style={styles.lastNameChip}
+                      >
+                        {value}
+                      </Chip>
+                    ))}
+                  </ScrollView>
+                ) : null}
+                <TextInput
+                  mode="outlined"
+                  label="Select existing or type new"
+                  value={lastName}
+                  onChangeText={setLastName}
+                  disabled={loading}
+                  style={styles.fieldSpacing}
+                />
+              </View>
 
               <View style={styles.sectionSpacing}>
                 <Text variant="titleSmall">Birth date</Text>
@@ -234,6 +289,51 @@ export default function PersonFormDialog({
                   ))}
                 </View>
               </View>
+
+              {mode === 'create' && relationshipCandidates.length > 0 ? (
+                <View style={styles.sectionSpacing}>
+                  <Text variant="titleSmall">Create relationship now</Text>
+                  <SegmentedButtons
+                    value={createRelationshipMode}
+                    onValueChange={(value) => {
+                      setCreateRelationshipMode(value as CreateRelationshipMode);
+                      if (relationshipError) {
+                        setRelationshipError(null);
+                      }
+                    }}
+                    buttons={relationshipModeOptions}
+                    style={styles.fieldSpacing}
+                  />
+
+                  {createRelationshipMode !== 'none' ? (
+                    <>
+                      <Text variant="bodyMedium" style={styles.helperText}>
+                        Choose the existing person to connect with this new profile.
+                      </Text>
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.relationshipChipRow}>
+                        {relationshipCandidates.map((candidate) => (
+                          <Chip
+                            key={candidate.id}
+                            selected={relatedPersonId === candidate.id}
+                            onPress={() => {
+                              setRelatedPersonId(candidate.id);
+                              if (relationshipError) {
+                                setRelationshipError(null);
+                              }
+                            }}
+                            style={styles.relationshipChip}
+                          >
+                            {formatPersonName(candidate)}
+                          </Chip>
+                        ))}
+                      </ScrollView>
+                      <HelperText type="error" visible={!!relationshipError}>
+                        {relationshipError}
+                      </HelperText>
+                    </>
+                  ) : null}
+                </View>
+              ) : null}
 
               <TextInput
                 mode="outlined"
@@ -343,6 +443,13 @@ const styles = StyleSheet.create({
   sectionSpacing: {
     marginTop: 16,
   },
+  lastNameChipRow: {
+    paddingTop: 8,
+    paddingRight: 8,
+  },
+  lastNameChip: {
+    marginRight: 8,
+  },
   birthDateActions: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -358,6 +465,17 @@ const styles = StyleSheet.create({
   chip: {
     marginRight: 8,
     marginBottom: 8,
+  },
+  helperText: {
+    marginTop: 12,
+    color: '#6B6B74',
+  },
+  relationshipChipRow: {
+    paddingTop: 12,
+    paddingRight: 8,
+  },
+  relationshipChip: {
+    marginRight: 8,
   },
   photoHeader: {
     flexDirection: 'row',

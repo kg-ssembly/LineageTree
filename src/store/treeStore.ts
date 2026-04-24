@@ -61,7 +61,7 @@ interface TreeState {
   addCollaborator: (treeId: string, email: string, role: CollaboratorRole) => Promise<void>;
   removeCollaborator: (treeId: string, collaboratorUserId: string) => Promise<void>;
   removeTree: (tree: FamilyTree) => Promise<void>;
-  createPerson: (ownerId: string, treeId: string, input: PersonInput, newPhotoUris: string[]) => Promise<void>;
+  createPerson: (ownerId: string, treeId: string, input: PersonInput, newPhotoUris: string[]) => Promise<PersonRecord>;
   updatePerson: (ownerId: string, person: PersonRecord, input: PersonMutationPayload) => Promise<void>;
   removePerson: (person: PersonRecord) => Promise<void>;
   addParentChildRelationship: (ownerId: string, treeId: string, parentId: string, childId: string) => Promise<void>;
@@ -218,8 +218,9 @@ export const useTreeStore = create<TreeState>((set, get) => {
     createPerson: async (ownerId, treeId, input, newPhotoUris) => {
       set({ mutating: true, error: null });
       try {
-        await createPerson(ownerId, treeId, input, newPhotoUris);
+        const person = await createPerson(ownerId, treeId, input, newPhotoUris);
         set({ mutating: false });
+        return person;
       } catch (error) {
         set({ mutating: false, error: normaliseError(error) });
         throw error;

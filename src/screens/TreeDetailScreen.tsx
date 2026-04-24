@@ -8,6 +8,7 @@ import {
   Chip,
   Divider,
   IconButton,
+  SegmentedButtons,
   Snackbar,
   Surface,
   Text,
@@ -20,10 +21,11 @@ import {
   RelationshipDialog,
   RelationshipInsightCard,
 } from '../components';
+import type { PersonFormSubmission } from '../components/PersonFormDialog';
 import { theme } from '../lib/theme';
 import { useAuthStore } from '../store/authStore';
 import { useTreeStore } from '../store/treeStore';
-import type { PersonGender, PersonMutationPayload, PersonRecord } from '../types/person';
+import type { PersonGender, PersonRecord } from '../types/person';
 import type { RelationshipRecord } from '../types/relationship';
 import type { RootStackParamList } from '../types/navigation';
 import {
@@ -34,6 +36,8 @@ import {
 } from '../types/tree';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'TreeDetail'>;
+
+type TreeDetailTab = 'people' | 'collaborators' | 'visualisation' | 'profile';
 
 type PersonDialogState = {
   visible: boolean;
@@ -107,6 +111,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     clearError,
   } = useTreeStore();
 
+  const [activeTab, setActiveTab] = useState<TreeDetailTab>('people');
   const [personDialog, setPersonDialog] = useState<PersonDialogState>({ visible: false, mode: 'create', person: null });
   const [relationshipDialogVisible, setRelationshipDialogVisible] = useState(false);
   const [collaboratorDialogVisible, setCollaboratorDialogVisible] = useState(false);
@@ -126,6 +131,11 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
 
   const peopleById = useMemo(
     () => new Map(people.map((person) => [person.id, person])),
+    [people],
+  );
+
+  const existingLastNames = useMemo(
+    () => [...new Set(people.map((person) => person.lastName.trim()).filter(Boolean))].sort((left, right) => left.localeCompare(right)),
     [people],
   );
 
@@ -201,14 +211,14 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     }
   };
 
-  const handlePersonSubmit = async (payload: PersonMutationPayload) => {
+  const handlePersonSubmit = async (payload: PersonFormSubmission) => {
     if (!user?.id || !selectedTree) {
       return;
     }
 
     try {
       if (personDialog.mode === 'create') {
-        await createPerson(
+        const createdPerson = await createPerson(
           user.id,
           selectedTree.id,
           {
@@ -220,6 +230,18 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
           },
           payload.newPhotoUris,
         );
+
+        if (payload.createRelationshipMode !== 'none' && payload.relatedPersonId) {
+          if (payload.createRelationshipMode === 'parent-of') {
+            await addParentChildRelationship(user.id, selectedTree.id, createdPerson.id, payload.relatedPersonId);
+          } else if (payload.createRelationshipMode === 'child-of') {
+            await addParentChildRelationship(user.id, selectedTree.id, payload.relatedPersonId, createdPerson.id);
+          } else if (payload.createRelationshipMode === 'spouse-of') {
+            await addSpouseRelationship(user.id, selectedTree.id, createdPerson.id, payload.relatedPersonId);
+          }
+        }
+
+        setActiveTab('people');
       } else if (personDialog.person) {
         await updatePerson(user.id, personDialog.person, payload);
       }
@@ -308,284 +330,338 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
         </Surface>
 
         <Surface style={styles.sectionCard} elevation={1}>
-          <Text variant="titleLarge">Tree visualization</Text>
+          <Text variant="titleLarge">Tree workspace</Text>
           <Text variant="bodyMedium" style={styles.sectionSubtitle}>
-            Nodes represent people and edges represent parent-child or spouse relationships. Tap a node to open the person profile.
+            Switch between focused tabs for profiles, collaborators, visualisation, and tree management.
           </Text>
-          {people.length > 0 ? (
-            <FamilyTreeCanvas
-              people={people}
-              relationships={relationships}
-              onPressPerson={openPersonProfile}
-            />
-          ) : (
-            <View style={styles.emptyState}>
-              <Text variant="titleMedium">No visual tree yet</Text>
-              <Text variant="bodyMedium" style={styles.stateText}>
-                Add people and relationships to see the family graph render here.
-              </Text>
-            </View>
-          )}
+          <SegmentedButtons
+            value={activeTab}
+            onValueChange={(value) => setActiveTab(value as TreeDetailTab)}
+            style={styles.tabSelector}
+            buttons={[
+              { value: 'people', label: 'People & relationships' },
+              { value: 'collaborators', label: 'Collaborators' },
+              { value: 'visualisation', label: 'Tree visualisation' },
+              { value: 'profile', label: 'Profile' },
+            ]}
+          />
         </Surface>
 
-        <Surface style={styles.sectionCard} elevation={1}>
-          <View style={styles.sectionHeader}>
-            <View style={styles.titleWrap}>
-              <Text variant="titleLarge">Collaborators</Text>
-              <Text variant="bodyMedium" style={styles.sectionSubtitle}>
-                Owners manage access. Editors can update people and relationships. Viewers can browse the tree.
-              </Text>
-            </View>
-            {isOwner ? (
-              <Button mode="contained" icon="account-plus" onPress={() => setCollaboratorDialogVisible(true)} disabled={mutating}>
-                Add collaborator
-              </Button>
-            ) : null}
-          </View>
+        {activeTab === 'visualisation' ? (
+          <Surface style={styles.sectionCard} elevation={1}>
+            <Text variant="titleLarge">Tree visualization</Text>
+            <Text variant="bodyMedium" style={styles.sectionSubtitle}>
+              Nodes represent people and edges represent parent-child or spouse relationships. Tap a node to open the person profile.
+            </Text>
+            {people.length > 0 ? (
+              <FamilyTreeCanvas people={people} relationships={relationships} onPressPerson={openPersonProfile} />
+            ) : (
+              <View style={styles.emptyState}>
+                <Text variant="titleMedium">No visual tree yet</Text>
+                <Text variant="bodyMedium" style={styles.stateText}>
+                  Add people and relationships to see the family graph render here.
+                </Text>
+              </View>
+            )}
+          </Surface>
+        ) : null}
 
-          <View style={styles.collaboratorList}>
-            {selectedTree.collaborators.map((collaborator) => (
-              <Card key={collaborator.userId} mode="outlined" style={styles.collaboratorCard}>
-                <Card.Content>
-                  <View style={styles.collaboratorRow}>
-                    <View style={styles.collaboratorTextWrap}>
-                      <Text variant="titleMedium">{collaborator.displayName || collaborator.email}</Text>
-                      <Text variant="bodySmall" style={styles.collaboratorMeta}>{collaborator.email}</Text>
-                      <View style={styles.collaboratorChipRow}>
-                        <Chip compact>{formatRole(collaborator.role)}</Chip>
-                        {collaborator.userId === user?.id ? <Chip compact icon="account">You</Chip> : null}
+        {activeTab === 'collaborators' ? (
+          <Surface style={styles.sectionCard} elevation={1}>
+            <View style={styles.sectionHeader}>
+              <View style={styles.titleWrap}>
+                <Text variant="titleLarge">Collaborators</Text>
+                <Text variant="bodyMedium" style={styles.sectionSubtitle}>
+                  Owners manage access. Editors can update people and relationships. Viewers can browse the tree.
+                </Text>
+              </View>
+              {isOwner ? (
+                <Button mode="contained" icon="account-plus" onPress={() => setCollaboratorDialogVisible(true)} disabled={mutating}>
+                  Add collaborator
+                </Button>
+              ) : null}
+            </View>
+
+            <View style={styles.collaboratorList}>
+              {selectedTree.collaborators.map((collaborator) => (
+                <Card key={collaborator.userId} mode="outlined" style={styles.collaboratorCard}>
+                  <Card.Content>
+                    <View style={styles.collaboratorRow}>
+                      <View style={styles.collaboratorTextWrap}>
+                        <Text variant="titleMedium">{collaborator.displayName || collaborator.email}</Text>
+                        <Text variant="bodySmall" style={styles.collaboratorMeta}>{collaborator.email}</Text>
+                        <View style={styles.collaboratorChipRow}>
+                          <Chip compact>{formatRole(collaborator.role)}</Chip>
+                          {collaborator.userId === user?.id ? <Chip compact icon="account">You</Chip> : null}
+                        </View>
                       </View>
-                    </View>
-                    {isOwner && collaborator.role !== 'owner' ? (
-                      <IconButton
-                        icon="account-remove"
-                        iconColor="#C62828"
-                        onPress={() => openConfirm(
-                          'Remove collaborator',
-                          `Remove ${collaborator.displayName || collaborator.email} from this tree?`,
-                          'Remove',
-                          async () => {
-                            await removeCollaborator(selectedTree.id, collaborator.userId);
-                          },
-                        )}
-                        disabled={mutating}
-                      />
-                    ) : null}
-                  </View>
-                </Card.Content>
-              </Card>
-            ))}
-          </View>
-        </Surface>
-
-        <RelationshipInsightCard people={people} relationships={relationships} />
-
-        <Surface style={styles.sectionCard} elevation={1}>
-          <View style={styles.sectionHeader}>
-            <View style={styles.titleWrap}>
-              <Text variant="titleLarge">People</Text>
-              <Text variant="bodyMedium" style={styles.sectionSubtitle}>
-                Profiles keep notes and photo memories together. Tap a card to open the profile and gallery.
-              </Text>
-            </View>
-            <View style={styles.actionButtonsWrap}>
-              <Button
-                mode="contained-tonal"
-                icon="account-plus"
-                onPress={() => setPersonDialog({ visible: true, mode: 'create', person: null })}
-                disabled={mutating || !canEdit}
-              >
-                Add person
-              </Button>
-              <Button
-                mode="contained"
-                icon="family-tree"
-                onPress={() => setRelationshipDialogVisible(true)}
-                disabled={mutating || !canEdit || people.length < 2}
-              >
-                Add relationship
-              </Button>
-            </View>
-          </View>
-
-          {loadingTreeData ? (
-            <View style={styles.centeredState}>
-              <ActivityIndicator color={theme.colors.primary} />
-              <Text variant="bodyMedium" style={styles.stateText}>Loading tree details…</Text>
-            </View>
-          ) : (
-            <>
-              {people.length === 0 ? (
-                <View style={styles.emptyState}>
-                  <Text variant="titleMedium">No people in this tree yet</Text>
-                  <Text variant="bodyMedium" style={styles.stateText}>
-                    {canEdit
-                      ? 'Add a person to start building this family tree.'
-                      : 'This shared tree does not have any people yet.'}
-                  </Text>
-                </View>
-              ) : (
-                people.map((person) => {
-                  const { spouses, parents, children } = getPersonRelationships(person.id);
-                  return (
-                    <Card key={person.id} style={styles.personCard} mode="outlined" onPress={() => openPersonProfile(person)}>
-                      <Card.Content>
-                        <View style={styles.personHeader}>
-                          <View style={styles.personHeaderText}>
-                            <Text variant="titleLarge">{formatPersonName(person)}</Text>
-                            <View style={styles.metadataRow}>
-                              {person.gender !== 'unspecified' ? <Chip compact>{formatGender(person.gender)}</Chip> : null}
-                              {person.birthDate ? <Chip compact icon="calendar">{person.birthDate}</Chip> : null}
-                              <Chip compact icon="image-multiple">{person.photos.length} photos</Chip>
-                            </View>
-                          </View>
-                          <View style={styles.cardActions}>
-                            <IconButton icon="open-in-new" onPress={() => openPersonProfile(person)} />
-                            {canEdit ? (
-                              <>
-                                <IconButton
-                                  icon="pencil"
-                                  onPress={() => setPersonDialog({ visible: true, mode: 'edit', person })}
-                                  disabled={mutating}
-                                />
-                                <IconButton
-                                  icon="delete"
-                                  iconColor="#C62828"
-                                  onPress={() => openConfirm(
-                                    'Delete person',
-                                    `Delete ${formatPersonName(person)} and remove every relationship connected to this person?`,
-                                    'Delete',
-                                    async () => {
-                                      await removePerson(person);
-                                    },
-                                  )}
-                                  disabled={mutating}
-                                />
-                              </>
-                            ) : null}
-                          </View>
-                        </View>
-
-                        {person.notes ? (
-                          <Text variant="bodyMedium" style={styles.personNotes}>{person.notes}</Text>
-                        ) : (
-                          <Text variant="bodyMedium" style={styles.personNotes}>No notes added yet.</Text>
-                        )}
-
-                        <View style={styles.relationshipGroup}>
-                          {parents.length > 0 ? (
-                            <Text variant="bodySmall" style={styles.relationshipText}>
-                              Parents: {parents.map((currentPerson) => formatPersonName(currentPerson)).join(', ')}
-                            </Text>
-                          ) : null}
-                          {children.length > 0 ? (
-                            <Text variant="bodySmall" style={styles.relationshipText}>
-                              Children: {children.map((currentPerson) => formatPersonName(currentPerson)).join(', ')}
-                            </Text>
-                          ) : null}
-                          {spouses.length > 0 ? (
-                            <Text variant="bodySmall" style={styles.relationshipText}>
-                              Spouses: {spouses.map((currentPerson) => formatPersonName(currentPerson)).join(', ')}
-                            </Text>
-                          ) : null}
-                        </View>
-                      </Card.Content>
-                    </Card>
-                  );
-                })
-              )}
-
-              <Divider style={styles.sectionDivider} />
-              <Text variant="titleLarge" style={styles.subsectionTitle}>Relationships</Text>
-              {relationships.length === 0 ? (
-                <View style={styles.emptyState}>
-                  <Text variant="titleMedium">No relationships yet</Text>
-                  <Text variant="bodyMedium" style={styles.stateText}>
-                    {canEdit
-                      ? 'Add parent-child or spouse connections to bring the tree to life.'
-                      : 'Relationships will appear here when editors add them.'}
-                  </Text>
-                </View>
-              ) : (
-                relationships.map((relationship) => (
-                  <Card key={relationship.id} style={styles.relationshipCard} mode="outlined">
-                    <Card.Title
-                      title={formatRelationshipLabel(relationship, peopleById)}
-                      subtitle={relationship.type === 'spouse' ? 'Mutual spouse relationship' : 'Directional parent → child relationship'}
-                      right={() => (canEdit ? (
+                      {isOwner && collaborator.role !== 'owner' ? (
                         <IconButton
-                          icon="delete"
+                          icon="account-remove"
                           iconColor="#C62828"
                           onPress={() => openConfirm(
-                            'Remove relationship',
-                            `Remove ${formatRelationshipLabel(relationship, peopleById)}?`,
+                            'Remove collaborator',
+                            `Remove ${collaborator.displayName || collaborator.email} from this tree?`,
                             'Remove',
                             async () => {
-                              await removeRelationship(relationship.id);
+                              await removeCollaborator(selectedTree.id, collaborator.userId);
                             },
                           )}
                           disabled={mutating}
                         />
-                      ) : null)}
-                    />
-                  </Card>
-                ))
-              )}
-            </>
-          )}
-        </Surface>
-      </ScrollView>
+                      ) : null}
+                    </View>
+                  </Card.Content>
+                </Card>
+              ))}
+            </View>
+          </Surface>
+        ) : null}
 
-      <CollaboratorDialog
-        visible={collaboratorDialogVisible}
-        loading={mutating}
-        onDismiss={() => setCollaboratorDialogVisible(false)}
-        onSubmit={handleCollaboratorSubmit}
-      />
+        {activeTab === 'profile' ? (
+          <>
+            <Surface style={styles.sectionCard} elevation={1}>
+              <Text variant="titleLarge">Tree profile</Text>
+              <Text variant="bodyMedium" style={styles.sectionSubtitle}>
+                Review the current tree at a glance and use the intelligence tool to understand relationships between members.
+              </Text>
 
-      <PersonFormDialog
-        visible={personDialog.visible}
-        mode={personDialog.mode}
-        person={personDialog.person}
-        loading={mutating}
-        onDismiss={() => setPersonDialog({ visible: false, mode: 'create', person: null })}
-        onSubmit={handlePersonSubmit}
-      />
+              <View style={styles.profileMetricsWrap}>
+                <Card mode="outlined" style={styles.metricCard}>
+                  <Card.Content>
+                    <Text variant="titleSmall">Current role</Text>
+                    <Text variant="headlineSmall">{formatRole(role)}</Text>
+                  </Card.Content>
+                </Card>
+                <Card mode="outlined" style={styles.metricCard}>
+                  <Card.Content>
+                    <Text variant="titleSmall">People with notes</Text>
+                    <Text variant="headlineSmall">{people.filter((person) => person.notes.trim()).length}</Text>
+                  </Card.Content>
+                </Card>
+                <Card mode="outlined" style={styles.metricCard}>
+                  <Card.Content>
+                    <Text variant="titleSmall">Photos stored</Text>
+                    <Text variant="headlineSmall">{people.reduce((count, person) => count + person.photos.length, 0)}</Text>
+                  </Card.Content>
+                </Card>
+              </View>
+            </Surface>
 
-      <RelationshipDialog
-        visible={relationshipDialogVisible}
-        people={people}
-        relationships={relationships}
-        loading={mutating}
-        onDismiss={() => setRelationshipDialogVisible(false)}
-        onSubmit={handleRelationshipSubmit}
-      />
+            <RelationshipInsightCard people={people} relationships={relationships} />
+          </>
+        ) : null}
 
-      <ConfirmDialog
-        visible={confirmState.visible}
-        title={confirmState.title}
-        message={confirmState.message}
-        confirmLabel={confirmState.confirmLabel}
-        loading={mutating}
-        onDismiss={closeConfirm}
-        onConfirm={handleConfirm}
-      />
+        {activeTab === 'people' ? (
+          <Surface style={styles.sectionCard} elevation={1}>
+           <View style={styles.sectionHeader}>
+             <View style={styles.titleWrap}>
+               <Text variant="titleLarge">People</Text>
+               <Text variant="bodyMedium" style={styles.sectionSubtitle}>
+                 Profiles keep notes and photo memories together. Tap a card to open the profile and gallery.
+               </Text>
+             </View>
+             <View style={styles.actionButtonsWrap}>
+               <Button
+                 mode="contained-tonal"
+                 icon="account-plus"
+                 onPress={() => setPersonDialog({ visible: true, mode: 'create', person: null })}
+                 disabled={mutating || !canEdit}
+               >
+                 Add person
+               </Button>
+               <Button
+                 mode="contained"
+                 icon="family-tree"
+                 onPress={() => setRelationshipDialogVisible(true)}
+                 disabled={mutating || !canEdit || people.length < 2}
+               >
+                 Add relationship
+               </Button>
+             </View>
+           </View>
 
-      <Snackbar
-        visible={snackVisible}
-        onDismiss={() => {
-          setSnackVisible(false);
-          clearError();
-        }}
-        duration={5000}
-        action={{
-          label: 'Dismiss',
-          onPress: () => {
-            setSnackVisible(false);
-            clearError();
-          },
-        }}
-      >
+           {loadingTreeData ? (
+             <View style={styles.centeredState}>
+               <ActivityIndicator color={theme.colors.primary} />
+               <Text variant="bodyMedium" style={styles.stateText}>Loading tree details…</Text>
+             </View>
+           ) : (
+             <>
+               {people.length === 0 ? (
+                 <View style={styles.emptyState}>
+                   <Text variant="titleMedium">No people in this tree yet</Text>
+                   <Text variant="bodyMedium" style={styles.stateText}>
+                     {canEdit
+                       ? 'Add a person to start building this family tree.'
+                       : 'This shared tree does not have any people yet.'}
+                   </Text>
+                 </View>
+               ) : (
+                 people.map((person) => {
+                   const { spouses, parents, children } = getPersonRelationships(person.id);
+                   return (
+                     <Card key={person.id} style={styles.personCard} mode="outlined" onPress={() => openPersonProfile(person)}>
+                       <Card.Content>
+                         <View style={styles.personHeader}>
+                           <View style={styles.personHeaderText}>
+                             <Text variant="titleLarge">{formatPersonName(person)}</Text>
+                             <View style={styles.metadataRow}>
+                               {person.gender !== 'unspecified' ? <Chip compact>{formatGender(person.gender)}</Chip> : null}
+                               {person.birthDate ? <Chip compact icon="calendar">{person.birthDate}</Chip> : null}
+                               <Chip compact icon="image-multiple">{person.photos.length} photos</Chip>
+                             </View>
+                           </View>
+                           <View style={styles.cardActions}>
+                             <IconButton icon="open-in-new" onPress={() => openPersonProfile(person)} />
+                             {canEdit ? (
+                               <>
+                                 <IconButton
+                                   icon="pencil"
+                                   onPress={() => setPersonDialog({ visible: true, mode: 'edit', person })}
+                                   disabled={mutating}
+                                 />
+                                 <IconButton
+                                   icon="delete"
+                                   iconColor="#C62828"
+                                   onPress={() => openConfirm(
+                                     'Delete person',
+                                     `Delete ${formatPersonName(person)} and remove every relationship connected to this person?`,
+                                     'Delete',
+                                     async () => {
+                                       await removePerson(person);
+                                     },
+                                   )}
+                                   disabled={mutating}
+                                 />
+                               </>
+                             ) : null}
+                           </View>
+                         </View>
+
+                         {person.notes ? (
+                           <Text variant="bodyMedium" style={styles.personNotes}>{person.notes}</Text>
+                         ) : (
+                           <Text variant="bodyMedium" style={styles.personNotes}>No notes added yet.</Text>
+                         )}
+
+                         <View style={styles.relationshipGroup}>
+                           {parents.length > 0 ? (
+                             <Text variant="bodySmall" style={styles.relationshipText}>
+                               Parents: {parents.map((currentPerson) => formatPersonName(currentPerson)).join(', ')}
+                             </Text>
+                           ) : null}
+                           {children.length > 0 ? (
+                             <Text variant="bodySmall" style={styles.relationshipText}>
+                               Children: {children.map((currentPerson) => formatPersonName(currentPerson)).join(', ')}
+                             </Text>
+                           ) : null}
+                           {spouses.length > 0 ? (
+                             <Text variant="bodySmall" style={styles.relationshipText}>
+                               Spouses: {spouses.map((currentPerson) => formatPersonName(currentPerson)).join(', ')}
+                             </Text>
+                           ) : null}
+                         </View>
+                       </Card.Content>
+                     </Card>
+                   );
+                 })
+               )}
+
+               <Divider style={styles.sectionDivider} />
+               <Text variant="titleLarge" style={styles.subsectionTitle}>Relationships</Text>
+               {relationships.length === 0 ? (
+                 <View style={styles.emptyState}>
+                   <Text variant="titleMedium">No relationships yet</Text>
+                   <Text variant="bodyMedium" style={styles.stateText}>
+                     {canEdit
+                       ? 'Add parent-child or spouse connections to bring the tree to life.'
+                       : 'Relationships will appear here when editors add them.'}
+                   </Text>
+                 </View>
+               ) : (
+                 relationships.map((relationship) => (
+                   <Card key={relationship.id} style={styles.relationshipCard} mode="outlined">
+                     <Card.Title
+                       title={formatRelationshipLabel(relationship, peopleById)}
+                       subtitle={relationship.type === 'spouse' ? 'Mutual spouse relationship' : 'Directional parent → child relationship'}
+                       right={() => (canEdit ? (
+                         <IconButton
+                           icon="delete"
+                           iconColor="#C62828"
+                           onPress={() => openConfirm(
+                             'Remove relationship',
+                             `Remove ${formatRelationshipLabel(relationship, peopleById)}?`,
+                             'Remove',
+                             async () => {
+                               await removeRelationship(relationship.id);
+                             },
+                           )}
+                           disabled={mutating}
+                         />
+                       ) : null)}
+                     />
+                   </Card>
+                 ))
+               )}
+             </>
+           )}
+          </Surface>
+        ) : null}
+       </ScrollView>
+
+       <CollaboratorDialog
+         visible={collaboratorDialogVisible}
+         loading={mutating}
+         onDismiss={() => setCollaboratorDialogVisible(false)}
+         onSubmit={handleCollaboratorSubmit}
+       />
+
+       <PersonFormDialog
+         visible={personDialog.visible}
+         mode={personDialog.mode}
+         person={personDialog.person}
+         loading={mutating}
+        existingLastNames={existingLastNames}
+        relationshipCandidates={people.filter((candidate) => candidate.id !== personDialog.person?.id)}
+         onDismiss={() => setPersonDialog({ visible: false, mode: 'create', person: null })}
+         onSubmit={handlePersonSubmit}
+       />
+
+       <RelationshipDialog
+         visible={relationshipDialogVisible}
+         people={people}
+         relationships={relationships}
+         loading={mutating}
+         onDismiss={() => setRelationshipDialogVisible(false)}
+         onSubmit={handleRelationshipSubmit}
+       />
+
+       <ConfirmDialog
+         visible={confirmState.visible}
+         title={confirmState.title}
+         message={confirmState.message}
+         confirmLabel={confirmState.confirmLabel}
+         loading={mutating}
+         onDismiss={closeConfirm}
+         onConfirm={handleConfirm}
+       />
+
+       <Snackbar
+         visible={snackVisible}
+         onDismiss={() => {
+           setSnackVisible(false);
+           clearError();
+         }}
+         duration={5000}
+         action={{
+           label: 'Dismiss',
+           onPress: () => {
+             setSnackVisible(false);
+             clearError();
+           },
+         }}
+       >
         {error}
       </Snackbar>
     </View>
@@ -638,6 +714,9 @@ const styles = StyleSheet.create({
     gap: 8,
     marginTop: 16,
   },
+  tabSelector: {
+    marginTop: 16,
+  },
   collaboratorList: {
     marginTop: 16,
   },
@@ -667,6 +746,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
+  },
+  profileMetricsWrap: {
+    marginTop: 16,
+    gap: 12,
+  },
+  metricCard: {
+    marginBottom: 0,
   },
   centeredState: {
     alignItems: 'center',
@@ -728,4 +814,3 @@ const styles = StyleSheet.create({
     gap: 4,
   },
 });
-
