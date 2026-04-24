@@ -8,12 +8,12 @@ import {
   Button,
   Card,
   Chip,
-  Divider,
   IconButton,
   Snackbar,
   Surface,
   Text,
   TextInput,
+  useTheme,
 } from 'react-native-paper';
 import {
   CollaboratorDialog,
@@ -24,7 +24,6 @@ import {
   RelationshipInsightCard,
 } from '../components';
 import type { PersonFormSubmission } from '../components/PersonFormDialog';
-import { theme } from '../lib/theme';
 import { useAuthStore } from '../store/authStore';
 import { useTreeStore } from '../store/treeStore';
 import type { PersonGender, PersonRecord } from '../types/person';
@@ -95,17 +94,6 @@ function formatGender(gender: PersonGender) {
   return gender.charAt(0).toUpperCase() + gender.slice(1);
 }
 
-function formatRelationshipLabel(relationship: RelationshipRecord, peopleById: Map<string, PersonRecord>) {
-  const fromPerson = peopleById.get(relationship.fromPersonId);
-  const toPerson = peopleById.get(relationship.toPersonId);
-
-  if (relationship.type === 'spouse') {
-    return `${formatPersonName(fromPerson)} ↔ ${formatPersonName(toPerson)}`;
-  }
-
-  return `${formatPersonName(fromPerson)} → ${formatPersonName(toPerson)}`;
-}
-
 function formatRole(role: string | null | undefined) {
   if (!role) {
     return 'Shared';
@@ -114,28 +102,6 @@ function formatRole(role: string | null | undefined) {
   return role.charAt(0).toUpperCase() + role.slice(1);
 }
 
-function getPersonRelationships(
-  personId: string,
-  relationships: RelationshipRecord[],
-  peopleById: Map<string, PersonRecord>,
-) {
-  const spouses = relationships
-    .filter((relationship) => relationship.type === 'spouse' && (relationship.fromPersonId === personId || relationship.toPersonId === personId))
-    .map((relationship) => peopleById.get(relationship.fromPersonId === personId ? relationship.toPersonId : relationship.fromPersonId))
-    .filter(Boolean) as PersonRecord[];
-
-  const parents = relationships
-    .filter((relationship) => relationship.type === 'parent-child' && relationship.toPersonId === personId)
-    .map((relationship) => peopleById.get(relationship.fromPersonId))
-    .filter(Boolean) as PersonRecord[];
-
-  const children = relationships
-    .filter((relationship) => relationship.type === 'parent-child' && relationship.fromPersonId === personId)
-    .map((relationship) => peopleById.get(relationship.toPersonId))
-    .filter(Boolean) as PersonRecord[];
-
-  return { spouses, parents, children };
-}
 
 function PeopleRelationshipsTabContent({
   people,
@@ -149,6 +115,7 @@ function PeopleRelationshipsTabContent({
   openConfirm,
   onDeletePerson,
 }: SharedTabProps) {
+  const theme = useTheme();
   const [searchQuery, setSearchQuery] = useState('');
   const [genderFilter, setGenderFilter] = useState<'all' | PersonGender>('all');
   const [assetFilter, setAssetFilter] = useState<'all' | 'with-photos' | 'with-notes'>('all');
@@ -175,11 +142,11 @@ function PeopleRelationshipsTabContent({
 
   return (
     <ScrollView contentContainerStyle={styles.content}>
-      <Surface style={styles.sectionCard} elevation={1}>
+      <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
         <View style={styles.sectionHeader}>
           <View style={styles.titleWrap}>
             <Text variant="titleLarge">People</Text>
-            <Text variant="bodyMedium" style={styles.sectionSubtitle}>
+            <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
               Profiles keep notes and photo memories together. Tap a card to open the profile and gallery.
             </Text>
           </View>
@@ -220,14 +187,14 @@ function PeopleRelationshipsTabContent({
         {loadingTreeData ? (
           <View style={styles.centeredState}>
             <ActivityIndicator color={theme.colors.primary} />
-            <Text variant="bodyMedium" style={styles.stateText}>Loading tree details…</Text>
+              <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>Loading tree details…</Text>
           </View>
         ) : (
           <>
             {filteredPeople.length === 0 ? (
               <View style={styles.emptyState}>
                 <Text variant="titleMedium">No matching people</Text>
-                <Text variant="bodyMedium" style={styles.stateText}>
+                  <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}> 
                   {people.length === 0
                     ? (canEdit ? 'Add a person to start building this family tree.' : 'This shared tree does not have any people yet.')
                     : 'Try adjusting the search or filters to find a person.'}
@@ -237,7 +204,7 @@ function PeopleRelationshipsTabContent({
               filteredPeople.map((person) => {
                 const preferredPhoto = getPreferredPersonPhoto(person);
                 return (
-                  <Card key={person.id} style={styles.personCard} mode="outlined" onPress={() => openPersonProfile(person)}>
+                  <Card key={person.id} style={[styles.personCard, { backgroundColor: theme.colors.elevation.level1, borderColor: theme.colors.outlineVariant }]} mode="outlined" onPress={() => openPersonProfile(person)}>
                     <Card.Content>
                       <View style={styles.personHeader}>
                         <View style={styles.personPhotoWrap}>
@@ -245,7 +212,7 @@ function PeopleRelationshipsTabContent({
                             <Image source={{ uri: preferredPhoto.url }} style={styles.personPhoto} />
                           ) : (
                             <View style={styles.personPhotoFallback}>
-                              <MaterialCommunityIcons name="account" size={30} color="#7C6ACF" />
+                              <MaterialCommunityIcons name="account" size={30} color={theme.colors.primary} />
                             </View>
                           )}
                         </View>
@@ -280,10 +247,6 @@ function PeopleRelationshipsTabContent({
                           ) : null}
                         </View>
                       </View>
-
-                      <Text variant="bodyMedium" style={styles.personNotes}>
-                        {person.notes || 'No notes added yet.'}
-                      </Text>
                     </Card.Content>
                   </Card>
                 );
@@ -305,13 +268,14 @@ function CollaboratorsTabContent({
   openConfirm,
   onRemoveCollaborator,
 }: SharedTabProps) {
+  const theme = useTheme();
   return (
     <ScrollView contentContainerStyle={styles.content}>
-      <Surface style={styles.sectionCard} elevation={1}>
+      <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
         <View style={styles.sectionHeader}>
           <View style={styles.titleWrap}>
             <Text variant="titleLarge">Collaborators</Text>
-            <Text variant="bodyMedium" style={styles.sectionSubtitle}>
+            <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
               Owners manage access. Editors can update people and relationships. Viewers can browse the tree.
             </Text>
           </View>
@@ -324,12 +288,12 @@ function CollaboratorsTabContent({
 
         <View style={styles.collaboratorList}>
           {selectedTree.collaborators.map((collaborator) => (
-            <Card key={collaborator.userId} mode="outlined" style={styles.collaboratorCard}>
+            <Card key={collaborator.userId} mode="outlined" style={[styles.collaboratorCard, { backgroundColor: theme.colors.elevation.level1, borderColor: theme.colors.outlineVariant }]}>
               <Card.Content>
                 <View style={styles.collaboratorRow}>
                   <View style={styles.collaboratorTextWrap}>
                     <Text variant="titleMedium">{collaborator.displayName || collaborator.email}</Text>
-                    <Text variant="bodySmall" style={styles.collaboratorMeta}>{collaborator.email}</Text>
+                    <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>{collaborator.email}</Text>
                     <View style={styles.collaboratorChipRow}>
                       <Chip compact>{formatRole(collaborator.role)}</Chip>
                       {collaborator.userId === userId ? <Chip compact icon="account">You</Chip> : null}
@@ -359,11 +323,12 @@ function CollaboratorsTabContent({
 }
 
 function VisualisationTabContent({ people, relationships, openPersonProfile }: SharedTabProps) {
+  const theme = useTheme();
   return (
     <ScrollView contentContainerStyle={styles.content}>
-      <Surface style={styles.sectionCard} elevation={1}>
+      <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
         <Text variant="titleLarge">Tree visualization</Text>
-        <Text variant="bodyMedium" style={styles.sectionSubtitle}>
+        <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
           Nodes represent people and edges represent parent-child or spouse relationships. Tap a node to open the person profile.
         </Text>
         {people.length > 0 ? (
@@ -371,7 +336,7 @@ function VisualisationTabContent({ people, relationships, openPersonProfile }: S
         ) : (
           <View style={styles.emptyState}>
             <Text variant="titleMedium">No visual tree yet</Text>
-            <Text variant="bodyMedium" style={styles.stateText}>
+              <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
               Add people and relationships to see the family graph render here.
             </Text>
           </View>
@@ -382,11 +347,12 @@ function VisualisationTabContent({ people, relationships, openPersonProfile }: S
 }
 
 function ProfileTabContent({ selectedTree, people, relationships, role }: SharedTabProps) {
+  const theme = useTheme();
   return (
     <ScrollView contentContainerStyle={styles.content}>
-      <Surface style={styles.sectionCard} elevation={1}>
+      <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
         <Text variant="headlineSmall">{selectedTree.name}</Text>
-        <Text variant="bodyMedium" style={styles.sectionSubtitle}>
+        <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
           Review the current tree at a glance and use the intelligence tool to understand relationships between members.
         </Text>
 
@@ -398,13 +364,13 @@ function ProfileTabContent({ selectedTree, people, relationships, role }: Shared
         </View>
 
         <View style={styles.profileMetricsWrap}>
-          <Card mode="outlined" style={styles.metricCard}>
+            <Card mode="outlined" style={[styles.metricCard, { backgroundColor: theme.colors.elevation.level1, borderColor: theme.colors.outlineVariant }]}>
             <Card.Content>
               <Text variant="titleSmall">People with notes</Text>
               <Text variant="headlineSmall">{people.filter((person) => person.notes.trim()).length}</Text>
             </Card.Content>
           </Card>
-          <Card mode="outlined" style={styles.metricCard}>
+            <Card mode="outlined" style={[styles.metricCard, { backgroundColor: theme.colors.elevation.level1, borderColor: theme.colors.outlineVariant }]}>
             <Card.Content>
               <Text variant="titleSmall">Photos stored</Text>
               <Text variant="headlineSmall">{people.reduce((count, person) => count + person.photos.length, 0)}</Text>
@@ -419,6 +385,7 @@ function ProfileTabContent({ selectedTree, people, relationships, role }: Shared
 }
 
 export default function TreeDetailScreen({ navigation, route }: Props) {
+  const theme = useTheme();
   const { user } = useAuthStore();
   const {
     trees,
@@ -610,7 +577,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
 
   if (!selectedTree) {
     return (
-      <View style={styles.loadingContainer}>
+      <View style={[styles.loadingContainer, { backgroundColor: theme.colors.background }]}>
         <ActivityIndicator color={theme.colors.primary} />
       </View>
     );
@@ -639,14 +606,14 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <Tab.Navigator
         screenOptions={({ route: currentRoute }) => ({
           headerShown: false,
           tabBarActiveTintColor: theme.colors.primary,
-          tabBarInactiveTintColor: '#6B6B74',
-          tabBarStyle: styles.tabBar,
-          sceneStyle: styles.tabScene,
+          tabBarInactiveTintColor: theme.colors.onSurfaceVariant,
+          tabBarStyle: [styles.tabBar, { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.outlineVariant }],
+          sceneStyle: [styles.tabScene, { backgroundColor: theme.colors.background }],
           tabBarIcon: ({ color, size }) => {
             const iconName = currentRoute.name === 'PeopleRelationshipsTab'
               ? 'account-group-outline'

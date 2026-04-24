@@ -1,9 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { Button, Card, Chip, Text } from 'react-native-paper';
+import { Button, Card, Chip, Text, useTheme } from 'react-native-paper';
 import type { PersonRecord } from '../types/person';
 import type { RelationshipRecord } from '../types/relationship';
-import { computeRelationshipInsight } from '../services/relationshipIntelligence';
+import { computeRelationshipInsight } from '../services';
 
 interface RelationshipInsightCardProps {
   people: PersonRecord[];
@@ -19,6 +19,7 @@ function formatPersonName(person?: PersonRecord | null) {
 }
 
 export default function RelationshipInsightCard({ people, relationships }: RelationshipInsightCardProps) {
+  const theme = useTheme();
   const [fromPersonId, setFromPersonId] = useState('');
   const [toPersonId, setToPersonId] = useState('');
 
@@ -42,10 +43,10 @@ export default function RelationshipInsightCard({ people, relationships }: Relat
     : null;
 
   return (
-    <Card mode="outlined" style={styles.card}>
+    <Card mode="outlined" style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant }]}>
       <Card.Content>
         <Text variant="titleLarge">Relationship intelligence</Text>
-        <Text variant="bodyMedium" style={styles.subtitle}>
+        <Text variant="bodyMedium" style={[styles.subtitle, { color: theme.colors.onSurfaceVariant }]}>
           Select two people to compute their relationship and show the connection path.
         </Text>
 
@@ -87,14 +88,14 @@ export default function RelationshipInsightCard({ people, relationships }: Relat
 
         {fromPersonId && toPersonId ? (
           insight ? (
-            <View style={styles.resultBox}>
+            <View style={[styles.resultBox, { backgroundColor: theme.colors.surfaceVariant }]}>
               <Text variant="titleMedium">Relationship: {insight.relationship}</Text>
-              <Text variant="bodyMedium" style={styles.pathText}>Path: {pathLabel}</Text>
+              <Text variant="bodyMedium" style={[styles.pathText, { color: theme.colors.onSurfaceVariant }]}>Path: {pathLabel}</Text>
             </View>
           ) : (
-            <View style={styles.resultBox}>
+            <View style={[styles.resultBox, { backgroundColor: theme.colors.surfaceVariant }]}>
               <Text variant="titleMedium">No direct family relationship found</Text>
-              <Text variant="bodyMedium" style={styles.pathText}>
+              <Text variant="bodyMedium" style={[styles.pathText, { color: theme.colors.onSurfaceVariant }]}>
                 No result returned because these two people are currently unrelated in this tree.
               </Text>
             </View>

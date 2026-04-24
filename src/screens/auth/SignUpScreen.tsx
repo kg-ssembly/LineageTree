@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import {
   ActivityIndicator,
   Button,
+  Chip,
   HelperText,
   Snackbar,
   Surface,
@@ -64,14 +65,28 @@ export default function SignUpScreen({ navigation }: any) {
 
   return (
     <KeyboardAvoidingView
-      style={styles.flex}
+      style={[styles.flex, { backgroundColor: theme.colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <Surface style={styles.card} elevation={2}>
-          <Text variant="headlineMedium" style={styles.title}>Create Account</Text>
-          <Text variant="bodyMedium" style={[styles.subtitle, { color: theme.colors.outline }]}>
-            Join the Lineage Tree
+        <View style={styles.heroWrap}>
+          <Chip icon="sprout" style={{ backgroundColor: theme.colors.tertiaryContainer }}>
+            Start your first branch
+          </Chip>
+          <Text variant="displaySmall" style={[styles.heroTitle, { color: theme.colors.onSurface }]}>
+            Create your account
+          </Text>
+          <Text variant="bodyLarge" style={[styles.heroSubtitle, { color: theme.colors.onSurfaceVariant }]}>
+            Capture generations, memories, and milestones in a more beautiful family workspace.
+          </Text>
+        </View>
+
+        <Surface style={[styles.card, { backgroundColor: theme.colors.surface }]} elevation={2}>
+          <Text variant="headlineMedium" style={[styles.title, { color: theme.colors.onSurface }]}>
+            Sign up
+          </Text>
+          <Text variant="bodyMedium" style={[styles.subtitle, { color: theme.colors.onSurfaceVariant }]}>
+            Set up your space in less than a minute.
           </Text>
 
           <TextInput
@@ -128,7 +143,7 @@ export default function SignUpScreen({ navigation }: any) {
           >
             {loading
               ? <ActivityIndicator color={theme.colors.onPrimary} size="small" />
-              : 'Sign Up'}
+              : 'Create account'}
           </Button>
 
           <Button mode="text" onPress={() => navigation.navigate('Login')} style={styles.linkButton}>
@@ -151,13 +166,26 @@ export default function SignUpScreen({ navigation }: any) {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  scroll: { flexGrow: 1, justifyContent: 'center', padding: 16 },
-  card: { borderRadius: 16, padding: 24 },
-  title: { marginBottom: 4, textAlign: 'center', fontWeight: '700' },
-  subtitle: { textAlign: 'center', marginBottom: 24 },
+  scroll: { flexGrow: 1, justifyContent: 'center', padding: 20 },
+  heroWrap: {
+    marginBottom: 20,
+  },
+  heroTitle: {
+    marginTop: 14,
+    fontWeight: '800',
+  },
+  heroSubtitle: {
+    marginTop: 8,
+    lineHeight: 24,
+  },
+  card: {
+    borderRadius: 28,
+    padding: 24,
+  },
+  title: { marginBottom: 4, fontWeight: '700' },
+  subtitle: { marginBottom: 20 },
   input: { marginTop: 4 },
-  button: { marginTop: 24, borderRadius: 8 },
-  buttonContent: { height: 48 },
-  linkButton: { marginTop: 8 },
+  button: { marginTop: 24, borderRadius: 14 },
+  buttonContent: { height: 52 },
+  linkButton: { marginTop: 10 },
 });
-

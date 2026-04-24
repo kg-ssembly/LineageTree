@@ -11,10 +11,10 @@ import {
   Snackbar,
   Surface,
   Text,
+  useTheme,
 } from 'react-native-paper';
 import { ConfirmDialog, LifeEventDialog, PersonFormDialog, PersonRelationshipDialog } from '../components';
 import type { PersonRelationshipMode } from '../components/PersonRelationshipDialog';
-import { theme } from '../lib/theme';
 import { useAuthStore } from '../store/authStore';
 import { useTreeStore } from '../store/treeStore';
 import type { PersonGender, PersonLifeEvent, PersonMutationPayload, PersonRecord } from '../types/person';
@@ -95,6 +95,7 @@ function buildPersonMutationPayload(
 }
 
 export default function PersonProfileScreen({ navigation, route }: Props) {
+  const theme = useTheme();
   const { user } = useAuthStore();
   const {
     trees,
@@ -383,7 +384,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
 
   if (!selectedTree || !person || loadingTreeData) {
     return (
-      <View style={styles.loadingContainer}>
+      <View style={[styles.loadingContainer, { backgroundColor: theme.colors.background }]}>
         <ActivityIndicator color={theme.colors.primary} />
       </View>
     );
@@ -392,13 +393,13 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
   const viewerWidth = Dimensions.get('window').width;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <ScrollView contentContainerStyle={styles.content}>
-        <Surface style={styles.heroCard} elevation={1}>
+        <Surface style={[styles.heroCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
           <View style={styles.heroHeader}>
             <View style={styles.heroIdentityWrap}>
               <Text variant="headlineMedium">{formatPersonName(person)}</Text>
-              <Text variant="bodyMedium" style={styles.heroSubtext}>{getPersonLifeSpanLabel(person)}</Text>
+              <Text variant="bodyMedium" style={[styles.heroSubtext, { color: theme.colors.onSurfaceVariant }]}>{getPersonLifeSpanLabel(person)}</Text>
             </View>
             {canEdit ? (
               <Button mode="contained-tonal" icon="pencil" onPress={() => setEditorVisible(true)}>
@@ -415,11 +416,11 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
           </View>
         </Surface>
 
-        <Surface style={styles.sectionCard} elevation={1}>
+        <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
           <View style={styles.sectionHeader}>
             <View style={styles.sectionHeaderText}>
               <Text variant="titleLarge">Relationships</Text>
-              <Text variant="bodyMedium" style={styles.sectionSubtitle}>
+              <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
                 Add, edit, or remove family connections directly from this profile.
               </Text>
             </View>
@@ -433,7 +434,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
           {relationshipEntries.length > 0 ? (
             <View style={styles.relationshipList}>
               {relationshipEntries.map((entry) => (
-                <Card key={entry.relationship.id} mode="outlined" style={styles.relationshipCard}>
+                <Card key={entry.relationship.id} mode="outlined" style={[styles.relationshipCard, { backgroundColor: theme.colors.elevation.level1, borderColor: theme.colors.outlineVariant }]}>
                   <Card.Content>
                     <View style={styles.relationshipRow}>
                       <View style={styles.relationshipTextWrap}>
@@ -441,7 +442,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
                           {entry.mode === 'parent-of' ? 'Parent of' : entry.mode === 'child-of' ? 'Child of' : 'Spouse of'}
                         </Chip>
                         <Text variant="titleMedium" style={styles.relationshipTitle}>{formatPersonName(entry.relatedPerson)}</Text>
-                        <Text variant="bodySmall" style={styles.relationshipSubtitle}>{entry.subtitle}</Text>
+                        <Text variant="bodySmall" style={[styles.relationshipSubtitle, { color: theme.colors.onSurfaceVariant }]}>{entry.subtitle}</Text>
                       </View>
                       {canEdit ? (
                         <View style={styles.rowActions}>
@@ -471,22 +472,22 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
           ) : (
             <View style={styles.emptyState}>
               <Text variant="titleMedium">No relationships yet</Text>
-              <Text variant="bodyMedium" style={styles.stateText}>
+              <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
                 Add parents, children, or spouses from this profile to grow the story around this person.
               </Text>
             </View>
           )}
         </Surface>
 
-        <Surface style={styles.sectionCard} elevation={1}>
+        <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
           <Text variant="titleLarge">Memories & gallery</Text>
-          <Text variant="bodyMedium" style={styles.sectionSubtitle}>
+          <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
             Notes, life events, and photos help this profile feel like a living timeline.
           </Text>
 
-          <View style={styles.notesBox}>
+          <View style={[styles.notesBox, { backgroundColor: theme.colors.surfaceVariant }]}>
             <Text variant="titleSmall">Notes</Text>
-            <Text variant="bodyMedium" style={styles.notesText}>
+            <Text variant="bodyMedium" style={[styles.notesText, { color: theme.colors.onSurfaceVariant }]}>
               {person.notes || 'No notes added yet.'}
             </Text>
           </View>
@@ -495,7 +496,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
 
           <View style={styles.gallerySection}>
             <Text variant="titleSmall">Photo gallery</Text>
-            <Text variant="bodySmall" style={styles.sectionSubtitle}>
+            <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
               Tap any photo to open the full-screen viewer and scroll through the gallery.
             </Text>
             {person.photos.length > 0 ? (
@@ -509,7 +510,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
                 ))}
               </ScrollView>
             ) : (
-              <Text variant="bodyMedium" style={styles.sectionSubtitle}>
+              <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
                 No photos in the gallery yet.
               </Text>
             )}
@@ -521,7 +522,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
             <View style={styles.sectionHeader}>
               <View style={styles.sectionHeaderText}>
                 <Text variant="titleSmall">Life events</Text>
-                <Text variant="bodySmall" style={styles.sectionSubtitle}>
+                <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
                   Add milestones like married, divorced, moved, graduated, or custom family memories.
                 </Text>
               </View>
@@ -540,7 +541,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
                     : null;
 
                   return (
-                    <Card key={item.id} mode="outlined" style={styles.timelineCard}>
+                    <Card key={item.id} mode="outlined" style={[styles.timelineCard, { backgroundColor: theme.colors.elevation.level1, borderColor: theme.colors.outlineVariant }]}>
                       <Card.Content>
                         <View style={styles.timelineRow}>
                           <View style={styles.timelineTextWrap}>
@@ -549,7 +550,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
                               <Chip compact icon="calendar">{formatPersonDate(item.date)}</Chip>
                             </View>
                             <Text variant="titleMedium" style={styles.timelineTitle}>{item.title}</Text>
-                            <Text variant="bodyMedium" style={styles.timelineDescription}>{item.description}</Text>
+                            <Text variant="bodyMedium" style={[styles.timelineDescription, { color: theme.colors.onSurfaceVariant }]}>{item.description}</Text>
                           </View>
                           {canEdit && editableEvent ? (
                             <View style={styles.rowActions}>
@@ -580,7 +581,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
             ) : (
               <View style={styles.emptyState}>
                 <Text variant="titleMedium">No memories yet</Text>
-                <Text variant="bodyMedium" style={styles.stateText}>
+                <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
                   Start with major milestones like marriage, divorce, moving house, graduation, or a treasured family story.
                 </Text>
               </View>

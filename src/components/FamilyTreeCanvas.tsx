@@ -8,7 +8,7 @@ import {
   View,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Button, Chip, Text } from 'react-native-paper';
+import { Button, Chip, Text, useTheme } from 'react-native-paper';
 import Svg, { Line } from 'react-native-svg';
 import type { PersonRecord } from '../types/person';
 import { getPersonLifeSpanLabel, getPersonPresenceLabel, getPreferredPersonPhoto } from '../types/person';
@@ -100,6 +100,7 @@ function buildGenerations(people: PersonRecord[], relationships: RelationshipRec
 }
 
 export default function FamilyTreeCanvas({ people, relationships, onPressPerson }: FamilyTreeCanvasProps) {
+  const theme = useTheme();
   const pan = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
   const [scale, setScale] = useState(1);
 
@@ -184,7 +185,7 @@ export default function FamilyTreeCanvas({ people, relationships, onPressPerson 
         </View>
       </View>
 
-      <View style={styles.viewport}>
+      <View style={[styles.viewport, { borderColor: theme.colors.outlineVariant, backgroundColor: theme.colors.elevation.level1 }]}>
         <Animated.View
           {...panResponder.panHandlers}
           style={[
@@ -192,6 +193,7 @@ export default function FamilyTreeCanvas({ people, relationships, onPressPerson 
             {
               width: canvasWidth,
               height: canvasHeight,
+              backgroundColor: theme.colors.elevation.level1,
               transform: [
                 { translateX: pan.x },
                 { translateY: pan.y },
@@ -222,7 +224,7 @@ export default function FamilyTreeCanvas({ people, relationships, onPressPerson 
                   y1={y1}
                   x2={x2}
                   y2={y2}
-                  stroke={isSpouse ? '#7C4DFF' : '#5B4CDB'}
+                  stroke={isSpouse ? theme.colors.secondary : theme.colors.primary}
                   strokeWidth={isSpouse ? 4 : 3}
                   strokeDasharray={isSpouse ? '0' : '8 4'}
                 />
@@ -243,6 +245,10 @@ export default function FamilyTreeCanvas({ people, relationships, onPressPerson 
                 style={[
                   styles.node,
                   {
+                    backgroundColor: theme.colors.surface,
+                    borderColor: theme.colors.outlineVariant,
+                  },
+                  {
                     left: position.x,
                     top: position.y,
                     width: NODE_WIDTH,
@@ -256,8 +262,8 @@ export default function FamilyTreeCanvas({ people, relationships, onPressPerson 
                     {preferredPhoto ? (
                       <Image source={{ uri: preferredPhoto.url }} style={styles.nodeAvatar} />
                     ) : (
-                      <View style={styles.nodeAvatarFallback}>
-                        <MaterialCommunityIcons name="account" size={28} color="#7C6ACF" />
+                      <View style={[styles.nodeAvatarFallback, { borderColor: theme.colors.outlineVariant, backgroundColor: theme.colors.surfaceVariant }]}>
+                        <MaterialCommunityIcons name="account" size={28} color={theme.colors.primary} />
                       </View>
                     )}
                   </View>
@@ -265,10 +271,10 @@ export default function FamilyTreeCanvas({ people, relationships, onPressPerson 
                     <Text variant="titleSmall" style={styles.nodeTitle} numberOfLines={2}>
                       {formatPersonName(person)}
                     </Text>
-                    <Text variant="bodySmall" style={styles.nodeMeta} numberOfLines={1}>
+                    <Text variant="bodySmall" style={[styles.nodeMeta, { color: theme.colors.onSurfaceVariant }]} numberOfLines={1}>
                       {getPersonLifeSpanLabel(person)}
                     </Text>
-                    <Text variant="bodySmall" style={styles.nodeMeta} numberOfLines={1}>
+                    <Text variant="bodySmall" style={[styles.nodeMeta, { color: theme.colors.onSurfaceVariant }]} numberOfLines={1}>
                       {getPersonPresenceLabel(person)}
                     </Text>
                   </View>
@@ -347,7 +353,7 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     borderWidth: 2,
     borderColor: '#CFC5FF',
-    backgroundColor: '#ECE8FF',
+    backgroundColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
   },
