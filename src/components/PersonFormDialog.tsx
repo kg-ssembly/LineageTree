@@ -115,6 +115,7 @@ export default function PersonFormDialog({
   const [pendingRelationships, setPendingRelationships] = useState<PendingRelationshipDraft[]>([]);
   const [surnameMenuVisible, setSurnameMenuVisible] = useState(false);
   const [lastNameTouched, setLastNameTouched] = useState(false);
+  const [preferredPhotoRef, setPreferredPhotoRef] = useState('');
 
   useEffect(() => {
     if (!visible) {
@@ -135,6 +136,7 @@ export default function PersonFormDialog({
     setPendingRelationships([]);
     setSurnameMenuVisible(false);
     setLastNameTouched(false);
+    setPreferredPhotoRef(person?.preferredPhotoId ?? '');
   }, [person, visible]);
 
   const allPhotoCount = useMemo(
@@ -232,6 +234,9 @@ export default function PersonFormDialog({
   const handleRemoveExistingPhoto = (photo: PersonPhoto) => {
     setExistingPhotos((current) => current.filter((currentPhoto) => currentPhoto.id !== photo.id));
     setRemovedPhotos((current) => [...current, photo]);
+    if (preferredPhotoRef === photo.id) {
+      setPreferredPhotoRef('');
+    }
   };
 
   const handleSubmit = async () => {
@@ -264,6 +269,7 @@ export default function PersonFormDialog({
       birthDate,
       gender,
       notes,
+      preferredPhotoRef,
       existingPhotos,
       removedPhotos,
       newPhotoUris,
@@ -480,6 +486,13 @@ export default function PersonFormDialog({
                       <View key={photo.id} style={styles.photoCard}>
                         <Image source={{ uri: photo.url }} style={styles.photo} />
                         <IconButton
+                          icon={preferredPhotoRef === photo.id ? 'star' : 'star-outline'}
+                          size={18}
+                          style={styles.photoPrimaryButton}
+                          onPress={() => setPreferredPhotoRef((current) => current === photo.id ? '' : photo.id)}
+                          disabled={loading}
+                        />
+                        <IconButton
                           icon="close"
                           size={16}
                           style={styles.photoRemoveButton}
@@ -492,10 +505,22 @@ export default function PersonFormDialog({
                       <View key={uri} style={styles.photoCard}>
                         <Image source={{ uri }} style={styles.photo} />
                         <IconButton
+                          icon={preferredPhotoRef === uri ? 'star' : 'star-outline'}
+                          size={18}
+                          style={styles.photoPrimaryButton}
+                          onPress={() => setPreferredPhotoRef((current) => current === uri ? '' : uri)}
+                          disabled={loading}
+                        />
+                        <IconButton
                           icon="close"
                           size={16}
                           style={styles.photoRemoveButton}
-                          onPress={() => setNewPhotoUris((current) => current.filter((item) => item !== uri))}
+                          onPress={() => {
+                            setNewPhotoUris((current) => current.filter((item) => item !== uri));
+                            if (preferredPhotoRef === uri) {
+                              setPreferredPhotoRef('');
+                            }
+                          }}
                           disabled={loading}
                         />
                       </View>
@@ -506,6 +531,11 @@ export default function PersonFormDialog({
                     No photos added yet.
                   </Text>
                 )}
+                {(existingPhotos.length > 0 || newPhotoUris.length > 0) ? (
+                  <HelperText type="info" visible>
+                    Tap the star on a photo to use it as the profile picture in the tree view.
+                  </HelperText>
+                ) : null}
               </View>
             </ScrollView>
           </Dialog.ScrollArea>
@@ -627,6 +657,13 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -6,
     right: -6,
+    backgroundColor: '#FFFFFF',
+    margin: 0,
+  },
+  photoPrimaryButton: {
+    position: 'absolute',
+    top: -6,
+    left: -6,
     backgroundColor: '#FFFFFF',
     margin: 0,
   },

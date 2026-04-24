@@ -1,14 +1,17 @@
 import React, { useMemo, useRef, useState } from 'react';
 import {
   Animated,
+  Image,
   PanResponder,
   Pressable,
   StyleSheet,
   View,
 } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Button, Chip, Text } from 'react-native-paper';
 import Svg, { Line } from 'react-native-svg';
 import type { PersonRecord } from '../types/person';
+import { getPreferredPersonPhoto } from '../types/person';
 import type { RelationshipRecord } from '../types/relationship';
 
 interface FamilyTreeCanvasProps {
@@ -229,6 +232,7 @@ export default function FamilyTreeCanvas({ people, relationships, onPressPerson 
 
           {people.map((person) => {
             const position = positionsByPersonId.get(person.id);
+            const preferredPhoto = getPreferredPersonPhoto(person);
             if (!position) {
               return null;
             }
@@ -247,15 +251,28 @@ export default function FamilyTreeCanvas({ people, relationships, onPressPerson 
                 ]}
                 onPress={() => onPressPerson(person)}
               >
-                <Text variant="titleSmall" style={styles.nodeTitle} numberOfLines={2}>
-                  {formatPersonName(person)}
-                </Text>
-                <Text variant="bodySmall" style={styles.nodeMeta} numberOfLines={1}>
-                  {person.birthDate || 'Birth date unknown'}
-                </Text>
-                <Text variant="bodySmall" style={styles.nodeMeta} numberOfLines={1}>
-                  {person.photos.length} photo{person.photos.length === 1 ? '' : 's'}
-                </Text>
+                <View style={styles.nodeInnerRow}>
+                  <View style={styles.nodeAvatarWrap}>
+                    {preferredPhoto ? (
+                      <Image source={{ uri: preferredPhoto.url }} style={styles.nodeAvatar} />
+                    ) : (
+                      <View style={styles.nodeAvatarFallback}>
+                        <MaterialCommunityIcons name="account" size={28} color="#7C6ACF" />
+                      </View>
+                    )}
+                  </View>
+                  <View style={styles.nodeTextWrap}>
+                    <Text variant="titleSmall" style={styles.nodeTitle} numberOfLines={2}>
+                      {formatPersonName(person)}
+                    </Text>
+                    <Text variant="bodySmall" style={styles.nodeMeta} numberOfLines={1}>
+                      {person.birthDate || 'Birth date unknown'}
+                    </Text>
+                    <Text variant="bodySmall" style={styles.nodeMeta} numberOfLines={1}>
+                      {person.photos.length} photo{person.photos.length === 1 ? '' : 's'}
+                    </Text>
+                  </View>
+                </View>
               </Pressable>
             );
           })}
@@ -307,6 +324,31 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
     elevation: 2,
+  },
+  nodeInnerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  nodeAvatarWrap: {
+    flexShrink: 0,
+  },
+  nodeAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: '#ECE8FF',
+  },
+  nodeAvatarFallback: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: '#ECE8FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  nodeTextWrap: {
+    flex: 1,
   },
   nodeTitle: {
     fontWeight: '700',

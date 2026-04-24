@@ -137,9 +137,33 @@ function mapPerson(snapshot: QueryDocumentSnapshot): PersonRecord {
     gender: data.gender ?? 'unspecified',
     notes: data.notes ?? '',
     photos: Array.isArray(data.photos) ? data.photos.map(mapPhoto) : [],
+    preferredPhotoId: data.preferredPhotoId ?? '',
     createdAt: data.createdAt ?? nowIso(),
     updatedAt: data.updatedAt ?? data.createdAt ?? nowIso(),
   };
+}
+
+function resolvePreferredPhotoId(
+  preferredPhotoRef: string | undefined,
+  existingPhotos: PersonPhoto[],
+  newPhotoUris: string[],
+  uploadedPhotos: PersonPhoto[],
+) {
+  if (!preferredPhotoRef) {
+    return '';
+  }
+
+  const existingPhoto = existingPhotos.find((photo) => photo.id === preferredPhotoRef);
+  if (existingPhoto) {
+    return existingPhoto.id;
+  }
+
+  const uploadedPhotoIndex = newPhotoUris.findIndex((uri) => uri === preferredPhotoRef);
+  if (uploadedPhotoIndex >= 0) {
+    return uploadedPhotos[uploadedPhotoIndex]?.id ?? '';
+  }
+
+  return '';
 }
 
 function mapRelationship(snapshot: QueryDocumentSnapshot): RelationshipRecord {
@@ -446,6 +470,7 @@ export async function createPerson(
     gender: input.gender,
     notes: input.notes.trim(),
     photos: uploadedPhotos,
+    preferredPhotoId: resolvePreferredPhotoId(input.preferredPhotoRef, [], newPhotoUris, uploadedPhotos),
     createdAt: timestamp,
     updatedAt: timestamp,
   };
@@ -461,6 +486,13 @@ export async function updatePerson(
 ): Promise<void> {
   await deletePhotos(input.removedPhotos);
   const uploadedPhotos = await uploadPersonPhotos(actorUserId, person.treeId, person.id, input.newPhotoUris);
+  const nextPhotos = [...input.existingPhotos, ...uploadedPhotos];
+  const preferredPhotoId = resolvePreferredPhotoId(
+    input.preferredPhotoRef,
+    input.existingPhotos,
+    input.newPhotoUris,
+    uploadedPhotos,
+  );
 
   await updateDoc(doc(db, PEOPLE_COLLECTION, person.id), {
     firstName: input.firstName.trim(),
@@ -468,7 +500,8 @@ export async function updatePerson(
     birthDate: input.birthDate.trim(),
     gender: input.gender,
     notes: input.notes.trim(),
-    photos: [...input.existingPhotos, ...uploadedPhotos],
+    photos: nextPhotos,
+    preferredPhotoId: nextPhotos.some((photo) => photo.id === preferredPhotoId) ? preferredPhotoId : '',
     updatedAt: nowIso(),
   });
 }

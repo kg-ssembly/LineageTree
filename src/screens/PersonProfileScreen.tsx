@@ -7,6 +7,7 @@ import { theme } from '../lib/theme';
 import { useAuthStore } from '../store/authStore';
 import { useTreeStore } from '../store/treeStore';
 import type { PersonGender, PersonMutationPayload, PersonRecord } from '../types/person';
+import { getPreferredPersonPhoto } from '../types/person';
 import type { RootStackParamList } from '../types/navigation';
 import { canEditTreeContent } from '../types/tree';
 
@@ -33,6 +34,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
   const {
     trees,
     people,
+    relationships,
     loadingTrees,
     loadingTreeData,
     mutating,
@@ -56,6 +58,35 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
   );
 
   const canEdit = selectedTree ? canEditTreeContent(selectedTree, user?.id) : false;
+  const preferredPhoto = getPreferredPersonPhoto(person);
+
+  const peopleById = useMemo(
+    () => new Map(people.map((currentPerson) => [currentPerson.id, currentPerson])),
+    [people],
+  );
+
+  const personRelationships = useMemo(() => {
+    if (!person) {
+      return { spouses: [] as PersonRecord[], parents: [] as PersonRecord[], children: [] as PersonRecord[] };
+    }
+
+    const spouses = relationships
+      .filter((relationship) => relationship.type === 'spouse' && (relationship.fromPersonId === person.id || relationship.toPersonId === person.id))
+      .map((relationship) => peopleById.get(relationship.fromPersonId === person.id ? relationship.toPersonId : relationship.fromPersonId))
+      .filter(Boolean) as PersonRecord[];
+
+    const parents = relationships
+      .filter((relationship) => relationship.type === 'parent-child' && relationship.toPersonId === person.id)
+      .map((relationship) => peopleById.get(relationship.fromPersonId))
+      .filter(Boolean) as PersonRecord[];
+
+    const children = relationships
+      .filter((relationship) => relationship.type === 'parent-child' && relationship.fromPersonId === person.id)
+      .map((relationship) => peopleById.get(relationship.toPersonId))
+      .filter(Boolean) as PersonRecord[];
+
+    return { spouses, parents, children };
+  }, [peopleById, person, relationships]);
 
   useEffect(() => {
     selectTree(route.params.treeId);
@@ -111,12 +142,41 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
             {person.gender !== 'unspecified' ? <Chip compact>{formatGender(person.gender)}</Chip> : null}
             {person.birthDate ? <Chip compact icon="calendar">{person.birthDate}</Chip> : null}
             <Chip compact icon="image-multiple">{person.photos.length} photos</Chip>
+            {preferredPhoto ? <Chip compact icon="star">Profile picture selected</Chip> : null}
           </View>
           {canEdit ? (
             <Button mode="contained-tonal" icon="pencil" onPress={() => setEditorVisible(true)} style={styles.editButton}>
               Edit profile
             </Button>
           ) : null}
+        </Surface>
+
+        <Surface style={styles.sectionCard} elevation={1}>
+          <Text variant="titleLarge">Relationships</Text>
+          <Text variant="bodyMedium" style={styles.sectionSubtitle}>
+            Family connections for this person are shown here instead of in the people list.
+          </Text>
+
+          <View style={styles.notesBox}>
+            {personRelationships.parents.length > 0 ? (
+              <Text variant="bodyMedium" style={styles.notesText}>
+                Parents: {personRelationships.parents.map((currentPerson) => formatPersonName(currentPerson)).join(', ')}
+              </Text>
+            ) : null}
+            {personRelationships.children.length > 0 ? (
+              <Text variant="bodyMedium" style={styles.notesText}>
+                Children: {personRelationships.children.map((currentPerson) => formatPersonName(currentPerson)).join(', ')}
+              </Text>
+            ) : null}
+            {personRelationships.spouses.length > 0 ? (
+              <Text variant="bodyMedium" style={styles.notesText}>
+                Spouses: {personRelationships.spouses.map((currentPerson) => formatPersonName(currentPerson)).join(', ')}
+              </Text>
+            ) : null}
+            {personRelationships.parents.length === 0 && personRelationships.children.length === 0 && personRelationships.spouses.length === 0 ? (
+              <Text variant="bodyMedium" style={styles.notesText}>No relationships connected yet.</Text>
+            ) : null}
+          </View>
         </Surface>
 
         <Surface style={styles.sectionCard} elevation={1}>
@@ -137,7 +197,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
             {person.photos.length > 0 ? (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.galleryRow}>
                 {person.photos.map((photo) => (
-                  <Card key={photo.id} mode="outlined" style={styles.photoCard}>
+                  <Card key={photo.id} mode="outlined" style={[styles.photoCard, preferredPhoto?.id === photo.id && styles.photoCardPreferred]}>
                     <Image source={{ uri: photo.url }} style={styles.photo} />
                   </Card>
                 ))}
@@ -233,6 +293,10 @@ const styles = StyleSheet.create({
     marginRight: 12,
     overflow: 'hidden',
     borderRadius: 18,
+  },
+  photoCardPreferred: {
+    borderColor: '#7C4DFF',
+    borderWidth: 2,
   },
   photo: {
     width: 220,

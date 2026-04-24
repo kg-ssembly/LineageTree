@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Image, ScrollView, StyleSheet, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -13,6 +13,7 @@ import {
   Snackbar,
   Surface,
   Text,
+  TextInput,
 } from 'react-native-paper';
 import {
   CollaboratorDialog,
@@ -27,6 +28,7 @@ import { theme } from '../lib/theme';
 import { useAuthStore } from '../store/authStore';
 import { useTreeStore } from '../store/treeStore';
 import type { PersonGender, PersonRecord } from '../types/person';
+import { getDisplayPersonPhoto } from '../types/person';
 import type { RelationshipRecord } from '../types/relationship';
 import type { RootStackParamList, TreeDetailTabParamList } from '../types/navigation';
 import {
@@ -137,8 +139,6 @@ function getPersonRelationships(
 
 function PeopleRelationshipsTabContent({
   people,
-  relationships,
-  peopleById,
   canEdit,
   mutating,
   loadingTreeData,
@@ -148,8 +148,25 @@ function PeopleRelationshipsTabContent({
   onEditPerson,
   openConfirm,
   onDeletePerson,
-  onRemoveRelationship,
 }: SharedTabProps) {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [genderFilter, setGenderFilter] = useState<'all' | PersonGender>('all');
+  const [assetFilter, setAssetFilter] = useState<'all' | 'with-photos' | 'with-notes'>('all');
+
+  const filteredPeople = useMemo(
+    () => people.filter((person) => {
+      const normalizedQuery = searchQuery.trim().toLowerCase();
+      const searchableText = [formatPersonName(person), person.birthDate, person.notes].join(' ').toLowerCase();
+      const matchesSearch = searchableText.includes(normalizedQuery);
+      const matchesGender = genderFilter === 'all' || person.gender === genderFilter;
+      const matchesAsset = assetFilter === 'all'
+        || (assetFilter === 'with-photos' ? person.photos.length > 0 : person.notes.trim().length > 0);
+
+      return matchesSearch && matchesGender && matchesAsset;
+    }),
+    [assetFilter, genderFilter, people, searchQuery],
+  );
+
   return (
     <ScrollView contentContainerStyle={styles.content}>
       <Surface style={styles.sectionCard} elevation={1}>
@@ -170,6 +187,30 @@ function PeopleRelationshipsTabContent({
           </View>
         </View>
 
+        <TextInput
+          mode="outlined"
+          label="Search people"
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          style={styles.filterInput}
+          left={<TextInput.Icon icon="magnify" />}
+        />
+
+        <View style={styles.filterRow}>
+          <Chip selected={genderFilter === 'all'} onPress={() => setGenderFilter('all')}>All genders</Chip>
+          <Chip selected={genderFilter === 'unspecified'} onPress={() => setGenderFilter('unspecified')}>Unspecified</Chip>
+          <Chip selected={genderFilter === 'female'} onPress={() => setGenderFilter('female')}>Female</Chip>
+          <Chip selected={genderFilter === 'male'} onPress={() => setGenderFilter('male')}>Male</Chip>
+          <Chip selected={genderFilter === 'non-binary'} onPress={() => setGenderFilter('non-binary')}>Non-binary</Chip>
+          <Chip selected={genderFilter === 'other'} onPress={() => setGenderFilter('other')}>Other</Chip>
+        </View>
+
+        <View style={styles.filterRow}>
+          <Chip selected={assetFilter === 'all'} onPress={() => setAssetFilter('all')}>All people</Chip>
+          <Chip selected={assetFilter === 'with-photos'} onPress={() => setAssetFilter('with-photos')}>Has photos</Chip>
+          <Chip selected={assetFilter === 'with-notes'} onPress={() => setAssetFilter('with-notes')}>Has notes</Chip>
+        </View>
+
         {loadingTreeData ? (
           <View style={styles.centeredState}>
             <ActivityIndicator color={theme.colors.primary} />
@@ -177,20 +218,31 @@ function PeopleRelationshipsTabContent({
           </View>
         ) : (
           <>
-            {people.length === 0 ? (
+            {filteredPeople.length === 0 ? (
               <View style={styles.emptyState}>
-                <Text variant="titleMedium">No people in this tree yet</Text>
+                <Text variant="titleMedium">No matching people</Text>
                 <Text variant="bodyMedium" style={styles.stateText}>
-                  {canEdit ? 'Add a person to start building this family tree.' : 'This shared tree does not have any people yet.'}
+                  {people.length === 0
+                    ? (canEdit ? 'Add a person to start building this family tree.' : 'This shared tree does not have any people yet.')
+                    : 'Try adjusting the search or filters to find a person.'}
                 </Text>
               </View>
             ) : (
-              people.map((person) => {
-                const { spouses, parents, children } = getPersonRelationships(person.id, relationships, peopleById);
+              filteredPeople.map((person) => {
+                const displayPhoto = getDisplayPersonPhoto(person);
                 return (
                   <Card key={person.id} style={styles.personCard} mode="outlined" onPress={() => openPersonProfile(person)}>
                     <Card.Content>
                       <View style={styles.personHeader}>
+                        <View style={styles.personPhotoWrap}>
+                          {displayPhoto ? (
+                            <Image source={{ uri: displayPhoto.url }} style={styles.personPhoto} />
+                          ) : (
+                            <View style={styles.personPhotoFallback}>
+                              <MaterialCommunityIcons name="account" size={30} color="#7C6ACF" />
+                            </View>
+                          )}
+                        </View>
                         <View style={styles.personHeaderText}>
                           <Text variant="titleLarge">{formatPersonName(person)}</Text>
                           <View style={styles.metadataRow}>
@@ -224,60 +276,19 @@ function PeopleRelationshipsTabContent({
                         {person.notes || 'No notes added yet.'}
                       </Text>
 
-                      <View style={styles.relationshipGroup}>
-                        {parents.length > 0 ? (
-                          <Text variant="bodySmall" style={styles.relationshipText}>
-                            Parents: {parents.map((currentPerson) => formatPersonName(currentPerson)).join(', ')}
-                          </Text>
-                        ) : null}
-                        {children.length > 0 ? (
-                          <Text variant="bodySmall" style={styles.relationshipText}>
-                            Children: {children.map((currentPerson) => formatPersonName(currentPerson)).join(', ')}
-                          </Text>
-                        ) : null}
-                        {spouses.length > 0 ? (
-                          <Text variant="bodySmall" style={styles.relationshipText}>
-                            Spouses: {spouses.map((currentPerson) => formatPersonName(currentPerson)).join(', ')}
-                          </Text>
-                        ) : null}
-                      </View>
+                      {person.photos.length > 0 ? (
+                        <View style={styles.personPreviewRow}>
+                          {person.photos.slice(0, 3).map((photo) => (
+                            <Image key={photo.id} source={{ uri: photo.url }} style={styles.personPreviewPhoto} />
+                          ))}
+                          {person.photos.length > 3 ? (
+                            <View style={styles.personPreviewMore}>
+                              <Text variant="labelMedium">+{person.photos.length - 3}</Text>
+                            </View>
+                          ) : null}
+                        </View>
+                      ) : null}
                     </Card.Content>
-                  </Card>
-                );
-              })
-            )}
-
-            <Divider style={styles.sectionDivider} />
-            <Text variant="titleLarge" style={styles.subsectionTitle}>Relationships</Text>
-            {relationships.length === 0 ? (
-              <View style={styles.emptyState}>
-                <Text variant="titleMedium">No relationships yet</Text>
-                <Text variant="bodyMedium" style={styles.stateText}>
-                  {canEdit ? 'Add parent-child or spouse connections to bring the tree to life.' : 'Relationships will appear here when editors add them.'}
-                </Text>
-              </View>
-            ) : (
-              relationships.map((relationship) => {
-                const relationshipLabel = formatRelationshipLabel(relationship, peopleById);
-                return (
-                  <Card key={relationship.id} style={styles.relationshipCard} mode="outlined">
-                    <Card.Title
-                      title={relationshipLabel}
-                      subtitle={relationship.type === 'spouse' ? 'Mutual spouse relationship' : 'Directional parent → child relationship'}
-                      right={() => (canEdit ? (
-                        <IconButton
-                          icon="delete"
-                          iconColor="#C62828"
-                          onPress={() => openConfirm(
-                            'Remove relationship',
-                            `Remove ${relationshipLabel}?`,
-                            'Remove',
-                            async () => onRemoveRelationship(relationship.id, relationshipLabel),
-                          )}
-                          disabled={mutating}
-                        />
-                      ) : null)}
-                    />
                   </Card>
                 );
               })
@@ -549,6 +560,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
             birthDate: payload.birthDate,
             gender: payload.gender,
             notes: payload.notes,
+            preferredPhotoRef: payload.preferredPhotoRef,
           },
           payload.newPhotoUris,
         );
@@ -812,6 +824,15 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 8,
   },
+  filterInput: {
+    marginTop: 16,
+  },
+  filterRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 12,
+  },
   profileMetricsWrap: {
     marginTop: 16,
     gap: 12,
@@ -843,6 +864,23 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     gap: 8,
   },
+  personPhotoWrap: {
+    marginRight: 4,
+  },
+  personPhoto: {
+    width: 64,
+    height: 64,
+    borderRadius: 18,
+    backgroundColor: '#ECE8FF',
+  },
+  personPhotoFallback: {
+    width: 64,
+    height: 64,
+    borderRadius: 18,
+    backgroundColor: '#ECE8FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   personHeaderText: {
     flex: 1,
   },
@@ -856,22 +894,25 @@ const styles = StyleSheet.create({
     marginTop: 12,
     color: '#3E3E45',
   },
-  relationshipGroup: {
-    marginTop: 12,
+  personPreviewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 14,
   },
-  relationshipText: {
-    color: '#4E4E58',
-    marginBottom: 4,
+  personPreviewPhoto: {
+    width: 56,
+    height: 56,
+    borderRadius: 14,
+    backgroundColor: '#ECE8FF',
   },
-  sectionDivider: {
-    marginVertical: 20,
-  },
-  subsectionTitle: {
-    fontWeight: '700',
-    marginBottom: 12,
-  },
-  relationshipCard: {
-    marginBottom: 12,
+  personPreviewMore: {
+    width: 56,
+    height: 56,
+    borderRadius: 14,
+    backgroundColor: '#F3F0FF',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   cardActions: {
     flexDirection: 'row',
