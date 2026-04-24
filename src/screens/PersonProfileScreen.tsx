@@ -737,6 +737,7 @@ const styles = StyleSheet.create({
   },
   relationshipCard: {
     marginBottom: 12,
+    borderRadius: 20,
   },
   relationshipRow: {
     flexDirection: 'row',
@@ -796,7 +797,7 @@ const styles = StyleSheet.create({
   photoCard: {
     marginRight: 12,
     overflow: 'hidden',
-    borderRadius: 18,
+    borderRadius: 5,
   },
   photoCardPreferred: {
     borderColor: '#7C4DFF',

@@ -473,7 +473,7 @@ const styles = StyleSheet.create({
   },
   treeCard: {
     marginTop: 12,
-    borderRadius: 22,
+    borderRadius: 20,
     borderWidth: 1,
   },
   treeHeader: {
