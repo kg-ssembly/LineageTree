@@ -6,7 +6,10 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "export:web": "expo export --platform web",
+    "deploy:web": "npm run export:web && npx firebase-tools deploy --only hosting",
+    "deploy:firebase": "npx firebase-tools deploy --only firestore:rules,storage"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.1.1",

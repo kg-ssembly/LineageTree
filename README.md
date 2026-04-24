@@ -42,6 +42,42 @@ npm install
 npm start
 ```
 
+## Run the web app locally
+
+```powershell
+npm run web
+```
+
+## Export the web build
+
+This project uses Expo web export and outputs the static site to `dist/`.
+
+```powershell
+npm run export:web
+```
+
+## Deploy the web app to Firebase Hosting
+
+This repo is configured for Firebase Hosting with the default Firebase project set to `lineagetree` in `.firebaserc`.
+
+First-time setup:
+
+```powershell
+npm install
+npx firebase-tools login
+```
+
+Then deploy:
+
+```powershell
+npm run deploy:web
+```
+
+That command will:
+
+1. export the Expo web app into `dist/`
+2. deploy only Firebase Hosting
+
 ## Shared tree permissions
 
 - **Owner**: can rename/delete the tree, manage collaborators, and edit people/relationships
@@ -57,6 +93,6 @@ npx tsc --noEmit
 ## Firebase rules to deploy
 
 ```powershell
-firebase deploy --only firestore:rules,storage
+npm run deploy:firebase
 ```
 
