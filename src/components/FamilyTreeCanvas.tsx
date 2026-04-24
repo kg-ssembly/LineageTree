@@ -11,7 +11,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Button, Chip, Text } from 'react-native-paper';
 import Svg, { Line } from 'react-native-svg';
 import type { PersonRecord } from '../types/person';
-import { getPreferredPersonPhoto } from '../types/person';
+import { getPersonLifeSpanLabel, getPersonPresenceLabel, getPreferredPersonPhoto } from '../types/person';
 import type { RelationshipRecord } from '../types/relationship';
 
 interface FamilyTreeCanvasProps {
@@ -266,10 +266,10 @@ export default function FamilyTreeCanvas({ people, relationships, onPressPerson 
                       {formatPersonName(person)}
                     </Text>
                     <Text variant="bodySmall" style={styles.nodeMeta} numberOfLines={1}>
-                      {person.birthDate || 'Birth date unknown'}
+                      {getPersonLifeSpanLabel(person)}
                     </Text>
                     <Text variant="bodySmall" style={styles.nodeMeta} numberOfLines={1}>
-                      {person.photos.length} photo{person.photos.length === 1 ? '' : 's'}
+                      {getPersonPresenceLabel(person)}
                     </Text>
                   </View>
                 </View>
@@ -336,13 +336,17 @@ const styles = StyleSheet.create({
   nodeAvatar: {
     width: 44,
     height: 44,
-    borderRadius: 14,
+    borderRadius: 22,
+    borderWidth: 2,
+    borderColor: '#CFC5FF',
     backgroundColor: '#ECE8FF',
   },
   nodeAvatarFallback: {
     width: 44,
     height: 44,
-    borderRadius: 14,
+    borderRadius: 22,
+    borderWidth: 2,
+    borderColor: '#CFC5FF',
     backgroundColor: '#ECE8FF',
     alignItems: 'center',
     justifyContent: 'center',

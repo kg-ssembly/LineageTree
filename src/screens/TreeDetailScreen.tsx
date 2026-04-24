@@ -28,7 +28,7 @@ import { theme } from '../lib/theme';
 import { useAuthStore } from '../store/authStore';
 import { useTreeStore } from '../store/treeStore';
 import type { PersonGender, PersonRecord } from '../types/person';
-import { getDisplayPersonPhoto } from '../types/person';
+import { getPersonPresenceLabel, getPreferredPersonPhoto, isPersonDeceased } from '../types/person';
 import type { RelationshipRecord } from '../types/relationship';
 import type { RootStackParamList, TreeDetailTabParamList } from '../types/navigation';
 import {
@@ -156,7 +156,13 @@ function PeopleRelationshipsTabContent({
   const filteredPeople = useMemo(
     () => people.filter((person) => {
       const normalizedQuery = searchQuery.trim().toLowerCase();
-      const searchableText = [formatPersonName(person), person.birthDate, person.notes].join(' ').toLowerCase();
+      const searchableText = [
+        formatPersonName(person),
+        person.birthDate,
+        person.deathDate,
+        person.notes,
+        getPersonPresenceLabel(person),
+      ].join(' ').toLowerCase();
       const matchesSearch = searchableText.includes(normalizedQuery);
       const matchesGender = genderFilter === 'all' || person.gender === genderFilter;
       const matchesAsset = assetFilter === 'all'
@@ -229,14 +235,14 @@ function PeopleRelationshipsTabContent({
               </View>
             ) : (
               filteredPeople.map((person) => {
-                const displayPhoto = getDisplayPersonPhoto(person);
+                const preferredPhoto = getPreferredPersonPhoto(person);
                 return (
                   <Card key={person.id} style={styles.personCard} mode="outlined" onPress={() => openPersonProfile(person)}>
                     <Card.Content>
                       <View style={styles.personHeader}>
                         <View style={styles.personPhotoWrap}>
-                          {displayPhoto ? (
-                            <Image source={{ uri: displayPhoto.url }} style={styles.personPhoto} />
+                          {preferredPhoto ? (
+                            <Image source={{ uri: preferredPhoto.url }} style={styles.personPhoto} />
                           ) : (
                             <View style={styles.personPhotoFallback}>
                               <MaterialCommunityIcons name="account" size={30} color="#7C6ACF" />
@@ -248,6 +254,9 @@ function PeopleRelationshipsTabContent({
                           <View style={styles.metadataRow}>
                             {person.gender !== 'unspecified' ? <Chip compact>{formatGender(person.gender)}</Chip> : null}
                             {person.birthDate ? <Chip compact icon="calendar">{person.birthDate}</Chip> : null}
+                            <Chip compact icon={isPersonDeceased(person) ? 'flower-outline' : 'heart-pulse'}>
+                              {getPersonPresenceLabel(person)}
+                            </Chip>
                             <Chip compact icon="image-multiple">{person.photos.length} photos</Chip>
                           </View>
                         </View>
@@ -275,19 +284,6 @@ function PeopleRelationshipsTabContent({
                       <Text variant="bodyMedium" style={styles.personNotes}>
                         {person.notes || 'No notes added yet.'}
                       </Text>
-
-                      {person.photos.length > 0 ? (
-                        <View style={styles.personPreviewRow}>
-                          {person.photos.slice(0, 3).map((photo) => (
-                            <Image key={photo.id} source={{ uri: photo.url }} style={styles.personPreviewPhoto} />
-                          ))}
-                          {person.photos.length > 3 ? (
-                            <View style={styles.personPreviewMore}>
-                              <Text variant="labelMedium">+{person.photos.length - 3}</Text>
-                            </View>
-                          ) : null}
-                        </View>
-                      ) : null}
                     </Card.Content>
                   </Card>
                 );
@@ -558,8 +554,10 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
             firstName: payload.firstName,
             lastName: payload.lastName,
             birthDate: payload.birthDate,
+            deathDate: payload.deathDate,
             gender: payload.gender,
             notes: payload.notes,
+            lifeEvents: payload.lifeEvents,
             preferredPhotoRef: payload.preferredPhotoRef,
           },
           payload.newPhotoUris,
@@ -870,13 +868,17 @@ const styles = StyleSheet.create({
   personPhoto: {
     width: 64,
     height: 64,
-    borderRadius: 18,
+    borderRadius: 32,
+    borderWidth: 2,
+    borderColor: '#CFC5FF',
     backgroundColor: '#ECE8FF',
   },
   personPhotoFallback: {
     width: 64,
     height: 64,
-    borderRadius: 18,
+    borderRadius: 32,
+    borderWidth: 2,
+    borderColor: '#CFC5FF',
     backgroundColor: '#ECE8FF',
     alignItems: 'center',
     justifyContent: 'center',
@@ -893,26 +895,6 @@ const styles = StyleSheet.create({
   personNotes: {
     marginTop: 12,
     color: '#3E3E45',
-  },
-  personPreviewRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 14,
-  },
-  personPreviewPhoto: {
-    width: 56,
-    height: 56,
-    borderRadius: 14,
-    backgroundColor: '#ECE8FF',
-  },
-  personPreviewMore: {
-    width: 56,
-    height: 56,
-    borderRadius: 14,
-    backgroundColor: '#F3F0FF',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   cardActions: {
     flexDirection: 'row',

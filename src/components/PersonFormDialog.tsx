@@ -14,7 +14,7 @@ import {
   TextInput,
 } from 'react-native-paper';
 import { DatePickerModal } from 'react-native-paper-dates';
-import type { PersonGender, PersonMutationPayload, PersonPhoto, PersonRecord } from '../types/person';
+import type { PersonGender, PersonLifeEvent, PersonMutationPayload, PersonPhoto, PersonRecord } from '../types/person';
 
 export type PendingRelationshipMode = 'parent-of' | 'child-of' | 'spouse-of';
 
@@ -73,7 +73,7 @@ function parseIsoDate(value: string) {
   return Number.isNaN(parsedDate.getTime()) ? undefined : parsedDate;
 }
 
-function formatBirthDateLabel(value: string) {
+function formatDateButtonLabel(value: string) {
   const parsedDate = parseIsoDate(value);
   return parsedDate ? parsedDate.toLocaleDateString() : 'Pick a date';
 }
@@ -104,14 +104,18 @@ export default function PersonFormDialog({
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [birthDate, setBirthDate] = useState('');
+  const [deathDate, setDeathDate] = useState('');
   const [gender, setGender] = useState<PersonGender>('unspecified');
   const [notes, setNotes] = useState('');
+  const [lifeEvents, setLifeEvents] = useState<PersonLifeEvent[]>([]);
   const [existingPhotos, setExistingPhotos] = useState<PersonPhoto[]>([]);
   const [removedPhotos, setRemovedPhotos] = useState<PersonPhoto[]>([]);
   const [newPhotoUris, setNewPhotoUris] = useState<string[]>([]);
   const [firstNameError, setFirstNameError] = useState<string | null>(null);
   const [relationshipError, setRelationshipError] = useState<string | null>(null);
+  const [deathDateError, setDeathDateError] = useState<string | null>(null);
   const [birthDatePickerVisible, setBirthDatePickerVisible] = useState(false);
+  const [deathDatePickerVisible, setDeathDatePickerVisible] = useState(false);
   const [pendingRelationships, setPendingRelationships] = useState<PendingRelationshipDraft[]>([]);
   const [surnameMenuVisible, setSurnameMenuVisible] = useState(false);
   const [lastNameTouched, setLastNameTouched] = useState(false);
@@ -125,14 +129,18 @@ export default function PersonFormDialog({
     setFirstName(person?.firstName ?? '');
     setLastName(person?.lastName ?? '');
     setBirthDate(person?.birthDate ?? '');
+    setDeathDate(person?.deathDate ?? '');
     setGender(person?.gender ?? 'unspecified');
     setNotes(person?.notes ?? '');
+    setLifeEvents(person?.lifeEvents ?? []);
     setExistingPhotos(person?.photos ?? []);
     setRemovedPhotos([]);
     setNewPhotoUris([]);
     setFirstNameError(null);
     setRelationshipError(null);
+    setDeathDateError(null);
     setBirthDatePickerVisible(false);
+    setDeathDatePickerVisible(false);
     setPendingRelationships([]);
     setSurnameMenuVisible(false);
     setLastNameTouched(false);
@@ -145,6 +153,7 @@ export default function PersonFormDialog({
   );
 
   const selectedBirthDate = useMemo(() => parseIsoDate(birthDate), [birthDate]);
+  const selectedDeathDate = useMemo(() => parseIsoDate(deathDate), [deathDate]);
   const uniqueLastNames = useMemo(
     () => [...new Set(existingLastNames.map((value) => value.trim()).filter(Boolean))].sort((left, right) => left.localeCompare(right)),
     [existingLastNames],
@@ -263,12 +272,19 @@ export default function PersonFormDialog({
       }
     }
 
+    if (birthDate && deathDate && deathDate < birthDate) {
+      setDeathDateError('Death date cannot be earlier than birth date.');
+      return;
+    }
+
     await onSubmit({
       firstName,
       lastName,
       birthDate,
+      deathDate,
       gender,
       notes,
+      lifeEvents,
       preferredPhotoRef,
       existingPhotos,
       removedPhotos,
@@ -357,7 +373,7 @@ export default function PersonFormDialog({
                     onPress={() => setBirthDatePickerVisible(true)}
                     disabled={loading}
                   >
-                    {formatBirthDateLabel(birthDate)}
+                    {formatDateButtonLabel(birthDate)}
                   </Button>
                   {birthDate ? (
                     <Button onPress={() => setBirthDate('')} disabled={loading}>
@@ -365,6 +381,39 @@ export default function PersonFormDialog({
                     </Button>
                   ) : null}
                 </View>
+              </View>
+
+              <View style={styles.sectionSpacing}>
+                <Text variant="titleSmall">Date of death</Text>
+                <View style={styles.birthDateActions}>
+                  <Button
+                    mode="outlined"
+                    icon="calendar-heart"
+                    onPress={() => setDeathDatePickerVisible(true)}
+                    disabled={loading}
+                  >
+                    {formatDateButtonLabel(deathDate)}
+                  </Button>
+                  {deathDate ? (
+                    <Button
+                      onPress={() => {
+                        setDeathDate('');
+                        if (deathDateError) {
+                          setDeathDateError(null);
+                        }
+                      }}
+                      disabled={loading}
+                    >
+                      Clear
+                    </Button>
+                  ) : null}
+                </View>
+                <HelperText type="info" visible={!deathDateError}>
+                  Leave blank to mark this person as still present.
+                </HelperText>
+                <HelperText type="error" visible={!!deathDateError}>
+                  {deathDateError}
+                </HelperText>
               </View>
 
               <View style={styles.sectionSpacing}>
@@ -562,6 +611,25 @@ export default function PersonFormDialog({
         }}
         saveLabel="Save"
         label="Select birth date"
+      />
+
+      <DatePickerModal
+        locale="en"
+        mode="single"
+        visible={deathDatePickerVisible}
+        date={selectedDeathDate}
+        onDismiss={() => setDeathDatePickerVisible(false)}
+        onConfirm={({ date }) => {
+          setDeathDatePickerVisible(false);
+          if (date) {
+            setDeathDate(formatIsoDate(date));
+            if (deathDateError) {
+              setDeathDateError(null);
+            }
+          }
+        }}
+        saveLabel="Save"
+        label="Select date of death"
       />
     </>
   );

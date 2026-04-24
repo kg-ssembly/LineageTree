@@ -22,7 +22,7 @@ import {
   uploadBytes,
 } from 'firebase/storage';
 import { db, storage } from '../lib/firebase';
-import type { PersonInput, PersonMutationPayload, PersonPhoto, PersonRecord } from '../types/person';
+import type { PersonInput, PersonLifeEvent, PersonMutationPayload, PersonPhoto, PersonRecord } from '../types/person';
 import type { RelationshipRecord } from '../types/relationship';
 import type { CollaboratorRole, FamilyTree, TreeCollaborator, TreeRole } from '../types/tree';
 import type { UserProfile } from '../types/user';
@@ -125,6 +125,16 @@ function mapPhoto(photo: any, index: number): PersonPhoto {
   };
 }
 
+function mapLifeEvent(event: any, index: number): PersonLifeEvent {
+  return {
+    id: event?.id ?? `event-${index}`,
+    type: event?.type ?? 'custom',
+    title: event?.title ?? '',
+    date: event?.date ?? '',
+    description: event?.description ?? '',
+  };
+}
+
 function mapPerson(snapshot: QueryDocumentSnapshot): PersonRecord {
   const data = snapshot.data();
   return {
@@ -134,13 +144,25 @@ function mapPerson(snapshot: QueryDocumentSnapshot): PersonRecord {
     firstName: data.firstName ?? '',
     lastName: data.lastName ?? '',
     birthDate: data.birthDate ?? '',
+    deathDate: data.deathDate ?? '',
     gender: data.gender ?? 'unspecified',
     notes: data.notes ?? '',
+    lifeEvents: Array.isArray(data.lifeEvents) ? data.lifeEvents.map(mapLifeEvent) : [],
     photos: Array.isArray(data.photos) ? data.photos.map(mapPhoto) : [],
     preferredPhotoId: data.preferredPhotoId ?? '',
     createdAt: data.createdAt ?? nowIso(),
     updatedAt: data.updatedAt ?? data.createdAt ?? nowIso(),
   };
+}
+
+function normaliseLifeEvents(lifeEvents: PersonLifeEvent[]) {
+  return lifeEvents.map((event, index) => ({
+    id: event.id?.trim() || `event-${Date.now()}-${index}`,
+    type: event.type ?? 'custom',
+    title: event.title.trim(),
+    date: event.date.trim(),
+    description: event.description.trim(),
+  }));
 }
 
 function resolvePreferredPhotoId(
@@ -467,8 +489,10 @@ export async function createPerson(
     firstName: input.firstName.trim(),
     lastName: input.lastName.trim(),
     birthDate: input.birthDate.trim(),
+    deathDate: input.deathDate.trim(),
     gender: input.gender,
     notes: input.notes.trim(),
+    lifeEvents: normaliseLifeEvents(input.lifeEvents),
     photos: uploadedPhotos,
     preferredPhotoId: resolvePreferredPhotoId(input.preferredPhotoRef, [], newPhotoUris, uploadedPhotos),
     createdAt: timestamp,
@@ -498,8 +522,10 @@ export async function updatePerson(
     firstName: input.firstName.trim(),
     lastName: input.lastName.trim(),
     birthDate: input.birthDate.trim(),
+    deathDate: input.deathDate.trim(),
     gender: input.gender,
     notes: input.notes.trim(),
+    lifeEvents: normaliseLifeEvents(input.lifeEvents),
     photos: nextPhotos,
     preferredPhotoId: nextPhotos.some((photo) => photo.id === preferredPhotoId) ? preferredPhotoId : '',
     updatedAt: nowIso(),
