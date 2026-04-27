@@ -8,7 +8,10 @@ import {
   Button,
   Card,
   Chip,
+  Dialog,
   IconButton,
+  List,
+  Portal,
   Snackbar,
   Surface,
   Text,
@@ -40,12 +43,19 @@ import {
   type CollaboratorRole,
   type FamilyTree,
 } from '../types/tree';
+import type { PendingRelationshipSubmission } from '../components/PersonFormDialog';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'TreeDetail'>;
 
 type PersonDialogState = {
   visible: boolean;
   mode: 'create' | 'edit';
+  person: PersonRecord | null;
+  initialPendingRelationships: PendingRelationshipSubmission[];
+};
+
+type NodeQuickActionState = {
+  visible: boolean;
   person: PersonRecord | null;
 };
 
@@ -85,6 +95,7 @@ interface SharedTabProps {
   openPersonProfile: (person: PersonRecord) => void;
   onOpenAddPerson: () => void;
   onOpenRelationshipDialog: () => void;
+  onOpenPersonQuickActions: (person: PersonRecord) => void;
   onOpenCollaboratorDialog: () => void;
   onOpenAddSelf: () => void;
   onEditPerson: (person: PersonRecord) => void;
@@ -368,29 +379,60 @@ function IntelligenceTabContent({ people, relationships }: SharedTabProps) {
   );
 }
 
-function VisualisationTabContent({ people, relationships, openPersonProfile, currentAssignedPerson }: SharedTabProps) {
+function VisualisationTabContent({
+  people,
+  relationships,
+  canEdit,
+  mutating,
+  onOpenAddPerson,
+  onOpenRelationshipDialog,
+  onOpenPersonQuickActions,
+  currentAssignedPerson,
+}: SharedTabProps) {
   const theme = useTheme();
   return (
     <ScrollView contentContainerStyle={styles.content}>
       <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
-        <Text variant="titleLarge">Tree visualization</Text>
-        <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-          Nodes represent people and edges represent parent-child or spouse relationships. Tap a node to open the person profile.
-        </Text>
+        <View style={styles.sectionHeader}>
+          <View style={styles.titleWrap}>
+            <Text variant="titleLarge">Tree visualization</Text>
+            <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
+              Nodes represent people and edges represent parent-child or spouse relationships. Tap a node for quick actions like opening a profile or adding relatives.
+            </Text>
+          </View>
+          <View style={styles.actionButtonsWrap}>
+            <Button mode="contained-tonal" icon="account-plus" onPress={onOpenAddPerson} disabled={mutating || !canEdit}>
+              Add family member
+            </Button>
+            <Button mode="contained" icon="family-tree" onPress={onOpenRelationshipDialog} disabled={mutating || !canEdit || people.length < 2}>
+              Add relationship
+            </Button>
+          </View>
+        </View>
         {people.length > 0 ? (
           <FamilyTreeCanvas
             people={people}
             relationships={relationships}
-            onPressPerson={openPersonProfile}
+            onPressPerson={onOpenPersonQuickActions}
             currentUserPersonId={currentAssignedPerson?.id ?? undefined}
             initialFocusPersonId={currentAssignedPerson?.id ?? undefined}
           />
         ) : (
           <View style={styles.emptyState}>
             <Text variant="titleMedium">No visual tree yet</Text>
-              <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
+            <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
               Add people and relationships to see the family graph render here.
             </Text>
+            {canEdit ? (
+              <View style={styles.emptyStateActionRow}>
+                <Button mode="contained" icon="account-plus" onPress={onOpenAddPerson} disabled={mutating} style={styles.emptyStateButton}>
+                  Add family member
+                </Button>
+                <Button mode="contained-tonal" icon="family-tree" onPress={onOpenRelationshipDialog} disabled={mutating || people.length < 2} style={styles.emptyStateButton}>
+                  Add relationship
+                </Button>
+              </View>
+            ) : null}
           </View>
         )}
       </Surface>
@@ -865,10 +907,16 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     clearError,
   } = useTreeStore();
 
-  const [personDialog, setPersonDialog] = useState<PersonDialogState>({ visible: false, mode: 'create', person: null });
+  const [personDialog, setPersonDialog] = useState<PersonDialogState>({
+    visible: false,
+    mode: 'create',
+    person: null,
+    initialPendingRelationships: [],
+  });
   const [selfPersonDialogVisible, setSelfPersonDialogVisible] = useState(false);
   const [relationshipDialogVisible, setRelationshipDialogVisible] = useState(false);
   const [collaboratorDialogVisible, setCollaboratorDialogVisible] = useState(false);
+  const [nodeQuickActionState, setNodeQuickActionState] = useState<NodeQuickActionState>({ visible: false, person: null });
   const [snackVisible, setSnackVisible] = useState(false);
   const [confirmState, setConfirmState] = useState<ConfirmState>({
     visible: false,
@@ -979,7 +1027,24 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     navigation.navigate('PersonProfile', {
       treeId: route.params.treeId,
       personId: person.id,
-      personName: formatPersonName(person),
+    });
+  };
+
+  const closePersonDialog = () => {
+    setPersonDialog({ visible: false, mode: 'create', person: null, initialPendingRelationships: [] });
+  };
+
+  const closeNodeQuickActions = () => {
+    setNodeQuickActionState({ visible: false, person: null });
+  };
+
+  const openCreateRelativeDialog = (mode: PendingRelationshipSubmission['mode'], relatedPerson: PersonRecord) => {
+    closeNodeQuickActions();
+    setPersonDialog({
+      visible: true,
+      mode: 'create',
+      person: null,
+      initialPendingRelationships: [{ mode, relatedPersonId: relatedPerson.id }],
     });
   };
 
@@ -1055,7 +1120,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
         await updatePerson(user.id, personDialog.person, payload);
       }
 
-      setPersonDialog({ visible: false, mode: 'create', person: null });
+      closePersonDialog();
     } catch {
       // surfaced by store snackbar
     }
@@ -1155,11 +1220,12 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     loadingTreeData,
     openConfirm,
     openPersonProfile,
-    onOpenAddPerson: () => setPersonDialog({ visible: true, mode: 'create', person: null }),
+    onOpenAddPerson: () => setPersonDialog({ visible: true, mode: 'create', person: null, initialPendingRelationships: [] }),
     onOpenRelationshipDialog: () => setRelationshipDialogVisible(true),
+    onOpenPersonQuickActions: (person) => setNodeQuickActionState({ visible: true, person }),
     onOpenCollaboratorDialog: () => setCollaboratorDialogVisible(true),
     onOpenAddSelf: () => setSelfPersonDialogVisible(true),
-    onEditPerson: (person) => setPersonDialog({ visible: true, mode: 'edit', person }),
+    onEditPerson: (person) => setPersonDialog({ visible: true, mode: 'edit', person, initialPendingRelationships: [] }),
     onDeletePerson: async (person) => removePerson(person),
     onRemoveRelationship: async (relationshipId) => removeRelationship(relationshipId),
     onRemoveCollaborator: async (collaboratorUserId) => removeCollaborator(selectedTree.id, collaboratorUserId),
@@ -1227,10 +1293,11 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
         visible={personDialog.visible}
         mode={personDialog.mode}
         person={personDialog.person}
+        initialPendingRelationships={personDialog.initialPendingRelationships}
         loading={mutating}
         existingLastNames={existingLastNames}
         relationshipCandidates={people.filter((candidate) => candidate.id !== personDialog.person?.id)}
-        onDismiss={() => setPersonDialog({ visible: false, mode: 'create', person: null })}
+        onDismiss={closePersonDialog}
         onSubmit={handlePersonSubmit}
       />
 
@@ -1265,6 +1332,57 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
         onDismiss={() => setRelationshipDialogVisible(false)}
         onSubmit={handleRelationshipSubmit}
       />
+
+      <Portal>
+        <Dialog visible={nodeQuickActionState.visible} onDismiss={closeNodeQuickActions} style={styles.quickActionDialog}>
+          <Dialog.Title>{nodeQuickActionState.person ? formatPersonName(nodeQuickActionState.person) : 'Quick actions'}</Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodyMedium" style={[styles.quickActionSubtitle, { color: theme.colors.onSurfaceVariant }]}>Choose what you want to do with this person in the tree.</Text>
+            <List.Item
+              title="Open profile"
+              description="See photos, memories, and full relationship details"
+              left={(props) => <List.Icon {...props} icon="account-arrow-right-outline" />}
+              onPress={() => {
+                const selectedPerson = nodeQuickActionState.person;
+                if (!selectedPerson) {
+                  return;
+                }
+
+                closeNodeQuickActions();
+                openPersonProfile(selectedPerson);
+              }}
+            />
+            {canEdit && nodeQuickActionState.person ? (
+              <>
+                <List.Item
+                  title="Add parent"
+                  description={`Create a new parent for ${formatPersonName(nodeQuickActionState.person)}`}
+                  left={(props) => <List.Icon {...props} icon="account-arrow-up-outline" />}
+                  onPress={() => openCreateRelativeDialog('parent-of', nodeQuickActionState.person!)}
+                  disabled={mutating}
+                />
+                <List.Item
+                  title="Add child"
+                  description={`Create a new child for ${formatPersonName(nodeQuickActionState.person)}`}
+                  left={(props) => <List.Icon {...props} icon="account-arrow-down-outline" />}
+                  onPress={() => openCreateRelativeDialog('child-of', nodeQuickActionState.person!)}
+                  disabled={mutating}
+                />
+                <List.Item
+                  title="Add spouse"
+                  description={`Create a spouse for ${formatPersonName(nodeQuickActionState.person)}`}
+                  left={(props) => <List.Icon {...props} icon="account-heart-outline" />}
+                  onPress={() => openCreateRelativeDialog('spouse-of', nodeQuickActionState.person!)}
+                  disabled={mutating}
+                />
+              </>
+            ) : null}
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={closeNodeQuickActions}>Close</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
 
       <ConfirmDialog
         visible={confirmState.visible}
@@ -1457,6 +1575,16 @@ const styles = StyleSheet.create({
     color: '#6B6B74',
     textAlign: 'center',
   },
+  emptyStateButton: {
+    marginTop: 16,
+  },
+  emptyStateActionRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 12,
+    marginTop: 4,
+  },
   personCard: {
     marginTop: 16,
   },
@@ -1520,5 +1648,11 @@ const styles = StyleSheet.create({
   ownerSuggestionButton: {
     marginTop: 12,
     alignSelf: 'flex-start',
+  },
+  quickActionDialog: {
+    marginHorizontal: 16,
+  },
+  quickActionSubtitle: {
+    marginBottom: 8,
   },
 });

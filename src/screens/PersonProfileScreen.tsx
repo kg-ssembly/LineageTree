@@ -512,7 +512,6 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
                   <Button mode="outlined" icon="open-in-new" onPress={() => navigation.push('PersonProfile', {
                     treeId: route.params.treeId,
                     personId: currentAssignedPerson.id,
-                    personName: formatPersonName(currentAssignedPerson),
                   })} disabled={mutating}>
                     Open current profile
                   </Button>

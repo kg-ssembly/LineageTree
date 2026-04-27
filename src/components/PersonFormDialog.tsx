@@ -37,6 +37,7 @@ interface PersonFormDialogProps {
   mode: 'create' | 'edit';
   person?: PersonRecord | null;
   initialValues?: Partial<PersonMutationPayload>;
+  initialPendingRelationships?: PendingRelationshipSubmission[];
   loading?: boolean;
   existingLastNames?: string[];
   relationshipCandidates?: PersonRecord[];
@@ -92,11 +93,23 @@ function createPendingRelationshipDraft(): PendingRelationshipDraft {
   };
 }
 
+function createPendingRelationshipDraftFromSubmission(
+  relationship: PendingRelationshipSubmission,
+): PendingRelationshipDraft {
+  return {
+    key: `${Date.now()}-${Math.random()}`,
+    mode: relationship.mode,
+    relatedPersonId: relationship.relatedPersonId,
+    searchQuery: '',
+  };
+}
+
 export default function PersonFormDialog({
   visible,
   mode,
   person,
   initialValues,
+  initialPendingRelationships = [],
   loading = false,
   existingLastNames = [],
   relationshipCandidates = [],
@@ -143,11 +156,15 @@ export default function PersonFormDialog({
     setDeathDateError(null);
     setBirthDatePickerVisible(false);
     setDeathDatePickerVisible(false);
-    setPendingRelationships([]);
+    setPendingRelationships(
+      mode === 'create'
+        ? initialPendingRelationships.map(createPendingRelationshipDraftFromSubmission)
+        : [],
+    );
     setSurnameMenuVisible(false);
     setLastNameTouched(false);
     setPreferredPhotoRef(person?.preferredPhotoId ?? initialValues?.preferredPhotoRef ?? '');
-  }, [initialValues, person, visible]);
+  }, [initialPendingRelationships, initialValues, mode, person, visible]);
 
   const allPhotoCount = useMemo(
     () => existingPhotos.length + newPhotoUris.length,

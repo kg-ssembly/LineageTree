@@ -132,7 +132,6 @@ export default function HomeScreen({ navigation }: Props) {
     selectTree(targetTree.id);
     navigation.navigate('TreeDetail', {
       treeId: targetTree.id,
-      treeName: targetTree.name,
       initialTab: 'VisualisationTab',
     });
   }, [defaultTree, loadingTrees, navigation, selectTree, trees, user]);
@@ -170,7 +169,7 @@ export default function HomeScreen({ navigation }: Props) {
           await setDefaultTreeId(tree.id);
         }
         setTreeDialog({ visible: false, mode: 'create', tree: null });
-        navigation.navigate('TreeDetail', { treeId: tree.id, treeName: tree.name, initialTab: 'VisualisationTab' });
+        navigation.navigate('TreeDetail', { treeId: tree.id, initialTab: 'VisualisationTab' });
         return;
       }
 
@@ -186,7 +185,7 @@ export default function HomeScreen({ navigation }: Props) {
 
   const openTree = (tree: FamilyTree) => {
     selectTree(tree.id);
-    navigation.navigate('TreeDetail', { treeId: tree.id, treeName: tree.name });
+    navigation.navigate('TreeDetail', { treeId: tree.id });
   };
 
   const handleToggleDefaultTree = async (tree: FamilyTree) => {
