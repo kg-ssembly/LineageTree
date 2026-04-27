@@ -245,6 +245,7 @@ export default function FamilyTreeCanvas({
 }: FamilyTreeCanvasProps) {
   const theme = useTheme();
   const { height: windowHeight } = useWindowDimensions();
+  const inlineViewportHeight = Math.max(420, windowHeight - 360);
   const pan = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
   const dragStartPanRef = useRef({ x: 0, y: 0 });
   const lastAutoFitKeyRef = useRef<string | null>(null);
@@ -596,7 +597,7 @@ export default function FamilyTreeCanvas({
         </View>
       </View>
 
-      {renderCanvasViewport('inline')}
+      {renderCanvasViewport('inline', { height: inlineViewportHeight })}
 
       <Modal visible={isFullscreen} animationType="slide" onRequestClose={() => setIsFullscreen(false)}>
         <View style={[styles.fullscreenContainer, { backgroundColor: theme.colors.background }]}>
@@ -631,7 +632,6 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   viewport: {
-    height: 360,
     overflow: 'hidden',
     borderRadius: 5,
     borderWidth: 1,
