@@ -61,7 +61,8 @@ service cloud.firestore {
         && request.resource.data.name is string
         && request.auth.uid in request.resource.data.memberIds
         && request.auth.uid in request.resource.data.editorIds
-        && request.resource.data.personAssignments is map;
+        && request.resource.data.personAssignments is map
+        && (!('approvalWindowHours' in request.resource.data) || request.resource.data.approvalWindowHours is number);
       allow read: if signedIn() && request.auth.uid in resource.data.memberIds;
       allow update: if (
           isTreeOwner(treeId)
@@ -70,9 +71,20 @@ service cloud.firestore {
           && request.resource.data.memberIds is list
           && request.resource.data.editorIds is list
           && request.resource.data.collaborators is list
+          && (!('approvalWindowHours' in request.resource.data) || request.resource.data.approvalWindowHours is number)
         )
         || isOwnPersonAssignmentUpdate(treeId);
       allow delete: if isTreeOwner(treeId);
+    }
+
+    match /approvalRequests/{requestId} {
+      allow create: if signedIn()
+        && request.resource.data.treeId is string
+        && isTreeMember(request.resource.data.treeId)
+        && request.resource.data.requestedByUserId == request.auth.uid;
+      allow read: if isTreeMember(resource.data.treeId);
+      allow update: if isTreeMember(resource.data.treeId);
+      allow delete: if isTreeOwner(resource.data.treeId);
     }
 
     match /persons/{personId} {

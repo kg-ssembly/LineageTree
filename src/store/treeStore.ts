@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { ApprovalRequest } from '../types/approval';
 import type { PersonInput, PersonMutationPayload, PersonRecord } from '../types/person';
 import type { RelationshipRecord } from '../types/relationship';
 import type { CollaboratorRole, FamilyTree } from '../types/tree';
@@ -11,20 +12,25 @@ import {
   createPerson,
   createSpouseRelationship,
   createTree,
+  decideApprovalRequest,
   deletePerson,
   deleteRelationship,
   deleteTree,
+  processExpiredApprovalRequests,
   removeCollaboratorFromTree,
+  subscribeToApprovalRequests,
   subscribeToPeople,
   subscribeToRelationships,
   subscribeToTrees,
   updatePerson,
+  updateTreeApprovalWindow,
   updateTreeName,
 } from '../services/familyTreeService';
 
 let unsubscribeTrees: (() => void) | null = null;
 let unsubscribePeople: (() => void) | null = null;
 let unsubscribeRelationships: (() => void) | null = null;
+let unsubscribeApprovalRequests: (() => void) | null = null;
 
 function normaliseError(error: unknown) {
   if (error instanceof Error && error.message) {
@@ -37,8 +43,10 @@ function normaliseError(error: unknown) {
 function stopTreeSubscriptions() {
   unsubscribePeople?.();
   unsubscribeRelationships?.();
+  unsubscribeApprovalRequests?.();
   unsubscribePeople = null;
   unsubscribeRelationships = null;
+  unsubscribeApprovalRequests = null;
 }
 
 function stopAllSubscriptions() {
@@ -50,29 +58,36 @@ function stopAllSubscriptions() {
 interface TreeState {
   trees: FamilyTree[];
   selectedTreeId: string | null;
+  currentUserId: string | null;
   people: PersonRecord[];
   relationships: RelationshipRecord[];
+  approvalRequests: ApprovalRequest[];
   loadingTrees: boolean;
   loadingTreeData: boolean;
   mutating: boolean;
   error: string | null;
+  notice: string | null;
   syncFamilyData: (userId: string | null) => void;
   selectTree: (treeId: string | null) => void;
   createTree: (owner: Pick<UserProfile, 'id' | 'email' | 'displayName'>, name: string) => Promise<FamilyTree>;
   renameTree: (treeId: string, name: string) => Promise<void>;
+  setApprovalWindowHours: (treeId: string, hours: number) => Promise<void>;
   addCollaborator: (treeId: string, email: string, role: CollaboratorRole) => Promise<void>;
   removeCollaborator: (treeId: string, collaboratorUserId: string) => Promise<void>;
   removeTree: (tree: FamilyTree) => Promise<void>;
   createPerson: (ownerId: string, treeId: string, input: PersonInput, newPhotoUris: string[]) => Promise<PersonRecord>;
   updatePerson: (ownerId: string, person: PersonRecord, input: PersonMutationPayload) => Promise<void>;
-  removePerson: (person: PersonRecord) => Promise<void>;
+  removePerson: (actorUserId: string, person: PersonRecord) => Promise<void>;
   addParentChildRelationship: (ownerId: string, treeId: string, parentId: string, childId: string) => Promise<void>;
   addSpouseRelationship: (ownerId: string, treeId: string, personAId: string, personBId: string) => Promise<void>;
-  removeRelationship: (relationshipId: string) => Promise<void>;
+  removeRelationship: (actorUserId: string, relationshipId: string) => Promise<void>;
+  approveApprovalRequest: (actorUserId: string, requestId: string) => Promise<void>;
+  rejectApprovalRequest: (actorUserId: string, requestId: string) => Promise<void>;
   assignPersonToUser: (actorUserId: string, treeId: string, targetUserId: string, personId: string) => Promise<void>;
   assignSelfToPerson: (treeId: string, userId: string, personId: string) => Promise<void>;
   clearSelfAssignment: (treeId: string, userId: string) => Promise<void>;
   clearError: () => void;
+  clearNotice: () => void;
   reset: () => void;
 }
 
@@ -81,11 +96,11 @@ export const useTreeStore = create<TreeState>((set, get) => {
     stopTreeSubscriptions();
 
     if (!treeId) {
-      set({ people: [], relationships: [], loadingTreeData: false });
+      set({ people: [], relationships: [], approvalRequests: [], loadingTreeData: false });
       return;
     }
 
-    set({ people: [], relationships: [], loadingTreeData: true });
+    set({ people: [], relationships: [], approvalRequests: [], loadingTreeData: true });
 
     unsubscribePeople = subscribeToPeople(
       treeId,
@@ -105,17 +120,32 @@ export const useTreeStore = create<TreeState>((set, get) => {
       },
       (error) => set({ error: normaliseError(error), loadingTreeData: false }),
     );
+
+    unsubscribeApprovalRequests = subscribeToApprovalRequests(
+      treeId,
+      (approvalRequests) => {
+        set({ approvalRequests });
+        const currentUserId = get().currentUserId;
+        if (currentUserId && approvalRequests.some((request) => request.status === 'pending' && request.expiresAtMillis <= Date.now())) {
+          processExpiredApprovalRequests(currentUserId, treeId).catch((error) => set({ error: normaliseError(error) }));
+        }
+      },
+      (error) => set({ error: normaliseError(error) }),
+    );
   };
 
   return {
     trees: [],
     selectedTreeId: null,
+    currentUserId: null,
     people: [],
     relationships: [],
+    approvalRequests: [],
     loadingTrees: true,
     loadingTreeData: false,
     mutating: false,
     error: null,
+    notice: null,
 
     syncFamilyData: (userId) => {
       stopAllSubscriptions();
@@ -124,17 +154,20 @@ export const useTreeStore = create<TreeState>((set, get) => {
         set({
           trees: [],
           selectedTreeId: null,
+          currentUserId: null,
           people: [],
           relationships: [],
+          approvalRequests: [],
           loadingTrees: false,
           loadingTreeData: false,
           mutating: false,
           error: null,
+          notice: null,
         });
         return;
       }
 
-      set({ loadingTrees: true, loadingTreeData: false, error: null });
+      set({ currentUserId: userId, loadingTrees: true, loadingTreeData: false, error: null, notice: null });
 
       unsubscribeTrees = subscribeToTrees(
         userId,
@@ -177,6 +210,17 @@ export const useTreeStore = create<TreeState>((set, get) => {
       try {
         await updateTreeName(treeId, name);
         set({ mutating: false });
+      } catch (error) {
+        set({ mutating: false, error: normaliseError(error) });
+        throw error;
+      }
+    },
+
+    setApprovalWindowHours: async (treeId, hours) => {
+      set({ mutating: true, error: null });
+      try {
+        await updateTreeApprovalWindow(treeId, hours);
+        set({ mutating: false, notice: 'Approval window updated.' });
       } catch (error) {
         set({ mutating: false, error: normaliseError(error) });
         throw error;
@@ -235,19 +279,19 @@ export const useTreeStore = create<TreeState>((set, get) => {
     updatePerson: async (ownerId, person, input) => {
       set({ mutating: true, error: null });
       try {
-        await updatePerson(ownerId, person, input);
-        set({ mutating: false });
+        const result = await updatePerson(ownerId, person, input);
+        set({ mutating: false, notice: result.message });
       } catch (error) {
         set({ mutating: false, error: normaliseError(error) });
         throw error;
       }
     },
 
-    removePerson: async (person) => {
+    removePerson: async (actorUserId, person) => {
       set({ mutating: true, error: null });
       try {
-        await deletePerson(person);
-        set({ mutating: false });
+        const result = await deletePerson(actorUserId, person);
+        set({ mutating: false, notice: result.message });
       } catch (error) {
         set({ mutating: false, error: normaliseError(error) });
         throw error;
@@ -257,8 +301,8 @@ export const useTreeStore = create<TreeState>((set, get) => {
     addParentChildRelationship: async (ownerId, treeId, parentId, childId) => {
       set({ mutating: true, error: null });
       try {
-        await createParentChildRelationship(ownerId, treeId, parentId, childId);
-        set({ mutating: false });
+        const result = await createParentChildRelationship(ownerId, treeId, parentId, childId);
+        set({ mutating: false, notice: result.message });
       } catch (error) {
         set({ mutating: false, error: normaliseError(error) });
         throw error;
@@ -268,19 +312,41 @@ export const useTreeStore = create<TreeState>((set, get) => {
     addSpouseRelationship: async (ownerId, treeId, personAId, personBId) => {
       set({ mutating: true, error: null });
       try {
-        await createSpouseRelationship(ownerId, treeId, personAId, personBId);
-        set({ mutating: false });
+        const result = await createSpouseRelationship(ownerId, treeId, personAId, personBId);
+        set({ mutating: false, notice: result.message });
       } catch (error) {
         set({ mutating: false, error: normaliseError(error) });
         throw error;
       }
     },
 
-    removeRelationship: async (relationshipId) => {
+    removeRelationship: async (actorUserId, relationshipId) => {
       set({ mutating: true, error: null });
       try {
-        await deleteRelationship(relationshipId);
-        set({ mutating: false });
+        const result = await deleteRelationship(actorUserId, relationshipId);
+        set({ mutating: false, notice: result.message });
+      } catch (error) {
+        set({ mutating: false, error: normaliseError(error) });
+        throw error;
+      }
+    },
+
+    approveApprovalRequest: async (actorUserId, requestId) => {
+      set({ mutating: true, error: null });
+      try {
+        await decideApprovalRequest(actorUserId, requestId, 'approve');
+        set({ mutating: false, notice: 'Approval request approved.' });
+      } catch (error) {
+        set({ mutating: false, error: normaliseError(error) });
+        throw error;
+      }
+    },
+
+    rejectApprovalRequest: async (actorUserId, requestId) => {
+      set({ mutating: true, error: null });
+      try {
+        await decideApprovalRequest(actorUserId, requestId, 'reject');
+        set({ mutating: false, notice: 'Approval request rejected.' });
       } catch (error) {
         set({ mutating: false, error: normaliseError(error) });
         throw error;
@@ -315,17 +381,22 @@ export const useTreeStore = create<TreeState>((set, get) => {
 
     clearError: () => set({ error: null }),
 
+    clearNotice: () => set({ notice: null }),
+
     reset: () => {
       stopAllSubscriptions();
       set({
         trees: [],
         selectedTreeId: null,
+        currentUserId: null,
         people: [],
         relationships: [],
+        approvalRequests: [],
         loadingTrees: false,
         loadingTreeData: false,
         mutating: false,
         error: null,
+        notice: null,
       });
     },
   };

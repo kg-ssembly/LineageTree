@@ -16,6 +16,7 @@ export interface FamilyTree {
   editorIds: string[];
   collaborators: TreeCollaborator[];
   personAssignments: Record<string, string>;
+  approvalWindowHours: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -67,5 +68,14 @@ export function isAssignedPersonForUser(tree: FamilyTree, personId?: string | nu
 export function getUnlinkedCollaborators(tree: FamilyTree) {
   const linkedUserIds = new Set(Object.keys(tree.personAssignments));
   return tree.collaborators.filter((collaborator) => !linkedUserIds.has(collaborator.userId));
+}
+
+export function getTreeApprovalWindowHours(tree?: Pick<FamilyTree, 'approvalWindowHours'> | null) {
+  const nextValue = Number(tree?.approvalWindowHours ?? 24);
+  if (!Number.isFinite(nextValue)) {
+    return 24;
+  }
+
+  return Math.max(1, Math.min(168, Math.round(nextValue)));
 }
 

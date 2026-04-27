@@ -177,6 +177,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
     loadingTreeData,
     mutating,
     error,
+    notice,
     selectTree,
     assignPersonToUser,
     clearSelfAssignment,
@@ -185,6 +186,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
     addSpouseRelationship,
     removeRelationship,
     clearError,
+    clearNotice,
   } = useTreeStore();
 
   const [editorVisible, setEditorVisible] = useState(false);
@@ -405,6 +407,12 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
     }
   }, [error]);
 
+  useEffect(() => {
+    if (notice) {
+      setSnackVisible(true);
+    }
+  }, [notice]);
+
   const openConfirm = (title: string, message: string, confirmLabel: string, action: () => Promise<void>) => {
     setConfirmState({ visible: true, title, message, confirmLabel, action });
   };
@@ -477,7 +485,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
       }
 
       if (currentRelationship) {
-        await removeRelationship(currentRelationship.id);
+        await removeRelationship(user.id, currentRelationship.id);
       }
 
       setRelationshipDialog({ visible: false, relationship: null });
@@ -743,7 +751,13 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
                                 'Remove relationship',
                                 `Remove the ${entry.title.toLowerCase()} connection?`,
                                 'Remove',
-                                async () => removeRelationship(entry.relationship.id),
+                                async () => {
+                                  if (!user?.id) {
+                                    return;
+                                  }
+
+                                  await removeRelationship(user.id, entry.relationship.id);
+                                },
                               )}
                               disabled={mutating}
                             />
@@ -993,10 +1007,11 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
         onDismiss={() => {
           setSnackVisible(false);
           clearError();
+          clearNotice();
         }}
         duration={5000}
       >
-        {error}
+        {error ?? notice}
       </Snackbar>
     </View>
   );

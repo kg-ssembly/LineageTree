@@ -18,6 +18,7 @@ import {
   TextInput,
   useTheme,
 } from 'react-native-paper';
+import { canUserReviewApprovalRequest, isApprovalExpired, type ApprovalRequest } from '../types/approval';
 import {
   CollaboratorDialog,
   ConfirmDialog,
@@ -76,6 +77,7 @@ interface SharedTabProps {
   selectedTree: FamilyTree;
   people: PersonRecord[];
   relationships: RelationshipRecord[];
+  approvalRequests: ApprovalRequest[];
   peopleById: Map<string, PersonRecord>;
   canEdit: boolean;
   isOwner: boolean;
@@ -99,10 +101,12 @@ interface SharedTabProps {
   onOpenAddSelf: () => void;
   onEditPerson: (person: PersonRecord) => void;
   onDeletePerson: (person: PersonRecord) => Promise<void>;
-  onRemoveRelationship: (relationshipId: string, label: string) => Promise<void>;
   onRemoveCollaborator: (collaboratorUserId: string) => Promise<void>;
   onAssignPersonToUser: (targetUserId: string, personId: string) => Promise<void>;
   onClearSelfAssignment: () => Promise<void>;
+  onApproveApprovalRequest: (requestId: string) => Promise<void>;
+  onRejectApprovalRequest: (requestId: string) => Promise<void>;
+  onSetApprovalWindowHours: (hours: number) => Promise<void>;
 }
 
 const Tab = createBottomTabNavigator<TreeDetailTabParamList>();
@@ -380,7 +384,7 @@ function VisualisationTabContent({
       <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
         <View style={styles.sectionHeader}>
           <View style={styles.titleWrap}>
-            <Text variant="titleLarge">Tree visualization</Text>
+            <Text variant="titleLarge">Family Tree</Text>
             <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
               Nodes represent family members and edges represent parent-child or spouse relationships. Tap a node for quick actions like opening a profile or adding relatives.
             </Text>
@@ -429,6 +433,7 @@ function ProfileTabContent({
   selectedTree,
   people,
   relationships,
+  approvalRequests,
   role,
   isOwner,
   userId,
@@ -447,12 +452,16 @@ function ProfileTabContent({
   onAssignPersonToUser,
   onClearSelfAssignment,
   openPersonProfile,
+  onApproveApprovalRequest,
+  onRejectApprovalRequest,
+  onSetApprovalWindowHours,
 }: SharedTabProps) {
   const theme = useTheme();
   const [showLinkChooser, setShowLinkChooser] = useState(false);
   const [linkSearchQuery, setLinkSearchQuery] = useState('');
   const [ownerLinkTargetUserId, setOwnerLinkTargetUserId] = useState<string | null>(null);
   const [ownerLinkSearchQuery, setOwnerLinkSearchQuery] = useState('');
+  const [approvalWindowInput, setApprovalWindowInput] = useState(`${selectedTree.approvalWindowHours}`);
 
   const unlinkedCollaboratorCount = useMemo(
     () => getUnlinkedCollaborators(selectedTree).filter((collaborator) => collaborator.userId !== userId).length,
@@ -511,6 +520,15 @@ function ProfileTabContent({
       .slice(0, 8);
   }, [assignedUserIdByPersonId, ownerLinkSearchQuery, ownerLinkTargetUserId, people]);
 
+  const pendingApprovalRequests = useMemo(
+    () => approvalRequests.filter((request) => request.status === 'pending'),
+    [approvalRequests],
+  );
+
+  useEffect(() => {
+    setApprovalWindowInput(`${selectedTree.approvalWindowHours}`);
+  }, [selectedTree.approvalWindowHours]);
+
   const handleSelfLink = async (personId: string) => {
     if (!userId || currentAssignedPerson) {
       return;
@@ -539,6 +557,31 @@ function ProfileTabContent({
         <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
           Review the current tree at a glance, manage collaborators, and keep profile links up to date.
         </Text>
+
+        <View style={styles.treeSettingsWrap}>
+          <Text variant="titleSmall">Approval window</Text>
+          <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>Family member profile edits and relationship changes auto-approve after this many hours if no one reviews them. Single-collaborator trees still approve immediately.</Text>
+          <View style={styles.approvalWindowRow}>
+            <TextInput
+              mode="outlined"
+              label="Hours"
+              value={approvalWindowInput}
+              onChangeText={setApprovalWindowInput}
+              keyboardType="number-pad"
+              style={styles.approvalWindowInput}
+              disabled={mutating || !isOwner}
+            />
+            {isOwner ? (
+              <Button
+                mode="contained-tonal"
+                onPress={() => onSetApprovalWindowHours(Number(approvalWindowInput) || selectedTree.approvalWindowHours)}
+                disabled={mutating}
+              >
+                Save window
+              </Button>
+            ) : null}
+          </View>
+        </View>
 
         <View style={styles.summaryChipRow}>
           <Chip icon="account-key">{formatRole(role)}</Chip>
@@ -861,6 +904,61 @@ function ProfileTabContent({
             })}
           </View>
         </View>
+
+        <View style={styles.collaboratorSectionWrap}>
+          <View style={styles.sectionHeader}>
+            <View style={styles.titleWrap}>
+              <Text variant="titleLarge">Pending approvals</Text>
+              <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>One other collaborator can approve or reject family member and relationship changes. If nobody reviews them before the deadline, they auto-approve.</Text>
+            </View>
+          </View>
+
+          {pendingApprovalRequests.length > 0 ? (
+            <View style={styles.collaboratorList}>
+              {pendingApprovalRequests.map((request) => {
+                const canReview = canUserReviewApprovalRequest(request, userId);
+                const expiresSoon = isApprovalExpired(request);
+
+                return (
+                  <Card key={request.id} mode="outlined" style={[styles.collaboratorCard, { backgroundColor: theme.colors.elevation.level1, borderColor: canReview ? theme.colors.primary : theme.colors.outlineVariant }]}>
+                    <Card.Content>
+                      <View style={styles.approvalRequestHeader}>
+                        <View style={styles.collaboratorTextWrap}>
+                          <View style={styles.collaboratorChipRow}>
+                            <Chip compact icon={canReview ? 'clipboard-check-outline' : 'clock-outline'}>
+                              {canReview ? 'Needs your review' : 'Awaiting review'}
+                            </Chip>
+                            <Chip compact icon={expiresSoon ? 'timer-alert-outline' : 'timer-outline'}>
+                              Auto-approves {request.expiresAt.slice(0, 16).replace('T', ' ')}
+                            </Chip>
+                          </View>
+                          <Text variant="titleMedium" style={styles.selfAssignmentTitle}>{request.title}</Text>
+                          <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>{request.description}</Text>
+                          <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>Requested by {request.requestedByLabel}</Text>
+                        </View>
+                        {canReview ? (
+                          <View style={styles.approvalRequestActions}>
+                            <Button mode="contained" onPress={() => onApproveApprovalRequest(request.id)} disabled={mutating}>
+                              Approve
+                            </Button>
+                            <Button mode="outlined" textColor={theme.colors.error} onPress={() => onRejectApprovalRequest(request.id)} disabled={mutating}>
+                              Reject
+                            </Button>
+                          </View>
+                        ) : null}
+                      </View>
+                    </Card.Content>
+                  </Card>
+                );
+              })}
+            </View>
+          ) : (
+            <View style={styles.emptyState}>
+              <Text variant="titleMedium">No pending approvals</Text>
+              <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>Any collaborator-submitted family member or relationship edits waiting for review will appear here.</Text>
+            </View>
+          )}
+        </View>
       </Surface>
     </ScrollView>
   );
@@ -874,10 +972,12 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     selectedTreeId,
     people,
     relationships,
+    approvalRequests,
     loadingTrees,
     loadingTreeData,
     mutating,
     error,
+    notice,
     selectTree,
     addCollaborator,
     removeCollaborator,
@@ -889,7 +989,11 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     addParentChildRelationship,
     addSpouseRelationship,
     removeRelationship,
+    approveApprovalRequest,
+    rejectApprovalRequest,
+    setApprovalWindowHours,
     clearError,
+    clearNotice,
   } = useTreeStore();
 
   const [personDialog, setPersonDialog] = useState<PersonDialogState>({
@@ -999,6 +1103,12 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
       setSnackVisible(true);
     }
   }, [error]);
+
+  useEffect(() => {
+    if (notice) {
+      setSnackVisible(true);
+    }
+  }, [notice]);
 
   const openConfirm = (title: string, message: string, confirmLabel: string, action: () => Promise<void>) => {
     setConfirmState({ visible: true, title, message, confirmLabel, action });
@@ -1189,6 +1299,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     selectedTree,
     people,
     relationships,
+    approvalRequests,
     peopleById,
     canEdit,
     isOwner,
@@ -1211,11 +1322,28 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     onOpenCollaboratorDialog: () => setCollaboratorDialogVisible(true),
     onOpenAddSelf: () => setSelfPersonDialogVisible(true),
     onEditPerson: (person) => setPersonDialog({ visible: true, mode: 'edit', person, initialPendingRelationships: [] }),
-    onDeletePerson: async (person) => removePerson(person),
-    onRemoveRelationship: async (relationshipId) => removeRelationship(relationshipId),
+    onDeletePerson: async (person) => {
+      if (!user?.id) {
+        return;
+      }
+      await removePerson(user.id, person);
+    },
     onRemoveCollaborator: async (collaboratorUserId) => removeCollaborator(selectedTree.id, collaboratorUserId),
     onAssignPersonToUser: handleAssignPersonToUser,
     onClearSelfAssignment: handleClearSelfAssignment,
+    onApproveApprovalRequest: async (requestId) => {
+      if (!user?.id) {
+        return;
+      }
+      await approveApprovalRequest(user.id, requestId);
+    },
+    onRejectApprovalRequest: async (requestId) => {
+      if (!user?.id) {
+        return;
+      }
+      await rejectApprovalRequest(user.id, requestId);
+    },
+    onSetApprovalWindowHours: async (hours) => setApprovalWindowHours(selectedTree.id, hours),
   };
 
   return (
@@ -1247,7 +1375,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
         </Tab.Screen>
         <Tab.Screen
           name="VisualisationTab"
-          options={{ title: 'Visualise' }}
+          options={{ title: 'Tree' }}
         >
           {() => <VisualisationTabContent {...sharedTabProps} />}
         </Tab.Screen>
@@ -1376,6 +1504,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
         onDismiss={() => {
           setSnackVisible(false);
           clearError();
+          clearNotice();
         }}
         duration={5000}
         action={{
@@ -1383,10 +1512,11 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
           onPress: () => {
             setSnackVisible(false);
             clearError();
+            clearNotice();
           },
         }}
       >
-        {error}
+        {error ?? notice}
       </Snackbar>
     </View>
   );
@@ -1435,6 +1565,20 @@ const styles = StyleSheet.create({
     marginTop: 4,
     color: '#6B6B74',
   },
+  treeSettingsWrap: {
+    marginTop: 16,
+  },
+  approvalWindowRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 12,
+  },
+  approvalWindowInput: {
+    minWidth: 120,
+    flexBasis: 120,
+  },
   summaryChipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -1452,6 +1596,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     gap: 8,
+  },
+  approvalRequestHeader: {
+    gap: 12,
+  },
+  approvalRequestActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 4,
   },
   collaboratorTextWrap: {
     flex: 1,
