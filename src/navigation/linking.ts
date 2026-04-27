@@ -3,7 +3,6 @@ import type { RootStackParamList, TreeDetailTabParamList } from '../types/naviga
 
 const tabPathByKey: Record<keyof TreeDetailTabParamList, string> = {
   PeopleRelationshipsTab: 'family-members',
-  IntelligenceTab: 'insights',
   VisualisationTab: 'visualisation',
   ProfileTab: 'profile',
 };

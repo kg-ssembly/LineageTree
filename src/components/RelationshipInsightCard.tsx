@@ -8,6 +8,9 @@ import { computeRelationshipInsight } from '../services';
 interface RelationshipInsightCardProps {
   people: PersonRecord[];
   relationships: RelationshipRecord[];
+  lockedFromPersonId?: string;
+  title?: string;
+  subtitle?: string;
 }
 
 function formatPersonName(person?: PersonRecord | null) {
@@ -18,15 +21,47 @@ function formatPersonName(person?: PersonRecord | null) {
   return `${person.firstName} ${person.lastName}`.trim();
 }
 
-export default function RelationshipInsightCard({ people, relationships }: RelationshipInsightCardProps) {
+export default function RelationshipInsightCard({
+  people,
+  relationships,
+  lockedFromPersonId,
+  title = 'Relationship intelligence',
+  subtitle,
+}: RelationshipInsightCardProps) {
   const theme = useTheme();
-  const [fromPersonId, setFromPersonId] = useState('');
+  const [fromPersonId, setFromPersonId] = useState(lockedFromPersonId ?? '');
   const [toPersonId, setToPersonId] = useState('');
+
+  const effectiveSubtitle = subtitle ?? (lockedFromPersonId
+    ? 'See how this family member is connected to everyone else in the tree.'
+    : 'Select two family members to compute their relationship and show the connection path.');
 
   const peopleById = useMemo(
     () => new Map(people.map((person) => [person.id, person])),
     [people],
   );
+
+  const fromCandidates = useMemo(
+    () => (lockedFromPersonId ? people.filter((person) => person.id === lockedFromPersonId) : people),
+    [lockedFromPersonId, people],
+  );
+
+  const toCandidates = useMemo(
+    () => people.filter((person) => person.id !== (lockedFromPersonId || fromPersonId)),
+    [fromPersonId, lockedFromPersonId, people],
+  );
+
+  React.useEffect(() => {
+    if (lockedFromPersonId) {
+      setFromPersonId(lockedFromPersonId);
+    }
+  }, [lockedFromPersonId]);
+
+  React.useEffect(() => {
+    if (toPersonId && !toCandidates.some((person) => person.id === toPersonId)) {
+      setToPersonId('');
+    }
+  }, [toCandidates, toPersonId]);
 
   const insight = useMemo(() => {
     if (!fromPersonId || !toPersonId) {
@@ -45,30 +80,40 @@ export default function RelationshipInsightCard({ people, relationships }: Relat
   return (
     <Card mode="outlined" style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant }]}>
       <Card.Content>
+        <Text variant="titleMedium">{title}</Text>
         <Text variant="bodyMedium" style={[styles.subtitle, { color: theme.colors.onSurfaceVariant }]}>
-          Select two family members to compute their relationship and show the connection path.
+          {effectiveSubtitle}
         </Text>
 
-        <View style={styles.section}>
-          <Text variant="titleSmall">Family member A</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-            {people.map((person) => (
-              <Chip
-                key={`from-${person.id}`}
-                selected={fromPersonId === person.id}
-                onPress={() => setFromPersonId(person.id)}
-                style={styles.chip}
-              >
-                {formatPersonName(person)}
-              </Chip>
-            ))}
-          </ScrollView>
-        </View>
+        {!lockedFromPersonId ? (
+          <View style={styles.section}>
+            <Text variant="titleSmall">Family member A</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
+              {fromCandidates.map((person) => (
+                <Chip
+                  key={`from-${person.id}`}
+                  selected={fromPersonId === person.id}
+                  onPress={() => setFromPersonId(person.id)}
+                  style={styles.chip}
+                >
+                  {formatPersonName(person)}
+                </Chip>
+              ))}
+            </ScrollView>
+          </View>
+        ) : (
+          <View style={styles.section}>
+            <Text variant="titleSmall">Selected family member</Text>
+            <View style={styles.lockedPersonRow}>
+              <Chip selected style={styles.chip}>{formatPersonName(peopleById.get(fromPersonId))}</Chip>
+            </View>
+          </View>
+        )}
 
         <View style={styles.section}>
-          <Text variant="titleSmall">Family member B</Text>
+          <Text variant="titleSmall">Compare with</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-            {people.map((person) => (
+            {toCandidates.map((person) => (
               <Chip
                 key={`to-${person.id}`}
                 selected={toPersonId === person.id}
@@ -82,7 +127,14 @@ export default function RelationshipInsightCard({ people, relationships }: Relat
         </View>
 
         <View style={styles.actionsRow}>
-          <Button onPress={() => { setFromPersonId(''); setToPersonId(''); }}>Clear</Button>
+          <Button onPress={() => {
+            if (!lockedFromPersonId) {
+              setFromPersonId('');
+            }
+            setToPersonId('');
+          }}>
+            Clear
+          </Button>
         </View>
 
         {fromPersonId && toPersonId ? (
@@ -126,6 +178,9 @@ const styles = StyleSheet.create({
   actionsRow: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
+    marginTop: 8,
+  },
+  lockedPersonRow: {
     marginTop: 8,
   },
   resultBox: {

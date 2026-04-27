@@ -24,7 +24,6 @@ import {
   FamilyTreeCanvas,
   PersonFormDialog,
   RelationshipDialog,
-  RelationshipInsightCard,
 } from '../components';
 import type { PersonFormSubmission } from '../components/PersonFormDialog';
 import { useAuthStore } from '../store/authStore';
@@ -365,20 +364,6 @@ function PeopleRelationshipsTabContent({
   );
 }
 
-function IntelligenceTabContent({ people, relationships }: SharedTabProps) {
-  const theme = useTheme();
-  return (
-    <ScrollView contentContainerStyle={styles.content}>
-      <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
-        <Text variant="titleLarge">Relationship intelligence</Text>
-        <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>Use this tab to explore how any two family members are connected across the tree.</Text>
-
-        <RelationshipInsightCard people={people} relationships={relationships} />
-      </Surface>
-    </ScrollView>
-  );
-}
-
 function VisualisationTabContent({
   people,
   relationships,
@@ -552,7 +537,7 @@ function ProfileTabContent({
       <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
         <Text variant="headlineSmall">{selectedTree.name}</Text>
         <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-          Review the current tree at a glance and use the intelligence tool to understand relationships between members.
+          Review the current tree at a glance, manage collaborators, and keep profile links up to date.
         </Text>
 
         <View style={styles.summaryChipRow}>
@@ -1247,9 +1232,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
           tabBarIcon: ({ color, size }) => {
             const iconName = currentRoute.name === 'PeopleRelationshipsTab'
               ? 'account-group-outline'
-              : currentRoute.name === 'IntelligenceTab'
-                ? 'head-cog-outline'
-                : currentRoute.name === 'VisualisationTab'
+              : currentRoute.name === 'VisualisationTab'
                   ? 'family-tree'
                   : 'card-account-details-outline';
             return <MaterialCommunityIcons name={iconName} size={size} color={color} />;
@@ -1261,12 +1244,6 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
           options={{ title: 'Family members' }}
         >
           {() => <PeopleRelationshipsTabContent {...sharedTabProps} />}
-        </Tab.Screen>
-        <Tab.Screen
-          name="IntelligenceTab"
-          options={{ title: 'Insights' }}
-        >
-          {() => <IntelligenceTabContent {...sharedTabProps} />}
         </Tab.Screen>
         <Tab.Screen
           name="VisualisationTab"

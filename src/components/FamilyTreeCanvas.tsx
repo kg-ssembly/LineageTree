@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Button, Chip, IconButton, Text, useTheme } from 'react-native-paper';
-import Svg, { Line } from 'react-native-svg';
+import Svg, { Line, Path } from 'react-native-svg';
 import type { PersonRecord } from '../types/person';
 import { getPersonLifeSpanLabel, getPersonPresenceLabel, getPreferredPersonPhoto } from '../types/person';
 import type { RelationshipRecord } from '../types/relationship';
@@ -24,6 +24,7 @@ interface FamilyTreeCanvasProps {
   currentUserPersonId?: string;
   initialFocusPersonId?: string;
   descendantRootPersonId?: string;
+  ascendantRootPersonId?: string;
   allowFullscreen?: boolean;
 }
 
@@ -45,10 +46,63 @@ const MAX_SCALE = 1.8;
 type GenerationLayout = {
   groupedPeople: Map<number, PersonRecord[]>;
   spouseGroupIdsByPersonId: Map<string, string>;
+  spouseGroupMembersById: Map<string, string[]>;
+  levelBySpouseGroupId: Map<string, number>;
+  parentGroupIdsByChildGroupId: Map<string, Set<string>>;
+  childGroupIdsByParentGroupId: Map<string, Set<string>>;
+};
+
+type TreeLineSegment = {
+  key: string;
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  stroke: string;
+  strokeWidth: number;
+  strokeDasharray?: string;
+};
+
+type TreeConnectorPath = {
+  key: string;
+  d: string;
+  stroke: string;
+  strokeWidth: number;
 };
 
 function formatPersonName(person: PersonRecord) {
   return `${person.firstName} ${person.lastName}`.trim();
+}
+
+function createRoundedParentChildPath(
+  startX: number,
+  startY: number,
+  junctionY: number,
+  endX: number,
+  endY: number,
+) {
+  const horizontalDelta = endX - startX;
+  const upperVerticalDelta = junctionY - startY;
+  const lowerVerticalDelta = endY - junctionY;
+
+  if (Math.abs(horizontalDelta) < 1 || Math.abs(upperVerticalDelta) < 1 || Math.abs(lowerVerticalDelta) < 1) {
+    return `M ${startX} ${startY} L ${startX} ${junctionY} L ${endX} ${junctionY} L ${endX} ${endY}`;
+  }
+
+  const horizontalDirection = horizontalDelta >= 0 ? 1 : -1;
+  const upperVerticalDirection = upperVerticalDelta >= 0 ? 1 : -1;
+  const lowerVerticalDirection = lowerVerticalDelta >= 0 ? 1 : -1;
+  const firstRadius = Math.min(12, Math.abs(horizontalDelta) / 2, Math.abs(upperVerticalDelta) / 2);
+  const secondRadius = Math.min(12, Math.abs(horizontalDelta) / 2, Math.abs(lowerVerticalDelta) / 2);
+
+  return [
+    `M ${startX} ${startY}`,
+    `L ${startX} ${junctionY - upperVerticalDirection * firstRadius}`,
+    `Q ${startX} ${junctionY} ${startX + horizontalDirection * firstRadius} ${junctionY}`,
+    `L ${endX - horizontalDirection * secondRadius} ${junctionY}`,
+    `Q ${endX} ${junctionY} ${endX} ${junctionY + lowerVerticalDirection * secondRadius}`,
+    `L ${endX} ${endY}`,
+  ].join(' ');
 }
 
 function buildGenerations(people: PersonRecord[], relationships: RelationshipRecord[]): GenerationLayout {
@@ -197,9 +251,28 @@ function buildGenerations(people: PersonRecord[], relationships: RelationshipRec
     spouseGroupIdsByLevel.get(level)!.push(spouseGroupId);
   });
 
+  const orderScoreBySpouseGroupId = new Map<string, number>();
+
   spouseGroupIdsByLevel.forEach((spouseGroupIds, level) => {
     spouseGroupIds
       .sort((left, right) => {
+        const leftParentScores = [...(parentGroupIdsByChildGroupId.get(left) ?? new Set<string>())]
+          .map((groupId) => orderScoreBySpouseGroupId.get(groupId))
+          .filter((value): value is number => typeof value === 'number');
+        const rightParentScores = [...(parentGroupIdsByChildGroupId.get(right) ?? new Set<string>())]
+          .map((groupId) => orderScoreBySpouseGroupId.get(groupId))
+          .filter((value): value is number => typeof value === 'number');
+        const leftBarycenter = leftParentScores.length > 0
+          ? leftParentScores.reduce((sum, value) => sum + value, 0) / leftParentScores.length
+          : Number.POSITIVE_INFINITY;
+        const rightBarycenter = rightParentScores.length > 0
+          ? rightParentScores.reduce((sum, value) => sum + value, 0) / rightParentScores.length
+          : Number.POSITIVE_INFINITY;
+
+        if (leftBarycenter !== rightBarycenter) {
+          return leftBarycenter - rightBarycenter;
+        }
+
         const leftKey = spouseGroupSortKeys.get(left);
         const rightKey = spouseGroupSortKeys.get(right);
 
@@ -216,6 +289,7 @@ function buildGenerations(people: PersonRecord[], relationships: RelationshipRec
           .filter((person): person is PersonRecord => Boolean(person))
           .sort((left, right) => formatPersonName(left).localeCompare(formatPersonName(right)));
 
+        orderScoreBySpouseGroupId.set(spouseGroupId, level * 1000 + (groupedPeople.get(level)?.length ?? 0));
         groupedPeople.set(level, [...levelPeople, ...spouseGroupPeople]);
       });
   });
@@ -233,6 +307,10 @@ function buildGenerations(people: PersonRecord[], relationships: RelationshipRec
   return {
     groupedPeople,
     spouseGroupIdsByPersonId,
+    spouseGroupMembersById,
+    levelBySpouseGroupId,
+    parentGroupIdsByChildGroupId,
+    childGroupIdsByParentGroupId,
   };
 }
 
@@ -316,6 +394,86 @@ function buildDescendantSubtree(
   };
 }
 
+function buildAscendantSubtree(
+  people: PersonRecord[],
+  relationships: RelationshipRecord[],
+  rootPersonId?: string,
+) {
+  if (!rootPersonId) {
+    return { renderedPeople: people, renderedRelationships: relationships };
+  }
+
+  const peopleById = new Map(people.map((person) => [person.id, person]));
+  if (!peopleById.has(rootPersonId)) {
+    return { renderedPeople: people, renderedRelationships: relationships };
+  }
+
+  const parentIdsByChildId = new Map<string, Set<string>>();
+  const spouseIdsByPersonId = new Map<string, Set<string>>();
+
+  relationships.forEach((relationship) => {
+    if (relationship.type === 'parent-child') {
+      if (!parentIdsByChildId.has(relationship.toPersonId)) {
+        parentIdsByChildId.set(relationship.toPersonId, new Set());
+      }
+
+      parentIdsByChildId.get(relationship.toPersonId)!.add(relationship.fromPersonId);
+      return;
+    }
+
+    if (!spouseIdsByPersonId.has(relationship.fromPersonId)) {
+      spouseIdsByPersonId.set(relationship.fromPersonId, new Set());
+    }
+    if (!spouseIdsByPersonId.has(relationship.toPersonId)) {
+      spouseIdsByPersonId.set(relationship.toPersonId, new Set());
+    }
+
+    spouseIdsByPersonId.get(relationship.fromPersonId)!.add(relationship.toPersonId);
+    spouseIdsByPersonId.get(relationship.toPersonId)!.add(relationship.fromPersonId);
+  });
+
+  const lineageIds = new Set<string>([rootPersonId]);
+  const queue = [rootPersonId];
+
+  while (queue.length > 0) {
+    const currentPersonId = queue.shift()!;
+    const parentIds = [...(parentIdsByChildId.get(currentPersonId) ?? new Set<string>())].sort((left, right) => left.localeCompare(right));
+
+    parentIds.forEach((parentId) => {
+      if (!peopleById.has(parentId) || lineageIds.has(parentId)) {
+        return;
+      }
+
+      lineageIds.add(parentId);
+      queue.push(parentId);
+    });
+  }
+
+  const includedIds = new Set(lineageIds);
+  lineageIds.forEach((personId) => {
+    (spouseIdsByPersonId.get(personId) ?? new Set<string>()).forEach((spouseId) => {
+      if (peopleById.has(spouseId)) {
+        includedIds.add(spouseId);
+      }
+    });
+  });
+
+  return {
+    renderedPeople: people.filter((person) => includedIds.has(person.id)),
+    renderedRelationships: relationships.filter((relationship) => {
+      if (!includedIds.has(relationship.fromPersonId) || !includedIds.has(relationship.toPersonId)) {
+        return false;
+      }
+
+      if (relationship.type === 'spouse') {
+        return lineageIds.has(relationship.fromPersonId) || lineageIds.has(relationship.toPersonId);
+      }
+
+      return lineageIds.has(relationship.fromPersonId);
+    }),
+  };
+}
+
 export default function FamilyTreeCanvas({
   people,
   relationships,
@@ -323,6 +481,7 @@ export default function FamilyTreeCanvas({
   currentUserPersonId,
   initialFocusPersonId,
   descendantRootPersonId,
+  ascendantRootPersonId,
   allowFullscreen = true,
 }: FamilyTreeCanvasProps) {
   const theme = useTheme();
@@ -336,13 +495,33 @@ export default function FamilyTreeCanvas({
   const [inlineViewportSize, setInlineViewportSize] = useState({ width: 0, height: 0 });
   const [fullscreenViewportSize, setFullscreenViewportSize] = useState({ width: 0, height: 0 });
 
-  const { renderedPeople, renderedRelationships } = useMemo(
-    () => buildDescendantSubtree(people, relationships, descendantRootPersonId),
-    [descendantRootPersonId, people, relationships],
+  const lineageMode = ascendantRootPersonId ? 'ascendant' : descendantRootPersonId ? 'descendant' : 'full';
+
+  const { renderedPeople, renderedRelationships } = useMemo(() => {
+    if (ascendantRootPersonId) {
+      return buildAscendantSubtree(people, relationships, ascendantRootPersonId);
+    }
+
+    if (descendantRootPersonId) {
+      return buildDescendantSubtree(people, relationships, descendantRootPersonId);
+    }
+
+    return { renderedPeople: people, renderedRelationships: relationships };
+  }, [ascendantRootPersonId, descendantRootPersonId, people, relationships]);
+
+  const generationLayout = useMemo(
+    () => buildGenerations(renderedPeople, renderedRelationships),
+    [renderedPeople, renderedRelationships],
   );
 
+  const {
+    groupedPeople,
+    spouseGroupIdsByPersonId,
+    spouseGroupMembersById,
+    levelBySpouseGroupId,
+  } = generationLayout;
+
   const { positionsByPersonId, canvasWidth, canvasHeight } = useMemo(() => {
-    const { groupedPeople, spouseGroupIdsByPersonId } = buildGenerations(renderedPeople, renderedRelationships);
     const levels = [...groupedPeople.keys()].sort((left, right) => left - right);
     const largestLevelSize = Math.max(1, ...levels.map((level) => groupedPeople.get(level)?.length ?? 0));
     const calculatedCanvasWidth = Math.max(
@@ -396,11 +575,139 @@ export default function FamilyTreeCanvas({
       canvasWidth: calculatedCanvasWidth,
       canvasHeight: calculatedCanvasHeight,
     };
-  }, [renderedPeople, renderedRelationships]);
+  }, [groupedPeople, spouseGroupIdsByPersonId]);
+
+  const { spouseSegments, parentChildPaths } = useMemo(() => {
+    const groupBoundsById = new Map<string, { left: number; right: number; centerX: number; topY: number; bottomY: number }>();
+
+    spouseGroupMembersById.forEach((memberIds, spouseGroupId) => {
+      const positions = memberIds
+        .map((personId) => positionsByPersonId.get(personId))
+        .filter((position): position is NodePosition => Boolean(position));
+
+      if (positions.length === 0) {
+        return;
+      }
+
+      const left = Math.min(...positions.map((position) => position.x));
+      const right = Math.max(...positions.map((position) => position.x + NODE_WIDTH));
+      const topY = Math.min(...positions.map((position) => position.y));
+      const bottomY = Math.max(...positions.map((position) => position.y + NODE_HEIGHT));
+
+      groupBoundsById.set(spouseGroupId, {
+        left,
+        right,
+        centerX: (left + right) / 2,
+        topY,
+        bottomY,
+      });
+    });
+
+    const spouseSegments: TreeLineSegment[] = renderedRelationships
+      .filter((relationship) => relationship.type === 'spouse')
+      .map((relationship) => {
+        const fromPosition = positionsByPersonId.get(relationship.fromPersonId);
+        const toPosition = positionsByPersonId.get(relationship.toPersonId);
+
+        if (!fromPosition || !toPosition) {
+          return null;
+        }
+
+        return {
+          key: relationship.id,
+          x1: fromPosition.x + NODE_WIDTH / 2,
+          y1: fromPosition.y + NODE_HEIGHT / 2,
+          x2: toPosition.x + NODE_WIDTH / 2,
+          y2: toPosition.y + NODE_HEIGHT / 2,
+          stroke: theme.colors.secondary,
+          strokeWidth: 4,
+        } satisfies TreeLineSegment;
+      })
+      .filter((segment): segment is TreeLineSegment => Boolean(segment));
+
+    const familyConnectionsByChildLevel = new Map<number, Array<{ parentGroupId: string; childPersonIds: string[] }>>();
+
+    renderedRelationships.forEach((relationship) => {
+      if (relationship.type !== 'parent-child') {
+        return;
+      }
+
+      const parentGroupId = spouseGroupIdsByPersonId.get(relationship.fromPersonId) ?? relationship.fromPersonId;
+      const childGroupId = spouseGroupIdsByPersonId.get(relationship.toPersonId) ?? relationship.toPersonId;
+      const childLevel = levelBySpouseGroupId.get(childGroupId);
+
+      if (typeof childLevel !== 'number') {
+        return;
+      }
+
+      if (!familyConnectionsByChildLevel.has(childLevel)) {
+        familyConnectionsByChildLevel.set(childLevel, []);
+      }
+
+      const levelEntries = familyConnectionsByChildLevel.get(childLevel)!;
+      let entry = levelEntries.find((currentEntry) => currentEntry.parentGroupId === parentGroupId);
+
+      if (!entry) {
+        entry = { parentGroupId, childPersonIds: [] };
+        levelEntries.push(entry);
+      }
+
+      if (!entry.childPersonIds.includes(relationship.toPersonId)) {
+        entry.childPersonIds.push(relationship.toPersonId);
+      }
+    });
+
+    const parentChildPaths: TreeConnectorPath[] = [];
+
+    [...familyConnectionsByChildLevel.entries()]
+      .sort(([leftLevel], [rightLevel]) => leftLevel - rightLevel)
+      .forEach(([childLevel, familyEntries]) => {
+        familyEntries
+          .sort((left, right) => {
+            const leftBounds = groupBoundsById.get(left.parentGroupId);
+            const rightBounds = groupBoundsById.get(right.parentGroupId);
+            return (leftBounds?.centerX ?? 0) - (rightBounds?.centerX ?? 0);
+          })
+          .forEach((entry, index) => {
+            const parentBounds = groupBoundsById.get(entry.parentGroupId);
+            const childCenters = entry.childPersonIds
+              .map((personId) => positionsByPersonId.get(personId))
+              .filter((position): position is NodePosition => Boolean(position))
+              .map((position) => ({ x: position.x + NODE_WIDTH / 2, topY: position.y }))
+              .sort((left, right) => left.x - right.x);
+
+            if (!parentBounds || childCenters.length === 0) {
+              return;
+            }
+
+            const parentBottomY = parentBounds.bottomY;
+            const childTopY = Math.min(...childCenters.map((child) => child.topY));
+            const availableBand = Math.max(18, childTopY - parentBottomY - 18);
+            const laneStep = Math.max(10, Math.min(18, availableBand / Math.max(2, familyEntries.length + 1)));
+            const junctionY = Math.min(childTopY - 10, parentBottomY + 10 + index * laneStep);
+            const parentCenterX = parentBounds.centerX;
+
+            childCenters.forEach((child, childIndex) => {
+              parentChildPaths.push({
+                key: `child-${childLevel}-${entry.parentGroupId}-${childIndex}`,
+                d: createRoundedParentChildPath(parentCenterX, parentBottomY, junctionY, child.x, child.topY),
+                stroke: theme.colors.primary,
+                strokeWidth: 3,
+              });
+            });
+          });
+      });
+
+    return { spouseSegments, parentChildPaths };
+  }, [levelBySpouseGroupId, positionsByPersonId, renderedRelationships, spouseGroupIdsByPersonId, spouseGroupMembersById, theme.colors.primary, theme.colors.secondary]);
 
   const effectiveInitialFocusPersonId = useMemo(() => {
     if (initialFocusPersonId && positionsByPersonId.has(initialFocusPersonId)) {
       return initialFocusPersonId;
+    }
+
+    if (ascendantRootPersonId && positionsByPersonId.has(ascendantRootPersonId)) {
+      return ascendantRootPersonId;
     }
 
     if (descendantRootPersonId && positionsByPersonId.has(descendantRootPersonId)) {
@@ -408,15 +715,23 @@ export default function FamilyTreeCanvas({
     }
 
     return renderedPeople[0]?.id;
-  }, [descendantRootPersonId, initialFocusPersonId, positionsByPersonId, renderedPeople]);
+  }, [ascendantRootPersonId, descendantRootPersonId, initialFocusPersonId, positionsByPersonId, renderedPeople]);
 
-  const controlsLabel = descendantRootPersonId
-    ? 'Drag to pan through this family branch and zoom to follow younger generations.'
-    : 'Drag to pan, use zoom controls to focus on branches.';
-  const fullscreenTitle = descendantRootPersonId ? 'Full-screen descendant tree' : 'Full-screen family tree';
-  const fullscreenSubtitle = descendantRootPersonId
-    ? 'Pan through this family member’s descendants and zoom into each generation in more detail.'
-    : 'Pan around the full tree and zoom into branches in more detail.';
+  const controlsLabel = lineageMode === 'ascendant'
+    ? 'Drag to pan through earlier generations and zoom to follow parents and grandparents.'
+    : lineageMode === 'descendant'
+      ? 'Drag to pan through this family branch and zoom to follow younger generations.'
+      : 'Drag to pan, use zoom controls to focus on branches.';
+  const fullscreenTitle = lineageMode === 'ascendant'
+    ? 'Full-screen ascendant tree'
+    : lineageMode === 'descendant'
+      ? 'Full-screen descendant tree'
+      : 'Full-screen family tree';
+  const fullscreenSubtitle = lineageMode === 'ascendant'
+    ? 'Pan through this family member’s parents and grandparents and zoom into earlier generations in more detail.'
+    : lineageMode === 'descendant'
+      ? 'Pan through this family member’s descendants and zoom into each generation in more detail.'
+      : 'Pan around the full tree and zoom into branches in more detail.';
 
   const clampPanPoint = (desiredPan: { x: number; y: number }, targetScale: number) => {
     const activeSize = isFullscreen ? fullscreenViewportSize : inlineViewportSize;
@@ -598,33 +913,29 @@ export default function FamilyTreeCanvas({
         ]}
       >
         <Svg width={canvasWidth} height={canvasHeight} style={StyleSheet.absoluteFill}>
-          {renderedRelationships.map((relationship) => {
-            const fromPosition = positionsByPersonId.get(relationship.fromPersonId);
-            const toPosition = positionsByPersonId.get(relationship.toPersonId);
-
-            if (!fromPosition || !toPosition) {
-              return null;
-            }
-
-            const isSpouse = relationship.type === 'spouse';
-            const x1 = fromPosition.x + NODE_WIDTH / 2;
-            const y1 = fromPosition.y + (isSpouse ? NODE_HEIGHT / 2 : NODE_HEIGHT);
-            const x2 = toPosition.x + NODE_WIDTH / 2;
-            const y2 = toPosition.y + (isSpouse ? NODE_HEIGHT / 2 : 0);
-
-            return (
-              <Line
-                key={relationship.id}
-                x1={x1}
-                y1={y1}
-                x2={x2}
-                y2={y2}
-                stroke={isSpouse ? theme.colors.secondary : theme.colors.primary}
-                strokeWidth={isSpouse ? 4 : 3}
-                strokeDasharray={isSpouse ? '0' : '8 4'}
-              />
-            );
-          })}
+          {parentChildPaths.map((connector) => (
+            <Path
+              key={connector.key}
+              d={connector.d}
+              fill="none"
+              stroke={connector.stroke}
+              strokeWidth={connector.strokeWidth}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          ))}
+          {spouseSegments.map((segment) => (
+            <Line
+              key={segment.key}
+              x1={segment.x1}
+              y1={segment.y1}
+              x2={segment.x2}
+              y2={segment.y2}
+              stroke={segment.stroke}
+              strokeWidth={segment.strokeWidth}
+              strokeDasharray={segment.strokeDasharray}
+            />
+          ))}
         </Svg>
 
         {renderedPeople.map((person) => {
