@@ -25,6 +25,31 @@ service cloud.firestore {
       return signedIn() && request.auth.uid in treeDoc(treeId).data.editorIds;
     }
 
+    function isOwnPersonAssignmentUpdate(treeId) {
+      return signedIn()
+        && isTreeMember(treeId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['personAssignments', 'updatedAt'])
+        && request.resource.data.personAssignments is map
+        && (
+          !(resource.data.personAssignments is map)
+          || request.resource.data.personAssignments.diff(resource.data.personAssignments).affectedKeys().hasOnly([request.auth.uid])
+        )
+        && (
+          !(resource.data.personAssignments is map)
+          || !(request.auth.uid in resource.data.personAssignments)
+          || !(request.auth.uid in request.resource.data.personAssignments)
+          || request.resource.data.personAssignments[request.auth.uid] == resource.data.personAssignments[request.auth.uid]
+        )
+        && (
+          !(request.auth.uid in request.resource.data.personAssignments)
+          || (
+            request.resource.data.personAssignments[request.auth.uid] is string
+            && exists(/databases/$(database)/documents/persons/$(request.resource.data.personAssignments[request.auth.uid]))
+            && get(/databases/$(database)/documents/persons/$(request.resource.data.personAssignments[request.auth.uid])).data.treeId == treeId
+          )
+        );
+    }
+
     match /users/{userId} {
       allow read: if signedIn();
       allow create, update, delete: if isOwner(userId);
@@ -35,14 +60,18 @@ service cloud.firestore {
         && request.resource.data.ownerId == request.auth.uid
         && request.resource.data.name is string
         && request.auth.uid in request.resource.data.memberIds
-        && request.auth.uid in request.resource.data.editorIds;
+        && request.auth.uid in request.resource.data.editorIds
+        && request.resource.data.personAssignments is map;
       allow read: if signedIn() && request.auth.uid in resource.data.memberIds;
-      allow update: if isTreeOwner(treeId)
-        && request.resource.data.ownerId == resource.data.ownerId
-        && request.resource.data.name is string
-        && request.resource.data.memberIds is list
-        && request.resource.data.editorIds is list
-        && request.resource.data.collaborators is list;
+      allow update: if (
+          isTreeOwner(treeId)
+          && request.resource.data.ownerId == resource.data.ownerId
+          && request.resource.data.name is string
+          && request.resource.data.memberIds is list
+          && request.resource.data.editorIds is list
+          && request.resource.data.collaborators is list
+        )
+        || isOwnPersonAssignmentUpdate(treeId);
       allow delete: if isTreeOwner(treeId);
     }
 

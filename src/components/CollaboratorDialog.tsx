@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { StyleSheet } from 'react-native';
 import { Button, Dialog, HelperText, Portal, SegmentedButtons, TextInput } from 'react-native-paper';
 import type { CollaboratorRole } from '../types/tree';
 
@@ -46,7 +47,7 @@ export default function CollaboratorDialog({
 
   return (
     <Portal>
-      <Dialog visible={visible} onDismiss={loading ? undefined : onDismiss}>
+      <Dialog visible={visible} onDismiss={loading ? undefined : onDismiss} style={styles.dialog}>
         <Dialog.Title>Add collaborator</Dialog.Title>
         <Dialog.Content>
           <TextInput
@@ -86,4 +87,10 @@ export default function CollaboratorDialog({
     </Portal>
   );
 }
+
+const styles = StyleSheet.create({
+  dialog: {
+    marginHorizontal: 16,
+  },
+});
 

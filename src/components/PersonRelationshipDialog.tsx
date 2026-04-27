@@ -207,6 +207,7 @@ export default function PersonRelationshipDialog({
 const styles = StyleSheet.create({
   dialog: {
     maxHeight: '82%',
+    marginHorizontal: 16,
   },
   scrollArea: {
     borderBottomWidth: 0,

@@ -5,6 +5,8 @@ import type { CollaboratorRole, FamilyTree } from '../types/tree';
 import type { UserProfile } from '../types/user';
 import {
   addCollaboratorToTree,
+  assignTreePersonToUser,
+  clearTreePersonAssignment,
   createParentChildRelationship,
   createPerson,
   createSpouseRelationship,
@@ -67,6 +69,9 @@ interface TreeState {
   addParentChildRelationship: (ownerId: string, treeId: string, parentId: string, childId: string) => Promise<void>;
   addSpouseRelationship: (ownerId: string, treeId: string, personAId: string, personBId: string) => Promise<void>;
   removeRelationship: (relationshipId: string) => Promise<void>;
+  assignPersonToUser: (actorUserId: string, treeId: string, targetUserId: string, personId: string) => Promise<void>;
+  assignSelfToPerson: (treeId: string, userId: string, personId: string) => Promise<void>;
+  clearSelfAssignment: (treeId: string, userId: string) => Promise<void>;
   clearError: () => void;
   reset: () => void;
 }
@@ -275,6 +280,32 @@ export const useTreeStore = create<TreeState>((set, get) => {
       set({ mutating: true, error: null });
       try {
         await deleteRelationship(relationshipId);
+        set({ mutating: false });
+      } catch (error) {
+        set({ mutating: false, error: normaliseError(error) });
+        throw error;
+      }
+    },
+
+    assignPersonToUser: async (actorUserId, treeId, targetUserId, personId) => {
+      set({ mutating: true, error: null });
+      try {
+        await assignTreePersonToUser(actorUserId, treeId, targetUserId, personId);
+        set({ mutating: false });
+      } catch (error) {
+        set({ mutating: false, error: normaliseError(error) });
+        throw error;
+      }
+    },
+
+    assignSelfToPerson: async (treeId, userId, personId) => {
+      await get().assignPersonToUser(userId, treeId, userId, personId);
+    },
+
+    clearSelfAssignment: async (treeId, userId) => {
+      set({ mutating: true, error: null });
+      try {
+        await clearTreePersonAssignment(treeId, userId);
         set({ mutating: false });
       } catch (error) {
         set({ mutating: false, error: normaliseError(error) });

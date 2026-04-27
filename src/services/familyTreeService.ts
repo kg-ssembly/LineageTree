@@ -84,6 +84,23 @@ function mapCollaborator(rawCollaborator: any): TreeCollaborator | null {
   };
 }
 
+function mapPersonAssignments(rawAssignments: unknown) {
+  if (!rawAssignments || typeof rawAssignments !== 'object') {
+    return {} as Record<string, string>;
+  }
+
+  return Object.fromEntries(
+    Object.entries(rawAssignments as Record<string, unknown>)
+      .flatMap(([userId, personId]) => {
+        if (!userId || typeof personId !== 'string' || personId.trim().length === 0) {
+          return [];
+        }
+
+        return [[userId, personId.trim()] as const];
+      }),
+  );
+}
+
 function mapTreeData(id: string, data: DocumentData): FamilyTree {
   const ownerCollaborator = buildOwnerCollaborator({
     id: data.ownerId,
@@ -107,6 +124,7 @@ function mapTreeData(id: string, data: DocumentData): FamilyTree {
     memberIds,
     editorIds,
     collaborators: sortCollaborators(normalizedCollaborators),
+    personAssignments: mapPersonAssignments(data.personAssignments),
     createdAt: data.createdAt ?? nowIso(),
     updatedAt: data.updatedAt ?? data.createdAt ?? nowIso(),
   };
@@ -440,6 +458,7 @@ export async function createTree(
     memberIds: [owner.id],
     editorIds: [owner.id],
     collaborators: [ownerCollaborator],
+    personAssignments: {},
     createdAt: timestamp,
     updatedAt: timestamp,
   };
@@ -511,10 +530,105 @@ export async function removeCollaboratorFromTree(treeId: string, collaboratorUse
       throw new Error('That collaborator is no longer on this tree.');
     }
 
+    const nextPersonAssignments = Object.fromEntries(
+      Object.entries(tree.personAssignments).filter(([userId]) => userId !== collaboratorUserId),
+    );
+
     transaction.update(treeRef, {
       collaborators: tree.collaborators.filter((collaborator) => collaborator.userId !== collaboratorUserId),
       memberIds: tree.memberIds.filter((memberId) => memberId !== collaboratorUserId),
       editorIds: tree.editorIds.filter((editorId) => editorId !== collaboratorUserId),
+      personAssignments: nextPersonAssignments,
+      updatedAt: nowIso(),
+    });
+  });
+}
+
+export async function assignTreePersonToUser(actorUserId: string, treeId: string, userId: string, personId: string) {
+  const treeRef = doc(db, TREES_COLLECTION, treeId);
+  const personRef = doc(db, PEOPLE_COLLECTION, personId);
+
+  await runTransaction(db, async (transaction) => {
+    const [treeSnapshot, personSnapshot] = await Promise.all([
+      transaction.get(treeRef),
+      transaction.get(personRef),
+    ]);
+
+    if (!treeSnapshot.exists()) {
+      throw new Error('That family tree no longer exists.');
+    }
+
+    const tree = mapTreeData(treeSnapshot.id, treeSnapshot.data());
+    if (!tree.memberIds.includes(actorUserId)) {
+      throw new Error('You are no longer a collaborator on this tree.');
+    }
+
+    if (actorUserId !== userId && tree.ownerId !== actorUserId) {
+      throw new Error('Only the tree owner can link another collaborator to a person.');
+    }
+
+    if (!tree.memberIds.includes(userId)) {
+      throw new Error('You are no longer a collaborator on this tree.');
+    }
+
+    if (!personSnapshot.exists()) {
+      throw new Error('That person no longer exists.');
+    }
+
+    if (personSnapshot.data().treeId !== treeId) {
+      throw new Error('That person belongs to a different family tree.');
+    }
+
+    const currentAssignedPersonId = tree.personAssignments[userId] ?? null;
+    if (currentAssignedPersonId === personId) {
+      return;
+    }
+
+    if (actorUserId === userId && currentAssignedPersonId) {
+      throw new Error('Unlink your current claimed profile before claiming another person.');
+    }
+
+    const assignedUserId = Object.entries(tree.personAssignments).find(
+      ([currentUserId, currentPersonId]) => currentPersonId === personId && currentUserId !== userId,
+    )?.[0];
+    if (assignedUserId) {
+      throw new Error('That person is already linked to another collaborator.');
+    }
+
+
+    transaction.update(treeRef, {
+      personAssignments: {
+        ...tree.personAssignments,
+        [userId]: personId,
+      },
+      updatedAt: nowIso(),
+    });
+  });
+}
+
+export async function clearTreePersonAssignment(treeId: string, userId: string) {
+  const treeRef = doc(db, TREES_COLLECTION, treeId);
+
+  await runTransaction(db, async (transaction) => {
+    const treeSnapshot = await transaction.get(treeRef);
+    if (!treeSnapshot.exists()) {
+      throw new Error('That family tree no longer exists.');
+    }
+
+    const tree = mapTreeData(treeSnapshot.id, treeSnapshot.data());
+    if (!tree.memberIds.includes(userId)) {
+      throw new Error('You are no longer a collaborator on this tree.');
+    }
+
+    if (!tree.personAssignments[userId]) {
+      return;
+    }
+
+    const nextAssignments = { ...tree.personAssignments };
+    delete nextAssignments[userId];
+
+    transaction.update(treeRef, {
+      personAssignments: nextAssignments,
       updatedAt: nowIso(),
     });
   });

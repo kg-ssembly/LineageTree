@@ -36,6 +36,7 @@ interface PersonFormDialogProps {
   visible: boolean;
   mode: 'create' | 'edit';
   person?: PersonRecord | null;
+  initialValues?: Partial<PersonMutationPayload>;
   loading?: boolean;
   existingLastNames?: string[];
   relationshipCandidates?: PersonRecord[];
@@ -95,6 +96,7 @@ export default function PersonFormDialog({
   visible,
   mode,
   person,
+  initialValues,
   loading = false,
   existingLastNames = [],
   relationshipCandidates = [],
@@ -126,16 +128,16 @@ export default function PersonFormDialog({
       return;
     }
 
-    setFirstName(person?.firstName ?? '');
-    setLastName(person?.lastName ?? '');
-    setBirthDate(person?.birthDate ?? '');
-    setDeathDate(person?.deathDate ?? '');
-    setGender(person?.gender ?? 'unspecified');
-    setNotes(person?.notes ?? '');
-    setLifeEvents(person?.lifeEvents ?? []);
-    setExistingPhotos(person?.photos ?? []);
+    setFirstName(person?.firstName ?? initialValues?.firstName ?? '');
+    setLastName(person?.lastName ?? initialValues?.lastName ?? '');
+    setBirthDate(person?.birthDate ?? initialValues?.birthDate ?? '');
+    setDeathDate(person?.deathDate ?? initialValues?.deathDate ?? '');
+    setGender(person?.gender ?? initialValues?.gender ?? 'unspecified');
+    setNotes(person?.notes ?? initialValues?.notes ?? '');
+    setLifeEvents(person?.lifeEvents ?? initialValues?.lifeEvents ?? []);
+    setExistingPhotos(person?.photos ?? initialValues?.existingPhotos ?? []);
     setRemovedPhotos([]);
-    setNewPhotoUris([]);
+    setNewPhotoUris(initialValues?.newPhotoUris ?? []);
     setFirstNameError(null);
     setRelationshipError(null);
     setDeathDateError(null);
@@ -144,8 +146,8 @@ export default function PersonFormDialog({
     setPendingRelationships([]);
     setSurnameMenuVisible(false);
     setLastNameTouched(false);
-    setPreferredPhotoRef(person?.preferredPhotoId ?? '');
-  }, [person, visible]);
+    setPreferredPhotoRef(person?.preferredPhotoId ?? initialValues?.preferredPhotoRef ?? '');
+  }, [initialValues, person, visible]);
 
   const allPhotoCount = useMemo(
     () => existingPhotos.length + newPhotoUris.length,
@@ -638,6 +640,7 @@ export default function PersonFormDialog({
 const styles = StyleSheet.create({
   dialog: {
     maxHeight: '90%',
+    marginHorizontal: 16,
   },
   scrollArea: {
     borderBottomWidth: 0,
@@ -681,7 +684,7 @@ const styles = StyleSheet.create({
   pendingRelationshipCard: {
     marginTop: 12,
     padding: 12,
-    borderRadius: 16,
+    borderRadius: 5,
     backgroundColor: '#F3F0FF',
   },
   relationshipChipRow: {

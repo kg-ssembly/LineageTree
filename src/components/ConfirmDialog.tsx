@@ -1,4 +1,5 @@
 import React from 'react';
+import { StyleSheet } from 'react-native';
 import { Button, Dialog, Portal, Text } from 'react-native-paper';
 
 interface ConfirmDialogProps {
@@ -24,7 +25,7 @@ export default function ConfirmDialog({
 }: ConfirmDialogProps) {
   return (
     <Portal>
-      <Dialog visible={visible} onDismiss={loading ? undefined : onDismiss}>
+      <Dialog visible={visible} onDismiss={loading ? undefined : onDismiss} style={styles.dialog}>
         <Dialog.Title>{title}</Dialog.Title>
         <Dialog.Content>
           <Text variant="bodyMedium">{message}</Text>
@@ -41,4 +42,10 @@ export default function ConfirmDialog({
     </Portal>
   );
 }
+
+const styles = StyleSheet.create({
+  dialog: {
+    marginHorizontal: 16,
+  },
+});
 

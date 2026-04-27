@@ -158,13 +158,13 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   card: {
-    borderRadius: 28,
+    borderRadius: 5,
     padding: 24,
   },
   title: { marginBottom: 4, fontWeight: '700' },
   subtitle: { marginBottom: 20 },
   input: { marginTop: 4 },
-  button: { marginTop: 24, borderRadius: 14 },
+  button: { marginTop: 24, borderRadius: 5 },
   buttonContent: { height: 52 },
   linkButton: { marginTop: 10 },
 });

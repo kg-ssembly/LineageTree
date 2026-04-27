@@ -195,6 +195,7 @@ export default function RelationshipDialog({
 const styles = StyleSheet.create({
   dialog: {
     maxHeight: '85%',
+    marginHorizontal: 16,
   },
   scrollArea: {
     borderBottomWidth: 0,

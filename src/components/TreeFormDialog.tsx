@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { StyleSheet } from 'react-native';
 import { Button, Dialog, HelperText, Portal, TextInput } from 'react-native-paper';
 import type { FamilyTree } from '../types/tree';
 
@@ -43,7 +44,7 @@ export default function TreeFormDialog({
 
   return (
     <Portal>
-      <Dialog visible={visible} onDismiss={loading ? undefined : onDismiss}>
+      <Dialog visible={visible} onDismiss={loading ? undefined : onDismiss} style={styles.dialog}>
         <Dialog.Title>{mode === 'create' ? 'Create family tree' : 'Rename family tree'}</Dialog.Title>
         <Dialog.Content>
           <TextInput
@@ -74,4 +75,10 @@ export default function TreeFormDialog({
     </Portal>
   );
 }
+
+const styles = StyleSheet.create({
+  dialog: {
+    marginHorizontal: 16,
+  },
+});
 

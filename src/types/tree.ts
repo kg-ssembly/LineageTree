@@ -15,6 +15,7 @@ export interface FamilyTree {
   memberIds: string[];
   editorIds: string[];
   collaborators: TreeCollaborator[];
+  personAssignments: Record<string, string>;
   createdAt: string;
   updatedAt: string;
 }
@@ -41,5 +42,30 @@ export function canManageTree(tree: FamilyTree, userId?: string | null) {
 
 export function canEditTreeContent(tree: FamilyTree, userId?: string | null) {
   return !!userId && tree.editorIds.includes(userId);
+}
+
+export function getAssignedPersonId(tree: FamilyTree, userId?: string | null) {
+  if (!userId) {
+    return null;
+  }
+
+  return tree.personAssignments[userId] ?? null;
+}
+
+export function getAssignedUserIdForPerson(tree: FamilyTree, personId?: string | null) {
+  if (!personId) {
+    return null;
+  }
+
+  return Object.entries(tree.personAssignments).find(([, assignedPersonId]) => assignedPersonId === personId)?.[0] ?? null;
+}
+
+export function isAssignedPersonForUser(tree: FamilyTree, personId?: string | null, userId?: string | null) {
+  return !!personId && getAssignedPersonId(tree, userId) === personId;
+}
+
+export function getUnlinkedCollaborators(tree: FamilyTree) {
+  const linkedUserIds = new Set(Object.keys(tree.personAssignments));
+  return tree.collaborators.filter((collaborator) => !linkedUserIds.has(collaborator.userId));
 }
 

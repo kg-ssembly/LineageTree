@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
   resultBox: {
     marginTop: 12,
     padding: 16,
-    borderRadius: 16,
+    borderRadius: 5,
     backgroundColor: '#F3F0FF',
   },
   pathText: {

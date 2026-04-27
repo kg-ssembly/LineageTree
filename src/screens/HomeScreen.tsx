@@ -379,7 +379,7 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   profileCard: {
-    borderRadius: 28,
+    borderRadius: 5,
     padding: 20,
     marginBottom: 16,
   },
@@ -414,7 +414,7 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    borderRadius: 20,
+    borderRadius: 5,
     paddingVertical: 16,
     paddingHorizontal: 14,
   },
@@ -431,7 +431,7 @@ const styles = StyleSheet.create({
     height: 48,
   },
   sectionCard: {
-    borderRadius: 24,
+    borderRadius: 5,
     padding: 16,
     marginBottom: 16,
   },
@@ -454,7 +454,7 @@ const styles = StyleSheet.create({
   },
   appearanceHint: {
     marginTop: 16,
-    borderRadius: 18,
+    borderRadius: 5,
     padding: 14,
   },
   centeredState: {
@@ -473,7 +473,7 @@ const styles = StyleSheet.create({
   },
   treeCard: {
     marginTop: 12,
-    borderRadius: 20,
+    borderRadius: 5,
     borderWidth: 1,
   },
   treeHeader: {

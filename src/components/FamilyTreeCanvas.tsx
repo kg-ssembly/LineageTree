@@ -20,6 +20,7 @@ interface FamilyTreeCanvasProps {
   people: PersonRecord[];
   relationships: RelationshipRecord[];
   onPressPerson: (person: PersonRecord) => void;
+  currentUserPersonId?: string;
   allowFullscreen?: boolean;
 }
 
@@ -42,8 +43,53 @@ function formatPersonName(person: PersonRecord) {
 
 function buildGenerations(people: PersonRecord[], relationships: RelationshipRecord[]) {
   const parentChildRelationships = relationships.filter((relationship) => relationship.type === 'parent-child');
+  const spouseRelationships = relationships.filter((relationship) => relationship.type === 'spouse');
   const parentIdsByChildId = new Map<string, Set<string>>();
   const childIdsByParentId = new Map<string, Set<string>>();
+  const personById = new Map(people.map((person) => [person.id, person]));
+
+  const spouseRootByPersonId = new Map<string, string>();
+  people.forEach((person) => {
+    spouseRootByPersonId.set(person.id, person.id);
+  });
+
+  const findSpouseRoot = (personId: string): string => {
+    const directRoot = spouseRootByPersonId.get(personId) ?? personId;
+    if (directRoot === personId) {
+      return directRoot;
+    }
+
+    const resolvedRoot = findSpouseRoot(directRoot);
+    spouseRootByPersonId.set(personId, resolvedRoot);
+    return resolvedRoot;
+  };
+
+  const unionSpouses = (personAId: string, personBId: string) => {
+    const rootA = findSpouseRoot(personAId);
+    const rootB = findSpouseRoot(personBId);
+    if (rootA === rootB) {
+      return;
+    }
+
+    const [nextRoot, mergedRoot] = [rootA, rootB].sort((left, right) => left.localeCompare(right));
+    spouseRootByPersonId.set(mergedRoot, nextRoot);
+  };
+
+  spouseRelationships.forEach((relationship) => {
+    unionSpouses(relationship.fromPersonId, relationship.toPersonId);
+  });
+
+  const spouseGroupIdsByPersonId = new Map<string, string>();
+  const spouseGroupMembersById = new Map<string, string[]>();
+
+  people.forEach((person) => {
+    const spouseGroupId = findSpouseRoot(person.id);
+    spouseGroupIdsByPersonId.set(person.id, spouseGroupId);
+    if (!spouseGroupMembersById.has(spouseGroupId)) {
+      spouseGroupMembersById.set(spouseGroupId, []);
+    }
+    spouseGroupMembersById.get(spouseGroupId)!.push(person.id);
+  });
 
   parentChildRelationships.forEach((relationship) => {
     if (!parentIdsByChildId.has(relationship.toPersonId)) {
@@ -57,52 +103,133 @@ function buildGenerations(people: PersonRecord[], relationships: RelationshipRec
     childIdsByParentId.get(relationship.fromPersonId)!.add(relationship.toPersonId);
   });
 
-  const levelByPersonId = new Map<string, number>();
-  const roots = people
-    .filter((person) => !parentIdsByChildId.get(person.id)?.size)
-    .sort((left, right) => formatPersonName(left).localeCompare(formatPersonName(right)));
-  const queue = roots.map((person) => ({ personId: person.id, level: 0 }));
+  const parentGroupIdsByChildGroupId = new Map<string, Set<string>>();
+  const childGroupIdsByParentGroupId = new Map<string, Set<string>>();
 
-  roots.forEach((person) => levelByPersonId.set(person.id, 0));
+  parentChildRelationships.forEach((relationship) => {
+    const parentGroupId = spouseGroupIdsByPersonId.get(relationship.fromPersonId) ?? relationship.fromPersonId;
+    const childGroupId = spouseGroupIdsByPersonId.get(relationship.toPersonId) ?? relationship.toPersonId;
+
+    if (parentGroupId === childGroupId) {
+      return;
+    }
+
+    if (!parentGroupIdsByChildGroupId.has(childGroupId)) {
+      parentGroupIdsByChildGroupId.set(childGroupId, new Set());
+    }
+    if (!childGroupIdsByParentGroupId.has(parentGroupId)) {
+      childGroupIdsByParentGroupId.set(parentGroupId, new Set());
+    }
+
+    parentGroupIdsByChildGroupId.get(childGroupId)!.add(parentGroupId);
+    childGroupIdsByParentGroupId.get(parentGroupId)!.add(childGroupId);
+  });
+
+  const formatGroupAnchorName = (spouseGroupId: string) => (
+    (spouseGroupMembersById.get(spouseGroupId) ?? [])
+      .map((personId) => personById.get(personId))
+      .filter((person): person is PersonRecord => Boolean(person))
+      .map((person) => formatPersonName(person))
+      .sort((left, right) => left.localeCompare(right))[0] ?? spouseGroupId
+  );
+
+  const levelBySpouseGroupId = new Map<string, number>();
+  const rootSpouseGroupIds = [...spouseGroupMembersById.keys()]
+    .filter((spouseGroupId) => !parentGroupIdsByChildGroupId.get(spouseGroupId)?.size)
+    .sort((left, right) => formatGroupAnchorName(left).localeCompare(formatGroupAnchorName(right)));
+  const queue = rootSpouseGroupIds.map((spouseGroupId) => ({ spouseGroupId, level: 0 }));
+
+  rootSpouseGroupIds.forEach((spouseGroupId) => levelBySpouseGroupId.set(spouseGroupId, 0));
 
   while (queue.length > 0) {
     const current = queue.shift()!;
-    const children = [...(childIdsByParentId.get(current.personId) ?? new Set<string>())];
+    const childSpouseGroupIds = [...(childGroupIdsByParentGroupId.get(current.spouseGroupId) ?? new Set<string>())];
 
-    children.forEach((childId) => {
+    childSpouseGroupIds.forEach((childSpouseGroupId) => {
       const nextLevel = current.level + 1;
-      if (!levelByPersonId.has(childId) || nextLevel > levelByPersonId.get(childId)!) {
-        levelByPersonId.set(childId, nextLevel);
-        queue.push({ personId: childId, level: nextLevel });
+      if (!levelBySpouseGroupId.has(childSpouseGroupId) || nextLevel > levelBySpouseGroupId.get(childSpouseGroupId)!) {
+        levelBySpouseGroupId.set(childSpouseGroupId, nextLevel);
+        queue.push({ spouseGroupId: childSpouseGroupId, level: nextLevel });
       }
     });
   }
 
-  let fallbackLevel = Math.max(0, ...levelByPersonId.values()) + 1;
-  people.forEach((person) => {
-    if (!levelByPersonId.has(person.id)) {
-      levelByPersonId.set(person.id, fallbackLevel);
+  let fallbackLevel = Math.max(0, ...levelBySpouseGroupId.values()) + 1;
+  spouseGroupMembersById.forEach((_, spouseGroupId) => {
+    if (!levelBySpouseGroupId.has(spouseGroupId)) {
+      levelBySpouseGroupId.set(spouseGroupId, fallbackLevel);
       fallbackLevel += 1;
     }
   });
 
   const groupedPeople = new Map<number, PersonRecord[]>();
+  const spouseGroupSortKeys = new Map<string, { familyKey: string; anchorName: string }>();
+
+  spouseGroupMembersById.forEach((memberIds, spouseGroupId) => {
+    const familyKey = memberIds
+      .map((personId) => [...(parentIdsByChildId.get(personId) ?? new Set<string>())].sort().join('|'))
+      .filter(Boolean)
+      .sort((left, right) => left.localeCompare(right))[0]
+      ?? `solo:${memberIds.slice().sort((left, right) => left.localeCompare(right)).join('|')}`;
+
+    spouseGroupSortKeys.set(spouseGroupId, {
+      familyKey,
+      anchorName: formatGroupAnchorName(spouseGroupId),
+    });
+  });
+
+  const spouseGroupIdsByLevel = new Map<number, string[]>();
+  spouseGroupMembersById.forEach((_, spouseGroupId) => {
+    const level = levelBySpouseGroupId.get(spouseGroupId) ?? 0;
+    if (!spouseGroupIdsByLevel.has(level)) {
+      spouseGroupIdsByLevel.set(level, []);
+    }
+    spouseGroupIdsByLevel.get(level)!.push(spouseGroupId);
+  });
+
+  spouseGroupIdsByLevel.forEach((spouseGroupIds, level) => {
+    spouseGroupIds
+      .sort((left, right) => {
+        const leftKey = spouseGroupSortKeys.get(left);
+        const rightKey = spouseGroupSortKeys.get(right);
+
+        if (leftKey?.familyKey !== rightKey?.familyKey) {
+          return (leftKey?.familyKey ?? '').localeCompare(rightKey?.familyKey ?? '');
+        }
+
+        return (leftKey?.anchorName ?? '').localeCompare(rightKey?.anchorName ?? '');
+      })
+      .forEach((spouseGroupId) => {
+        const levelPeople = groupedPeople.get(level) ?? [];
+        const spouseGroupPeople = (spouseGroupMembersById.get(spouseGroupId) ?? [])
+          .map((personId) => personById.get(personId))
+          .filter((person): person is PersonRecord => Boolean(person))
+          .sort((left, right) => formatPersonName(left).localeCompare(formatPersonName(right)));
+
+        groupedPeople.set(level, [...levelPeople, ...spouseGroupPeople]);
+      });
+  });
+
   people.forEach((person) => {
-    const level = levelByPersonId.get(person.id) ?? 0;
+    const level = levelBySpouseGroupId.get(spouseGroupIdsByPersonId.get(person.id) ?? person.id) ?? 0;
     if (!groupedPeople.has(level)) {
       groupedPeople.set(level, []);
     }
-    groupedPeople.get(level)!.push(person);
-  });
-
-  [...groupedPeople.values()].forEach((levelPeople) => {
-    levelPeople.sort((left, right) => formatPersonName(left).localeCompare(formatPersonName(right)));
+    if (!groupedPeople.get(level)!.some((currentPerson) => currentPerson.id === person.id)) {
+      groupedPeople.get(level)!.push(person);
+    }
   });
 
   return groupedPeople;
 }
 
-export default function FamilyTreeCanvas({ people, relationships, onPressPerson, allowFullscreen = true }: FamilyTreeCanvasProps) {
+export default function FamilyTreeCanvas({
+  people,
+  relationships,
+  onPressPerson,
+  currentUserPersonId,
+  allowFullscreen = true,
+}: FamilyTreeCanvasProps) {
   const theme = useTheme();
   const { height: windowHeight } = useWindowDimensions();
   const pan = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
@@ -225,6 +352,7 @@ export default function FamilyTreeCanvas({ people, relationships, onPressPerson,
         {people.map((person) => {
           const position = positionsByPersonId.get(person.id);
           const preferredPhoto = getPreferredPersonPhoto(person);
+          const isCurrentUsersPerson = currentUserPersonId === person.id;
           if (!position) {
             return null;
           }
@@ -247,6 +375,11 @@ export default function FamilyTreeCanvas({ people, relationships, onPressPerson,
               ]}
               onPress={() => onPressPerson(person)}
             >
+              {isCurrentUsersPerson ? (
+                <View style={[styles.nodeBadge, { backgroundColor: theme.colors.primary }]}>
+                  <Text variant="labelSmall" style={[styles.nodeBadgeText, { color: theme.colors.onPrimary }]}>You</Text>
+                </View>
+              ) : null}
               <View style={styles.nodeInnerRow}>
                 <View style={styles.nodeAvatarWrap}>
                   {preferredPhoto ? (
@@ -302,7 +435,7 @@ export default function FamilyTreeCanvas({ people, relationships, onPressPerson,
             <IconButton icon="close" onPress={() => setIsFullscreen(false)} />
           </View>
           <Text variant="bodyMedium" style={[styles.fullscreenSubtitle, { color: theme.colors.onSurfaceVariant }]}>Pan around the full tree and zoom into branches in more detail.</Text>
-          {renderCanvasViewport({ height: Math.max(320, windowHeight - 172), borderRadius: 24 })}
+          {renderCanvasViewport({ height: Math.max(320, windowHeight - 172), borderRadius: 5 })}
         </View>
       </Modal>
     </View>
@@ -330,7 +463,7 @@ const styles = StyleSheet.create({
   viewport: {
     height: 360,
     overflow: 'hidden',
-    borderRadius: 20,
+    borderRadius: 5,
     borderWidth: 1,
     borderColor: '#DDD8FF',
     backgroundColor: '#F5F2FF',
@@ -356,7 +489,7 @@ const styles = StyleSheet.create({
   node: {
     position: 'absolute',
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    borderRadius: 5,
     borderWidth: 1,
     borderColor: '#CFC5FF',
     padding: 12,
@@ -395,6 +528,18 @@ const styles = StyleSheet.create({
   },
   nodeTextWrap: {
     flex: 1,
+  },
+  nodeBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    borderRadius: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    zIndex: 1,
+  },
+  nodeBadgeText: {
+    fontWeight: '700',
   },
   nodeTitle: {
     fontWeight: '700',

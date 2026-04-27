@@ -7,6 +7,7 @@ export type AppTheme = MD3Theme;
 
 type ThemePalette = {
   primary: string;
+  primaryContainer: string;
   secondary: string;
   tertiary: string;
   background: string;
@@ -27,42 +28,44 @@ type ThemePalette = {
 
 const palettes: Record<ResolvedTheme, ThemePalette> = {
   light: {
-    primary: '#6C5CE7',
-    secondary: '#FF7A59',
-    tertiary: '#2CB7A0',
-    background: '#F6F4FF',
+    primary: '#7B61FF',
+    primaryContainer: '#E9E0FF',
+    secondary: '#FF8A5B',
+    tertiary: '#2FAE95',
+    background: '#FAF7FF',
     surface: '#FFFFFF',
-    surfaceVariant: '#F0ECFF',
-    secondaryContainer: '#FFE3DA',
-    tertiaryContainer: '#D8F6EF',
-    outline: '#8C84B7',
-    outlineVariant: '#D9D3F5',
+    surfaceVariant: '#F3EEFF',
+    secondaryContainer: '#FFE5DB',
+    tertiaryContainer: '#DCF6F0',
+    outline: '#8E84B8',
+    outlineVariant: '#DED6F4',
     onPrimary: '#FFFFFF',
     onSecondary: '#FFFFFF',
-    onSurface: '#1E1B2E',
-    onSurfaceVariant: '#69637F',
+    onSurface: '#1C1A24',
+    onSurfaceVariant: '#6A647D',
     shadow: '#140F2C',
     scrim: '#0F0B1D',
     error: '#D64545',
   },
   dark: {
-    primary: '#B8ACFF',
-    secondary: '#FFAB91',
-    tertiary: '#74E2CC',
-    background: '#11111A',
-    surface: '#191926',
-    surfaceVariant: '#232335',
-    secondaryContainer: '#553327',
-    tertiaryContainer: '#173D37',
-    outline: '#978FB6',
-    outlineVariant: '#37334A',
-    onPrimary: '#231B56',
-    onSecondary: '#4E1F11',
-    onSurface: '#F4F1FF',
-    onSurfaceVariant: '#B9B3D0',
+    primary: '#A8C7FF',
+    primaryContainer: '#1F355C',
+    secondary: '#FFB38F',
+    tertiary: '#7BE0C6',
+    background: '#0D1320',
+    surface: '#131B2B',
+    surfaceVariant: '#1D2740',
+    secondaryContainer: '#5A3422',
+    tertiaryContainer: '#173E37',
+    outline: '#8A96B3',
+    outlineVariant: '#2E3A57',
+    onPrimary: '#10203A',
+    onSecondary: '#44200F',
+    onSurface: '#ECF1FF',
+    onSurfaceVariant: '#B5C0DB',
     shadow: '#000000',
     scrim: '#000000',
-    error: '#FF8C8C',
+    error: '#FF8E8E',
   },
 };
 
@@ -72,7 +75,7 @@ function buildPaperTheme(mode: ResolvedTheme): AppTheme {
 
   return {
     ...baseTheme,
-    roundness: 24,
+    roundness: 5,
     colors: {
       ...baseTheme.colors,
       primary: palette.primary,
@@ -81,7 +84,7 @@ function buildPaperTheme(mode: ResolvedTheme): AppTheme {
       background: palette.background,
       surface: palette.surface,
       surfaceVariant: palette.surfaceVariant,
-      primaryContainer: palette.secondaryContainer,
+      primaryContainer: palette.primaryContainer,
       secondaryContainer: palette.secondaryContainer,
       tertiaryContainer: palette.tertiaryContainer,
       outline: palette.outline,
@@ -95,11 +98,11 @@ function buildPaperTheme(mode: ResolvedTheme): AppTheme {
       error: palette.error,
       elevation: {
         level0: palette.background,
-        level1: mode === 'dark' ? '#1D1D2D' : '#FCFBFF',
-        level2: mode === 'dark' ? '#232337' : '#F7F3FF',
-        level3: mode === 'dark' ? '#2A2842' : '#EFE8FF',
-        level4: mode === 'dark' ? '#312D4A' : '#E7DEFF',
-        level5: mode === 'dark' ? '#383255' : '#DDD3FF',
+        level1: mode === 'dark' ? '#172033' : '#FDFBFF',
+        level2: mode === 'dark' ? '#1D2942' : '#F7F1FF',
+        level3: mode === 'dark' ? '#223151' : '#EFE5FF',
+        level4: mode === 'dark' ? '#293A60' : '#E7DBFF',
+        level5: mode === 'dark' ? '#30426E' : '#DED1FF',
       },
     },
   };

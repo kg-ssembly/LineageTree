@@ -28,7 +28,7 @@ import {
 } from '../types/person';
 import type { RelationshipRecord } from '../types/relationship';
 import type { RootStackParamList } from '../types/navigation';
-import { canEditTreeContent } from '../types/tree';
+import { canEditTreeContent, getAssignedPersonId, getAssignedUserIdForPerson } from '../types/tree';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PersonProfile'>;
 
@@ -106,6 +106,8 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
     mutating,
     error,
     selectTree,
+    assignPersonToUser,
+    clearSelfAssignment,
     updatePerson,
     addParentChildRelationship,
     addSpouseRelationship,
@@ -147,6 +149,40 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
   const existingLastNames = useMemo(
     () => [...new Set(people.map((currentPerson) => currentPerson.lastName.trim()).filter(Boolean))].sort((left, right) => left.localeCompare(right)),
     [people],
+  );
+
+  const currentAssignedPersonId = useMemo(
+    () => (selectedTree ? getAssignedPersonId(selectedTree, user?.id) : null),
+    [selectedTree, user?.id],
+  );
+
+  const currentAssignedPerson = useMemo(
+    () => (currentAssignedPersonId ? peopleById.get(currentAssignedPersonId) ?? null : null),
+    [currentAssignedPersonId, peopleById],
+  );
+
+  const linkedUserIdForPerson = useMemo(
+    () => (selectedTree && person ? getAssignedUserIdForPerson(selectedTree, person.id) : null),
+    [person, selectedTree],
+  );
+
+  const linkedCollaborator = useMemo(
+    () => selectedTree?.collaborators.find((collaborator) => collaborator.userId === linkedUserIdForPerson) ?? null,
+    [linkedUserIdForPerson, selectedTree],
+  );
+
+  const isCurrentUsersPerson = useMemo(
+    () => Boolean(person && currentAssignedPersonId === person.id),
+    [currentAssignedPersonId, person],
+  );
+
+  const canClaimPerson = Boolean(
+    user?.id
+    && selectedTree
+    && person
+    && !isCurrentUsersPerson
+    && !currentAssignedPerson
+    && (!linkedUserIdForPerson || linkedUserIdForPerson === user.id),
   );
 
   const relationshipEntries = useMemo(() => {
@@ -383,6 +419,30 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
     );
   };
 
+  const handleClaimPerson = async () => {
+    if (!user?.id || !selectedTree || !person) {
+      return;
+    }
+
+    try {
+      await assignPersonToUser(user.id, selectedTree.id, user.id, person.id);
+    } catch {
+      // surfaced by store snackbar
+    }
+  };
+
+  const handleUnclaimPerson = async () => {
+    if (!user?.id || !selectedTree) {
+      return;
+    }
+
+    try {
+      await clearSelfAssignment(selectedTree.id, user.id);
+    } catch {
+      // surfaced by store snackbar
+    }
+  };
+
   if (!selectedTree || !person || loadingTreeData) {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: theme.colors.background }]}>
@@ -399,7 +459,10 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
         <Surface style={[styles.heroCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
           <View style={styles.heroHeader}>
             <View style={styles.heroIdentityWrap}>
-              <Text variant="headlineMedium">{formatPersonName(person)}</Text>
+              <View style={styles.heroNameRow}>
+                <Text variant="headlineMedium">{formatPersonName(person)}</Text>
+                {isCurrentUsersPerson ? <Chip compact icon="account">You</Chip> : null}
+              </View>
               <Text variant="bodyMedium" style={[styles.heroSubtext, { color: theme.colors.onSurfaceVariant }]}>{getPersonLifeSpanLabel(person)}</Text>
             </View>
             {canEdit ? (
@@ -414,7 +477,61 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
             <Chip compact icon={isPersonDeceased(person) ? 'flower-outline' : 'heart-pulse'}>{getPersonPresenceLabel(person)}</Chip>
             <Chip compact icon="image-multiple">{person.photos.length} photos</Chip>
             {preferredPhoto ? <Chip compact icon="star">Preferred photo selected</Chip> : null}
+            {linkedCollaborator && !isCurrentUsersPerson ? <Chip compact icon="link-variant">Linked</Chip> : null}
           </View>
+
+          {user?.id ? (
+            <View style={[styles.claimBox, { backgroundColor: theme.colors.elevation.level1 }]}> 
+              {isCurrentUsersPerson ? (
+                <View style={styles.claimRow}>
+                  <View style={styles.claimTextWrap}>
+                    <Text variant="titleSmall">This is your linked profile</Text>
+                    <Text variant="bodySmall" style={[styles.claimText, { color: theme.colors.onSurfaceVariant }]}> 
+                      Anywhere this person appears in the tree, you will now see a You badge. Unlink this profile first if you want to claim someone else.
+                    </Text>
+                  </View>
+                  <Button mode="outlined" icon="link-off" onPress={handleUnclaimPerson} disabled={mutating}>
+                    Unclaim myself
+                  </Button>
+                </View>
+              ) : linkedCollaborator ? (
+                <>
+                  <Text variant="titleSmall">Already linked to someone else</Text>
+                  <Text variant="bodySmall" style={[styles.claimText, { color: theme.colors.onSurfaceVariant }]}> 
+                    This profile is already linked to {linkedCollaborator.displayName || linkedCollaborator.email}.
+                  </Text>
+                </>
+              ) : currentAssignedPerson ? (
+                <View style={styles.claimRow}>
+                  <View style={styles.claimTextWrap}>
+                    <Text variant="titleSmall">You already claimed another profile</Text>
+                    <Text variant="bodySmall" style={[styles.claimText, { color: theme.colors.onSurfaceVariant }]}> 
+                      Unclaim yourself from {formatPersonName(currentAssignedPerson)} before claiming a different person.
+                    </Text>
+                  </View>
+                  <Button mode="outlined" icon="open-in-new" onPress={() => navigation.push('PersonProfile', {
+                    treeId: route.params.treeId,
+                    personId: currentAssignedPerson.id,
+                    personName: formatPersonName(currentAssignedPerson),
+                  })} disabled={mutating}>
+                    Open current profile
+                  </Button>
+                </View>
+              ) : canClaimPerson ? (
+                <View style={styles.claimRow}>
+                  <View style={styles.claimTextWrap}>
+                    <Text variant="titleSmall">Is this you?</Text>
+                    <Text variant="bodySmall" style={[styles.claimText, { color: theme.colors.onSurfaceVariant }]}> 
+                      Tap once to link your account to this person profile.
+                    </Text>
+                  </View>
+                  <Button mode="contained" icon="account-check" onPress={handleClaimPerson} disabled={mutating}>
+                    Claim this person as me
+                  </Button>
+                </View>
+              ) : null}
+            </View>
+          ) : null}
         </Surface>
 
         <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
@@ -687,7 +804,7 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   heroCard: {
-    borderRadius: 20,
+    borderRadius: 5,
     padding: 20,
     marginBottom: 16,
   },
@@ -702,6 +819,12 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 220,
   },
+  heroNameRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 8,
+  },
   heroSubtext: {
     marginTop: 6,
     color: '#6B6B74',
@@ -712,8 +835,23 @@ const styles = StyleSheet.create({
     gap: 8,
     marginTop: 12,
   },
+  claimBox: {
+    marginTop: 16,
+    padding: 16,
+    borderRadius: 5,
+  },
+  claimRow: {
+    gap: 12,
+  },
+  claimTextWrap: {
+    flex: 1,
+  },
+  claimText: {
+    marginTop: 6,
+    color: '#6B6B74',
+  },
   sectionCard: {
-    borderRadius: 20,
+    borderRadius: 5,
     padding: 16,
     marginBottom: 16,
   },
@@ -737,7 +875,7 @@ const styles = StyleSheet.create({
   },
   relationshipCard: {
     marginBottom: 12,
-    borderRadius: 20,
+    borderRadius: 5,
   },
   relationshipRow: {
     flexDirection: 'row',
@@ -776,7 +914,7 @@ const styles = StyleSheet.create({
   notesBox: {
     marginTop: 16,
     padding: 16,
-    borderRadius: 16,
+    borderRadius: 5,
     backgroundColor: '#F3F0FF',
   },
   notesText: {
@@ -816,6 +954,7 @@ const styles = StyleSheet.create({
   },
   timelineCard: {
     marginBottom: 12,
+    borderRadius: 5,
   },
   timelineRow: {
     flexDirection: 'row',
@@ -842,11 +981,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(12, 10, 24, 0.94)',
     justifyContent: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 16,
   },
   viewerCloseButton: {
     position: 'absolute',
     top: 44,
-    right: 12,
+    right: 16,
     zIndex: 2,
     backgroundColor: 'rgba(255, 255, 255, 0.12)',
   },

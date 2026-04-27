@@ -211,6 +211,7 @@ export default function LifeEventDialog({
 const styles = StyleSheet.create({
   dialog: {
     maxHeight: '82%',
+    marginHorizontal: 16,
   },
   scrollArea: {
     borderBottomWidth: 0,
