@@ -110,7 +110,7 @@ const Tab = createBottomTabNavigator<TreeDetailTabParamList>();
 
 function formatPersonName(person?: PersonRecord | null) {
   if (!person) {
-    return 'Unknown person';
+    return 'Unknown family member';
   }
 
   return `${person.firstName} ${person.lastName}`.trim();
@@ -247,14 +247,14 @@ function PeopleRelationshipsTabContent({
       <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
         <View style={styles.sectionHeader}>
           <View style={styles.titleWrap}>
-            <Text variant="titleLarge">People</Text>
+            <Text variant="titleLarge">Family members</Text>
             <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-              Profiles keep notes and photo memories together. Tap a card to open the profile and gallery.
+              Profiles keep notes and photo memories together. Tap a card to open the family member profile and gallery.
             </Text>
           </View>
           <View style={styles.actionButtonsWrap}>
             <Button mode="contained-tonal" icon="account-plus" onPress={onOpenAddPerson} disabled={mutating || !canEdit}>
-              Add person
+              Add family member
             </Button>
             <Button mode="contained" icon="family-tree" onPress={onOpenRelationshipDialog} disabled={mutating || !canEdit || people.length < 2}>
               Add relationship
@@ -264,7 +264,7 @@ function PeopleRelationshipsTabContent({
 
         <TextInput
           mode="outlined"
-          label="Search people"
+          label="Search family members"
           value={searchQuery}
           onChangeText={setSearchQuery}
           style={styles.filterInput}
@@ -281,7 +281,7 @@ function PeopleRelationshipsTabContent({
         </View>
 
         <View style={styles.filterRow}>
-          <Chip selected={assetFilter === 'all'} onPress={() => setAssetFilter('all')}>All people</Chip>
+          <Chip selected={assetFilter === 'all'} onPress={() => setAssetFilter('all')}>All family members</Chip>
           <Chip selected={assetFilter === 'with-photos'} onPress={() => setAssetFilter('with-photos')}>Has photos</Chip>
           <Chip selected={assetFilter === 'with-notes'} onPress={() => setAssetFilter('with-notes')}>Has notes</Chip>
         </View>
@@ -295,11 +295,11 @@ function PeopleRelationshipsTabContent({
           <>
             {filteredPeople.length === 0 ? (
               <View style={styles.emptyState}>
-                <Text variant="titleMedium">No matching people</Text>
+                <Text variant="titleMedium">No matching family members</Text>
                   <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}> 
                   {people.length === 0
-                    ? (canEdit ? 'Add a person to start building this family tree.' : 'This shared tree does not have any people yet.')
-                    : 'Try adjusting the search or filters to find a person.'}
+                    ? (canEdit ? 'Add a family member to start building this family tree.' : 'This shared tree does not have any family members yet.')
+                    : 'Try adjusting the search or filters to find a family member.'}
                 </Text>
               </View>
             ) : (
@@ -342,8 +342,8 @@ function PeopleRelationshipsTabContent({
                                 icon="delete"
                                 iconColor="#C62828"
                                 onPress={() => openConfirm(
-                                  'Delete person',
-                                  `Delete ${formatPersonName(person)} and remove every relationship connected to this person?`,
+                                  'Delete family member',
+                                  `Delete ${formatPersonName(person)} and remove every relationship connected to this family member?`,
                                   'Delete',
                                   async () => onDeletePerson(person),
                                 )}
@@ -371,7 +371,7 @@ function IntelligenceTabContent({ people, relationships }: SharedTabProps) {
     <ScrollView contentContainerStyle={styles.content}>
       <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
         <Text variant="titleLarge">Relationship intelligence</Text>
-        <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>Use this tab to explore how any two people are connected across the tree.</Text>
+        <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>Use this tab to explore how any two family members are connected across the tree.</Text>
 
         <RelationshipInsightCard people={people} relationships={relationships} />
       </Surface>
@@ -397,7 +397,7 @@ function VisualisationTabContent({
           <View style={styles.titleWrap}>
             <Text variant="titleLarge">Tree visualization</Text>
             <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-              Nodes represent people and edges represent parent-child or spouse relationships. Tap a node for quick actions like opening a profile or adding relatives.
+              Nodes represent family members and edges represent parent-child or spouse relationships. Tap a node for quick actions like opening a profile or adding relatives.
             </Text>
           </View>
           <View style={styles.actionButtonsWrap}>
@@ -421,7 +421,7 @@ function VisualisationTabContent({
           <View style={styles.emptyState}>
             <Text variant="titleMedium">No visual tree yet</Text>
             <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
-              Add people and relationships to see the family graph render here.
+                Add family members and relationships to see the family graph render here.
             </Text>
             {canEdit ? (
               <View style={styles.emptyStateActionRow}>
@@ -557,7 +557,7 @@ function ProfileTabContent({
 
         <View style={styles.summaryChipRow}>
           <Chip icon="account-key">{formatRole(role)}</Chip>
-          <Chip icon="account-group">{people.length} people</Chip>
+          <Chip icon="account-group">{people.length} family members</Chip>
           <Chip icon="graph-outline">{relationships.length} relationships</Chip>
           <Chip icon="account-multiple">{selectedTree.collaborators.length} collaborators</Chip>
           <Chip icon="link-variant">{assignedPersonByUserId.size} linked</Chip>
@@ -567,7 +567,7 @@ function ProfileTabContent({
         <View style={styles.profileMetricsWrap}>
             <Card mode="outlined" style={[styles.metricCard, { backgroundColor: theme.colors.elevation.level1, borderColor: theme.colors.outlineVariant }]}>
             <Card.Content>
-              <Text variant="titleSmall">People with notes</Text>
+              <Text variant="titleSmall">Family members with notes</Text>
               <Text variant="headlineSmall">{people.filter((person) => person.notes.trim()).length}</Text>
             </Card.Content>
           </Card>
@@ -584,7 +584,7 @@ function ProfileTabContent({
             <View style={styles.titleWrap}>
               <Text variant="titleLarge">My place in this tree</Text>
               <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}> 
-                Link your account to your person profile so the tree can recognise you and suggest likely matches.
+                Link your account to your family member profile so the tree can recognise you and suggest likely matches.
               </Text>
             </View>
             {!currentAssignedPerson ? (
@@ -605,11 +605,11 @@ function ProfileTabContent({
                     <Chip compact icon="account">{currentUserLabel}</Chip>
                   </View>
                   <Text variant="titleMedium" style={styles.selfAssignmentTitle}>
-                    {currentAssignedPerson ? formatPersonName(currentAssignedPerson) : 'Choose an existing person or create your own profile'}
+                    {currentAssignedPerson ? formatPersonName(currentAssignedPerson) : 'Choose an existing family member or create your own profile'}
                   </Text>
                   <Text variant="bodyMedium" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}> 
                     {currentAssignedPerson
-                      ? 'This linked person represents you in the tree. Unlink first before claiming a different profile.'
+                      ? 'This linked family member represents you in the tree. Unlink first before claiming a different profile.'
                       : 'We will suggest name matches from your sign-in profile and let you link yourself manually if needed.'}
                   </Text>
                 </View>
@@ -624,7 +624,7 @@ function ProfileTabContent({
                       textColor={theme.colors.error}
                       onPress={() => openConfirm(
                         'Unlink your profile',
-                        'Remove the connection between your account and this person profile?',
+                        'Remove the connection between your account and this family member profile?',
                         'Unlink',
                         onClearSelfAssignment,
                       )}
@@ -636,7 +636,7 @@ function ProfileTabContent({
                 ) : (
                   <View style={styles.selfAssignmentActions}>
                     <Button mode="contained" icon="account-search" onPress={() => setShowLinkChooser(true)} disabled={mutating}>
-                      Browse people
+                      Browse family members
                     </Button>
                     <Button mode="outlined" icon="account-plus" onPress={onOpenAddSelf} disabled={mutating || !canCreateSelfProfile}>
                       Add myself
@@ -684,21 +684,21 @@ function ProfileTabContent({
               </View>
             ) : (
               <Text variant="bodySmall" style={[styles.assignmentHelperText, { color: theme.colors.onSurfaceVariant }]}>
-                No exact name-and-surname match was found yet, so you can browse the tree manually or create your own person profile.
+                No exact name-and-surname match was found yet, so you can browse the tree manually or create your own family member profile.
               </Text>
             )
           ) : null}
 
           {!currentAssignedPerson && (showLinkChooser || !currentAssignedPerson) ? (
             <View style={styles.assignmentChooserWrap}>
-              <Text variant="titleMedium">Link to an existing person</Text>
+              <Text variant="titleMedium">Link to an existing family member</Text>
               <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}> 
                 Search everyone in this tree and pick the profile that represents you best.
               </Text>
 
               <TextInput
                 mode="outlined"
-                label="Search existing people"
+                label="Search existing family members"
                 value={linkSearchQuery}
                 onChangeText={setLinkSearchQuery}
                 style={styles.assignmentSearchInput}
@@ -728,7 +728,7 @@ function ProfileTabContent({
                 </View>
               ) : (
                 <Text variant="bodySmall" style={[styles.assignmentHelperText, { color: theme.colors.onSurfaceVariant }]}> 
-                  No available people match that search yet.
+                  No available family members match that search yet.
                 </Text>
               )}
             </View>
@@ -739,7 +739,7 @@ function ProfileTabContent({
           <View style={styles.sectionHeader}>
             <View style={styles.titleWrap}>
               <Text variant="titleLarge">Collaborators</Text>
-              <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>Owners manage access. Editors can update people and relationships. Viewers can browse the tree.</Text>
+              <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>Owners manage access. Editors can update family members and relationships. Viewers can browse the tree.</Text>
             </View>
             {isOwner ? (
               <Button mode="contained" icon="account-plus" onPress={onOpenCollaboratorDialog} disabled={mutating}>
@@ -786,9 +786,9 @@ function ProfileTabContent({
 
                     {isOwner && collaborator.userId !== userId && !linkedPerson ? (
                       <View style={styles.ownerSuggestionWrap}>
-                        <Text variant="titleSmall">Suggest a matching person</Text>
+                        <Text variant="titleSmall">Suggest a matching family member</Text>
                         <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}> 
-                          Help {collaborator.displayName || collaborator.email} get started by linking the person that looks like them best.
+                          Help {collaborator.displayName || collaborator.email} get started by linking the family member that looks like them best.
                         </Text>
 
                         {collaboratorSuggestions.length > 0 ? (
@@ -817,12 +817,12 @@ function ProfileTabContent({
                           </View>
                         ) : (
                           <Text variant="bodySmall" style={[styles.assignmentHelperText, { color: theme.colors.onSurfaceVariant }]}> 
-                            No obvious name match yet, but you can still choose a person manually.
+                            No obvious name match yet, but you can still choose a family member manually.
                           </Text>
                         )}
 
                         <Button mode="outlined" icon="account-search" onPress={() => toggleOwnerLinkChooser(collaborator.userId)} disabled={mutating} style={styles.ownerSuggestionButton}>
-                          {isOwnerSuggestionTarget ? 'Hide people' : 'Choose person'}
+                          {isOwnerSuggestionTarget ? 'Hide family members' : 'Choose family member'}
                         </Button>
 
                         {isOwnerSuggestionTarget ? (
@@ -833,7 +833,7 @@ function ProfileTabContent({
 
                             <TextInput
                               mode="outlined"
-                              label="Search people to suggest"
+                              label="Search family members to suggest"
                               value={ownerLinkSearchQuery}
                               onChangeText={setOwnerLinkSearchQuery}
                               style={styles.assignmentSearchInput}
@@ -863,7 +863,7 @@ function ProfileTabContent({
                               </View>
                             ) : (
                               <Text variant="bodySmall" style={[styles.assignmentHelperText, { color: theme.colors.onSurfaceVariant }]}> 
-                                No available people match that search yet.
+                                No available family members match that search yet.
                               </Text>
                             )}
                           </View>
@@ -1258,7 +1258,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
       >
         <Tab.Screen
           name="PeopleRelationshipsTab"
-          options={{ title: 'People' }}
+          options={{ title: 'Family members' }}
         >
           {() => <PeopleRelationshipsTabContent {...sharedTabProps} />}
         </Tab.Screen>
@@ -1337,7 +1337,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
         <Dialog visible={nodeQuickActionState.visible} onDismiss={closeNodeQuickActions} style={styles.quickActionDialog}>
           <Dialog.Title>{nodeQuickActionState.person ? formatPersonName(nodeQuickActionState.person) : 'Quick actions'}</Dialog.Title>
           <Dialog.Content>
-            <Text variant="bodyMedium" style={[styles.quickActionSubtitle, { color: theme.colors.onSurfaceVariant }]}>Choose what you want to do with this person in the tree.</Text>
+            <Text variant="bodyMedium" style={[styles.quickActionSubtitle, { color: theme.colors.onSurfaceVariant }]}>Choose what you want to do with this family member in the tree.</Text>
             <List.Item
               title="Open profile"
               description="See photos, memories, and full relationship details"

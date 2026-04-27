@@ -354,11 +354,11 @@ async function ensurePeopleBelongToTree(treeId: string, personIds: string[]) {
 
   snapshots.forEach((snapshot) => {
     if (!snapshot.exists()) {
-      throw new Error('One of the selected people no longer exists.');
+      throw new Error('One of the selected family members no longer exists.');
     }
 
     if (snapshot.data().treeId !== treeId) {
-      throw new Error('People must belong to the selected tree.');
+      throw new Error('Family members must belong to the selected tree.');
     }
   });
 }
@@ -564,7 +564,7 @@ export async function assignTreePersonToUser(actorUserId: string, treeId: string
     }
 
     if (actorUserId !== userId && tree.ownerId !== actorUserId) {
-      throw new Error('Only the tree owner can link another collaborator to a person.');
+      throw new Error('Only the tree owner can link another collaborator to a family member.');
     }
 
     if (!tree.memberIds.includes(userId)) {
@@ -572,11 +572,11 @@ export async function assignTreePersonToUser(actorUserId: string, treeId: string
     }
 
     if (!personSnapshot.exists()) {
-      throw new Error('That person no longer exists.');
+      throw new Error('That family member no longer exists.');
     }
 
     if (personSnapshot.data().treeId !== treeId) {
-      throw new Error('That person belongs to a different family tree.');
+      throw new Error('That family member belongs to a different family tree.');
     }
 
     const currentAssignedPersonId = tree.personAssignments[userId] ?? null;
@@ -585,14 +585,14 @@ export async function assignTreePersonToUser(actorUserId: string, treeId: string
     }
 
     if (actorUserId === userId && currentAssignedPersonId) {
-      throw new Error('Unlink your current claimed profile before claiming another person.');
+      throw new Error('Unlink your current claimed profile before claiming another family member.');
     }
 
     const assignedUserId = Object.entries(tree.personAssignments).find(
       ([currentUserId, currentPersonId]) => currentPersonId === personId && currentUserId !== userId,
     )?.[0];
     if (assignedUserId) {
-      throw new Error('That person is already linked to another collaborator.');
+      throw new Error('That family member is already linked to another collaborator.');
     }
 
 
@@ -753,7 +753,7 @@ export async function createParentChildRelationship(
   childId: string,
 ): Promise<RelationshipRecord> {
   if (parentId === childId) {
-    throw new Error('A person cannot be their own parent or child.');
+    throw new Error('A family member cannot be their own parent or child.');
   }
 
   await ensurePeopleBelongToTree(treeId, [parentId, childId]);
@@ -799,7 +799,7 @@ export async function createSpouseRelationship(
   personBId: string,
 ): Promise<RelationshipRecord> {
   if (personAId === personBId) {
-    throw new Error('A person cannot be their own spouse.');
+    throw new Error('A family member cannot be their own spouse.');
   }
 
   await ensurePeopleBelongToTree(treeId, [personAId, personBId]);

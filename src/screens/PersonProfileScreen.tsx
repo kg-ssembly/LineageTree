@@ -13,7 +13,7 @@ import {
   Text,
   useTheme,
 } from 'react-native-paper';
-import { ConfirmDialog, LifeEventDialog, PersonFormDialog, PersonRelationshipDialog } from '../components';
+import { ConfirmDialog, FamilyTreeCanvas, LifeEventDialog, PersonFormDialog, PersonRelationshipDialog } from '../components';
 import type { PersonRelationshipMode } from '../components/PersonRelationshipDialog';
 import { useAuthStore } from '../store/authStore';
 import { useTreeStore } from '../store/treeStore';
@@ -52,7 +52,7 @@ type LifeEventDialogState = {
 
 function formatPersonName(person?: PersonRecord | null) {
   if (!person) {
-    return 'Unknown person';
+    return 'Unknown family member';
   }
 
   return `${person.firstName} ${person.lastName}`.trim();
@@ -92,6 +92,37 @@ function buildPersonMutationPayload(
     newPhotoUris: [],
     ...overrides,
   };
+}
+
+function getDescendantIds(rootPersonId: string, relationships: RelationshipRecord[]) {
+  const childIdsByParentId = new Map<string, Set<string>>();
+
+  relationships.forEach((relationship) => {
+    if (relationship.type !== 'parent-child') {
+      return;
+    }
+
+    if (!childIdsByParentId.has(relationship.fromPersonId)) {
+      childIdsByParentId.set(relationship.fromPersonId, new Set());
+    }
+
+    childIdsByParentId.get(relationship.fromPersonId)!.add(relationship.toPersonId);
+  });
+
+  const descendantIds = new Set<string>();
+  const queue = [...(childIdsByParentId.get(rootPersonId) ?? new Set<string>())];
+
+  while (queue.length > 0) {
+    const currentPersonId = queue.shift()!;
+    if (descendantIds.has(currentPersonId)) {
+      continue;
+    }
+
+    descendantIds.add(currentPersonId);
+    queue.push(...(childIdsByParentId.get(currentPersonId) ?? new Set<string>()));
+  }
+
+  return [...descendantIds];
 }
 
 export default function PersonProfileScreen({ navigation, route }: Props) {
@@ -276,6 +307,22 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
 
     return items.sort((left, right) => left.date.localeCompare(right.date));
   }, [person]);
+
+  const descendantIds = useMemo(
+    () => (person ? getDescendantIds(person.id, relationships) : []),
+    [person, relationships],
+  );
+
+  const openFamilyMemberProfile = (targetPerson: PersonRecord) => {
+    if (!person || targetPerson.id === person.id) {
+      return;
+    }
+
+    navigation.push('PersonProfile', {
+      treeId: route.params.treeId,
+      personId: targetPerson.id,
+    });
+  };
 
   useEffect(() => {
     selectTree(route.params.treeId);
@@ -467,7 +514,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
             </View>
             {canEdit ? (
               <Button mode="contained-tonal" icon="pencil" onPress={() => setEditorVisible(true)}>
-                Edit profile
+                Edit family member
               </Button>
             ) : null}
           </View>
@@ -487,7 +534,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
                   <View style={styles.claimTextWrap}>
                     <Text variant="titleSmall">This is your linked profile</Text>
                     <Text variant="bodySmall" style={[styles.claimText, { color: theme.colors.onSurfaceVariant }]}> 
-                      Anywhere this person appears in the tree, you will now see a You badge. Unlink this profile first if you want to claim someone else.
+                      Anywhere this family member appears in the tree, you will now see a You badge. Unlink this profile first if you want to claim someone else.
                     </Text>
                   </View>
                   <Button mode="outlined" icon="link-off" onPress={handleUnclaimPerson} disabled={mutating}>
@@ -506,14 +553,14 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
                   <View style={styles.claimTextWrap}>
                     <Text variant="titleSmall">You already claimed another profile</Text>
                     <Text variant="bodySmall" style={[styles.claimText, { color: theme.colors.onSurfaceVariant }]}> 
-                      Unclaim yourself from {formatPersonName(currentAssignedPerson)} before claiming a different person.
+                      Unclaim yourself from {formatPersonName(currentAssignedPerson)} before claiming a different family member.
                     </Text>
                   </View>
                   <Button mode="outlined" icon="open-in-new" onPress={() => navigation.push('PersonProfile', {
                     treeId: route.params.treeId,
                     personId: currentAssignedPerson.id,
                   })} disabled={mutating}>
-                    Open current profile
+                    Open current family member
                   </Button>
                 </View>
               ) : canClaimPerson ? (
@@ -521,11 +568,11 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
                   <View style={styles.claimTextWrap}>
                     <Text variant="titleSmall">Is this you?</Text>
                     <Text variant="bodySmall" style={[styles.claimText, { color: theme.colors.onSurfaceVariant }]}> 
-                      Tap once to link your account to this person profile.
+                      Tap once to link your account to this family member profile.
                     </Text>
                   </View>
                   <Button mode="contained" icon="account-check" onPress={handleClaimPerson} disabled={mutating}>
-                    Claim this person as me
+                    Claim this family member as me
                   </Button>
                 </View>
               ) : null}
@@ -538,7 +585,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
             <View style={styles.sectionHeaderText}>
               <Text variant="titleLarge">Relationships</Text>
               <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-                Add, edit, or remove family connections directly from this profile.
+                Add, edit, or remove family connections directly from this family member.
               </Text>
             </View>
             {canEdit ? (
@@ -590,16 +637,38 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
             <View style={styles.emptyState}>
               <Text variant="titleMedium">No relationships yet</Text>
               <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
-                Add parents, children, or spouses from this profile to grow the story around this person.
+                Add parents, children, or spouses from this family member to grow the story around them.
               </Text>
             </View>
           )}
         </Surface>
 
         <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionHeaderText}>
+              <Text variant="titleLarge">Descendant tree</Text>
+              <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}> 
+                {descendantIds.length > 0
+                  ? `Start with ${formatPersonName(person)} and follow ${descendantIds.length} ${descendantIds.length === 1 ? 'younger family member' : 'younger family members'} through children and grandchildren.`
+                  : `No children or grandchildren are linked yet. Add family relationships below to start ${formatPersonName(person)}’s branch.`}
+              </Text>
+            </View>
+          </View>
+
+          <FamilyTreeCanvas
+            people={people}
+            relationships={relationships}
+            onPressPerson={openFamilyMemberProfile}
+            currentUserPersonId={currentAssignedPerson?.id ?? undefined}
+            initialFocusPersonId={person.id}
+            descendantRootPersonId={person.id}
+          />
+        </Surface>
+
+        <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
           <Text variant="titleLarge">Memories & gallery</Text>
           <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-            Notes, life events, and photos help this profile feel like a living timeline.
+            Notes, life events, and photos help this family member feel like a living timeline.
           </Text>
 
           <View style={[styles.notesBox, { backgroundColor: theme.colors.surfaceVariant }]}>

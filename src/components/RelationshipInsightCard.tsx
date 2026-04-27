@@ -12,7 +12,7 @@ interface RelationshipInsightCardProps {
 
 function formatPersonName(person?: PersonRecord | null) {
   if (!person) {
-    return 'Unknown person';
+    return 'Unknown family member';
   }
 
   return `${person.firstName} ${person.lastName}`.trim();
@@ -46,11 +46,11 @@ export default function RelationshipInsightCard({ people, relationships }: Relat
     <Card mode="outlined" style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant }]}>
       <Card.Content>
         <Text variant="bodyMedium" style={[styles.subtitle, { color: theme.colors.onSurfaceVariant }]}>
-          Select two people to compute their relationship and show the connection path.
+          Select two family members to compute their relationship and show the connection path.
         </Text>
 
         <View style={styles.section}>
-          <Text variant="titleSmall">Person A</Text>
+          <Text variant="titleSmall">Family member A</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
             {people.map((person) => (
               <Chip
@@ -66,7 +66,7 @@ export default function RelationshipInsightCard({ people, relationships }: Relat
         </View>
 
         <View style={styles.section}>
-          <Text variant="titleSmall">Person B</Text>
+          <Text variant="titleSmall">Family member B</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
             {people.map((person) => (
               <Chip
@@ -95,7 +95,7 @@ export default function RelationshipInsightCard({ people, relationships }: Relat
             <View style={[styles.resultBox, { backgroundColor: theme.colors.surfaceVariant }]}>
               <Text variant="titleMedium">No direct family relationship found</Text>
               <Text variant="bodyMedium" style={[styles.pathText, { color: theme.colors.onSurfaceVariant }]}>
-                No result returned because these two people are currently unrelated in this tree.
+                No result returned because these two family members are currently unrelated in this tree.
               </Text>
             </View>
           )

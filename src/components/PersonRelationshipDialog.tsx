@@ -19,7 +19,7 @@ interface PersonRelationshipDialogProps {
 
 function formatPersonName(person?: PersonRecord | null) {
   if (!person) {
-    return 'Unknown person';
+    return 'Unknown family member';
   }
 
   return `${person.firstName} ${person.lastName}`.trim();
@@ -121,12 +121,12 @@ export default function PersonRelationshipDialog({
 
   const handleSubmit = async () => {
     if (!person) {
-      setError('This person could not be loaded.');
+      setError('This family member could not be loaded.');
       return;
     }
 
     if (!relatedPersonId) {
-      setError('Choose a related person first.');
+      setError('Choose a related family member first.');
       return;
     }
 
@@ -163,10 +163,10 @@ export default function PersonRelationshipDialog({
             />
 
             <View style={styles.section}>
-              <Text variant="titleSmall">Select related person</Text>
+              <Text variant="titleSmall">Select related family member</Text>
               <TextInput
                 mode="outlined"
-                label="Search person"
+                label="Search family member"
                 value={searchQuery}
                 onChangeText={setSearchQuery}
                 style={styles.searchInput}

@@ -23,6 +23,7 @@ interface FamilyTreeCanvasProps {
   onPressPerson: (person: PersonRecord) => void;
   currentUserPersonId?: string;
   initialFocusPersonId?: string;
+  descendantRootPersonId?: string;
   allowFullscreen?: boolean;
 }
 
@@ -235,12 +236,93 @@ function buildGenerations(people: PersonRecord[], relationships: RelationshipRec
   };
 }
 
+function buildDescendantSubtree(
+  people: PersonRecord[],
+  relationships: RelationshipRecord[],
+  rootPersonId?: string,
+) {
+  if (!rootPersonId) {
+    return { renderedPeople: people, renderedRelationships: relationships };
+  }
+
+  const peopleById = new Map(people.map((person) => [person.id, person]));
+  if (!peopleById.has(rootPersonId)) {
+    return { renderedPeople: people, renderedRelationships: relationships };
+  }
+
+  const childIdsByParentId = new Map<string, Set<string>>();
+  const spouseIdsByPersonId = new Map<string, Set<string>>();
+
+  relationships.forEach((relationship) => {
+    if (relationship.type === 'parent-child') {
+      if (!childIdsByParentId.has(relationship.fromPersonId)) {
+        childIdsByParentId.set(relationship.fromPersonId, new Set());
+      }
+
+      childIdsByParentId.get(relationship.fromPersonId)!.add(relationship.toPersonId);
+      return;
+    }
+
+    if (!spouseIdsByPersonId.has(relationship.fromPersonId)) {
+      spouseIdsByPersonId.set(relationship.fromPersonId, new Set());
+    }
+    if (!spouseIdsByPersonId.has(relationship.toPersonId)) {
+      spouseIdsByPersonId.set(relationship.toPersonId, new Set());
+    }
+
+    spouseIdsByPersonId.get(relationship.fromPersonId)!.add(relationship.toPersonId);
+    spouseIdsByPersonId.get(relationship.toPersonId)!.add(relationship.fromPersonId);
+  });
+
+  const lineageIds = new Set<string>([rootPersonId]);
+  const queue = [rootPersonId];
+
+  while (queue.length > 0) {
+    const currentPersonId = queue.shift()!;
+    const childIds = [...(childIdsByParentId.get(currentPersonId) ?? new Set<string>())].sort((left, right) => left.localeCompare(right));
+
+    childIds.forEach((childId) => {
+      if (!peopleById.has(childId) || lineageIds.has(childId)) {
+        return;
+      }
+
+      lineageIds.add(childId);
+      queue.push(childId);
+    });
+  }
+
+  const includedIds = new Set(lineageIds);
+  lineageIds.forEach((personId) => {
+    (spouseIdsByPersonId.get(personId) ?? new Set<string>()).forEach((spouseId) => {
+      if (peopleById.has(spouseId)) {
+        includedIds.add(spouseId);
+      }
+    });
+  });
+
+  return {
+    renderedPeople: people.filter((person) => includedIds.has(person.id)),
+    renderedRelationships: relationships.filter((relationship) => {
+      if (!includedIds.has(relationship.fromPersonId) || !includedIds.has(relationship.toPersonId)) {
+        return false;
+      }
+
+      if (relationship.type === 'spouse') {
+        return lineageIds.has(relationship.fromPersonId) || lineageIds.has(relationship.toPersonId);
+      }
+
+      return lineageIds.has(relationship.toPersonId);
+    }),
+  };
+}
+
 export default function FamilyTreeCanvas({
   people,
   relationships,
   onPressPerson,
   currentUserPersonId,
   initialFocusPersonId,
+  descendantRootPersonId,
   allowFullscreen = true,
 }: FamilyTreeCanvasProps) {
   const theme = useTheme();
@@ -254,8 +336,13 @@ export default function FamilyTreeCanvas({
   const [inlineViewportSize, setInlineViewportSize] = useState({ width: 0, height: 0 });
   const [fullscreenViewportSize, setFullscreenViewportSize] = useState({ width: 0, height: 0 });
 
+  const { renderedPeople, renderedRelationships } = useMemo(
+    () => buildDescendantSubtree(people, relationships, descendantRootPersonId),
+    [descendantRootPersonId, people, relationships],
+  );
+
   const { positionsByPersonId, canvasWidth, canvasHeight } = useMemo(() => {
-    const { groupedPeople, spouseGroupIdsByPersonId } = buildGenerations(people, relationships);
+    const { groupedPeople, spouseGroupIdsByPersonId } = buildGenerations(renderedPeople, renderedRelationships);
     const levels = [...groupedPeople.keys()].sort((left, right) => left - right);
     const largestLevelSize = Math.max(1, ...levels.map((level) => groupedPeople.get(level)?.length ?? 0));
     const calculatedCanvasWidth = Math.max(
@@ -309,7 +396,27 @@ export default function FamilyTreeCanvas({
       canvasWidth: calculatedCanvasWidth,
       canvasHeight: calculatedCanvasHeight,
     };
-  }, [people, relationships]);
+  }, [renderedPeople, renderedRelationships]);
+
+  const effectiveInitialFocusPersonId = useMemo(() => {
+    if (initialFocusPersonId && positionsByPersonId.has(initialFocusPersonId)) {
+      return initialFocusPersonId;
+    }
+
+    if (descendantRootPersonId && positionsByPersonId.has(descendantRootPersonId)) {
+      return descendantRootPersonId;
+    }
+
+    return renderedPeople[0]?.id;
+  }, [descendantRootPersonId, initialFocusPersonId, positionsByPersonId, renderedPeople]);
+
+  const controlsLabel = descendantRootPersonId
+    ? 'Drag to pan through this family branch and zoom to follow younger generations.'
+    : 'Drag to pan, use zoom controls to focus on branches.';
+  const fullscreenTitle = descendantRootPersonId ? 'Full-screen descendant tree' : 'Full-screen family tree';
+  const fullscreenSubtitle = descendantRootPersonId
+    ? 'Pan through this family member’s descendants and zoom into each generation in more detail.'
+    : 'Pan around the full tree and zoom into branches in more detail.';
 
   const clampPanPoint = (desiredPan: { x: number; y: number }, targetScale: number) => {
     const activeSize = isFullscreen ? fullscreenViewportSize : inlineViewportSize;
@@ -438,21 +545,21 @@ export default function FamilyTreeCanvas({
       activeViewportSize.height,
       canvasWidth,
       canvasHeight,
-      initialFocusPersonId ?? '',
+      effectiveInitialFocusPersonId ?? '',
     ].join(':');
 
     if (lastAutoFitKeyRef.current === autoFitKey) {
       return;
     }
 
-    applyFitTransform(activeViewportSize.width, activeViewportSize.height, initialFocusPersonId);
+    applyFitTransform(activeViewportSize.width, activeViewportSize.height, effectiveInitialFocusPersonId);
     lastAutoFitKeyRef.current = autoFitKey;
   }, [
     activeViewportSize.height,
     activeViewportSize.width,
     canvasHeight,
     canvasWidth,
-    initialFocusPersonId,
+    effectiveInitialFocusPersonId,
     isFullscreen,
     positionsByPersonId,
   ]);
@@ -491,7 +598,7 @@ export default function FamilyTreeCanvas({
         ]}
       >
         <Svg width={canvasWidth} height={canvasHeight} style={StyleSheet.absoluteFill}>
-          {relationships.map((relationship) => {
+          {renderedRelationships.map((relationship) => {
             const fromPosition = positionsByPersonId.get(relationship.fromPersonId);
             const toPosition = positionsByPersonId.get(relationship.toPersonId);
 
@@ -520,7 +627,7 @@ export default function FamilyTreeCanvas({
           })}
         </Svg>
 
-        {people.map((person) => {
+        {renderedPeople.map((person) => {
           const position = positionsByPersonId.get(person.id);
           const preferredPhoto = getPreferredPersonPhoto(person);
           const isCurrentUsersPerson = currentUserPersonId === person.id;
@@ -583,7 +690,7 @@ export default function FamilyTreeCanvas({
   return (
     <View style={styles.container}>
       <View style={styles.controlsRow}>
-        <Text variant="bodyMedium">Drag to pan, use zoom controls to focus on branches.</Text>
+        <Text variant="bodyMedium">{controlsLabel}</Text>
         <View style={styles.zoomButtonsRow}>
           <Chip compact icon="magnify-minus">{scale.toFixed(1)}x</Chip>
           <Button compact mode="outlined" onPress={() => handleZoom(-0.15)}>
@@ -602,10 +709,10 @@ export default function FamilyTreeCanvas({
       <Modal visible={isFullscreen} animationType="slide" onRequestClose={() => setIsFullscreen(false)}>
         <View style={[styles.fullscreenContainer, { backgroundColor: theme.colors.background }]}>
           <View style={styles.fullscreenHeader}>
-            <Text variant="titleLarge">Full-screen family tree</Text>
+            <Text variant="titleLarge">{fullscreenTitle}</Text>
             <IconButton icon="close" onPress={() => setIsFullscreen(false)} />
           </View>
-          <Text variant="bodyMedium" style={[styles.fullscreenSubtitle, { color: theme.colors.onSurfaceVariant }]}>Pan around the full tree and zoom into branches in more detail.</Text>
+          <Text variant="bodyMedium" style={[styles.fullscreenSubtitle, { color: theme.colors.onSurfaceVariant }]}>{fullscreenSubtitle}</Text>
           {renderCanvasViewport('fullscreen', { height: Math.max(320, windowHeight - 172), borderRadius: 5 })}
         </View>
       </Modal>

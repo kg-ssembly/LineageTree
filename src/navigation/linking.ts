@@ -2,7 +2,7 @@ import type { LinkingOptions } from '@react-navigation/native';
 import type { RootStackParamList, TreeDetailTabParamList } from '../types/navigation';
 
 const tabPathByKey: Record<keyof TreeDetailTabParamList, string> = {
-  PeopleRelationshipsTab: 'people',
+  PeopleRelationshipsTab: 'family-members',
   IntelligenceTab: 'insights',
   VisualisationTab: 'visualisation',
   ProfileTab: 'profile',
@@ -48,7 +48,7 @@ const linking: LinkingOptions<RootStackParamList> = {
           initialTab: stringifyTreeTabPath,
         },
       },
-      PersonProfile: 'trees/:treeId/people/:personId',
+      PersonProfile: 'trees/:treeId/family-members/:personId',
     },
   },
 };

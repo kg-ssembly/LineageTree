@@ -77,19 +77,19 @@ export default function RelationshipDialog({
 
   const handleSubmit = async () => {
     if (people.length < 2) {
-      setError('Add at least two people before creating a relationship.');
+      setError('Add at least two family members before creating a relationship.');
       return;
     }
 
     if (!fromPersonId || !toPersonId) {
-      setError('Select both people for this relationship.');
+      setError('Select both family members for this relationship.');
       return;
     }
 
     if (fromPersonId === toPersonId) {
       setError(type === 'spouse'
-        ? 'A person cannot be their own spouse.'
-        : 'A person cannot be their own parent or child.');
+        ? 'A family member cannot be their own spouse.'
+        : 'A family member cannot be their own parent or child.');
       return;
     }
 
@@ -126,7 +126,7 @@ export default function RelationshipDialog({
               <Text variant="titleSmall">{firstLabel}</Text>
               <TextInput
                 mode="outlined"
-                label="Search person"
+                label="Search family member"
                 value={fromSearch}
                 onChangeText={setFromSearch}
                 style={styles.searchInput}
@@ -154,7 +154,7 @@ export default function RelationshipDialog({
               <Text variant="titleSmall">{secondLabel}</Text>
               <TextInput
                 mode="outlined"
-                label="Search person"
+                label="Search family member"
                 value={toSearch}
                 onChangeText={setToSearch}
                 style={styles.searchInput}

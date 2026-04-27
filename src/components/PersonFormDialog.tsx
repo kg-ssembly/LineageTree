@@ -276,7 +276,7 @@ export default function PersonFormDialog({
     if (mode === 'create') {
       const hasIncompleteRelationship = pendingRelationships.some((draft) => !draft.relatedPersonId);
       if (hasIncompleteRelationship) {
-        setRelationshipError('Choose a person for each relationship you want to create.');
+        setRelationshipError('Choose a family member for each relationship you want to create.');
         return;
       }
 
@@ -316,7 +316,7 @@ export default function PersonFormDialog({
     <>
       <Portal>
         <Dialog visible={visible} onDismiss={loading ? undefined : onDismiss} style={styles.dialog}>
-          <Dialog.Title>{mode === 'create' ? 'Add person' : 'Edit person'}</Dialog.Title>
+          <Dialog.Title>{mode === 'create' ? 'Add family member' : 'Edit family member'}</Dialog.Title>
           <Dialog.ScrollArea style={styles.scrollArea}>
             <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
               <TextInput
@@ -428,7 +428,7 @@ export default function PersonFormDialog({
                   ) : null}
                 </View>
                 <HelperText type="info" visible={!deathDateError}>
-                  Leave blank to mark this person as still present.
+                  Leave blank to mark this family member as still present.
                 </HelperText>
                 <HelperText type="error" visible={!!deathDateError}>
                   {deathDateError}
@@ -461,7 +461,7 @@ export default function PersonFormDialog({
                     </Button>
                   </View>
                   <Text variant="bodyMedium" style={styles.helperText}>
-                    Queue one or more relationships to create as soon as this person is saved.
+                    Queue one or more relationships to create as soon as this family member is saved.
                   </Text>
 
                   {pendingRelationships.map((draft, index) => {
@@ -489,7 +489,7 @@ export default function PersonFormDialog({
                         />
                         <TextInput
                           mode="outlined"
-                          label="Search person"
+                          label="Search family member"
                           value={draft.searchQuery}
                           onChangeText={(value) => setPendingRelationships((current) => current.map((item) => item.key === draft.key ? { ...item, searchQuery: value } : item))}
                           style={styles.fieldSpacing}

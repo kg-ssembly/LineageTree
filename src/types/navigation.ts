@@ -11,13 +11,11 @@ export type RootStackParamList = {
   Home: undefined;
   TreeDetail: {
     treeId: string;
-    treeName?: string;
     initialTab?: keyof TreeDetailTabParamList;
   };
   PersonProfile: {
     treeId: string;
     personId: string;
-    personName?: string;
   };
 };
 
