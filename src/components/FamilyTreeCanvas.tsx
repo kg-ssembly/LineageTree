@@ -1,7 +1,8 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Image,
+  LayoutChangeEvent,
   Modal,
   PanResponder,
   Pressable,
@@ -21,6 +22,7 @@ interface FamilyTreeCanvasProps {
   relationships: RelationshipRecord[];
   onPressPerson: (person: PersonRecord) => void;
   currentUserPersonId?: string;
+  initialFocusPersonId?: string;
   allowFullscreen?: boolean;
 }
 
@@ -32,16 +34,23 @@ type NodePosition = {
 const NODE_WIDTH = 152;
 const NODE_HEIGHT = 84;
 const HORIZONTAL_GAP = 40;
+const SPOUSE_GAP = 12;
 const VERTICAL_GAP = 120;
 const PADDING = 48;
+const VIEWPORT_PADDING = 24;
 const MIN_SCALE = 0.7;
 const MAX_SCALE = 1.8;
+
+type GenerationLayout = {
+  groupedPeople: Map<number, PersonRecord[]>;
+  spouseGroupIdsByPersonId: Map<string, string>;
+};
 
 function formatPersonName(person: PersonRecord) {
   return `${person.firstName} ${person.lastName}`.trim();
 }
 
-function buildGenerations(people: PersonRecord[], relationships: RelationshipRecord[]) {
+function buildGenerations(people: PersonRecord[], relationships: RelationshipRecord[]): GenerationLayout {
   const parentChildRelationships = relationships.filter((relationship) => relationship.type === 'parent-child');
   const spouseRelationships = relationships.filter((relationship) => relationship.type === 'spouse');
   const parentIdsByChildId = new Map<string, Set<string>>();
@@ -220,7 +229,10 @@ function buildGenerations(people: PersonRecord[], relationships: RelationshipRec
     }
   });
 
-  return groupedPeople;
+  return {
+    groupedPeople,
+    spouseGroupIdsByPersonId,
+  };
 }
 
 export default function FamilyTreeCanvas({
@@ -228,16 +240,21 @@ export default function FamilyTreeCanvas({
   relationships,
   onPressPerson,
   currentUserPersonId,
+  initialFocusPersonId,
   allowFullscreen = true,
 }: FamilyTreeCanvasProps) {
   const theme = useTheme();
   const { height: windowHeight } = useWindowDimensions();
   const pan = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
+  const dragStartPanRef = useRef({ x: 0, y: 0 });
+  const lastAutoFitKeyRef = useRef<string | null>(null);
   const [scale, setScale] = useState(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [inlineViewportSize, setInlineViewportSize] = useState({ width: 0, height: 0 });
+  const [fullscreenViewportSize, setFullscreenViewportSize] = useState({ width: 0, height: 0 });
 
   const { positionsByPersonId, canvasWidth, canvasHeight } = useMemo(() => {
-    const groupedPeople = buildGenerations(people, relationships);
+    const { groupedPeople, spouseGroupIdsByPersonId } = buildGenerations(people, relationships);
     const levels = [...groupedPeople.keys()].sort((left, right) => left - right);
     const largestLevelSize = Math.max(1, ...levels.map((level) => groupedPeople.get(level)?.length ?? 0));
     const calculatedCanvasWidth = Math.max(
@@ -252,15 +269,37 @@ export default function FamilyTreeCanvas({
 
     levels.forEach((level) => {
       const levelPeople = groupedPeople.get(level) ?? [];
-      const rowWidth = levelPeople.length * NODE_WIDTH + Math.max(0, levelPeople.length - 1) * HORIZONTAL_GAP;
+      const rowWidth = levelPeople.reduce((width, person, index) => {
+        if (index === 0) {
+          return NODE_WIDTH;
+        }
+
+        const previousPerson = levelPeople[index - 1];
+        const gap = spouseGroupIdsByPersonId.get(previousPerson.id) === spouseGroupIdsByPersonId.get(person.id)
+          ? SPOUSE_GAP
+          : HORIZONTAL_GAP;
+
+        return width + gap + NODE_WIDTH;
+      }, 0);
       const startX = Math.max(PADDING, (calculatedCanvasWidth - rowWidth) / 2);
       const y = PADDING + level * (NODE_HEIGHT + VERTICAL_GAP);
+      let currentX = startX;
 
       levelPeople.forEach((person, index) => {
         positions.set(person.id, {
-          x: startX + index * (NODE_WIDTH + HORIZONTAL_GAP),
+          x: currentX,
           y,
         });
+
+        const nextPerson = levelPeople[index + 1];
+        if (!nextPerson) {
+          return;
+        }
+
+        const gap = spouseGroupIdsByPersonId.get(person.id) === spouseGroupIdsByPersonId.get(nextPerson.id)
+          ? SPOUSE_GAP
+          : HORIZONTAL_GAP;
+        currentX += NODE_WIDTH + gap;
       });
     });
 
@@ -271,38 +310,169 @@ export default function FamilyTreeCanvas({
     };
   }, [people, relationships]);
 
+  const clampPanPoint = (desiredPan: { x: number; y: number }, targetScale: number) => {
+    const activeSize = isFullscreen ? fullscreenViewportSize : inlineViewportSize;
+    if (activeSize.width <= 0 || activeSize.height <= 0) {
+      return desiredPan;
+    }
+
+    const safeScale = targetScale || 1;
+    const scaledCanvasWidth = canvasWidth * safeScale;
+    const scaledCanvasHeight = canvasHeight * safeScale;
+    const centeredTranslateX = (activeSize.width - scaledCanvasWidth) / 2;
+    const centeredTranslateY = (activeSize.height - scaledCanvasHeight) / 2;
+    const minTranslateX = scaledCanvasWidth <= activeSize.width ? centeredTranslateX : activeSize.width - scaledCanvasWidth;
+    const maxTranslateX = scaledCanvasWidth <= activeSize.width ? centeredTranslateX : 0;
+    const minTranslateY = scaledCanvasHeight <= activeSize.height ? centeredTranslateY : activeSize.height - scaledCanvasHeight;
+    const maxTranslateY = scaledCanvasHeight <= activeSize.height ? centeredTranslateY : 0;
+
+    return {
+      x: Math.min(maxTranslateX / safeScale, Math.max(minTranslateX / safeScale, desiredPan.x)),
+      y: Math.min(maxTranslateY / safeScale, Math.max(minTranslateY / safeScale, desiredPan.y)),
+    };
+  };
+
+  const clampCurrentPanToViewport = (targetScale: number) => {
+    pan.stopAnimation((value) => {
+      pan.setValue(clampPanPoint(value, targetScale));
+    });
+  };
+
   const panResponder = useMemo(
     () => PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: () => true,
       onPanResponderGrant: () => {
-        pan.extractOffset();
+        pan.stopAnimation((value) => {
+          dragStartPanRef.current = value;
+        });
       },
-      onPanResponderMove: Animated.event([null, { dx: pan.x, dy: pan.y }], {
-        useNativeDriver: false,
-      }),
+      onPanResponderMove: (_, gestureState) => {
+        const desiredPan = {
+          x: dragStartPanRef.current.x + (gestureState.dx / scale),
+          y: dragStartPanRef.current.y + (gestureState.dy / scale),
+        };
+        pan.setValue(clampPanPoint(desiredPan, scale));
+      },
       onPanResponderRelease: () => {
-        pan.flattenOffset();
+        clampCurrentPanToViewport(scale);
       },
       onPanResponderTerminate: () => {
-        pan.flattenOffset();
+        clampCurrentPanToViewport(scale);
       },
     }),
-    [pan],
+    [canvasHeight, canvasWidth, fullscreenViewportSize, inlineViewportSize, isFullscreen, pan, scale],
   );
 
   const handleZoom = (delta: number) => {
-    setScale((current) => Math.min(MAX_SCALE, Math.max(MIN_SCALE, Number((current + delta).toFixed(2)))));
+    let nextScale = scale;
+    setScale((current) => {
+      nextScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, Number((current + delta).toFixed(2))));
+      return nextScale;
+    });
+
+    requestAnimationFrame(() => {
+      clampCurrentPanToViewport(nextScale);
+    });
+  };
+
+  const applyFitTransform = (viewportWidth: number, viewportHeight: number, focusPersonId?: string) => {
+    if (viewportWidth <= 0 || viewportHeight <= 0) {
+      return;
+    }
+
+    const paddedViewportWidth = Math.max(120, viewportWidth - VIEWPORT_PADDING * 2);
+    const paddedViewportHeight = Math.max(120, viewportHeight - VIEWPORT_PADDING * 2);
+    const nextScale = Math.min(
+      MAX_SCALE,
+      Math.max(
+        MIN_SCALE,
+        Math.min(paddedViewportWidth / canvasWidth, paddedViewportHeight / canvasHeight),
+      ),
+    );
+
+    const scaledCanvasWidth = canvasWidth * nextScale;
+    const scaledCanvasHeight = canvasHeight * nextScale;
+    const centeredTranslateX = (viewportWidth - scaledCanvasWidth) / 2;
+    const centeredTranslateY = (viewportHeight - scaledCanvasHeight) / 2;
+    const focusedPosition = focusPersonId ? positionsByPersonId.get(focusPersonId) : null;
+    const desiredTranslateX = focusedPosition
+      ? viewportWidth / 2 - (focusedPosition.x + NODE_WIDTH / 2) * nextScale
+      : centeredTranslateX;
+    const desiredTranslateY = focusedPosition
+      ? viewportHeight / 2 - (focusedPosition.y + NODE_HEIGHT / 2) * nextScale
+      : centeredTranslateY;
+
+    const minTranslateX = scaledCanvasWidth <= viewportWidth ? centeredTranslateX : viewportWidth - scaledCanvasWidth;
+    const maxTranslateX = scaledCanvasWidth <= viewportWidth ? centeredTranslateX : 0;
+    const minTranslateY = scaledCanvasHeight <= viewportHeight ? centeredTranslateY : viewportHeight - scaledCanvasHeight;
+    const maxTranslateY = scaledCanvasHeight <= viewportHeight ? centeredTranslateY : 0;
+    const clampedTranslateX = Math.min(maxTranslateX, Math.max(minTranslateX, desiredTranslateX));
+    const clampedTranslateY = Math.min(maxTranslateY, Math.max(minTranslateY, desiredTranslateY));
+    const safeScale = nextScale || 1;
+
+    setScale(nextScale);
+    pan.setOffset({ x: 0, y: 0 });
+    pan.setValue({
+      x: clampedTranslateX / safeScale,
+      y: clampedTranslateY / safeScale,
+    });
   };
 
   const resetView = () => {
-    setScale(1);
-    pan.setValue({ x: 0, y: 0 });
-    pan.setOffset({ x: 0, y: 0 });
+    const activeViewportSize = isFullscreen ? fullscreenViewportSize : inlineViewportSize;
+    applyFitTransform(activeViewportSize.width, activeViewportSize.height);
   };
 
-  const renderCanvasViewport = (viewportStyle?: object) => (
-    <View style={[styles.viewport, { borderColor: theme.colors.outlineVariant, backgroundColor: theme.colors.elevation.level1 }, viewportStyle]}>
+  const activeViewportSize = isFullscreen ? fullscreenViewportSize : inlineViewportSize;
+
+  useEffect(() => {
+    if (activeViewportSize.width <= 0 || activeViewportSize.height <= 0) {
+      return;
+    }
+
+    const autoFitKey = [
+      isFullscreen ? 'fullscreen' : 'inline',
+      activeViewportSize.width,
+      activeViewportSize.height,
+      canvasWidth,
+      canvasHeight,
+      initialFocusPersonId ?? '',
+    ].join(':');
+
+    if (lastAutoFitKeyRef.current === autoFitKey) {
+      return;
+    }
+
+    applyFitTransform(activeViewportSize.width, activeViewportSize.height, initialFocusPersonId);
+    lastAutoFitKeyRef.current = autoFitKey;
+  }, [
+    activeViewportSize.height,
+    activeViewportSize.width,
+    canvasHeight,
+    canvasWidth,
+    initialFocusPersonId,
+    isFullscreen,
+    positionsByPersonId,
+  ]);
+
+  const handleViewportLayout = (mode: 'inline' | 'fullscreen') => (event: LayoutChangeEvent) => {
+    const { width, height } = event.nativeEvent.layout;
+    const nextSize = { width, height };
+
+    if (mode === 'fullscreen') {
+      setFullscreenViewportSize((current) => (current.width === width && current.height === height ? current : nextSize));
+      return;
+    }
+
+    setInlineViewportSize((current) => (current.width === width && current.height === height ? current : nextSize));
+  };
+
+  const renderCanvasViewport = (mode: 'inline' | 'fullscreen', viewportStyle?: object) => (
+    <View
+      style={[styles.viewport, { borderColor: theme.colors.outlineVariant, backgroundColor: theme.colors.elevation.level1 }, viewportStyle]}
+      onLayout={handleViewportLayout(mode)}
+    >
       <Animated.View
         {...panResponder.panHandlers}
         style={[
@@ -426,7 +596,7 @@ export default function FamilyTreeCanvas({
         </View>
       </View>
 
-      {renderCanvasViewport()}
+      {renderCanvasViewport('inline')}
 
       <Modal visible={isFullscreen} animationType="slide" onRequestClose={() => setIsFullscreen(false)}>
         <View style={[styles.fullscreenContainer, { backgroundColor: theme.colors.background }]}>
@@ -435,7 +605,7 @@ export default function FamilyTreeCanvas({
             <IconButton icon="close" onPress={() => setIsFullscreen(false)} />
           </View>
           <Text variant="bodyMedium" style={[styles.fullscreenSubtitle, { color: theme.colors.onSurfaceVariant }]}>Pan around the full tree and zoom into branches in more detail.</Text>
-          {renderCanvasViewport({ height: Math.max(320, windowHeight - 172), borderRadius: 5 })}
+          {renderCanvasViewport('fullscreen', { height: Math.max(320, windowHeight - 172), borderRadius: 5 })}
         </View>
       </Modal>
     </View>

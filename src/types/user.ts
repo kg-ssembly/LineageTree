@@ -3,6 +3,7 @@ export interface UserProfile {
   email: string;
   normalizedEmail?: string;
   displayName: string;
+  defaultTreeId?: string;
   createdAt: string;
 }
 

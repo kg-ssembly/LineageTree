@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
@@ -49,7 +49,7 @@ function formatRole(role: ReturnType<typeof getTreeRole>) {
 
 export default function HomeScreen({ navigation }: Props) {
   const theme = useTheme();
-  const { user, signOut, loading: authLoading } = useAuthStore();
+  const { user, signOut, loading: authLoading, setDefaultTreeId } = useAuthStore();
   const preference = useThemeStore((state) => state.preference);
   const setPreference = useThemeStore((state) => state.setPreference);
   const {
@@ -67,6 +67,8 @@ export default function HomeScreen({ navigation }: Props) {
 
   const [treeDialog, setTreeDialog] = useState<TreeDialogState>({ visible: false, mode: 'create', tree: null });
   const [snackVisible, setSnackVisible] = useState(false);
+  const hasAutoOpenedTreeRef = useRef(false);
+  const clearedMissingDefaultTreeRef = useRef<string | null>(null);
   const [confirmState, setConfirmState] = useState<ConfirmState>({
     visible: false,
     title: '',
@@ -92,6 +94,48 @@ export default function HomeScreen({ navigation }: Props) {
     : preference === 'dark'
       ? 'Dark mode is enabled for a cozy, cinematic workspace.'
       : 'Light mode is enabled for a bright, airy workspace.';
+
+  const defaultTree = useMemo(
+    () => trees.find((tree) => tree.id === user?.defaultTreeId) ?? null,
+    [trees, user?.defaultTreeId],
+  );
+
+  useEffect(() => {
+    hasAutoOpenedTreeRef.current = false;
+    clearedMissingDefaultTreeRef.current = null;
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (loadingTrees || !user?.defaultTreeId || defaultTree) {
+      return;
+    }
+
+    if (clearedMissingDefaultTreeRef.current === user.defaultTreeId) {
+      return;
+    }
+
+    clearedMissingDefaultTreeRef.current = user.defaultTreeId;
+    void setDefaultTreeId(null);
+  }, [defaultTree, loadingTrees, setDefaultTreeId, user?.defaultTreeId]);
+
+  useEffect(() => {
+    if (!user || loadingTrees || hasAutoOpenedTreeRef.current || trees.length === 0) {
+      return;
+    }
+
+    const targetTree = defaultTree ?? trees[0];
+    if (!targetTree) {
+      return;
+    }
+
+    hasAutoOpenedTreeRef.current = true;
+    selectTree(targetTree.id);
+    navigation.navigate('TreeDetail', {
+      treeId: targetTree.id,
+      treeName: targetTree.name,
+      initialTab: 'VisualisationTab',
+    });
+  }, [defaultTree, loadingTrees, navigation, selectTree, trees, user]);
 
   const openConfirm = (title: string, message: string, confirmLabel: string, action: () => Promise<void>) => {
     setConfirmState({ visible: true, title, message, confirmLabel, action });
@@ -122,8 +166,11 @@ export default function HomeScreen({ navigation }: Props) {
     try {
       if (treeDialog.mode === 'create') {
         const tree = await createTree({ id: user.id, email: user.email, displayName: user.displayName }, name);
+        if (!user.defaultTreeId) {
+          await setDefaultTreeId(tree.id);
+        }
         setTreeDialog({ visible: false, mode: 'create', tree: null });
-        navigation.navigate('TreeDetail', { treeId: tree.id, treeName: tree.name });
+        navigation.navigate('TreeDetail', { treeId: tree.id, treeName: tree.name, initialTab: 'VisualisationTab' });
         return;
       }
 
@@ -140,6 +187,14 @@ export default function HomeScreen({ navigation }: Props) {
   const openTree = (tree: FamilyTree) => {
     selectTree(tree.id);
     navigation.navigate('TreeDetail', { treeId: tree.id, treeName: tree.name });
+  };
+
+  const handleToggleDefaultTree = async (tree: FamilyTree) => {
+    try {
+      await setDefaultTreeId(user?.defaultTreeId === tree.id ? null : tree.id);
+    } catch {
+      // surfaced by auth store update failures if any are added later
+    }
   };
 
   return (
@@ -267,6 +322,7 @@ export default function HomeScreen({ navigation }: Props) {
             <View>
               {trees.map((tree) => {
                 const isSelected = tree.id === selectedTreeId;
+                const isDefaultTree = user?.defaultTreeId === tree.id;
                 const role = getTreeRole(tree, user?.id);
                 const ownerCanManage = canManageTree(tree, user?.id);
 
@@ -292,10 +348,17 @@ export default function HomeScreen({ navigation }: Props) {
                           </Text>
                           <View style={styles.treeChipRow}>
                             <Chip compact icon="account-key">{formatRole(role)}</Chip>
+                            {isDefaultTree ? <Chip compact icon="star" style={{ backgroundColor: theme.colors.secondaryContainer }}>Default</Chip> : null}
                             {isSelected ? <Chip compact icon="check-circle" style={{ backgroundColor: theme.colors.tertiaryContainer }}>Active</Chip> : null}
                           </View>
                         </View>
                         <View style={styles.cardActions}>
+                          <IconButton
+                            icon={isDefaultTree ? 'star' : 'star-outline'}
+                            iconColor={isDefaultTree ? theme.colors.secondary : theme.colors.onSurfaceVariant}
+                            onPress={() => handleToggleDefaultTree(tree)}
+                            disabled={mutating}
+                          />
                           {ownerCanManage ? (
                             <>
                               <IconButton
@@ -313,6 +376,9 @@ export default function HomeScreen({ navigation }: Props) {
                                   'Delete',
                                   async () => {
                                     await removeTree(tree);
+                                    if (user?.defaultTreeId === tree.id) {
+                                      await setDefaultTreeId(null);
+                                    }
                                   },
                                 )}
                                 disabled={mutating}

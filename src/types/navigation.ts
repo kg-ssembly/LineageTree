@@ -12,6 +12,7 @@ export type RootStackParamList = {
   TreeDetail: {
     treeId: string;
     treeName?: string;
+    initialTab?: keyof TreeDetailTabParamList;
   };
   PersonProfile: {
     treeId: string;

@@ -383,6 +383,7 @@ function VisualisationTabContent({ people, relationships, openPersonProfile, cur
             relationships={relationships}
             onPressPerson={openPersonProfile}
             currentUserPersonId={currentAssignedPerson?.id ?? undefined}
+            initialFocusPersonId={currentAssignedPerson?.id ?? undefined}
           />
         ) : (
           <View style={styles.emptyState}>
@@ -881,6 +882,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     () => trees.find((tree) => tree.id === route.params.treeId) ?? null,
     [route.params.treeId, trees],
   );
+  const initialTab = route.params.initialTab ?? 'PeopleRelationshipsTab';
 
   const peopleById = useMemo(
     () => new Map(people.map((person) => [person.id, person])),
@@ -1168,6 +1170,8 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <Tab.Navigator
+        key={`${route.params.treeId}-${initialTab}`}
+        initialRouteName={initialTab}
         screenOptions={({ route: currentRoute }) => ({
           headerShown: false,
           tabBarActiveTintColor: theme.colors.primary,

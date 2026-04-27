@@ -7,7 +7,7 @@ import {
   updateProfile,
   User as FirebaseUser,
 } from 'firebase/auth';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { deleteField, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
 import type { UserProfile } from '../types/user';
 
@@ -22,6 +22,7 @@ export interface AuthState {
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, displayName: string) => Promise<void>;
   signOut: () => Promise<void>;
+  setDefaultTreeId: (treeId: string | null) => Promise<void>;
   clearError: () => void;
   /** Call once on app mount to listen for auth state changes */
   init: () => () => void;
@@ -75,13 +76,14 @@ async function fetchUserProfile(uid: string, fallbackUser?: FirebaseUser | null)
     email,
     normalizedEmail,
     displayName,
+    defaultTreeId: typeof data.defaultTreeId === 'string' && data.defaultTreeId.trim() ? data.defaultTreeId.trim() : undefined,
     createdAt: data.createdAt?.toDate?.().toISOString() ?? data.createdAt,
   };
 }
 
 // ─── Store ────────────────────────────────────────────────────────────────────
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   firebaseUser: null,
   loading: true,
@@ -123,6 +125,7 @@ export const useAuthStore = create<AuthState>((set) => ({
         email,
         normalizedEmail,
         displayName,
+        defaultTreeId: undefined,
         createdAt: new Date().toISOString(),
       };
       await setDoc(doc(db, 'users', fbUser.uid), {
@@ -134,6 +137,26 @@ export const useAuthStore = create<AuthState>((set) => ({
       set({ loading: false, error: humaniseError(err.code ?? '') });
       throw err;
     }
+  },
+
+  setDefaultTreeId: async (treeId) => {
+    const currentUser = get().user;
+    if (!currentUser) {
+      return;
+    }
+
+    await setDoc(doc(db, 'users', currentUser.id), {
+      defaultTreeId: treeId ? treeId.trim() : deleteField(),
+    }, { merge: true });
+
+    set((state) => ({
+      user: state.user
+        ? {
+          ...state.user,
+          defaultTreeId: treeId ? treeId.trim() : undefined,
+        }
+        : null,
+    }));
   },
 
   signOut: async () => {
