@@ -563,6 +563,19 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <ScrollView contentContainerStyle={styles.content}>
         <Surface style={[styles.heroCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
+          <View style={styles.heroToolbar}>
+            <Button
+              mode="text"
+              icon="arrow-left"
+              onPress={() => navigation.navigate('TreeDetail', {
+                treeId: route.params.treeId,
+                initialTab: 'ProfileTab',
+              })}
+              contentStyle={styles.heroToolbarButtonContent}
+            >
+              Back to tree management
+            </Button>
+          </View>
           <View style={styles.heroHeader}>
             <View style={styles.heroIdentityWrap}>
               <View style={styles.heroNameRow}>
@@ -1036,6 +1049,13 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     padding: 20,
     marginBottom: 16,
+  },
+  heroToolbar: {
+    marginBottom: 12,
+    alignItems: 'flex-start',
+  },
+  heroToolbarButtonContent: {
+    paddingHorizontal: 0,
   },
   heroHeader: {
     flexDirection: 'row',

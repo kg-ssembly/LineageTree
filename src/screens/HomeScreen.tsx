@@ -47,7 +47,7 @@ function formatRole(role: ReturnType<typeof getTreeRole>) {
   return role.charAt(0).toUpperCase() + role.slice(1);
 }
 
-export default function HomeScreen({ navigation }: Props) {
+export default function HomeScreen({ navigation, route }: Props) {
   const theme = useTheme();
   const { user, signOut, loading: authLoading, setDefaultTreeId } = useAuthStore();
   const preference = useThemeStore((state) => state.preference);
@@ -123,6 +123,10 @@ export default function HomeScreen({ navigation }: Props) {
       return;
     }
 
+    if (route.params?.skipAutoOpen) {
+      return;
+    }
+
     const targetTree = defaultTree ?? trees[0];
     if (!targetTree) {
       return;
@@ -134,7 +138,7 @@ export default function HomeScreen({ navigation }: Props) {
       treeId: targetTree.id,
       initialTab: 'VisualisationTab',
     });
-  }, [defaultTree, loadingTrees, navigation, selectTree, trees, user]);
+  }, [defaultTree, loadingTrees, navigation, route.params?.skipAutoOpen, selectTree, trees, user]);
 
   const openConfirm = (title: string, message: string, confirmLabel: string, action: () => Promise<void>) => {
     setConfirmState({ visible: true, title, message, confirmLabel, action });

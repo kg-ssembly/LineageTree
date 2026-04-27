@@ -73,6 +73,14 @@ type SelfAssignmentSuggestion = {
   reason: string;
 };
 
+type TreeManagementTabKey = 'overview' | 'collaborators' | 'approvals';
+
+const TREE_MANAGEMENT_TABS: Array<{ key: TreeManagementTabKey; label: string }> = [
+  { key: 'overview', label: 'Overview' },
+  { key: 'collaborators', label: 'Collaborators' },
+  { key: 'approvals', label: 'Approvals' },
+];
+
 interface SharedTabProps {
   selectedTree: FamilyTree;
   people: PersonRecord[];
@@ -214,8 +222,6 @@ function PeopleRelationshipsTabContent({
   mutating,
   loadingTreeData,
   openPersonProfile,
-  onOpenAddPerson,
-  onOpenRelationshipDialog,
   onEditPerson,
   openConfirm,
   onDeletePerson,
@@ -254,14 +260,6 @@ function PeopleRelationshipsTabContent({
             <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
               Profiles keep notes and photo memories together. Tap a card to open the family member profile and gallery.
             </Text>
-          </View>
-          <View style={styles.actionButtonsWrap}>
-            <Button mode="contained-tonal" icon="account-plus" onPress={onOpenAddPerson} disabled={mutating || !canEdit}>
-              Add family member
-            </Button>
-            <Button mode="contained" icon="family-tree" onPress={onOpenRelationshipDialog} disabled={mutating || !canEdit || people.length < 2}>
-              Add relationship
-            </Button>
           </View>
         </View>
 
@@ -371,61 +369,32 @@ function PeopleRelationshipsTabContent({
 function VisualisationTabContent({
   people,
   relationships,
-  canEdit,
-  mutating,
-  onOpenAddPerson,
-  onOpenRelationshipDialog,
   onOpenPersonQuickActions,
   currentAssignedPerson,
 }: SharedTabProps) {
   const theme = useTheme();
+
   return (
-    <ScrollView contentContainerStyle={styles.content}>
-      <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
-        <View style={styles.sectionHeader}>
-          <View style={styles.titleWrap}>
-            <Text variant="titleLarge">Family Tree</Text>
-            <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-              Nodes represent family members and edges represent parent-child or spouse relationships. Tap a node for quick actions like opening a profile or adding relatives.
-            </Text>
-          </View>
-          <View style={styles.actionButtonsWrap}>
-            <Button mode="contained-tonal" icon="account-plus" onPress={onOpenAddPerson} disabled={mutating || !canEdit}>
-              Add family member
-            </Button>
-            <Button mode="contained" icon="family-tree" onPress={onOpenRelationshipDialog} disabled={mutating || !canEdit || people.length < 2}>
-              Add relationship
-            </Button>
-          </View>
+    <View style={styles.visualisationTabContainer}>
+      {people.length > 0 ? (
+        <FamilyTreeCanvas
+          people={people}
+          relationships={relationships}
+          onPressPerson={onOpenPersonQuickActions}
+          currentUserPersonId={currentAssignedPerson?.id ?? undefined}
+          initialFocusPersonId={currentAssignedPerson?.id ?? undefined}
+          floatingControls
+          fillAvailableSpace
+        />
+      ) : (
+        <View style={[styles.visualisationEmptyState, { backgroundColor: theme.colors.surface }]}>
+          <Text variant="titleMedium">No visual tree yet</Text>
+          <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}> 
+            Add the first family member from the profile tools or link yourself to begin drawing this tree.
+          </Text>
         </View>
-        {people.length > 0 ? (
-          <FamilyTreeCanvas
-            people={people}
-            relationships={relationships}
-            onPressPerson={onOpenPersonQuickActions}
-            currentUserPersonId={currentAssignedPerson?.id ?? undefined}
-            initialFocusPersonId={currentAssignedPerson?.id ?? undefined}
-          />
-        ) : (
-          <View style={styles.emptyState}>
-            <Text variant="titleMedium">No visual tree yet</Text>
-            <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
-                Add family members and relationships to see the family graph render here.
-            </Text>
-            {canEdit ? (
-              <View style={styles.emptyStateActionRow}>
-                <Button mode="contained" icon="account-plus" onPress={onOpenAddPerson} disabled={mutating} style={styles.emptyStateButton}>
-                  Add family member
-                </Button>
-                <Button mode="contained-tonal" icon="family-tree" onPress={onOpenRelationshipDialog} disabled={mutating || people.length < 2} style={styles.emptyStateButton}>
-                  Add relationship
-                </Button>
-              </View>
-            ) : null}
-          </View>
-        )}
-      </Surface>
-    </ScrollView>
+      )}
+    </View>
   );
 }
 
@@ -457,6 +426,7 @@ function ProfileTabContent({
   onSetApprovalWindowHours,
 }: SharedTabProps) {
   const theme = useTheme();
+  const [activeManagementTab, setActiveManagementTab] = useState<TreeManagementTabKey>('overview');
   const [showLinkChooser, setShowLinkChooser] = useState(false);
   const [linkSearchQuery, setLinkSearchQuery] = useState('');
   const [ownerLinkTargetUserId, setOwnerLinkTargetUserId] = useState<string | null>(null);
@@ -558,56 +528,47 @@ function ProfileTabContent({
           Review the current tree at a glance, manage collaborators, and keep profile links up to date.
         </Text>
 
-        <View style={styles.treeSettingsWrap}>
-          <Text variant="titleSmall">Approval window</Text>
-          <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>Family member profile edits and relationship changes auto-approve after this many hours if no one reviews them. Single-collaborator trees still approve immediately.</Text>
-          <View style={styles.approvalWindowRow}>
-            <TextInput
-              mode="outlined"
-              label="Hours"
-              value={approvalWindowInput}
-              onChangeText={setApprovalWindowInput}
-              keyboardType="number-pad"
-              style={styles.approvalWindowInput}
-              disabled={mutating || !isOwner}
-            />
-            {isOwner ? (
-              <Button
-                mode="contained-tonal"
-                onPress={() => onSetApprovalWindowHours(Number(approvalWindowInput) || selectedTree.approvalWindowHours)}
-                disabled={mutating}
-              >
-                Save window
-              </Button>
-            ) : null}
-          </View>
-        </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.managementTabRow} style={styles.managementTabScrollView}>
+          {TREE_MANAGEMENT_TABS.map((tab) => (
+            <Chip
+              key={tab.key}
+              selected={activeManagementTab === tab.key}
+              onPress={() => setActiveManagementTab(tab.key)}
+              style={styles.managementTabChip}
+              showSelectedOverlay
+            >
+              {tab.label}
+            </Chip>
+          ))}
+        </ScrollView>
 
-        <View style={styles.summaryChipRow}>
-          <Chip icon="account-key">{formatRole(role)}</Chip>
-          <Chip icon="account-group">{people.length} family members</Chip>
-          <Chip icon="graph-outline">{relationships.length} relationships</Chip>
-          <Chip icon="account-multiple">{selectedTree.collaborators.length} collaborators</Chip>
-          <Chip icon="link-variant">{assignedPersonByUserId.size} linked</Chip>
-          {unlinkedCollaboratorCount > 0 ? <Chip icon="account-clock">{unlinkedCollaboratorCount} awaiting link</Chip> : null}
-        </View>
+        {activeManagementTab === 'overview' ? (
+          <>
+            <View style={styles.summaryChipRow}>
+              <Chip icon="account-key">{formatRole(role)}</Chip>
+              <Chip icon="account-group">{people.length} family members</Chip>
+              <Chip icon="graph-outline">{relationships.length} relationships</Chip>
+              <Chip icon="account-multiple">{selectedTree.collaborators.length} collaborators</Chip>
+              <Chip icon="link-variant">{assignedPersonByUserId.size} linked</Chip>
+              {unlinkedCollaboratorCount > 0 ? <Chip icon="account-clock">{unlinkedCollaboratorCount} awaiting link</Chip> : null}
+            </View>
 
-        <View style={styles.profileMetricsWrap}>
-            <Card mode="outlined" style={[styles.metricCard, { backgroundColor: theme.colors.elevation.level1, borderColor: theme.colors.outlineVariant }]}>
-            <Card.Content>
-              <Text variant="titleSmall">Family members with notes</Text>
-              <Text variant="headlineSmall">{people.filter((person) => person.notes.trim()).length}</Text>
-            </Card.Content>
-          </Card>
-            <Card mode="outlined" style={[styles.metricCard, { backgroundColor: theme.colors.elevation.level1, borderColor: theme.colors.outlineVariant }]}>
-            <Card.Content>
-              <Text variant="titleSmall">Photos stored</Text>
-              <Text variant="headlineSmall">{people.reduce((count, person) => count + person.photos.length, 0)}</Text>
-            </Card.Content>
-          </Card>
-        </View>
+            <View style={styles.profileMetricsWrap}>
+              <Card mode="outlined" style={[styles.metricCard, { backgroundColor: theme.colors.elevation.level1, borderColor: theme.colors.outlineVariant }]}>
+                <Card.Content>
+                  <Text variant="titleSmall">Family members with notes</Text>
+                  <Text variant="headlineSmall">{people.filter((person) => person.notes.trim()).length}</Text>
+                </Card.Content>
+              </Card>
+              <Card mode="outlined" style={[styles.metricCard, { backgroundColor: theme.colors.elevation.level1, borderColor: theme.colors.outlineVariant }]}>
+                <Card.Content>
+                  <Text variant="titleSmall">Photos stored</Text>
+                  <Text variant="headlineSmall">{people.reduce((count, person) => count + person.photos.length, 0)}</Text>
+                </Card.Content>
+              </Card>
+            </View>
 
-        <View style={styles.selfAssignmentSectionWrap}>
+            <View style={styles.selfAssignmentSectionWrap}>
           <View style={styles.sectionHeader}>
             <View style={styles.titleWrap}>
               <Text variant="titleLarge">My place in this tree</Text>
@@ -761,9 +722,12 @@ function ProfileTabContent({
               )}
             </View>
           ) : null}
-        </View>
+            </View>
+          </>
+        ) : null}
 
-        <View style={styles.collaboratorSectionWrap}>
+        {activeManagementTab === 'collaborators' ? (
+          <View style={styles.collaboratorSectionWrap}>
           <View style={styles.sectionHeader}>
             <View style={styles.titleWrap}>
               <Text variant="titleLarge">Collaborators</Text>
@@ -903,9 +867,37 @@ function ProfileTabContent({
               );
             })}
           </View>
-        </View>
+          </View>
+        ) : null}
 
-        <View style={styles.collaboratorSectionWrap}>
+        {activeManagementTab === 'approvals' ? (
+          <View style={styles.collaboratorSectionWrap}>
+          <View style={styles.treeSettingsWrap}>
+            <Text variant="titleSmall">Approval settings</Text>
+            <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>Family member profile edits and relationship changes auto-approve after this many hours if no one reviews them. Single-collaborator trees still approve immediately.</Text>
+            <View style={styles.approvalWindowRow}>
+              <TextInput
+                mode="outlined"
+                label="Hours"
+                value={approvalWindowInput}
+                onChangeText={setApprovalWindowInput}
+                keyboardType="number-pad"
+                style={styles.approvalWindowInput}
+                disabled={mutating || !isOwner}
+              />
+              {isOwner ? (
+                <Button
+                  mode="contained-tonal"
+                  onPress={() => onSetApprovalWindowHours(Number(approvalWindowInput) || selectedTree.approvalWindowHours)}
+                  disabled={mutating}
+                >
+                  Save window
+                </Button>
+              ) : null}
+            </View>
+          </View>
+
+          <View style={styles.collaboratorSectionWrap}>
           <View style={styles.sectionHeader}>
             <View style={styles.titleWrap}>
               <Text variant="titleLarge">Pending approvals</Text>
@@ -958,7 +950,9 @@ function ProfileTabContent({
               <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>Any collaborator-submitted family member or relationship edits waiting for review will appear here.</Text>
             </View>
           )}
-        </View>
+          </View>
+          </View>
+        ) : null}
       </Surface>
     </ScrollView>
   );
@@ -988,7 +982,6 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     removePerson,
     addParentChildRelationship,
     addSpouseRelationship,
-    removeRelationship,
     approveApprovalRequest,
     rejectApprovalRequest,
     setApprovalWindowHours,
@@ -1019,7 +1012,9 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     () => trees.find((tree) => tree.id === route.params.treeId) ?? null,
     [route.params.treeId, trees],
   );
-  const initialTab = route.params.initialTab ?? 'PeopleRelationshipsTab';
+  const initialTab = route.params.initialTab && route.params.initialTab !== 'HomeTab'
+    ? route.params.initialTab
+    : 'PeopleRelationshipsTab';
 
   const peopleById = useMemo(
     () => new Map(people.map((person) => [person.id, person])),
@@ -1361,8 +1356,10 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
             const iconName = currentRoute.name === 'PeopleRelationshipsTab'
               ? 'account-group-outline'
               : currentRoute.name === 'VisualisationTab'
-                  ? 'family-tree'
-                  : 'card-account-details-outline';
+                ? 'family-tree'
+                : currentRoute.name === 'ProfileTab'
+                  ? 'card-account-details-outline'
+                  : 'home-outline';
             return <MaterialCommunityIcons name={iconName} size={size} color={color} />;
           },
         })}
@@ -1384,6 +1381,21 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
           options={{ title: 'Profile' }}
         >
           {() => <ProfileTabContent {...sharedTabProps} />}
+        </Tab.Screen>
+        <Tab.Screen
+          name="HomeTab"
+          options={{ title: 'Home' }}
+          listeners={() => ({
+            tabPress: (event) => {
+              event.preventDefault();
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'Home', params: { skipAutoOpen: true } }],
+              });
+            },
+          })}
+        >
+          {() => null}
         </Tab.Screen>
       </Tab.Navigator>
 
@@ -1565,6 +1577,16 @@ const styles = StyleSheet.create({
     marginTop: 4,
     color: '#6B6B74',
   },
+  managementTabScrollView: {
+    marginTop: 16,
+  },
+  managementTabRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  managementTabChip: {
+    marginRight: 4,
+  },
   treeSettingsWrap: {
     marginTop: 16,
   },
@@ -1623,6 +1645,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
+  },
+  visualisationTabContainer: {
+    flex: 1,
+    padding: 12,
+    paddingTop: 8,
+    paddingBottom: 12,
+  },
+  visualisationEmptyState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 5,
+    paddingHorizontal: 24,
   },
   filterInput: {
     marginTop: 16,

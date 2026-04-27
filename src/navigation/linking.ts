@@ -5,6 +5,7 @@ const tabPathByKey: Record<keyof TreeDetailTabParamList, string> = {
   PeopleRelationshipsTab: 'family-members',
   VisualisationTab: 'visualisation',
   ProfileTab: 'profile',
+  HomeTab: 'home',
 };
 
 const tabKeyByPath = Object.fromEntries(

@@ -5,7 +5,7 @@ import {
   LayoutChangeEvent,
   Modal,
   PanResponder,
-  Pressable,
+  Platform,
   StyleSheet,
   useWindowDimensions,
   View,
@@ -26,6 +26,8 @@ interface FamilyTreeCanvasProps {
   descendantRootPersonId?: string;
   ascendantRootPersonId?: string;
   allowFullscreen?: boolean;
+  floatingControls?: boolean;
+  fillAvailableSpace?: boolean;
 }
 
 type NodePosition = {
@@ -42,6 +44,8 @@ const PADDING = 48;
 const VIEWPORT_PADDING = 24;
 const MIN_SCALE = 0.7;
 const MAX_SCALE = 1.8;
+const DRAG_ACTIVATION_DISTANCE = 6;
+const FREE_PAN_PADDING = 96;
 
 type GenerationLayout = {
   groupedPeople: Map<number, PersonRecord[]>;
@@ -483,12 +487,17 @@ export default function FamilyTreeCanvas({
   descendantRootPersonId,
   ascendantRootPersonId,
   allowFullscreen = true,
+  floatingControls = false,
+  fillAvailableSpace = false,
 }: FamilyTreeCanvasProps) {
   const theme = useTheme();
   const { height: windowHeight } = useWindowDimensions();
   const inlineViewportHeight = Math.max(420, windowHeight - 360);
   const pan = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
+  const currentPanRef = useRef({ x: 0, y: 0 });
   const dragStartPanRef = useRef({ x: 0, y: 0 });
+  const gestureMovedRef = useRef(false);
+  const gestureTargetPersonIdRef = useRef<string | null>(null);
   const lastAutoFitKeyRef = useRef<string | null>(null);
   const [scale, setScale] = useState(1);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -508,6 +517,11 @@ export default function FamilyTreeCanvas({
 
     return { renderedPeople: people, renderedRelationships: relationships };
   }, [ascendantRootPersonId, descendantRootPersonId, people, relationships]);
+
+  const peopleById = useMemo(
+    () => new Map(renderedPeople.map((person) => [person.id, person])),
+    [renderedPeople],
+  );
 
   const generationLayout = useMemo(
     () => buildGenerations(renderedPeople, renderedRelationships),
@@ -744,10 +758,24 @@ export default function FamilyTreeCanvas({
     const scaledCanvasHeight = canvasHeight * safeScale;
     const centeredTranslateX = (activeSize.width - scaledCanvasWidth) / 2;
     const centeredTranslateY = (activeSize.height - scaledCanvasHeight) / 2;
-    const minTranslateX = scaledCanvasWidth <= activeSize.width ? centeredTranslateX : activeSize.width - scaledCanvasWidth;
-    const maxTranslateX = scaledCanvasWidth <= activeSize.width ? centeredTranslateX : 0;
-    const minTranslateY = scaledCanvasHeight <= activeSize.height ? centeredTranslateY : activeSize.height - scaledCanvasHeight;
-    const maxTranslateY = scaledCanvasHeight <= activeSize.height ? centeredTranslateY : 0;
+    const horizontalFreePanPadding = scaledCanvasWidth <= activeSize.width
+      ? Math.max(FREE_PAN_PADDING, activeSize.width * 0.35)
+      : FREE_PAN_PADDING;
+    const verticalFreePanPadding = scaledCanvasHeight <= activeSize.height
+      ? Math.max(FREE_PAN_PADDING, activeSize.height * 0.35)
+      : FREE_PAN_PADDING;
+    const minTranslateX = scaledCanvasWidth <= activeSize.width
+      ? centeredTranslateX - horizontalFreePanPadding
+      : activeSize.width - scaledCanvasWidth - horizontalFreePanPadding;
+    const maxTranslateX = scaledCanvasWidth <= activeSize.width
+      ? centeredTranslateX + horizontalFreePanPadding
+      : horizontalFreePanPadding;
+    const minTranslateY = scaledCanvasHeight <= activeSize.height
+      ? centeredTranslateY - verticalFreePanPadding
+      : activeSize.height - scaledCanvasHeight - verticalFreePanPadding;
+    const maxTranslateY = scaledCanvasHeight <= activeSize.height
+      ? centeredTranslateY + verticalFreePanPadding
+      : verticalFreePanPadding;
 
     return {
       x: Math.min(maxTranslateX / safeScale, Math.max(minTranslateX / safeScale, desiredPan.x)),
@@ -757,34 +785,125 @@ export default function FamilyTreeCanvas({
 
   const clampCurrentPanToViewport = (targetScale: number) => {
     pan.stopAnimation((value) => {
-      pan.setValue(clampPanPoint(value, targetScale));
+      const nextPan = clampPanPoint(value, targetScale);
+      currentPanRef.current = nextPan;
+      pan.setValue(nextPan);
+    });
+  };
+
+  const setPanPosition = (nextPan: { x: number; y: number }) => {
+    currentPanRef.current = nextPan;
+    pan.setValue(nextPan);
+  };
+
+  const getCanvasCoordinatesFromViewportPoint = (locationX: number, locationY: number) => ({
+    x: locationX / scale - currentPanRef.current.x,
+    y: locationY / scale - currentPanRef.current.y,
+  });
+
+  const getPersonAtViewportPoint = (locationX: number, locationY: number) => {
+    const canvasPoint = getCanvasCoordinatesFromViewportPoint(locationX, locationY);
+
+    return renderedPeople.find((person) => {
+      const position = positionsByPersonId.get(person.id);
+      if (!position) {
+        return false;
+      }
+
+      return canvasPoint.x >= position.x
+        && canvasPoint.x <= position.x + NODE_WIDTH
+        && canvasPoint.y >= position.y
+        && canvasPoint.y <= position.y + NODE_HEIGHT;
+    }) ?? null;
+  };
+
+  const handleWheelPan = (event: any) => {
+    if (Platform.OS !== 'web') {
+      return;
+    }
+
+    const nativeEvent = event?.nativeEvent ?? event;
+    const deltaX = Number(nativeEvent?.deltaX ?? 0);
+    const deltaY = Number(nativeEvent?.deltaY ?? 0);
+    const ctrlKey = Boolean(nativeEvent?.ctrlKey);
+    const metaKey = Boolean(nativeEvent?.metaKey);
+
+    if (!deltaX && !deltaY) {
+      return;
+    }
+
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+
+    if (ctrlKey || metaKey) {
+      handleZoom(deltaY < 0 ? 0.12 : -0.12);
+      return;
+    }
+
+    pan.stopAnimation((value) => {
+      const nextPan = clampPanPoint({
+        x: value.x - deltaX / scale,
+        y: value.y - deltaY / scale,
+      }, scale);
+      currentPanRef.current = nextPan;
+      pan.setValue(nextPan);
     });
   };
 
   const panResponder = useMemo(
     () => PanResponder.create({
       onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: () => {
+      onStartShouldSetPanResponderCapture: () => false,
+      onMoveShouldSetPanResponder: (_, gestureState) => (
+        Math.abs(gestureState.dx) > DRAG_ACTIVATION_DISTANCE
+        || Math.abs(gestureState.dy) > DRAG_ACTIVATION_DISTANCE
+      ),
+      onMoveShouldSetPanResponderCapture: (_, gestureState) => (
+        Math.abs(gestureState.dx) > DRAG_ACTIVATION_DISTANCE
+        || Math.abs(gestureState.dy) > DRAG_ACTIVATION_DISTANCE
+      ),
+      onPanResponderGrant: (event) => {
+        gestureMovedRef.current = false;
+        gestureTargetPersonIdRef.current = getPersonAtViewportPoint(
+          event.nativeEvent.locationX,
+          event.nativeEvent.locationY,
+        )?.id ?? null;
+
         pan.stopAnimation((value) => {
           dragStartPanRef.current = value;
+          currentPanRef.current = value;
         });
       },
       onPanResponderMove: (_, gestureState) => {
+        if (!gestureMovedRef.current) {
+          gestureMovedRef.current = Math.abs(gestureState.dx) > DRAG_ACTIVATION_DISTANCE
+            || Math.abs(gestureState.dy) > DRAG_ACTIVATION_DISTANCE;
+        }
+
         const desiredPan = {
           x: dragStartPanRef.current.x + (gestureState.dx / scale),
           y: dragStartPanRef.current.y + (gestureState.dy / scale),
         };
-        pan.setValue(clampPanPoint(desiredPan, scale));
+        setPanPosition(clampPanPoint(desiredPan, scale));
       },
       onPanResponderRelease: () => {
+        if (!gestureMovedRef.current && gestureTargetPersonIdRef.current) {
+          const person = peopleById.get(gestureTargetPersonIdRef.current);
+          if (person) {
+            onPressPerson(person);
+          }
+        }
+
+        gestureTargetPersonIdRef.current = null;
         clampCurrentPanToViewport(scale);
       },
       onPanResponderTerminate: () => {
+        gestureTargetPersonIdRef.current = null;
         clampCurrentPanToViewport(scale);
       },
+      onPanResponderTerminationRequest: () => false,
     }),
-    [canvasHeight, canvasWidth, fullscreenViewportSize, inlineViewportSize, isFullscreen, pan, scale],
+    [canvasHeight, canvasWidth, fullscreenViewportSize, getPersonAtViewportPoint, inlineViewportSize, isFullscreen, onPressPerson, pan, peopleById, scale],
   );
 
   const handleZoom = (delta: number) => {
@@ -836,10 +955,12 @@ export default function FamilyTreeCanvas({
 
     setScale(nextScale);
     pan.setOffset({ x: 0, y: 0 });
-    pan.setValue({
+    const nextPan = {
       x: clampedTranslateX / safeScale,
       y: clampedTranslateY / safeScale,
-    });
+    };
+    currentPanRef.current = nextPan;
+    pan.setValue(nextPan);
   };
 
   const resetView = () => {
@@ -891,13 +1012,45 @@ export default function FamilyTreeCanvas({
     setInlineViewportSize((current) => (current.width === width && current.height === height ? current : nextSize));
   };
 
+  const renderFloatingControls = (mode: 'inline' | 'fullscreen') => (
+    <View pointerEvents="box-none" style={styles.viewportOverlay}>
+      <View style={[styles.floatingHintCard, { backgroundColor: theme.colors.backdrop }]}>
+        <Text variant="bodySmall" style={[styles.floatingHintText, { color: theme.colors.onPrimary }]}>{controlsLabel}</Text>
+      </View>
+
+      <View style={[styles.floatingControlsCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant }]}>
+        <Chip compact icon="magnify">{scale.toFixed(1)}x</Chip>
+        <IconButton icon="minus" size={18} mode="contained-tonal" onPress={() => handleZoom(-0.15)} />
+        <IconButton icon="plus" size={18} mode="contained-tonal" onPress={() => handleZoom(0.15)} />
+        <Button compact mode="contained-tonal" onPress={resetView}>
+          Reset
+        </Button>
+        {allowFullscreen ? (
+          mode === 'fullscreen' ? (
+            <Button compact mode="contained" icon="close" onPress={() => setIsFullscreen(false)}>
+              Close
+            </Button>
+          ) : (
+            <Button compact mode="contained" icon="fullscreen" onPress={() => setIsFullscreen(true)}>
+              Fullscreen
+            </Button>
+          )
+        ) : null}
+      </View>
+    </View>
+  );
+
   const renderCanvasViewport = (mode: 'inline' | 'fullscreen', viewportStyle?: object) => (
     <View
-      style={[styles.viewport, { borderColor: theme.colors.outlineVariant, backgroundColor: theme.colors.elevation.level1 }, viewportStyle]}
+      {...(Platform.OS === 'web' ? ({ onWheel: handleWheelPan } as any) : {})}
+      style={[
+        styles.viewport,
+        { borderColor: theme.colors.outlineVariant, backgroundColor: theme.colors.elevation.level1 },
+        viewportStyle,
+      ]}
       onLayout={handleViewportLayout(mode)}
     >
       <Animated.View
-        {...panResponder.panHandlers}
         style={[
           styles.canvas,
           {
@@ -947,7 +1100,7 @@ export default function FamilyTreeCanvas({
           }
 
           return (
-            <Pressable
+            <View
               key={person.id}
               style={[
                 styles.node,
@@ -962,7 +1115,6 @@ export default function FamilyTreeCanvas({
                   height: NODE_HEIGHT,
                 },
               ]}
-              onPress={() => onPressPerson(person)}
             >
               {isCurrentUsersPerson ? (
                 <View style={[styles.nodeBadge, { backgroundColor: theme.colors.primary }]}>
@@ -991,40 +1143,58 @@ export default function FamilyTreeCanvas({
                   </Text>
                 </View>
               </View>
-            </Pressable>
+            </View>
           );
         })}
       </Animated.View>
+
+      <View
+        {...panResponder.panHandlers}
+        style={[
+          styles.gestureLayer,
+          Platform.OS === 'web' ? ({ cursor: 'grab', touchAction: 'none', userSelect: 'none' } as any) : null,
+        ]}
+      />
+
+      {floatingControls ? renderFloatingControls(mode) : null}
     </View>
   );
 
   return (
-    <View style={styles.container}>
-      <View style={styles.controlsRow}>
-        <Text variant="bodyMedium">{controlsLabel}</Text>
-        <View style={styles.zoomButtonsRow}>
-          <Chip compact icon="magnify-minus">{scale.toFixed(1)}x</Chip>
-          <Button compact mode="outlined" onPress={() => handleZoom(-0.15)}>
-            -
-          </Button>
-          <Button compact mode="outlined" onPress={() => handleZoom(0.15)}>
-            +
-          </Button>
-          <Button compact onPress={resetView}>Reset</Button>
-          {allowFullscreen ? <Button compact mode="contained-tonal" icon="fullscreen" onPress={() => setIsFullscreen(true)}>Fullscreen</Button> : null}
+    <View style={[styles.container, fillAvailableSpace ? styles.containerFill : null]}>
+      {!floatingControls ? (
+        <View style={styles.controlsRow}>
+          <Text variant="bodyMedium">{controlsLabel}</Text>
+          <View style={styles.zoomButtonsRow}>
+            <Chip compact icon="magnify-minus">{scale.toFixed(1)}x</Chip>
+            <Button compact mode="outlined" onPress={() => handleZoom(-0.15)}>
+              -
+            </Button>
+            <Button compact mode="outlined" onPress={() => handleZoom(0.15)}>
+              +
+            </Button>
+            <Button compact onPress={resetView}>Reset</Button>
+            {allowFullscreen ? <Button compact mode="contained-tonal" icon="fullscreen" onPress={() => setIsFullscreen(true)}>Fullscreen</Button> : null}
+          </View>
         </View>
-      </View>
+      ) : null}
 
-      {renderCanvasViewport('inline', { height: inlineViewportHeight })}
+      {renderCanvasViewport('inline', fillAvailableSpace ? styles.inlineViewportFill : { height: inlineViewportHeight })}
 
       <Modal visible={isFullscreen} animationType="slide" onRequestClose={() => setIsFullscreen(false)}>
         <View style={[styles.fullscreenContainer, { backgroundColor: theme.colors.background }]}>
-          <View style={styles.fullscreenHeader}>
-            <Text variant="titleLarge">{fullscreenTitle}</Text>
-            <IconButton icon="close" onPress={() => setIsFullscreen(false)} />
-          </View>
-          <Text variant="bodyMedium" style={[styles.fullscreenSubtitle, { color: theme.colors.onSurfaceVariant }]}>{fullscreenSubtitle}</Text>
-          {renderCanvasViewport('fullscreen', { height: Math.max(320, windowHeight - 172), borderRadius: 5 })}
+          {floatingControls ? (
+            renderCanvasViewport('fullscreen', styles.fullscreenViewport)
+          ) : (
+            <>
+              <View style={styles.fullscreenHeader}>
+                <Text variant="titleLarge">{fullscreenTitle}</Text>
+                <IconButton icon="close" onPress={() => setIsFullscreen(false)} />
+              </View>
+              <Text variant="bodyMedium" style={[styles.fullscreenSubtitle, { color: theme.colors.onSurfaceVariant }]}>{fullscreenSubtitle}</Text>
+              {renderCanvasViewport('fullscreen', { height: Math.max(320, windowHeight - 172), borderRadius: 5 })}
+            </>
+          )}
         </View>
       </Modal>
     </View>
@@ -1034,6 +1204,10 @@ export default function FamilyTreeCanvas({
 const styles = StyleSheet.create({
   container: {
     marginTop: 16,
+  },
+  containerFill: {
+    flex: 1,
+    marginTop: 0,
   },
   controlsRow: {
     flexDirection: 'row',
@@ -1050,6 +1224,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   viewport: {
+    position: 'relative',
     overflow: 'hidden',
     borderRadius: 5,
     borderWidth: 1,
@@ -1058,9 +1233,11 @@ const styles = StyleSheet.create({
   },
   fullscreenContainer: {
     flex: 1,
-    paddingTop: 20,
-    paddingHorizontal: 16,
-    paddingBottom: 16,
+    padding: 12,
+  },
+  fullscreenViewport: {
+    flex: 1,
+    minHeight: 320,
   },
   fullscreenHeader: {
     flexDirection: 'row',
@@ -1073,6 +1250,42 @@ const styles = StyleSheet.create({
   },
   canvas: {
     backgroundColor: '#F5F2FF',
+  },
+  inlineViewportFill: {
+    flex: 1,
+    minHeight: 320,
+  },
+  viewportOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'space-between',
+    padding: 12,
+    zIndex: 4,
+    elevation: 4,
+  },
+  gestureLayer: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 2,
+  },
+  floatingHintCard: {
+    alignSelf: 'flex-start',
+    maxWidth: 300,
+    borderRadius: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  floatingHintText: {
+    lineHeight: 18,
+  },
+  floatingControlsCard: {
+    alignSelf: 'flex-end',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    flexWrap: 'wrap',
+    gap: 4,
+    borderWidth: 1,
+    borderRadius: 5,
+    padding: 4,
   },
   node: {
     position: 'absolute',

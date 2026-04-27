@@ -50,12 +50,12 @@ export default function RootNavigator() {
           <Stack.Screen
             name="TreeDetail"
             component={TreeDetailScreen}
-            options={{ title: 'Family tree' }}
+            options={{ headerShown: false }}
           />
           <Stack.Screen
             name="PersonProfile"
             component={PersonProfileScreen}
-            options={{ title: 'Family member profile' }}
+            options={{ headerShown: false }}
           />
         </>
       ) : (
