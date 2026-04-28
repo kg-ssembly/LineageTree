@@ -20,15 +20,7 @@ type FamilyEntry = {
   parentBottomY: number;
 };
 
-/**
- * Smooth cubic-bezier S-curve between two points.
- * Control points are aligned vertically with each endpoint so the curve
- * departs / arrives perfectly vertical and stays within the Y bounding box.
- */
-function cubicBezierPath(x1: number, y1: number, x2: number, y2: number): string {
-  const tension = Math.abs(y2 - y1) * 0.5;
-  return `M ${x1} ${y1} C ${x1} ${y1 + tension} ${x2} ${y2 - tension} ${x2} ${y2}`;
-}
+type HorizontalInterval = { start: number; end: number };
 
 function pointsToRoundedPath(points: { x: number; y: number }[], radius: number): string {
   if (points.length === 0) return '';
@@ -72,13 +64,129 @@ function boundsOf(points: { x: number; y: number }[]) {
   return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
 }
 
+function simplifyOrthogonalPoints(points: { x: number; y: number }[]) {
+  const deduped = points.filter((point, index) => (
+    index === 0 || point.x !== points[index - 1].x || point.y !== points[index - 1].y
+  ));
+
+  const simplified: { x: number; y: number }[] = [];
+  deduped.forEach((point) => {
+    const prev = simplified[simplified.length - 1];
+    const prevPrev = simplified[simplified.length - 2];
+    if (
+      prev &&
+      prevPrev &&
+      ((prevPrev.x === prev.x && prev.x === point.x) ||
+        (prevPrev.y === prev.y && prev.y === point.y))
+    ) {
+      simplified[simplified.length - 1] = point;
+      return;
+    }
+    simplified.push(point);
+  });
+
+  return simplified;
+}
+
+function mergeIntervals(intervals: HorizontalInterval[]) {
+  if (intervals.length === 0) return [];
+  const sorted = [...intervals].sort((a, b) => a.start - b.start);
+  const merged: HorizontalInterval[] = [sorted[0]];
+  for (let i = 1; i < sorted.length; i++) {
+    const current = sorted[i];
+    const last = merged[merged.length - 1];
+    if (current.start <= last.end) {
+      last.end = Math.max(last.end, current.end);
+    } else {
+      merged.push({ ...current });
+    }
+  }
+  return merged;
+}
+
+function isBlockedAtX(x: number, intervals: HorizontalInterval[]) {
+  return intervals.some((interval) => x >= interval.start && x <= interval.end);
+}
+
+function findNearestFreeX(
+  preferredX: number,
+  intervals: HorizontalInterval[],
+  minX: number,
+  maxX: number,
+) {
+  const clampedPreferred = Math.max(minX, Math.min(maxX, preferredX));
+  if (!isBlockedAtX(clampedPreferred, intervals)) return clampedPreferred;
+
+  const candidates = new Set<number>([minX, maxX]);
+  intervals.forEach((interval) => {
+    candidates.add(Math.max(minX, Math.min(maxX, interval.start - 1)));
+    candidates.add(Math.max(minX, Math.min(maxX, interval.end + 1)));
+  });
+
+  let best = clampedPreferred;
+  let bestDistance = Infinity;
+  candidates.forEach((candidate) => {
+    if (isBlockedAtX(candidate, intervals)) return;
+    const distance = Math.abs(candidate - clampedPreferred);
+    if (distance < bestDistance) {
+      best = candidate;
+      bestDistance = distance;
+    }
+  });
+
+  return best;
+}
+
+function buildParentChildRoute(
+  startX: number,
+  startY: number,
+  startLevel: number,
+  endX: number,
+  endY: number,
+  endLevel: number,
+  occupiedIntervalsByLevel: Map<number, HorizontalInterval[]>,
+  contentWidth: number,
+  C: LayoutConstants,
+) {
+  const totalGap = endY - startY;
+  const laneInset = Math.max(16, Math.min(32, totalGap / 4));
+  let exitY = startY + laneInset;
+  let approachY = endY - laneInset;
+  if (exitY > approachY) {
+    const midY = (startY + endY) / 2;
+    exitY = midY;
+    approachY = midY;
+  }
+
+  const blockedAcrossLevels = mergeIntervals(
+    Array.from({ length: Math.max(0, endLevel - startLevel - 1) }, (_, index) => startLevel + index + 1)
+      .flatMap((level) => occupiedIntervalsByLevel.get(level) ?? []),
+  );
+
+  const laneX = findNearestFreeX(
+    endX,
+    blockedAcrossLevels,
+    1,
+    Math.max(1, contentWidth - 1),
+  );
+
+  return simplifyOrthogonalPoints([
+    { x: startX, y: startY },
+    { x: startX, y: exitY },
+    { x: laneX, y: exitY },
+    { x: laneX, y: approachY },
+    { x: endX, y: approachY },
+    { x: endX, y: endY },
+  ]);
+}
+
 export function buildConnectors(
   relationships: RelationshipRecord[],
   layout: LayoutResult,
   C: LayoutConstants,
   colors: { parentChild: string; spouse: string; secondaryParent: string },
 ): { spouseConnectors: Connector[]; parentChildConnectors: Connector[] } {
-  const { positionsByPersonId, spouseGroupIdByPersonId, spouseGroupsById, levelBySpouseGroupId } = layout;
+  const { positionsByPersonId, spouseGroupIdByPersonId, spouseGroupsById, levelBySpouseGroupId, contentWidth } = layout;
 
   // ---- Spouse connectors ----
   // Adjacent spouses (same group, side-by-side): straight horizontal line.
@@ -165,6 +273,8 @@ export function buildConnectors(
 
   // Pre-compute spouse-group bounds so we know parent center & bottom.
   const groupBounds = new Map<string, { centerX: number; bottomY: number; topY: number; left: number; right: number }>();
+  const occupiedIntervalsByLevel = new Map<number, HorizontalInterval[]>();
+  const laneClearance = 12;
   spouseGroupsById.forEach((g) => {
     let left = Infinity, right = -Infinity, top = Infinity, bottom = -Infinity;
     g.memberIds.forEach((id) => {
@@ -177,7 +287,18 @@ export function buildConnectors(
     });
     if (left !== Infinity) {
       groupBounds.set(g.id, { centerX: (left + right) / 2, bottomY: bottom, topY: top, left, right });
+      const level = levelBySpouseGroupId.get(g.id);
+      if (typeof level === 'number') {
+        if (!occupiedIntervalsByLevel.has(level)) occupiedIntervalsByLevel.set(level, []);
+        occupiedIntervalsByLevel.get(level)!.push({
+          start: left - laneClearance,
+          end: right + laneClearance,
+        });
+      }
     }
+  });
+  occupiedIntervalsByLevel.forEach((intervals, level) => {
+    occupiedIntervalsByLevel.set(level, mergeIntervals(intervals));
   });
 
   relationships.forEach((r) => {
@@ -208,125 +329,47 @@ export function buildConnectors(
   });
 
   const parentChildConnectors: Connector[] = [];
+  const cornerRadius = 24;
 
-  familiesByLevel.forEach((entries, childLevel) => {
-    entries.sort((a, b) => a.parentCenterX - b.parentCenterX);
-
-    entries.forEach((entry) => {
-      const childCenters = entry.childPersonIds
-        .map((id) => positionsByPersonId.get(id))
-        .filter((p): p is { x: number; y: number } => Boolean(p))
-        .map((p) => ({ cx: p.x + C.NODE_WIDTH / 2, topY: p.y }))
-        .sort((a, b) => a.cx - b.cx);
-
-      if (childCenters.length === 0) return;
-
-      // Midpoint of the vertical gap — used as the "elbow" for the shared trunk
-      // and as the horizontal bus when there are multiple children.
-      const midY = (entry.parentBottomY + childCenters[0].topY) / 2;
-
-      // Corner radius — large enough to look clearly curved but capped so it
-      // never exceeds half the shortest segment.
-      const cornerRadius = 28;
-
-      // Trunk: bottom-center of parent → midY
-      const trunkPts = [
-        { x: entry.parentCenterX, y: entry.parentBottomY },
-        { x: entry.parentCenterX, y: midY },
-      ];
-      parentChildConnectors.push({
-        key: `pc-trunk-${childLevel}-${entry.parentGroupId}`,
-        d: pointsToRoundedPath(trunkPts, cornerRadius),
-        stroke: colors.parentChild,
-        strokeWidth: 2.5,
-        bounds: boundsOf(trunkPts),
-      });
-
-      // Horizontal bus at midY: connects trunk end to each child drop.
-      // Needed whenever the parent center X doesn't align with a child center X.
-      const busLeft = Math.min(entry.parentCenterX, childCenters[0].cx);
-      const busRight = Math.max(entry.parentCenterX, childCenters[childCenters.length - 1].cx);
-      if (busLeft !== busRight) {
-        const busPts = [
-          { x: busLeft, y: midY },
-          { x: busRight, y: midY },
-        ];
-        parentChildConnectors.push({
-          key: `pc-bus-${childLevel}-${entry.parentGroupId}`,
-          d: pointsToRoundedPath(busPts, 0),
-          stroke: colors.parentChild,
-          strokeWidth: 2.5,
-          bounds: boundsOf(busPts),
-        });
-      }
-
-      // Drop: midY → top-center of each child node (curved corner)
-      childCenters.forEach((child) => {
-        const dropPts = [
-          { x: child.cx, y: midY },
-          { x: child.cx, y: child.topY },
-        ];
-        parentChildConnectors.push({
-          key: `pc-drop-${childLevel}-${entry.parentGroupId}-${child.cx}`,
-          d: pointsToRoundedPath(dropPts, cornerRadius),
-          stroke: colors.parentChild,
-          strokeWidth: 2.5,
-          bounds: boundsOf(dropPts),
-        });
-      });
-    });
-  });
-
-  // ---- Secondary parent edges (multi-parent children) ----
-  // Drawn as a thin dashed-style straight line from secondary parent's
-  // bottom-center to child's top-center. (Dashes are not used; we just
-  // render a thinner stroke + lower opacity via a dedicated color.)
+  // ---- Parent-child connectors ----
+  // Route every edge independently through card-free generation gaps.
+  // The vertical "lane" is chosen outside all node bounds on the
+  // intermediate levels so the connector can never pass through a card.
   relationships.forEach((r) => {
     if (r.type !== 'parent-child') return;
-    const childGid = spouseGroupIdByPersonId.get(r.toPersonId);
-    if (!childGid) return;
-    // Determine if this parent is the primary one used in the trunk above.
     const parentGid = spouseGroupIdByPersonId.get(r.fromPersonId);
+    const childGid = spouseGroupIdByPersonId.get(r.toPersonId);
     if (!parentGid) return;
+    if (!childGid) return;
+
+    const childLevel = levelBySpouseGroupId.get(childGid);
+    const parentLevel = levelBySpouseGroupId.get(parentGid);
+    if (typeof childLevel !== 'number' || typeof parentLevel !== 'number') return;
+
     const familyEntries = familiesByLevel.get(layout.levelBySpouseGroupId.get(childGid) ?? -1) ?? [];
     const isPrimary = familyEntries.some((e) => e.parentGroupId === parentGid && e.childPersonIds.includes(r.toPersonId));
-    if (isPrimary) return;
-
     const parentBounds = groupBounds.get(parentGid);
     const childPos = positionsByPersonId.get(r.toPersonId);
     if (!parentBounds || !childPos) return;
 
-    // Route the secondary-parent connector entirely through the gap that sits
-    // just below the parent's row.  That band ( parentBottomY …
-    // parentBottomY + VERTICAL_GAP ) is guaranteed to be card-free:
-    //   • parent-level cards end at parentBottomY
-    //   • the next level starts VERTICAL_GAP pixels below
-    // Using 40 % of the gap keeps the horizontal well inside the safe band.
-    //
-    // After the horizontal we drop straight to the child with a smooth
-    // cubic-bezier S-curve so the line arrives vertically at the child's
-    // top-center — no sharp corners and no card intersections.
-    const safeY = parentBounds.bottomY + C.VERTICAL_GAP * 0.4;
-    const childCx = childPos.x + C.NODE_WIDTH / 2;
-
-    // Leg 1: parent bottom → safe horizontal Y (cubic S from parent center to child X)
-    // We split into two segments joined at (childCx, safeY) so the horizontal
-    // "kink" is retained for visual clarity, but both use smooth curves.
-    const leg1 = cubicBezierPath(parentBounds.centerX, parentBounds.bottomY, childCx, safeY);
-    const leg2 = cubicBezierPath(childCx, safeY, childCx, childPos.y);
-
-    const allPts = [
-      { x: parentBounds.centerX, y: parentBounds.bottomY },
-      { x: childCx, y: safeY },
-      { x: childCx, y: childPos.y },
-    ];
+    const routePoints = buildParentChildRoute(
+      parentBounds.centerX,
+      parentBounds.bottomY,
+      parentLevel,
+      childPos.x + C.NODE_WIDTH / 2,
+      childPos.y,
+      childLevel,
+      occupiedIntervalsByLevel,
+      contentWidth,
+      C,
+    );
 
     parentChildConnectors.push({
-      key: `pc-secondary-${r.id}`,
-      d: leg1 + ' ' + leg2.replace(/^M [^ ]+ [^ ]+/, ''),   // join paths (skip 2nd M)
-      stroke: colors.secondaryParent,
-      strokeWidth: 1.5,
-      bounds: boundsOf(allPts),
+      key: `pc-${isPrimary ? 'primary' : 'secondary'}-${r.id}`,
+      d: pointsToRoundedPath(routePoints, cornerRadius),
+      stroke: isPrimary ? colors.parentChild : colors.secondaryParent,
+      strokeWidth: isPrimary ? 2.5 : 1.5,
+      bounds: boundsOf(routePoints),
     });
   });
 
