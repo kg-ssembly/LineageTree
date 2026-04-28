@@ -77,28 +77,6 @@ function formatPersonName(person: PersonRecord) {
   return `${person.firstName} ${person.lastName}`.trim();
 }
 
-function findClearX(targetX: number, startY: number, endY: number, obstacles: ObstacleBox[]): number {
-  const pad = 6;
-  const blocking = obstacles.filter(o => Math.max(o.y - pad, startY) < Math.min(o.y + o.h + pad, endY));
-
-  const isClear = (cx: number) => !blocking.some(o => cx > o.x - pad && cx < o.x + o.w + pad);
-
-  if (isClear(targetX)) return targetX;
-
-  const candidates: number[] = [];
-  blocking.forEach(o => {
-    candidates.push(o.x - pad);
-    candidates.push(o.x + o.w + pad);
-  });
-
-  candidates.sort((a, b) => Math.abs(a - targetX) - Math.abs(b - targetX));
-
-  for (const cx of candidates) {
-    if (isClear(cx)) return cx;
-  }
-  return targetX;
-}
-
 function routeVertical(x: number, y1: number, y2: number, obstacles: ObstacleBox[]): string {
   if (Math.abs(y1 - y2) < 1) {
     return `L ${x} ${y2}`;
@@ -107,13 +85,14 @@ function routeVertical(x: number, y1: number, y2: number, obstacles: ObstacleBox
   const startY = Math.min(y1, y2);
   const endY = Math.max(y1, y2);
   const direction = y2 > y1 ? 1 : -1;
-  const pad = 6;
+  const padX = 8;
 
+  // Search for obstacles strictly between startY and endY
   const hit = obstacles.filter(o =>
-    x > o.x - pad &&
-    x < o.x + o.w + pad &&
-    o.y + o.h > startY &&
-    o.y < endY
+    x > o.x - padX &&
+    x < o.x + o.w + padX &&
+    o.y > startY + 10 &&
+    o.y + o.h < endY - 10
   );
 
   if (hit.length === 0) {
@@ -129,30 +108,45 @@ function routeVertical(x: number, y1: number, y2: number, obstacles: ObstacleBox
   const sortedRowYs = [...rowHits.keys()].sort((a, b) => direction === 1 ? a - b : b - a);
 
   let path = '';
+  let currentX = x;
   let currentY = y1;
 
   for (const rowY of sortedRowYs) {
     const rowObstacles = rowHits.get(rowY)!;
     const o = rowObstacles[0];
     
-    const dodgeY = direction === 1 ? o.y - pad : o.y + o.h + pad;
+    // Pause routing slightly before the obstacle
+    const dodgeY = direction === 1 ? o.y - 20 : o.y + o.h + 20;
     if ((direction === 1 && dodgeY > currentY) || (direction === -1 && dodgeY < currentY)) {
-      path += ` L ${x} ${dodgeY}`;
+      path += ` L ${currentX} ${dodgeY}`;
       currentY = dodgeY;
     }
 
-    const passY = direction === 1 ? o.y + o.h + pad : o.y - pad;
-    
-    const clearX = findClearX(x, Math.min(currentY, passY), Math.max(currentY, passY), obstacles);
+    // Resume point below the obstacle
+    const passY = direction === 1 ? o.y + o.h + 20 : o.y - 20;
 
-    if (clearX !== x) {
-      path += ` L ${clearX} ${currentY}`;
-      path += ` L ${clearX} ${passY}`;
-      path += ` L ${x} ${passY}`;
+    // Attempt lateral dodge to the nearest gap between columns
+    const leftX = o.x - HORIZONTAL_GAP / 2;
+    const rightX = o.x + o.w + HORIZONTAL_GAP / 2;
+
+    const isClear = (cx: number) => !obstacles.some(ob => cx > ob.x - padX && cx < ob.x + ob.w + padX && ob.y === o.y);
+
+    let clearX = currentX;
+    if (Math.abs(leftX - x) <= Math.abs(rightX - x) && isClear(leftX)) {
+      clearX = leftX;
+    } else if (isClear(rightX)) {
+      clearX = rightX;
+    } else {
+      clearX = leftX;
+    }
+
+    if (clearX !== currentX) {
+      path += ` L ${clearX} ${currentY} L ${clearX} ${passY} L ${x} ${passY}`;
     } else {
       path += ` L ${x} ${passY}`;
     }
-    
+
+    currentX = x;
     currentY = passY;
   }
 
@@ -731,7 +725,7 @@ function FamilyTreeCanvas({
           // Route above the nodes to avoid passing through other spouses
           const startX = leftPerson.x + NODE_WIDTH / 2;
           const endX = rightPerson.x + NODE_WIDTH / 2;
-          const yTop = leftPerson.y - 12;
+          const yTop = leftPerson.y - 14;
           pathD = `M ${startX} ${leftPerson.y} L ${startX} ${yTop} L ${endX} ${yTop} L ${endX} ${rightPerson.y}`;
         }
 
