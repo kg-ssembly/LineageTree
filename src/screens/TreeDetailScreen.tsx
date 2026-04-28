@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Image, ScrollView, StyleSheet, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   ActivityIndicator,
@@ -12,6 +12,7 @@ import {
   IconButton,
   List,
   Portal,
+  SegmentedButtons,
   Snackbar,
   Surface,
   Text,
@@ -117,7 +118,7 @@ interface SharedTabProps {
   onSetApprovalWindowHours: (hours: number) => Promise<void>;
 }
 
-const Tab = createBottomTabNavigator<TreeDetailTabParamList>();
+const Tab = createMaterialTopTabNavigator<TreeDetailTabParamList>();
 
 function formatPersonName(person?: PersonRecord | null) {
   if (!person) {
@@ -528,19 +529,15 @@ function ProfileTabContent({
           Review the current tree at a glance, manage collaborators, and keep profile links up to date.
         </Text>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.managementTabRow} style={styles.managementTabScrollView}>
-          {TREE_MANAGEMENT_TABS.map((tab) => (
-            <Chip
-              key={tab.key}
-              selected={activeManagementTab === tab.key}
-              onPress={() => setActiveManagementTab(tab.key)}
-              style={styles.managementTabChip}
-              showSelectedOverlay
-            >
-              {tab.label}
-            </Chip>
-          ))}
-        </ScrollView>
+        <SegmentedButtons
+          value={activeManagementTab}
+          onValueChange={(value) => setActiveManagementTab(value as TreeManagementTabKey)}
+          buttons={TREE_MANAGEMENT_TABS.map((tab) => ({
+            value: tab.key,
+            label: tab.label,
+          }))}
+          style={styles.managementSegmentedButtons}
+        />
 
         {activeManagementTab === 'overview' ? (
           <>
@@ -1074,8 +1071,10 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
   const canEdit = selectedTree ? canEditTreeContent(selectedTree, user?.id) : false;
 
   useEffect(() => {
-    selectTree(route.params.treeId);
-  }, [route.params.treeId, selectTree]);
+    if (selectedTreeId !== route.params.treeId || !selectedTree) {
+      selectTree(route.params.treeId);
+    }
+  }, [route.params.treeId, selectTree, selectedTree, selectedTreeId]);
 
   useEffect(() => {
     if (selectedTree) {
@@ -1347,12 +1346,19 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
         key={`${route.params.treeId}-${initialTab}`}
         initialRouteName={initialTab}
         screenOptions={({ route: currentRoute }) => ({
-          headerShown: false,
+          lazy: true,
+          lazyPreloadDistance: 0,
+          swipeEnabled: true,
           tabBarActiveTintColor: theme.colors.primary,
           tabBarInactiveTintColor: theme.colors.onSurfaceVariant,
-          tabBarStyle: [styles.tabBar, { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.outlineVariant }],
+          tabBarShowIcon: true,
+          tabBarStyle: [styles.tabBar, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.outlineVariant }],
+          tabBarIndicatorStyle: [styles.tabIndicator, { backgroundColor: theme.colors.primary }],
+          tabBarLabelStyle: styles.tabLabel,
+          tabBarItemStyle: styles.tabItem,
+          tabBarPressColor: theme.colors.secondaryContainer,
           sceneStyle: [styles.tabScene, { backgroundColor: theme.colors.background }],
-          tabBarIcon: ({ color, size }) => {
+          tabBarIcon: ({ color }) => {
             const iconName = currentRoute.name === 'PeopleRelationshipsTab'
               ? 'account-group-outline'
               : currentRoute.name === 'VisualisationTab'
@@ -1360,7 +1366,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
                 : currentRoute.name === 'ProfileTab'
                   ? 'card-account-details-outline'
                   : 'home-outline';
-            return <MaterialCommunityIcons name={iconName} size={size} color={color} />;
+            return <MaterialCommunityIcons name={iconName} size={20} color={color} />;
           },
         })}
       >
@@ -1549,9 +1555,22 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8F7FF',
   },
   tabBar: {
-    height: 64,
-    paddingBottom: 8,
-    paddingTop: 6,
+    elevation: 0,
+    shadowOpacity: 0,
+    borderBottomWidth: 1,
+    minHeight: 64,
+  },
+  tabIndicator: {
+    height: 3,
+    borderRadius: 999,
+  },
+  tabLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'none',
+  },
+  tabItem: {
+    minHeight: 64,
   },
   content: {
     padding: 16,
@@ -1577,15 +1596,8 @@ const styles = StyleSheet.create({
     marginTop: 4,
     color: '#6B6B74',
   },
-  managementTabScrollView: {
+  managementSegmentedButtons: {
     marginTop: 16,
-  },
-  managementTabRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  managementTabChip: {
-    marginRight: 4,
   },
   treeSettingsWrap: {
     marginTop: 16,

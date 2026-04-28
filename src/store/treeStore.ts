@@ -31,6 +31,7 @@ let unsubscribeTrees: (() => void) | null = null;
 let unsubscribePeople: (() => void) | null = null;
 let unsubscribeRelationships: (() => void) | null = null;
 let unsubscribeApprovalRequests: (() => void) | null = null;
+let subscribedTreeId: string | null = null;
 
 function normaliseError(error: unknown) {
   if (error instanceof Error && error.message) {
@@ -47,6 +48,7 @@ function stopTreeSubscriptions() {
   unsubscribePeople = null;
   unsubscribeRelationships = null;
   unsubscribeApprovalRequests = null;
+  subscribedTreeId = null;
 }
 
 function stopAllSubscriptions() {
@@ -93,6 +95,11 @@ interface TreeState {
 
 export const useTreeStore = create<TreeState>((set, get) => {
   const subscribeToTreeData = (treeId: string | null) => {
+    if (treeId && subscribedTreeId === treeId && get().trees.some((tree) => tree.id === treeId)) {
+      set({ selectedTreeId: treeId, loadingTreeData: false });
+      return;
+    }
+
     stopTreeSubscriptions();
 
     if (!treeId) {
@@ -100,6 +107,7 @@ export const useTreeStore = create<TreeState>((set, get) => {
       return;
     }
 
+    subscribedTreeId = treeId;
     set({ people: [], relationships: [], approvalRequests: [], loadingTreeData: true });
 
     unsubscribePeople = subscribeToPeople(
@@ -188,6 +196,14 @@ export const useTreeStore = create<TreeState>((set, get) => {
     },
 
     selectTree: (treeId) => {
+      if (
+        get().selectedTreeId === treeId
+        && subscribedTreeId === treeId
+        && (treeId === null || get().trees.some((tree) => tree.id === treeId))
+      ) {
+        return;
+      }
+
       set({ selectedTreeId: treeId });
       subscribeToTreeData(treeId);
     },

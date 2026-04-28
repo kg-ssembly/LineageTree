@@ -171,6 +171,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
   const { user } = useAuthStore();
   const {
     trees,
+    selectedTreeId,
     people,
     relationships,
     loadingTrees,
@@ -374,8 +375,10 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
   };
 
   useEffect(() => {
-    selectTree(route.params.treeId);
-  }, [route.params.treeId, selectTree]);
+    if (selectedTreeId !== route.params.treeId || !selectedTree) {
+      selectTree(route.params.treeId);
+    }
+  }, [route.params.treeId, selectTree, selectedTree, selectedTreeId]);
 
   useEffect(() => {
     if (person) {

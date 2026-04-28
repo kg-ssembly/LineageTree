@@ -478,7 +478,7 @@ function buildAscendantSubtree(
   };
 }
 
-export default function FamilyTreeCanvas({
+function FamilyTreeCanvas({
   people,
   relationships,
   onPressPerson,
@@ -1200,6 +1200,8 @@ export default function FamilyTreeCanvas({
     </View>
   );
 }
+
+export default React.memo(FamilyTreeCanvas);
 
 const styles = StyleSheet.create({
   container: {
