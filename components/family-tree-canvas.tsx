@@ -804,10 +804,15 @@ function FamilyTreeCanvas({
     pan.setValue(nextPan);
   };
 
-  const getCanvasCoordinatesFromViewportPoint = (locationX: number, locationY: number) => ({
-    x: locationX / scale - currentPanRef.current.x,
-    y: locationY / scale - currentPanRef.current.y,
-  });
+  const getCanvasCoordinatesFromViewportPoint = (locationX: number, locationY: number) => {
+    const centerOffsetX = (canvasWidth * (1 - scale)) / 2;
+    const centerOffsetY = (canvasHeight * (1 - scale)) / 2;
+
+    return {
+      x: (locationX - centerOffsetX) / scale - currentPanRef.current.x,
+      y: (locationY - centerOffsetY) / scale - currentPanRef.current.y,
+    };
+  };
 
   const getPersonAtViewportPoint = (locationX: number, locationY: number) => {
     const canvasPoint = getCanvasCoordinatesFromViewportPoint(locationX, locationY);
@@ -818,10 +823,11 @@ function FamilyTreeCanvas({
         return false;
       }
 
-      return canvasPoint.x >= position.x
-        && canvasPoint.x <= position.x + NODE_WIDTH
-        && canvasPoint.y >= position.y
-        && canvasPoint.y <= position.y + NODE_HEIGHT;
+      const HitSlop = 6;
+      return canvasPoint.x >= position.x - HitSlop
+        && canvasPoint.x <= position.x + NODE_WIDTH + HitSlop
+        && canvasPoint.y >= position.y - HitSlop
+        && canvasPoint.y <= position.y + NODE_HEIGHT + HitSlop;
     }) ?? null;
   };
 
@@ -872,10 +878,13 @@ function FamilyTreeCanvas({
       ),
       onPanResponderGrant: (event) => {
         gestureMovedRef.current = false;
-        gestureTargetPersonIdRef.current = getPersonAtViewportPoint(
-          event.nativeEvent.locationX,
-          event.nativeEvent.locationY,
-        )?.id ?? null;
+
+        // On Web, nativeEvent.locationX can occasionally misreport or be relative to window
+        // if nested deeply. offsetX/offsetY are standard DOM properties that are robust here.
+        const pointX = (event.nativeEvent as any).offsetX ?? event.nativeEvent.locationX;
+        const pointY = (event.nativeEvent as any).offsetY ?? event.nativeEvent.locationY;
+
+        gestureTargetPersonIdRef.current = getPersonAtViewportPoint(pointX, pointY)?.id ?? null;
 
         pan.stopAnimation((value) => {
           dragStartPanRef.current = value;
