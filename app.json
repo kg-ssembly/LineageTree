@@ -31,10 +31,13 @@
           "cameraPermission": "Allow Lineage Tree to use your camera for family photos.",
           "photosPermission": "Allow Lineage Tree to access your family photos."
         }
-      ]
+      ],
+      "expo-font"
     ],
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "output": "single",
+      "bundler": "metro"
     }
   }
 }

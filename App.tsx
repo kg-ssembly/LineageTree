@@ -1,6 +1,8 @@
 import React, { useEffect } from 'react';
 import { useColorScheme } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useFonts } from 'expo-font';
 import { PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -14,10 +16,17 @@ export default function App() {
   const preference = useThemeStore((state) => state.preference);
   const hydrateTheme = useThemeStore((state) => state.hydrate);
   const { paperTheme, navigationTheme, resolvedTheme } = getAppThemes(preference, systemColorScheme);
+  const [fontsLoaded] = useFonts({
+    ...MaterialCommunityIcons.font,
+  });
 
   useEffect(() => {
     hydrateTheme();
   }, [hydrateTheme]);
+
+  if (!fontsLoaded) {
+    return null;
+  }
 
   return (
     <SafeAreaProvider>
