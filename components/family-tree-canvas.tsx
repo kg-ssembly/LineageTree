@@ -77,6 +77,66 @@ function formatPersonName(person: PersonRecord) {
   return `${person.firstName} ${person.lastName}`.trim();
 }
 
+function applyRoundedCorners(pathStr: string, radius: number): string {
+  const commands = pathStr.match(/[A-Z][^A-Z]*/gi);
+  if (!commands) return pathStr;
+
+  let newPath = '';
+  const points: { type: string; x: number; y: number }[] = [];
+
+  for (const cmd of commands) {
+    const type = cmd[0];
+    const coords = cmd.slice(1).trim().split(/[\s,]+/).map(Number);
+    if (type.toUpperCase() === 'M' || type.toUpperCase() === 'L') {
+      points.push({ type, x: coords[0], y: coords[1] });
+    }
+  }
+
+  if (points.length < 3) return pathStr;
+
+  newPath += `M ${points[0].x} ${points[0].y}`;
+
+  for (let i = 1; i < points.length - 1; i++) {
+    const p1 = points[i - 1];
+    const p2 = points[i];
+    const p3 = points[i + 1];
+
+    if (p2.type.toUpperCase() === 'M' || p3.type.toUpperCase() === 'M') {
+      newPath += ` ${p2.type} ${p2.x} ${p2.y}`;
+      continue;
+    }
+
+    const d1 = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+    const d2 = Math.hypot(p3.x - p2.x, p3.y - p2.y);
+
+    if (d1 === 0 || d2 === 0) {
+      newPath += ` L ${p2.x} ${p2.y}`;
+      continue;
+    }
+
+    const r = Math.min(radius, d1 / 2, d2 / 2);
+
+    const vx1 = (p1.x - p2.x) / d1;
+    const vy1 = (p1.y - p2.y) / d1;
+
+    const vx2 = (p3.x - p2.x) / d2;
+    const vy2 = (p3.y - p2.y) / d2;
+
+    const startX = p2.x + vx1 * r;
+    const startY = p2.y + vy1 * r;
+
+    const endX = p2.x + vx2 * r;
+    const endY = p2.y + vy2 * r;
+
+    newPath += ` L ${startX} ${startY} Q ${p2.x} ${p2.y} ${endX} ${endY}`;
+  }
+
+  const lastPoint = points[points.length - 1];
+  newPath += ` ${lastPoint.type} ${lastPoint.x} ${lastPoint.y}`;
+
+  return newPath;
+}
+
 function routeVertical(x: number, y1: number, y2: number, obstacles: ObstacleBox[]): string {
   if (Math.abs(y1 - y2) < 1) {
     return `L ${x} ${y2}`;
@@ -167,22 +227,18 @@ function createTreeBranchPath(
     return '';
   }
 
-  const parts = [
-    `M ${parentX} ${parentY}`,
-    routeVertical(parentX, parentY, junctionY, obstacles)
-  ];
-
-  const pointsX = [...childrenPoints.map((c) => c.x), parentX];
-  const minX = Math.min(...pointsX);
-  const maxX = Math.max(...pointsX);
-
-  if (minX !== maxX) {
-    parts.push(`M ${minX} ${junctionY} L ${maxX} ${junctionY}`);
-  }
+  const parts: string[] = [];
 
   childrenPoints.forEach((child) => {
-    parts.push(`M ${child.x} ${junctionY}`);
-    parts.push(routeVertical(child.x, junctionY, child.topY, obstacles));
+    const trunk = routeVertical(parentX, parentY, junctionY, obstacles);
+    let childPath = `M ${parentX} ${parentY} ${trunk}`;
+    if (parentX !== child.x) {
+      childPath += ` L ${child.x} ${junctionY}`;
+    }
+    const drop = routeVertical(child.x, junctionY, child.topY, obstacles);
+    childPath += ` ${drop}`;
+    
+    parts.push(applyRoundedCorners(childPath, 16));
   });
 
   return parts.filter(Boolean).join(' ');
@@ -727,6 +783,7 @@ function FamilyTreeCanvas({
           const endX = rightPerson.x + NODE_WIDTH / 2;
           const yTop = leftPerson.y - 14;
           pathD = `M ${startX} ${leftPerson.y} L ${startX} ${yTop} L ${endX} ${yTop} L ${endX} ${rightPerson.y}`;
+          pathD = applyRoundedCorners(pathD, 12);
         }
 
         return {
