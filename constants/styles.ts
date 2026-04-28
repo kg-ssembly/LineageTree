@@ -1100,7 +1100,7 @@ export class GlobalStyles {
             height: 44,
             borderRadius: 22,
             borderWidth: 2,
-            borderColor: '#CFC5FF',
+            borderColor: '#CFCAB8',
             backgroundColor: '#ECE8FF',
         },
         nodeAvatarFallback: {
