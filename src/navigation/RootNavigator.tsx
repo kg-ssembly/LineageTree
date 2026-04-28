@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useTheme } from 'react-native-paper';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '../store/authStore';
 import { useTreeStore } from '../store/treeStore';
 import LoginScreen from '../screens/auth/LoginScreen';
@@ -35,36 +36,38 @@ export default function RootNavigator() {
   }
 
   return (
-    <Stack.Navigator
-      screenOptions={{
-        headerStyle: { backgroundColor: theme.colors.surface },
-        headerTintColor: theme.colors.onSurface,
-        headerTitleStyle: { fontWeight: '700' },
-        headerShadowVisible: false,
-        contentStyle: { backgroundColor: theme.colors.background },
-      }}
-    >
-      {user ? (
-        <>
-          <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
-          <Stack.Screen
-            name="TreeDetail"
-            component={TreeDetailScreen}
-            options={{ headerShown: false }}
-          />
-          <Stack.Screen
-            name="PersonProfile"
-            component={PersonProfileScreen}
-            options={{ headerShown: false }}
-          />
-        </>
-      ) : (
-        <>
-          <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
-          <Stack.Screen name="SignUp" component={SignUpScreen} options={{ headerShown: false }} />
-        </>
-      )}
-    </Stack.Navigator>
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }} edges={["top"]}>
+      <Stack.Navigator
+        screenOptions={{
+          headerStyle: { backgroundColor: theme.colors.surface },
+          headerTintColor: theme.colors.onSurface,
+          headerTitleStyle: { fontWeight: '700' },
+          headerShadowVisible: false,
+          contentStyle: { backgroundColor: theme.colors.background },
+        }}
+      >
+        {user ? (
+          <>
+            <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
+            <Stack.Screen
+              name="TreeDetail"
+              component={TreeDetailScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="PersonProfile"
+              component={PersonProfileScreen}
+              options={{ headerShown: false }}
+            />
+          </>
+        ) : (
+          <>
+            <Stack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="SignUp" component={SignUpScreen} options={{ headerShown: false }} />
+          </>
+        )}
+      </Stack.Navigator>
+    </SafeAreaView>
   );
 }
 

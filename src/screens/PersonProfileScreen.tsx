@@ -8,6 +8,7 @@ import {
   Chip,
   Divider,
   IconButton,
+  SegmentedButtons,
   Snackbar,
   Surface,
   Text,
@@ -164,6 +165,11 @@ const PERSON_PROFILE_TABS: Array<{ key: PersonProfileTabKey; label: string }> = 
   { key: 'descendant-tree', label: 'Descendant tree' },
   { key: 'ascendant-tree', label: 'Ascendant tree' },
   { key: 'memories-gallery', label: 'Memories & gallery' },
+];
+
+const PERSON_PROFILE_TAB_GROUPS: PersonProfileTabKey[][] = [
+  ['member-profile', 'relationships', 'descendant-tree'],
+  ['ascendant-tree', 'memories-gallery'],
 ];
 
 export default function PersonProfileScreen({ navigation, route }: Props) {
@@ -658,19 +664,18 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
         <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
           <Text variant="titleMedium">Family member tabs</Text>
           <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>Tap a tab to switch between overview details, relationships, lineage trees, and memories.</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabRow} style={styles.tabScrollView}>
-            {PERSON_PROFILE_TABS.map((tab) => (
-              <Chip
-                key={tab.key}
-                selected={activeTab === tab.key}
-                onPress={() => setActiveTab(tab.key)}
-                style={styles.tabChip}
-                showSelectedOverlay
-              >
-                {tab.label}
-              </Chip>
-            ))}
-          </ScrollView>
+          {PERSON_PROFILE_TAB_GROUPS.map((group, index) => (
+            <SegmentedButtons
+              key={`person-profile-tab-group-${group.join('-')}`}
+              value={group.includes(activeTab) ? activeTab : ''}
+              onValueChange={(value) => setActiveTab(value as PersonProfileTabKey)}
+              buttons={group.map((key) => ({
+                value: key,
+                label: PERSON_PROFILE_TABS.find((tab) => tab.key === key)?.label ?? key,
+              }))}
+              style={index === 0 ? styles.managementSegmentedButtons : styles.managementSegmentedButtonsSecondary}
+            />
+          ))}
         </Surface>
 
         {activeTab === 'member-profile' ? (
@@ -1107,14 +1112,11 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 16,
   },
-  tabScrollView: {
+  managementSegmentedButtons: {
     marginTop: 12,
   },
-  tabRow: {
-    paddingRight: 8,
-  },
-  tabChip: {
-    marginRight: 8,
+  managementSegmentedButtonsSecondary: {
+    marginTop: 10,
   },
   sectionHeader: {
     flexDirection: 'row',
