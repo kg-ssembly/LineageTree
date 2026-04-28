@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Image, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import {
@@ -12,6 +12,7 @@ import {
   SegmentedButtons,
   Text,
   TextInput,
+  useTheme,
 } from 'react-native-paper';
 import { DatePickerModal } from 'react-native-paper-dates';
 import type { PersonGender, PersonLifeEvent, PersonMutationPayload, PersonPhoto, PersonRecord } from '../types/person';
@@ -116,6 +117,7 @@ export default function PersonFormDialog({
   onDismiss,
   onSubmit,
 }: PersonFormDialogProps) {
+  const theme = useTheme();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [birthDate, setBirthDate] = useState('');
@@ -136,10 +138,26 @@ export default function PersonFormDialog({
   const [lastNameTouched, setLastNameTouched] = useState(false);
   const [preferredPhotoRef, setPreferredPhotoRef] = useState('');
 
+  // Track the last open-event key so we reinitialise only once per open, not
+  // on every re-render, preventing the Portal infinite-update loop.
+  const lastInitKeyRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (!visible) {
+      lastInitKeyRef.current = null;
       return;
     }
+
+    // Build a stable key from the identity of this open event.
+    // Using person?.id + mode so switching from create→edit (or editing a
+    // different person) always re-initialises, but a re-render that keeps the
+    // same open dialog does NOT re-run all the setState calls and trigger the
+    // Portal infinite-update loop.
+    const initKey = `${mode}:${person?.id ?? 'new'}`;
+    if (lastInitKeyRef.current === initKey) {
+      return;
+    }
+    lastInitKeyRef.current = initKey;
 
     setFirstName(person?.firstName ?? initialValues?.firstName ?? '');
     setLastName(person?.lastName ?? initialValues?.lastName ?? '');
@@ -164,7 +182,8 @@ export default function PersonFormDialog({
     setSurnameMenuVisible(false);
     setLastNameTouched(false);
     setPreferredPhotoRef(person?.preferredPhotoId ?? initialValues?.preferredPhotoRef ?? '');
-  }, [initialPendingRelationships, initialValues, mode, person, visible]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, mode, person?.id]);
 
   const allPhotoCount = useMemo(
     () => existingPhotos.length + newPhotoUris.length,
@@ -315,8 +334,12 @@ export default function PersonFormDialog({
   return (
     <>
       <Portal>
-        <Dialog visible={visible} onDismiss={loading ? undefined : onDismiss} style={styles.dialog}>
-          <Dialog.Title>{mode === 'create' ? 'Add family member' : 'Edit family member'}</Dialog.Title>
+        <Dialog
+          visible={visible}
+          onDismiss={loading ? undefined : onDismiss}
+          style={[styles.dialog, { backgroundColor: theme.colors.surface }]}
+        >
+          <Dialog.Title style={styles.dialogTitle}>{mode === 'create' ? 'Add family member' : 'Edit family member'}</Dialog.Title>
           <Dialog.ScrollArea style={styles.scrollArea}>
             <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
               <TextInput
@@ -607,7 +630,7 @@ export default function PersonFormDialog({
               </View>
             </ScrollView>
           </Dialog.ScrollArea>
-          <Dialog.Actions>
+          <Dialog.Actions style={[styles.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}> 
             <Button onPress={onDismiss} disabled={loading}>Cancel</Button>
             <Button onPress={handleSubmit} disabled={loading}>
               {mode === 'create' ? 'Create' : 'Save'}
@@ -656,16 +679,26 @@ export default function PersonFormDialog({
 
 const styles = StyleSheet.create({
   dialog: {
-    maxHeight: '90%',
-    marginHorizontal: 16,
+    maxHeight: '92%',
+    marginHorizontal: 12,
+    borderRadius: 5,
+  },
+  dialogTitle: {
+    paddingBottom: 4,
   },
   scrollArea: {
     borderBottomWidth: 0,
     borderTopWidth: 0,
-    paddingHorizontal: 0,
+    paddingHorizontal: 4,
   },
   content: {
+    paddingHorizontal: 4,
     paddingBottom: 12,
+  },
+  dialogActions: {
+    paddingHorizontal: 8,
+    paddingTop: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
   fieldSpacing: {
     marginTop: 8,
@@ -702,7 +735,9 @@ const styles = StyleSheet.create({
     marginTop: 12,
     padding: 12,
     borderRadius: 5,
-    backgroundColor: '#F3F0FF',
+    borderWidth: 1,
+    borderColor: '#D7D1F9',
+    backgroundColor: '#F7F5FF',
   },
   relationshipChipRow: {
     paddingTop: 12,

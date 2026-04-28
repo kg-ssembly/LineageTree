@@ -14,7 +14,12 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Button, Chip, IconButton, Text, useTheme } from 'react-native-paper';
 import Svg, { Line, Path } from 'react-native-svg';
 import type { PersonRecord } from '../types/person';
-import { getPersonLifeSpanLabel, getPersonPresenceLabel, getPreferredPersonPhoto } from '../types/person';
+import {
+  getPersonFallbackAvatarIcon,
+  getPersonLifeSpanLabel,
+  getPersonPresenceLabel,
+  getPreferredPersonPhoto,
+} from '../types/person';
 import type { RelationshipRecord } from '../types/relationship';
 
 interface FamilyTreeCanvasProps {
@@ -1127,7 +1132,7 @@ function FamilyTreeCanvas({
                     <Image source={{ uri: preferredPhoto.url }} style={styles.nodeAvatar} />
                   ) : (
                     <View style={[styles.nodeAvatarFallback, { borderColor: theme.colors.outlineVariant, backgroundColor: theme.colors.surfaceVariant }]}>
-                      <MaterialCommunityIcons name="account" size={28} color={theme.colors.primary} />
+                      <MaterialCommunityIcons name={getPersonFallbackAvatarIcon(person)} size={28} color={theme.colors.primary} />
                     </View>
                   )}
                 </View>

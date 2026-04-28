@@ -30,7 +30,7 @@ export class GlobalStyles {
     titleWithHelperRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
+      justifyContent: 'flex-start',
       gap: 8,
     },
     name: {
@@ -46,6 +46,7 @@ export class GlobalStyles {
     },
     helperIconButton: {
       margin: 0,
+      marginLeft: -4,
     },
     heroStatsRow: {
       flexDirection: 'row',
@@ -193,11 +194,12 @@ export class GlobalStyles {
     titleWithHelperRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
+      justifyContent: 'flex-start',
       gap: 8,
     },
     helperIconButton: {
       margin: 0,
+      marginLeft: -4,
     },
     sectionSubtitle: {
       marginTop: 4,
@@ -535,11 +537,12 @@ export class GlobalStyles {
     titleWithHelperRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
+      justifyContent: 'flex-start',
       gap: 8,
     },
     helperIconButton: {
       margin: 0,
+      marginLeft: -4,
     },
     sectionSubtitle: {
       marginTop: 6,

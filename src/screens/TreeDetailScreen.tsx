@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Image, ScrollView, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -31,7 +31,12 @@ import type { PersonFormSubmission } from '../components/PersonFormDialog';
 import { useAuthStore } from '../store/authStore';
 import { useTreeStore } from '../store/treeStore';
 import type { PersonGender, PersonRecord } from '../types/person';
-import { getPersonPresenceLabel, getPreferredPersonPhoto, isPersonDeceased } from '../types/person';
+import {
+  getPersonFallbackAvatarIcon,
+  getPersonPresenceLabel,
+  getPreferredPersonPhoto,
+  isPersonDeceased,
+} from '../types/person';
 import type { RelationshipRecord } from '../types/relationship';
 import type { RootStackParamList, TreeDetailTabParamList } from '../types/navigation';
 import { getUserDisplayLabel, getUserNameParts, type UserProfile } from '../types/user';
@@ -210,6 +215,7 @@ function PeopleRelationshipsTabContent({
   mutating,
   loadingTreeData,
   openPersonProfile,
+  onOpenAddPerson,
   onEditPerson,
   openConfirm,
   onDeletePerson,
@@ -259,6 +265,11 @@ function PeopleRelationshipsTabContent({
               Tap a card to open that family member profile.
             </Text>
           </View>
+          {canEdit ? (
+            <Button mode="contained" icon="account-plus" onPress={onOpenAddPerson} disabled={mutating}>
+              Add family member
+            </Button>
+          ) : null}
         </View>
 
         <TextInput
@@ -314,7 +325,7 @@ function PeopleRelationshipsTabContent({
                             <Image source={{ uri: preferredPhoto.url }} style={styles.personPhoto} />
                           ) : (
                             <View style={styles.personPhotoFallback}>
-                              <MaterialCommunityIcons name="account" size={30} color={theme.colors.primary} />
+                              <MaterialCommunityIcons name={getPersonFallbackAvatarIcon(person)} size={30} color={theme.colors.primary} />
                             </View>
                           )}
                         </View>
@@ -1135,40 +1146,40 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     }
   }, [notice]);
 
-  const openConfirm = (title: string, message: string, confirmLabel: string, action: () => Promise<void>) => {
+  const openConfirm = useCallback((title: string, message: string, confirmLabel: string, action: () => Promise<void>) => {
     setConfirmState({ visible: true, title, message, confirmLabel, action });
-  };
+  }, []);
 
-  const closeConfirm = () => {
+  const closeConfirm = useCallback(() => {
     setConfirmState({ visible: false, title: '', message: '', confirmLabel: 'Confirm', action: null });
-  };
+  }, []);
 
-  const openPersonProfile = (person: PersonRecord) => {
+  const openPersonProfile = useCallback((person: PersonRecord) => {
     navigation.navigate('PersonProfile', {
       treeId: route.params.treeId,
       personId: person.id,
     });
-  };
+  }, [navigation, route.params.treeId]);
 
-  const closePersonDialog = () => {
+  const closePersonDialog = useCallback(() => {
     setPersonDialog({ visible: false, mode: 'create', person: null, initialPendingRelationships: [] });
-  };
+  }, []);
 
-  const closeNodeQuickActions = () => {
+  const closeNodeQuickActions = useCallback(() => {
     setNodeQuickActionState({ visible: false, person: null });
-  };
+  }, []);
 
-  const openCreateRelativeDialog = (mode: PendingRelationshipSubmission['mode'], relatedPerson: PersonRecord) => {
-    closeNodeQuickActions();
+  const openCreateRelativeDialog = useCallback((mode: PendingRelationshipSubmission['mode'], relatedPerson: PersonRecord) => {
+    setNodeQuickActionState({ visible: false, person: null });
     setPersonDialog({
       visible: true,
       mode: 'create',
       person: null,
       initialPendingRelationships: [{ mode, relatedPersonId: relatedPerson.id }],
     });
-  };
+  }, []);
 
-  const handleConfirm = async () => {
+  const handleConfirm = useCallback(async () => {
     if (!confirmState.action) {
       return;
     }
@@ -1179,9 +1190,9 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     } catch {
       // surfaced by store snackbar
     }
-  };
+  }, [closeConfirm, confirmState.action]);
 
-  const handleCollaboratorSubmit = async ({ email, role: collaboratorRole }: { email: string; role: CollaboratorRole }) => {
+  const handleCollaboratorSubmit = useCallback(async ({ email, role: collaboratorRole }: { email: string; role: CollaboratorRole }) => {
     if (!selectedTree) {
       return;
     }
@@ -1192,9 +1203,9 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     } catch {
       // surfaced by store snackbar
     }
-  };
+  }, [addCollaborator, selectedTree]);
 
-  const createPersonFromPayload = async (payload: PersonFormSubmission) => {
+  const createPersonFromPayload = useCallback(async (payload: PersonFormSubmission) => {
     if (!user?.id || !selectedTree) {
       return null;
     }
@@ -1226,9 +1237,9 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     }
 
     return createdPerson;
-  };
+  }, [addParentChildRelationship, addSpouseRelationship, createPerson, selectedTree, user?.id]);
 
-  const handlePersonSubmit = async (payload: PersonFormSubmission) => {
+  const handlePersonSubmit = useCallback(async (payload: PersonFormSubmission) => {
     if (!user?.id || !selectedTree) {
       return;
     }
@@ -1244,9 +1255,9 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     } catch {
       // surfaced by store snackbar
     }
-  };
+  }, [closePersonDialog, createPersonFromPayload, personDialog.mode, personDialog.person, selectedTree, updatePerson, user?.id]);
 
-  const handleSelfPersonSubmit = async (payload: PersonFormSubmission) => {
+  const handleSelfPersonSubmit = useCallback(async (payload: PersonFormSubmission) => {
     if (!user?.id || !selectedTree) {
       return;
     }
@@ -1260,9 +1271,9 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     } catch {
       // surfaced by store snackbar
     }
-  };
+  }, [assignPersonToUser, createPersonFromPayload, selectedTree, user?.id]);
 
-  const handleAssignPersonToUser = async (targetUserId: string, personId: string) => {
+  const handleAssignPersonToUser = useCallback(async (targetUserId: string, personId: string) => {
     if (!user?.id || !selectedTree) {
       return;
     }
@@ -1272,9 +1283,9 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     } catch {
       // surfaced by store snackbar
     }
-  };
+  }, [assignPersonToUser, selectedTree, user?.id]);
 
-  const handleClearSelfAssignment = async () => {
+  const handleClearSelfAssignment = useCallback(async () => {
     if (!user?.id || !selectedTree) {
       return;
     }
@@ -1284,9 +1295,9 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     } catch {
       // surfaced by store snackbar
     }
-  };
+  }, [clearSelfAssignment, selectedTree, user?.id]);
 
-  const handleRelationshipSubmit = async ({
+  const handleRelationshipSubmit = useCallback(async ({
     type,
     fromPersonId,
     toPersonId,
@@ -1310,7 +1321,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     } catch {
       // surfaced by store snackbar
     }
-  };
+  }, [addParentChildRelationship, addSpouseRelationship, selectedTree, user?.id]);
 
   if (!selectedTree) {
     return (
@@ -1320,8 +1331,44 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     );
   }
 
-  const sharedTabProps: SharedTabProps = {
-    selectedTree,
+  const personDialogRelationshipCandidates = useMemo(
+    () => people.filter((candidate) => candidate.id !== personDialog.person?.id),
+    [people, personDialog.person?.id],
+  );
+
+  const selfUserNameParts = useMemo(() => getUserNameParts(user), [user]);
+
+  const onOpenAddPerson = useCallback(() => setPersonDialog({ visible: true, mode: 'create', person: null, initialPendingRelationships: [] }), []);
+  const onOpenRelationshipDialog = useCallback(() => setRelationshipDialogVisible(true), []);
+  const onOpenPersonQuickActions = useCallback((person: PersonRecord) => setNodeQuickActionState({ visible: true, person }), []);
+  const onOpenCollaboratorDialog = useCallback(() => setCollaboratorDialogVisible(true), []);
+  const onOpenAddSelf = useCallback(() => setSelfPersonDialogVisible(true), []);
+  const onEditPerson = useCallback((person: PersonRecord) => setPersonDialog({ visible: true, mode: 'edit', person, initialPendingRelationships: [] }), []);
+  const onDeletePerson = useCallback(async (person: PersonRecord) => {
+    if (!user?.id) {
+      return;
+    }
+    await removePerson(user.id, person);
+  }, [removePerson, user?.id]);
+  const onRemoveCollaborator = useCallback(async (collaboratorUserId: string) => {
+    if (!selectedTree) return;
+    await removeCollaborator(selectedTree.id, collaboratorUserId);
+  }, [removeCollaborator, selectedTree]);
+  const onSetApprovalWindowHours = useCallback(async (hours: number) => {
+    if (!selectedTree) return;
+    await setApprovalWindowHours(selectedTree.id, hours);
+  }, [setApprovalWindowHours, selectedTree]);
+  const onApproveApprovalRequest = useCallback(async (requestId: string) => {
+    if (!user?.id) return;
+    await approveApprovalRequest(user.id, requestId);
+  }, [approveApprovalRequest, user?.id]);
+  const onRejectApprovalRequest = useCallback(async (requestId: string) => {
+    if (!user?.id) return;
+    await rejectApprovalRequest(user.id, requestId);
+  }, [rejectApprovalRequest, user?.id]);
+
+  const sharedTabProps: SharedTabProps = useMemo(() => ({
+    selectedTree: selectedTree!,
     people,
     relationships,
     approvalRequests,
@@ -1341,35 +1388,28 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     loadingTreeData,
     openConfirm,
     openPersonProfile,
-    onOpenAddPerson: () => setPersonDialog({ visible: true, mode: 'create', person: null, initialPendingRelationships: [] }),
-    onOpenRelationshipDialog: () => setRelationshipDialogVisible(true),
-    onOpenPersonQuickActions: (person) => setNodeQuickActionState({ visible: true, person }),
-    onOpenCollaboratorDialog: () => setCollaboratorDialogVisible(true),
-    onOpenAddSelf: () => setSelfPersonDialogVisible(true),
-    onEditPerson: (person) => setPersonDialog({ visible: true, mode: 'edit', person, initialPendingRelationships: [] }),
-    onDeletePerson: async (person) => {
-      if (!user?.id) {
-        return;
-      }
-      await removePerson(user.id, person);
-    },
-    onRemoveCollaborator: async (collaboratorUserId) => removeCollaborator(selectedTree.id, collaboratorUserId),
+    onOpenAddPerson,
+    onOpenRelationshipDialog,
+    onOpenPersonQuickActions,
+    onOpenCollaboratorDialog,
+    onOpenAddSelf,
+    onEditPerson,
+    onDeletePerson,
+    onRemoveCollaborator,
     onAssignPersonToUser: handleAssignPersonToUser,
     onClearSelfAssignment: handleClearSelfAssignment,
-    onApproveApprovalRequest: async (requestId) => {
-      if (!user?.id) {
-        return;
-      }
-      await approveApprovalRequest(user.id, requestId);
-    },
-    onRejectApprovalRequest: async (requestId) => {
-      if (!user?.id) {
-        return;
-      }
-      await rejectApprovalRequest(user.id, requestId);
-    },
-    onSetApprovalWindowHours: async (hours) => setApprovalWindowHours(selectedTree.id, hours),
-  };
+    onApproveApprovalRequest,
+    onRejectApprovalRequest,
+    onSetApprovalWindowHours,
+  }), [
+    selectedTree, people, relationships, approvalRequests, peopleById, canEdit, isOwner, role,
+    user?.id, currentUserLabel, currentAssignedPerson, currentSelfAssignmentSuggestions,
+    availableSelfLinkPeople, assignedPersonByUserId, assignedUserIdByPersonId, mutating, loadingTreeData,
+    openConfirm, openPersonProfile, onOpenAddPerson, onOpenRelationshipDialog, onOpenPersonQuickActions,
+    onOpenCollaboratorDialog, onOpenAddSelf, onEditPerson, onDeletePerson, onRemoveCollaborator,
+    handleAssignPersonToUser, handleClearSelfAssignment, onApproveApprovalRequest, onRejectApprovalRequest,
+    onSetApprovalWindowHours,
+  ]);
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -1447,7 +1487,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
         initialPendingRelationships={personDialog.initialPendingRelationships}
         loading={mutating}
         existingLastNames={existingLastNames}
-        relationshipCandidates={people.filter((candidate) => candidate.id !== personDialog.person?.id)}
+        relationshipCandidates={personDialogRelationshipCandidates}
         onDismiss={closePersonDialog}
         onSubmit={handlePersonSubmit}
       />
@@ -1455,10 +1495,10 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
       <PersonFormDialog
         visible={selfPersonDialogVisible}
         mode="create"
-        initialValues={{
-          firstName: getUserNameParts(user).firstName,
-          lastName: getUserNameParts(user).lastName,
-          gender: 'unspecified',
+        initialValues={useMemo(() => ({
+          firstName: selfUserNameParts.firstName,
+          lastName: selfUserNameParts.lastName,
+          gender: 'unspecified' as const,
           birthDate: '',
           deathDate: '',
           notes: '',
@@ -1467,11 +1507,11 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
           removedPhotos: [],
           newPhotoUris: [],
           preferredPhotoRef: '',
-        }}
+        }), [selfUserNameParts.firstName, selfUserNameParts.lastName])}
         loading={mutating}
         existingLastNames={existingLastNames}
         relationshipCandidates={people}
-        onDismiss={() => setSelfPersonDialogVisible(false)}
+        onDismiss={useCallback(() => setSelfPersonDialogVisible(false), [])}
         onSubmit={handleSelfPersonSubmit}
       />
 

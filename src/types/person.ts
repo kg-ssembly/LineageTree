@@ -63,6 +63,44 @@ export function getDisplayPersonPhoto(person?: PersonRecord | null) {
   return getPreferredPersonPhoto(person) ?? person?.photos[0] ?? null;
 }
 
+function getPersonAgeInYears(person?: PersonRecord | null) {
+  if (!person?.birthDate) {
+    return null;
+  }
+
+  const birthDate = parsePersonDate(person.birthDate);
+  if (!birthDate) {
+    return null;
+  }
+
+  const endDate = parsePersonDate(person.deathDate) ?? new Date();
+  let age = endDate.getFullYear() - birthDate.getFullYear();
+  const monthDelta = endDate.getMonth() - birthDate.getMonth();
+
+  if (monthDelta < 0 || (monthDelta === 0 && endDate.getDate() < birthDate.getDate())) {
+    age -= 1;
+  }
+
+  return age;
+}
+
+export function getPersonFallbackAvatarIcon(person?: PersonRecord | null) {
+  const ageInYears = getPersonAgeInYears(person);
+  if (typeof ageInYears === 'number' && ageInYears >= 0 && ageInYears <= 2) {
+    return 'baby-face-outline';
+  }
+
+  if (person?.gender === 'female') {
+    return 'human-female';
+  }
+
+  if (person?.gender === 'male') {
+    return 'human-male';
+  }
+
+  return 'account';
+}
+
 export function parsePersonDate(value: string) {
   if (!value) {
     return null;

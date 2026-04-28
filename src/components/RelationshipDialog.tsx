@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
-import { Button, Chip, Dialog, HelperText, Portal, SegmentedButtons, Text, TextInput } from 'react-native-paper';
+import { Button, Chip, Dialog, HelperText, Portal, SegmentedButtons, Text, TextInput, useTheme } from 'react-native-paper';
 import type { PersonRecord } from '../types/person';
 import type { RelationshipRecord, RelationshipType } from '../types/relationship';
 
@@ -25,6 +25,7 @@ export default function RelationshipDialog({
   onDismiss,
   onSubmit,
 }: RelationshipDialogProps) {
+  const theme = useTheme();
   const [type, setType] = useState<RelationshipType>('parent-child');
   const [fromPersonId, setFromPersonId] = useState('');
   const [toPersonId, setToPersonId] = useState('');
@@ -106,23 +107,29 @@ export default function RelationshipDialog({
 
   return (
     <Portal>
-      <Dialog visible={visible} onDismiss={loading ? undefined : onDismiss} style={styles.dialog}>
-        <Dialog.Title>Add relationship</Dialog.Title>
+      <Dialog
+        visible={visible}
+        onDismiss={loading ? undefined : onDismiss}
+        style={[styles.dialog, { backgroundColor: theme.colors.surface }]}
+      >
+        <Dialog.Title style={styles.dialogTitle}>Add relationship</Dialog.Title>
         <Dialog.ScrollArea style={styles.scrollArea}>
-          <ScrollView keyboardShouldPersistTaps="handled">
-            <SegmentedButtons
-              value={type}
-              onValueChange={(value) => {
-                setType(value as RelationshipType);
-                setError(null);
-              }}
-              buttons={[
-                { value: 'parent-child', label: 'Parent → Child' },
-                { value: 'spouse', label: 'Spouse ↔ Spouse' },
-              ]}
-            />
+          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
+            <View style={[styles.relationshipTypeCard, { borderColor: theme.colors.outlineVariant }]}>
+              <SegmentedButtons
+                value={type}
+                onValueChange={(value) => {
+                  setType(value as RelationshipType);
+                  setError(null);
+                }}
+                buttons={[
+                  { value: 'parent-child', label: 'Parent -> Child' },
+                  { value: 'spouse', label: 'Spouse <-> Spouse' },
+                ]}
+              />
+            </View>
 
-            <View style={styles.section}>
+            <View style={[styles.section, styles.sectionCard, { borderColor: theme.colors.outlineVariant }]}>
               <Text variant="titleSmall">{firstLabel}</Text>
               <TextInput
                 mode="outlined"
@@ -150,7 +157,7 @@ export default function RelationshipDialog({
               </View>
             </View>
 
-            <View style={styles.section}>
+            <View style={[styles.section, styles.sectionCard, { borderColor: theme.colors.outlineVariant }]}>
               <Text variant="titleSmall">{secondLabel}</Text>
               <TextInput
                 mode="outlined"
@@ -183,7 +190,7 @@ export default function RelationshipDialog({
             </HelperText>
           </ScrollView>
         </Dialog.ScrollArea>
-        <Dialog.Actions>
+        <Dialog.Actions style={[styles.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}> 
           <Button onPress={onDismiss} disabled={loading}>Cancel</Button>
           <Button onPress={handleSubmit} disabled={loading || people.length < 2}>Save</Button>
         </Dialog.Actions>
@@ -194,16 +201,39 @@ export default function RelationshipDialog({
 
 const styles = StyleSheet.create({
   dialog: {
-    maxHeight: '85%',
-    marginHorizontal: 16,
+    maxHeight: '90%',
+    marginHorizontal: 12,
+    borderRadius: 5,
+  },
+  dialogTitle: {
+    paddingBottom: 4,
   },
   scrollArea: {
     borderBottomWidth: 0,
     borderTopWidth: 0,
-    paddingHorizontal: 0,
+    paddingHorizontal: 4,
+  },
+  content: {
+    paddingHorizontal: 4,
+    paddingBottom: 8,
+  },
+  dialogActions: {
+    paddingHorizontal: 8,
+    paddingTop: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  relationshipTypeCard: {
+    borderRadius: 5,
+    borderWidth: 1,
+    padding: 8,
   },
   section: {
     marginTop: 16,
+  },
+  sectionCard: {
+    borderRadius: 5,
+    borderWidth: 1,
+    padding: 12,
   },
   searchInput: {
     marginTop: 8,
