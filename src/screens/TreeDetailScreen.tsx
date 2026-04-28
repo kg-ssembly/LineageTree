@@ -19,7 +19,7 @@ import {
   TextInput,
   useTheme,
 } from 'react-native-paper';
-import { canUserReviewApprovalRequest, isApprovalExpired, type ApprovalRequest } from '../types/approval';
+import { canUserReviewApprovalRequest, isApprovalExpired, type ApprovalRequest } from '../../components/dto/approval';
 import {
   CollaboratorDialog,
   ConfirmDialog,
@@ -30,16 +30,16 @@ import {
 import type { PersonFormSubmission } from '../components/PersonFormDialog';
 import { useAuthStore } from '../store/authStore';
 import { useTreeStore } from '../store/treeStore';
-import type { PersonGender, PersonRecord } from '../types/person';
+import type { PersonGender, PersonRecord } from '../../components/dto/person';
 import {
   getPersonFallbackAvatarIcon,
   getPersonPresenceLabel,
   getPreferredPersonPhoto,
   isPersonDeceased,
-} from '../types/person';
-import type { RelationshipRecord } from '../types/relationship';
-import type { RootStackParamList, TreeDetailTabParamList } from '../types/navigation';
-import { getUserDisplayLabel, getUserNameParts, type UserProfile } from '../types/user';
+} from '../../components/dto/person';
+import type { RelationshipRecord } from '../../components/dto/relationship';
+import type { RootStackParamList, TreeDetailTabParamList } from '../../components/dto/navigation';
+import { getUserDisplayLabel, getUserNameParts, type UserProfile } from '../../components/dto/user';
 import { formatPersonGender, formatPersonName } from '../lib/personFormatting';
 import {
   canEditTreeContent,
@@ -49,7 +49,7 @@ import {
   getTreeRole,
   type CollaboratorRole,
   type FamilyTree,
-} from '../types/tree';
+} from '../../components/dto/tree';
 import type { PendingRelationshipSubmission } from '../components/PersonFormDialog';
 import { GlobalStyles } from '../styles/global-styles';
 

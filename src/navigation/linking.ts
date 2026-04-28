@@ -1,5 +1,5 @@
 import type { LinkingOptions } from '@react-navigation/native';
-import type { RootStackParamList, TreeDetailTabParamList } from '../types/navigation';
+import type { RootStackParamList, TreeDetailTabParamList } from '../../components/dto/navigation';
 
 const tabPathByKey: Record<keyof TreeDetailTabParamList, string> = {
   PeopleRelationshipsTab: 'family-members',

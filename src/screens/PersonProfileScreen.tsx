@@ -20,7 +20,7 @@ import { ConfirmDialog, FamilyTreeCanvas, LifeEventDialog, PersonFormDialog, Per
 import type { PersonRelationshipMode } from '../components/PersonRelationshipDialog';
 import { useAuthStore } from '../store/authStore';
 import { useTreeStore } from '../store/treeStore';
-import type { PersonGender, PersonLifeEvent, PersonMutationPayload, PersonRecord } from '../types/person';
+import type { PersonGender, PersonLifeEvent, PersonMutationPayload, PersonRecord } from '../../components/dto/person';
 import {
   formatPersonDate,
   getLifeEventTypeLabel,
@@ -28,10 +28,10 @@ import {
   getPersonPresenceLabel,
   getPreferredPersonPhoto,
   isPersonDeceased,
-} from '../types/person';
-import type { RelationshipRecord } from '../types/relationship';
-import type { RootStackParamList } from '../types/navigation';
-import { canEditTreeContent, getAssignedPersonId, getAssignedUserIdForPerson } from '../types/tree';
+} from '../../components/dto/person';
+import type { RelationshipRecord } from '../../components/dto/relationship';
+import type { RootStackParamList } from '../../components/dto/navigation';
+import { canEditTreeContent, getAssignedPersonId, getAssignedUserIdForPerson } from '../../components/dto/tree';
 import { formatPersonGender, formatPersonName } from '../lib/personFormatting';
 import { GlobalStyles } from '../styles/global-styles';
 

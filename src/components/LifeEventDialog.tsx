@@ -2,8 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { Button, Chip, Dialog, HelperText, Portal, Text, TextInput } from 'react-native-paper';
 import { DatePickerModal } from 'react-native-paper-dates';
-import type { PersonLifeEvent, PersonLifeEventType } from '../types/person';
-import { getLifeEventTypeLabel, parsePersonDate } from '../types/person';
+import type { PersonLifeEvent, PersonLifeEventType } from '../../components/dto/person';
+import { getLifeEventTypeLabel, parsePersonDate } from '../../components/dto/person';
 import { GlobalStyles } from '../styles/global-styles';
 
 const styles = GlobalStyles.lifeEventDialog;

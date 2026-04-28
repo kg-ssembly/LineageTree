@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { Button, Card, Chip, Text, useTheme } from 'react-native-paper';
-import type { PersonRecord } from '../types/person';
-import type { RelationshipRecord } from '../types/relationship';
+import type { PersonRecord } from '../../components/dto/person';
+import type { RelationshipRecord } from '../../components/dto/relationship';
 import { computeRelationshipInsight } from '../services';
 import { GlobalStyles } from '../styles/global-styles';
 

@@ -10,7 +10,7 @@ import SignUpScreen from '../screens/auth/SignUpScreen';
 import HomeScreen from '../screens/HomeScreen';
 import TreeDetailScreen from '../screens/TreeDetailScreen';
 import PersonProfileScreen from '../screens/PersonProfileScreen';
-import type { RootStackParamList } from '../types/navigation';
+import type { RootStackParamList } from '../../components/dto/navigation';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 

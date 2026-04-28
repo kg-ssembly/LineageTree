@@ -9,7 +9,7 @@ import {
 } from 'firebase/auth';
 import { deleteField, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../lib/firebase';
-import type { UserProfile } from '../types/user';
+import type { UserProfile } from '../../components/dto/user';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

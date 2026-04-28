@@ -21,9 +21,9 @@ import type { ThemePreference } from '../lib/theme';
 import { useAuthStore } from '../store/authStore';
 import { useThemeStore } from '../store/themeStore';
 import { useTreeStore } from '../store/treeStore';
-import type { RootStackParamList } from '../types/navigation';
-import type { FamilyTree } from '../types/tree';
-import { canManageTree, getTreeRole } from '../types/tree';
+import type { RootStackParamList } from '../../components/dto/navigation';
+import type { FamilyTree } from '../../components/dto/tree';
+import { canManageTree, getTreeRole } from '../../components/dto/tree';
 import { GlobalStyles } from '../styles/global-styles';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;

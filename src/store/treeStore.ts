@@ -1,9 +1,9 @@
 import { create } from 'zustand';
-import type { ApprovalRequest } from '../types/approval';
-import type { PersonInput, PersonMutationPayload, PersonRecord } from '../types/person';
-import type { RelationshipRecord } from '../types/relationship';
-import type { CollaboratorRole, FamilyTree } from '../types/tree';
-import type { UserProfile } from '../types/user';
+import type { ApprovalRequest } from '../../components/dto/approval';
+import type { PersonInput, PersonMutationPayload, PersonRecord } from '../../components/dto/person';
+import type { RelationshipRecord } from '../../components/dto/relationship';
+import type { CollaboratorRole, FamilyTree } from '../../components/dto/tree';
+import type { UserProfile } from '../../components/dto/user';
 import {
   addCollaboratorToTree,
   assignTreePersonToUser,

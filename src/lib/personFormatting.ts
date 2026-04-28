@@ -1,4 +1,4 @@
-import type { PersonGender, PersonRecord } from '../types/person';
+import type { PersonGender, PersonRecord } from '../../components/dto/person';
 
 export function formatPersonName(person?: PersonRecord | null) {
   if (!person) {

@@ -4,10 +4,10 @@ import { NavigationContainer } from '@react-navigation/native';
 import { PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { getAppThemes } from './src/lib/theme';
-import linking from './src/navigation/linking';
-import RootNavigator from './src/navigation/RootNavigator';
-import { useThemeStore } from './src/store/themeStore';
+import { getAppThemes } from './constants/theme';
+import linking from './app/navigation/app-linking';
+import RootNavigator from './app/navigation/root-navigator';
+import { useThemeStore } from './stores/theme-store';
 
 export default function App() {
   const systemColorScheme = useColorScheme();

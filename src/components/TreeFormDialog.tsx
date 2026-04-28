@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Button, Dialog, HelperText, Portal, TextInput } from 'react-native-paper';
-import type { FamilyTree } from '../types/tree';
+import type { FamilyTree } from '../../components/dto/tree';
 import { GlobalStyles } from '../styles/global-styles';
 
 const styles = GlobalStyles.treeFormDialog;

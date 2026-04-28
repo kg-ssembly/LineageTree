@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { Button, Chip, Dialog, HelperText, Portal, SegmentedButtons, Text, TextInput } from 'react-native-paper';
-import type { PersonRecord } from '../types/person';
-import type { RelationshipRecord } from '../types/relationship';
+import type { PersonRecord } from '../../components/dto/person';
+import type { RelationshipRecord } from '../../components/dto/relationship';
 import { GlobalStyles } from '../styles/global-styles';
 
 const styles = GlobalStyles.personRelationshipDialog;

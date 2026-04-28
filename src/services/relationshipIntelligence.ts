@@ -1,5 +1,5 @@
-import type { PersonGender, PersonRecord } from '../types/person';
-import type { RelationshipRecord } from '../types/relationship';
+import type { PersonGender, PersonRecord } from '../../components/dto/person';
+import type { RelationshipRecord } from '../../components/dto/relationship';
 
 type ConnectionRelation = 'parent' | 'child' | 'spouse';
 
