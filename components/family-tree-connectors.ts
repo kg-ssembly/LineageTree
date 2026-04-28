@@ -200,23 +200,9 @@ export function buildConnectors(
   const parentChildConnectors: Connector[] = [];
 
   familiesByLevel.forEach((entries, childLevel) => {
-    // Sort by parent center X to allocate lanes left → right.
     entries.sort((a, b) => a.parentCenterX - b.parentCenterX);
 
-    // Determine the band between this level's parents bottom and child top.
-    const childTopYs = entries.flatMap((e) =>
-      e.childPersonIds.map((id) => positionsByPersonId.get(id)?.y ?? Infinity),
-    );
-    const childTopY = Math.min(...childTopYs);
-    const parentBottomMax = Math.max(...entries.map((e) => e.parentBottomY));
-    const bandTop = parentBottomMax + 14;
-    const bandBottom = childTopY - 14;
-    const usable = Math.max(20, bandBottom - bandTop);
-    const laneCount = entries.length;
-    const laneStep = usable / (laneCount + 1);
-
-    entries.forEach((entry, i) => {
-      const junctionY = bandTop + (i + 1) * laneStep;
+    entries.forEach((entry) => {
       const childCenters = entry.childPersonIds
         .map((id) => positionsByPersonId.get(id))
         .filter((p): p is { x: number; y: number } => Boolean(p))
@@ -225,20 +211,15 @@ export function buildConnectors(
 
       if (childCenters.length === 0) return;
 
+      // Midpoint of the vertical gap — used as the "elbow" for the shared trunk
+      // and as the horizontal bus when there are multiple children.
+      const midY = (entry.parentBottomY + childCenters[0].topY) / 2;
+
+      // Trunk: bottom-center of parent → midY
       const trunkPts = [
         { x: entry.parentCenterX, y: entry.parentBottomY },
-        { x: entry.parentCenterX, y: junctionY },
+        { x: entry.parentCenterX, y: midY },
       ];
-
-      // Horizontal bus from leftmost child x → rightmost child x at junctionY.
-      const busLeft = Math.min(entry.parentCenterX, childCenters[0].cx);
-      const busRight = Math.max(entry.parentCenterX, childCenters[childCenters.length - 1].cx);
-      const busPts = [
-        { x: busLeft, y: junctionY },
-        { x: busRight, y: junctionY },
-      ];
-
-      // Trunk
       parentChildConnectors.push({
         key: `pc-trunk-${childLevel}-${entry.parentGroupId}`,
         d: pointsToRoundedPath(trunkPts, 12),
@@ -247,21 +228,28 @@ export function buildConnectors(
         bounds: boundsOf(trunkPts),
       });
 
-      // Bus
+      // Horizontal bus at midY: connects trunk end to each child drop.
+      // Needed whenever the parent center X doesn't align with a child center X.
+      const busLeft = Math.min(entry.parentCenterX, childCenters[0].cx);
+      const busRight = Math.max(entry.parentCenterX, childCenters[childCenters.length - 1].cx);
       if (busLeft !== busRight) {
+        const busPts = [
+          { x: busLeft, y: midY },
+          { x: busRight, y: midY },
+        ];
         parentChildConnectors.push({
           key: `pc-bus-${childLevel}-${entry.parentGroupId}`,
-          d: pointsToRoundedPath(busPts, 12),
+          d: pointsToRoundedPath(busPts, 0),
           stroke: colors.parentChild,
           strokeWidth: 2.5,
           bounds: boundsOf(busPts),
         });
       }
 
-      // Drops to each child
+      // Drop: midY → top-center of each child node
       childCenters.forEach((child) => {
         const dropPts = [
-          { x: child.cx, y: junctionY },
+          { x: child.cx, y: midY },
           { x: child.cx, y: child.topY },
         ];
         parentChildConnectors.push({
@@ -294,10 +282,12 @@ export function buildConnectors(
     const childPos = positionsByPersonId.get(r.toPersonId);
     if (!parentBounds || !childPos) return;
 
+    // Direct elbow: bottom of secondary parent → top of child.
+    const midY = (parentBounds.bottomY + childPos.y) / 2;
     const pts = [
       { x: parentBounds.centerX, y: parentBounds.bottomY },
-      { x: parentBounds.centerX, y: parentBounds.bottomY + 12 },
-      { x: childPos.x + C.NODE_WIDTH / 2, y: parentBounds.bottomY + 12 },
+      { x: parentBounds.centerX, y: midY },
+      { x: childPos.x + C.NODE_WIDTH / 2, y: midY },
       { x: childPos.x + C.NODE_WIDTH / 2, y: childPos.y },
     ];
     parentChildConnectors.push({
