@@ -339,6 +339,62 @@ export function layoutFamilyTree(
     cursorX += (maxX - minX) + C.HORIZONTAL_GAP;
   });
 
+  // ── Level correction ────────────────────────────────────────────────────────
+  // Walker only uses primary-parent edges for level assignment.
+  // Secondary parents may therefore sit at the same level or even *below* one
+  // of their children, causing connector lines to pass through intermediate
+  // cards.  Fix: iterate all parent-child relationships and enforce
+  //   child.level > parent.level
+  // for every edge.  Repeat until convergence, then propagate the increases
+  // down each subtree so no descendant ends up above its ancestor.
+
+  // Full parent→child map (all edges, not just primary ones).
+  const fullChildMap = new Map<string, Set<string>>();
+  relationships.forEach((r) => {
+    if (r.type !== 'parent-child') return;
+    const pGid = groupIdByPerson.get(r.fromPersonId);
+    const cGid = groupIdByPerson.get(r.toPersonId);
+    if (!pGid || !cGid || pGid === cGid) return;
+    if (!fullChildMap.has(pGid)) fullChildMap.set(pGid, new Set());
+    fullChildMap.get(pGid)!.add(cGid);
+  });
+
+  // Converging BFS: push child.level above parent.level wherever violated.
+  let correcting = true;
+  while (correcting) {
+    correcting = false;
+    fullChildMap.forEach((childGids, pGid) => {
+      const parent = nodesById.get(pGid);
+      if (!parent) return;
+      childGids.forEach((cGid) => {
+        const child = nodesById.get(cGid);
+        if (!child) return;
+        if (child.level <= parent.level) {
+          child.level = parent.level + 1;
+          correcting = true;
+        }
+      });
+    });
+  }
+
+  // Propagate corrections downward through each primary subtree so that
+  // descendants of a raised node are also raised.
+  const propagateLevels = (node: GroupNode) => {
+    node.children.forEach((child) => {
+      if (child.level <= node.level) {
+        child.level = node.level + 1;
+        propagateLevels(child);
+      }
+    });
+  };
+  roots.forEach(propagateLevels);
+
+  // Re-derive Y coordinates from the (potentially corrected) levels.
+  nodesById.forEach((n) => {
+    n.y = n.level * (C.NODE_HEIGHT + C.VERTICAL_GAP);
+  });
+  // ────────────────────────────────────────────────────────────────────────────
+
   // Build position map (person-level coordinates inside each group).
   const positionsByPersonId = new Map<string, NodePosition>();
   const levelBySpouseGroupId = new Map<string, number>();

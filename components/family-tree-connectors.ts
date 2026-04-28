@@ -20,6 +20,16 @@ type FamilyEntry = {
   parentBottomY: number;
 };
 
+/**
+ * Smooth cubic-bezier S-curve between two points.
+ * Control points are aligned vertically with each endpoint so the curve
+ * departs / arrives perfectly vertical and stays within the Y bounding box.
+ */
+function cubicBezierPath(x1: number, y1: number, x2: number, y2: number): string {
+  const tension = Math.abs(y2 - y1) * 0.5;
+  return `M ${x1} ${y1} C ${x1} ${y1 + tension} ${x2} ${y2 - tension} ${x2} ${y2}`;
+}
+
 function pointsToRoundedPath(points: { x: number; y: number }[], radius: number): string {
   if (points.length === 0) return '';
   if (points.length === 1) return `M ${points[0].x} ${points[0].y}`;
@@ -215,6 +225,10 @@ export function buildConnectors(
       // and as the horizontal bus when there are multiple children.
       const midY = (entry.parentBottomY + childCenters[0].topY) / 2;
 
+      // Corner radius — large enough to look clearly curved but capped so it
+      // never exceeds half the shortest segment.
+      const cornerRadius = 28;
+
       // Trunk: bottom-center of parent → midY
       const trunkPts = [
         { x: entry.parentCenterX, y: entry.parentBottomY },
@@ -222,7 +236,7 @@ export function buildConnectors(
       ];
       parentChildConnectors.push({
         key: `pc-trunk-${childLevel}-${entry.parentGroupId}`,
-        d: pointsToRoundedPath(trunkPts, 12),
+        d: pointsToRoundedPath(trunkPts, cornerRadius),
         stroke: colors.parentChild,
         strokeWidth: 2.5,
         bounds: boundsOf(trunkPts),
@@ -246,7 +260,7 @@ export function buildConnectors(
         });
       }
 
-      // Drop: midY → top-center of each child node
+      // Drop: midY → top-center of each child node (curved corner)
       childCenters.forEach((child) => {
         const dropPts = [
           { x: child.cx, y: midY },
@@ -254,7 +268,7 @@ export function buildConnectors(
         ];
         parentChildConnectors.push({
           key: `pc-drop-${childLevel}-${entry.parentGroupId}-${child.cx}`,
-          d: pointsToRoundedPath(dropPts, 12),
+          d: pointsToRoundedPath(dropPts, cornerRadius),
           stroke: colors.parentChild,
           strokeWidth: 2.5,
           bounds: boundsOf(dropPts),
@@ -282,20 +296,37 @@ export function buildConnectors(
     const childPos = positionsByPersonId.get(r.toPersonId);
     if (!parentBounds || !childPos) return;
 
-    // Direct elbow: bottom of secondary parent → top of child.
-    const midY = (parentBounds.bottomY + childPos.y) / 2;
-    const pts = [
+    // Route the secondary-parent connector entirely through the gap that sits
+    // just below the parent's row.  That band ( parentBottomY …
+    // parentBottomY + VERTICAL_GAP ) is guaranteed to be card-free:
+    //   • parent-level cards end at parentBottomY
+    //   • the next level starts VERTICAL_GAP pixels below
+    // Using 40 % of the gap keeps the horizontal well inside the safe band.
+    //
+    // After the horizontal we drop straight to the child with a smooth
+    // cubic-bezier S-curve so the line arrives vertically at the child's
+    // top-center — no sharp corners and no card intersections.
+    const safeY = parentBounds.bottomY + C.VERTICAL_GAP * 0.4;
+    const childCx = childPos.x + C.NODE_WIDTH / 2;
+
+    // Leg 1: parent bottom → safe horizontal Y (cubic S from parent center to child X)
+    // We split into two segments joined at (childCx, safeY) so the horizontal
+    // "kink" is retained for visual clarity, but both use smooth curves.
+    const leg1 = cubicBezierPath(parentBounds.centerX, parentBounds.bottomY, childCx, safeY);
+    const leg2 = cubicBezierPath(childCx, safeY, childCx, childPos.y);
+
+    const allPts = [
       { x: parentBounds.centerX, y: parentBounds.bottomY },
-      { x: parentBounds.centerX, y: midY },
-      { x: childPos.x + C.NODE_WIDTH / 2, y: midY },
-      { x: childPos.x + C.NODE_WIDTH / 2, y: childPos.y },
+      { x: childCx, y: safeY },
+      { x: childCx, y: childPos.y },
     ];
+
     parentChildConnectors.push({
       key: `pc-secondary-${r.id}`,
-      d: pointsToRoundedPath(pts, 10),
+      d: leg1 + ' ' + leg2.replace(/^M [^ ]+ [^ ]+/, ''),   // join paths (skip 2nd M)
       stroke: colors.secondaryParent,
       strokeWidth: 1.5,
-      bounds: boundsOf(pts),
+      bounds: boundsOf(allPts),
     });
   });
 
