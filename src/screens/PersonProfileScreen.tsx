@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Dimensions, Image, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Dimensions, Image, Modal, Pressable, ScrollView, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
   ActivityIndicator,
@@ -30,6 +30,8 @@ import {
 import type { RelationshipRecord } from '../types/relationship';
 import type { RootStackParamList } from '../types/navigation';
 import { canEditTreeContent, getAssignedPersonId, getAssignedUserIdForPerson } from '../types/tree';
+import { formatPersonGender, formatPersonName } from '../lib/personFormatting';
+import { GlobalStyles } from '../styles/global-styles';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PersonProfile'>;
 
@@ -52,22 +54,6 @@ type LifeEventDialogState = {
 };
 
 type PersonProfileTabKey = 'member-profile' | 'relationships' | 'descendant-tree' | 'ascendant-tree' | 'memories-gallery';
-
-function formatPersonName(person?: PersonRecord | null) {
-  if (!person) {
-    return 'Unknown family member';
-  }
-
-  return `${person.firstName} ${person.lastName}`.trim();
-}
-
-function formatGender(gender: PersonGender) {
-  if (gender === 'non-binary') {
-    return 'Non-binary';
-  }
-
-  return gender.charAt(0).toUpperCase() + gender.slice(1);
-}
 
 function getRelationshipModeForPerson(personId: string, relationship: RelationshipRecord): PersonRelationshipMode {
   if (relationship.type === 'spouse') {
@@ -171,6 +157,8 @@ const PERSON_PROFILE_TAB_GROUPS: PersonProfileTabKey[][] = [
   ['member-profile', 'relationships', 'descendant-tree'],
   ['ascendant-tree', 'memories-gallery'],
 ];
+
+const styles = GlobalStyles.personProfile;
 
 export default function PersonProfileScreen({ navigation, route }: Props) {
   const theme = useTheme();
@@ -601,7 +589,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
           </View>
 
           <View style={styles.metadataRow}>
-            {person.gender !== 'unspecified' ? <Chip compact>{formatGender(person.gender)}</Chip> : null}
+            {person.gender !== 'unspecified' ? <Chip compact>{formatPersonGender(person.gender)}</Chip> : null}
             <Chip compact icon={isPersonDeceased(person) ? 'flower-outline' : 'heart-pulse'}>{getPersonPresenceLabel(person)}</Chip>
             <Chip compact icon="image-multiple">{person.photos.length} photos</Chip>
             {preferredPhoto ? <Chip compact icon="star">Preferred photo selected</Chip> : null}
@@ -711,7 +699,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
               <Card mode="outlined" style={[styles.detailCard, { backgroundColor: theme.colors.elevation.level1, borderColor: theme.colors.outlineVariant }]}>
                 <Card.Content>
                   <Text variant="labelMedium" style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>Gender</Text>
-                  <Text variant="titleMedium">{person.gender === 'unspecified' ? 'Unspecified' : formatGender(person.gender)}</Text>
+                  <Text variant="titleMedium">{person.gender === 'unspecified' ? 'Unspecified' : formatPersonGender(person.gender)}</Text>
                 </Card.Content>
               </Card>
               <Card mode="outlined" style={[styles.detailCard, { backgroundColor: theme.colors.elevation.level1, borderColor: theme.colors.outlineVariant }]}>
@@ -1038,246 +1026,4 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8F7FF',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#F8F7FF',
-  },
-  content: {
-    padding: 16,
-    paddingBottom: 40,
-  },
-  heroCard: {
-    borderRadius: 5,
-    padding: 20,
-    marginBottom: 16,
-  },
-  heroToolbar: {
-    marginBottom: 12,
-    alignItems: 'flex-start',
-  },
-  heroToolbarButtonContent: {
-    paddingHorizontal: 0,
-  },
-  heroHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  heroIdentityWrap: {
-    flex: 1,
-    minWidth: 220,
-  },
-  heroNameRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    gap: 8,
-  },
-  heroSubtext: {
-    marginTop: 6,
-    color: '#6B6B74',
-  },
-  metadataRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 12,
-  },
-  claimBox: {
-    marginTop: 16,
-    padding: 16,
-    borderRadius: 5,
-  },
-  claimRow: {
-    gap: 12,
-  },
-  claimTextWrap: {
-    flex: 1,
-  },
-  claimText: {
-    marginTop: 6,
-    color: '#6B6B74',
-  },
-  sectionCard: {
-    borderRadius: 5,
-    padding: 16,
-    marginBottom: 16,
-  },
-  managementSegmentedButtons: {
-    marginTop: 12,
-  },
-  managementSegmentedButtonsSecondary: {
-    marginTop: 10,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  sectionHeaderText: {
-    flex: 1,
-    minWidth: 220,
-  },
-  sectionSubtitle: {
-    marginTop: 6,
-    color: '#6B6B74',
-  },
-  detailGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
-    marginTop: 16,
-  },
-  detailCard: {
-    minWidth: 160,
-    flexGrow: 1,
-    flexBasis: 160,
-    borderRadius: 5,
-  },
-  detailLabel: {
-    marginBottom: 8,
-    color: '#6B6B74',
-  },
-  relationshipList: {
-    marginTop: 16,
-  },
-  relationshipCard: {
-    marginBottom: 12,
-    borderRadius: 5,
-  },
-  relationshipRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: 8,
-  },
-  relationshipTextWrap: {
-    flex: 1,
-  },
-  relationshipChip: {
-    alignSelf: 'flex-start',
-  },
-  relationshipTitle: {
-    marginTop: 10,
-  },
-  relationshipSubtitle: {
-    marginTop: 6,
-    color: '#6B6B74',
-  },
-  rowActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 28,
-  },
-  stateText: {
-    marginTop: 8,
-    color: '#6B6B74',
-    textAlign: 'center',
-  },
-  notesBox: {
-    marginTop: 16,
-    padding: 16,
-    borderRadius: 5,
-    backgroundColor: '#F3F0FF',
-  },
-  notesText: {
-    marginTop: 8,
-    color: '#4E4E58',
-  },
-  sectionDivider: {
-    marginTop: 20,
-    marginBottom: 8,
-  },
-  gallerySection: {
-    marginTop: 12,
-  },
-  galleryRow: {
-    paddingTop: 12,
-    paddingRight: 12,
-  },
-  photoCard: {
-    marginRight: 12,
-    overflow: 'hidden',
-    borderRadius: 5,
-  },
-  photoCardPreferred: {
-    borderColor: '#7C4DFF',
-    borderWidth: 2,
-  },
-  photo: {
-    width: 220,
-    height: 180,
-    backgroundColor: '#ECE8FF',
-  },
-  lifeEventsSection: {
-    marginTop: 12,
-  },
-  timelineWrap: {
-    marginTop: 16,
-  },
-  timelineCard: {
-    marginBottom: 12,
-    borderRadius: 5,
-  },
-  timelineRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: 8,
-  },
-  timelineTextWrap: {
-    flex: 1,
-  },
-  timelineChipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  timelineTitle: {
-    marginTop: 10,
-  },
-  timelineDescription: {
-    marginTop: 8,
-    color: '#4E4E58',
-  },
-  viewerBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(12, 10, 24, 0.94)',
-    justifyContent: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 16,
-  },
-  viewerCloseButton: {
-    position: 'absolute',
-    top: 44,
-    right: 16,
-    zIndex: 2,
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-  },
-  viewerSlide: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-  },
-  viewerImage: {
-    width: '100%',
-    height: '78%',
-  },
-});
 

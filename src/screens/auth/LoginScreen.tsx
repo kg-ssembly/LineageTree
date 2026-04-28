@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import {
   ActivityIndicator,
   Button,
@@ -12,6 +12,7 @@ import {
   useTheme,
 } from 'react-native-paper';
 import { useAuthStore } from '../../store/authStore';
+import { GlobalStyles } from '../../styles/global-styles';
 
 function validateEmail(email: string): string | null {
   if (!email.trim()) return 'Email is required.';
@@ -22,6 +23,8 @@ function validatePassword(password: string): string | null {
   if (!password) return 'Password is required.';
   return null;
 }
+
+const styles = GlobalStyles.login;
 
 export default function LoginScreen({ navigation }: any) {
   const theme = useTheme();
@@ -143,28 +146,3 @@ export default function LoginScreen({ navigation }: any) {
   );
 }
 
-const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  scroll: { flexGrow: 1, justifyContent: 'center', padding: 20 },
-  heroWrap: {
-    marginBottom: 20,
-  },
-  heroTitle: {
-    marginTop: 14,
-    fontWeight: '800',
-  },
-  heroSubtitle: {
-    marginTop: 8,
-    lineHeight: 24,
-  },
-  card: {
-    borderRadius: 5,
-    padding: 24,
-  },
-  title: { marginBottom: 4, fontWeight: '700' },
-  subtitle: { marginBottom: 20 },
-  input: { marginTop: 4 },
-  button: { marginTop: 24, borderRadius: 5 },
-  buttonContent: { height: 52 },
-  linkButton: { marginTop: 10 },
-});

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
   ActivityIndicator,
@@ -22,6 +22,7 @@ import { useTreeStore } from '../store/treeStore';
 import type { RootStackParamList } from '../types/navigation';
 import type { FamilyTree } from '../types/tree';
 import { canManageTree, getTreeRole } from '../types/tree';
+import { GlobalStyles } from '../styles/global-styles';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
@@ -46,6 +47,8 @@ function formatRole(role: ReturnType<typeof getTreeRole>) {
 
   return role.charAt(0).toUpperCase() + role.slice(1);
 }
+
+const styles = GlobalStyles.home;
 
 export default function HomeScreen({ navigation, route }: Props) {
   const theme = useTheme();
@@ -439,132 +442,3 @@ export default function HomeScreen({ navigation, route }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  content: {
-    padding: 16,
-    paddingBottom: 40,
-  },
-  profileCard: {
-    borderRadius: 5,
-    padding: 20,
-    marginBottom: 16,
-  },
-  heroTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  avatar: {
-    marginBottom: 4,
-  },
-  profileTextWrap: {
-    marginTop: 16,
-  },
-  name: {
-    fontWeight: '800',
-    marginBottom: 4,
-  },
-  email: {
-    marginTop: 2,
-  },
-  heroDescription: {
-    marginTop: 10,
-    lineHeight: 22,
-  },
-  heroStatsRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 20,
-  },
-  statCard: {
-    flex: 1,
-    borderRadius: 5,
-    paddingVertical: 16,
-    paddingHorizontal: 14,
-  },
-  heroActionsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-    marginTop: 20,
-  },
-  heroActionButton: {
-    flexGrow: 1,
-  },
-  headerButtonContent: {
-    height: 48,
-  },
-  sectionCard: {
-    borderRadius: 5,
-    padding: 16,
-    marginBottom: 16,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  sectionTextWrap: {
-    flex: 1,
-    minWidth: 220,
-  },
-  sectionSubtitle: {
-    marginTop: 4,
-  },
-  themeSwitch: {
-    marginTop: 16,
-  },
-  appearanceHint: {
-    marginTop: 16,
-    borderRadius: 5,
-    padding: 14,
-  },
-  centeredState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 32,
-  },
-  emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 28,
-  },
-  stateText: {
-    marginTop: 8,
-    textAlign: 'center',
-  },
-  treeCard: {
-    marginTop: 12,
-    borderRadius: 5,
-    borderWidth: 1,
-  },
-  treeHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: 8,
-  },
-  treeTextWrap: {
-    flex: 1,
-  },
-  treeMetaText: {
-    marginTop: 4,
-  },
-  treeChipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 12,
-  },
-  cardActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-});

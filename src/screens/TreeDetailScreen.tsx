@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Image, ScrollView, StyleSheet, View } from 'react-native';
+import { Image, ScrollView, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -35,6 +35,7 @@ import { getPersonPresenceLabel, getPreferredPersonPhoto, isPersonDeceased } fro
 import type { RelationshipRecord } from '../types/relationship';
 import type { RootStackParamList, TreeDetailTabParamList } from '../types/navigation';
 import { getUserDisplayLabel, getUserNameParts, type UserProfile } from '../types/user';
+import { formatPersonGender, formatPersonName } from '../lib/personFormatting';
 import {
   canEditTreeContent,
   canManageTree,
@@ -45,6 +46,7 @@ import {
   type FamilyTree,
 } from '../types/tree';
 import type { PendingRelationshipSubmission } from '../components/PersonFormDialog';
+import { GlobalStyles } from '../styles/global-styles';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'TreeDetail'>;
 
@@ -119,22 +121,7 @@ interface SharedTabProps {
 }
 
 const Tab = createBottomTabNavigator<TreeDetailTabParamList>();
-
-function formatPersonName(person?: PersonRecord | null) {
-  if (!person) {
-    return 'Unknown family member';
-  }
-
-  return `${person.firstName} ${person.lastName}`.trim();
-}
-
-function formatGender(gender: PersonGender) {
-  if (gender === 'non-binary') {
-    return 'Non-binary';
-  }
-
-  return gender.charAt(0).toUpperCase() + gender.slice(1);
-}
+const styles = GlobalStyles.treeDetail;
 
 function formatRole(role: string | null | undefined) {
   if (!role) {
@@ -327,7 +314,7 @@ function PeopleRelationshipsTabContent({
                             {isCurrentUsersPerson ? <Chip compact icon="account">You</Chip> : null}
                           </View>
                           <View style={styles.metadataRow}>
-                            {person.gender !== 'unspecified' ? <Chip compact>{formatGender(person.gender)}</Chip> : null}
+                            {person.gender !== 'unspecified' ? <Chip compact>{formatPersonGender(person.gender)}</Chip> : null}
                             {person.birthDate ? <Chip compact icon="calendar">{person.birthDate}</Chip> : null}
                             <Chip compact icon={isPersonDeceased(person) ? 'flower-outline' : 'heart-pulse'}>
                               {getPersonPresenceLabel(person)}
@@ -1537,294 +1524,3 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8F7FF',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#F8F7FF',
-  },
-  tabScene: {
-    backgroundColor: '#F8F7FF',
-  },
-  tabBar: {
-    height: 64,
-    paddingTop: 6,
-    paddingBottom: 8,
-    borderTopWidth: 1,
-    elevation: 0,
-    shadowOpacity: 0,
-  },
-  tabLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    textTransform: 'none',
-  },
-  tabItem: {
-    minHeight: 52,
-  },
-  content: {
-    padding: 16,
-    paddingBottom: 40,
-  },
-  sectionCard: {
-    borderRadius: 5,
-    padding: 16,
-    marginBottom: 16,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 12,
-  },
-  titleWrap: {
-    flex: 1,
-    minWidth: 220,
-  },
-  sectionSubtitle: {
-    marginTop: 4,
-    color: '#6B6B74',
-  },
-  managementSegmentedButtons: {
-    marginTop: 16,
-  },
-  treeSettingsWrap: {
-    marginTop: 16,
-  },
-  approvalWindowRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    gap: 12,
-    marginTop: 12,
-  },
-  approvalWindowInput: {
-    minWidth: 120,
-    flexBasis: 120,
-  },
-  summaryChipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 16,
-  },
-  collaboratorList: {
-    marginTop: 16,
-  },
-  collaboratorCard: {
-    marginBottom: 12,
-  },
-  collaboratorRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: 8,
-  },
-  approvalRequestHeader: {
-    gap: 12,
-  },
-  approvalRequestActions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 4,
-  },
-  collaboratorTextWrap: {
-    flex: 1,
-  },
-  collaboratorMeta: {
-    color: '#6B6B74',
-    marginTop: 4,
-  },
-  collaboratorChipRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 12,
-  },
-  actionButtonsWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  visualisationTabContainer: {
-    flex: 1,
-    padding: 12,
-    paddingTop: 8,
-    paddingBottom: 12,
-  },
-  visualisationEmptyState: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 5,
-    paddingHorizontal: 24,
-  },
-  filterInput: {
-    marginTop: 16,
-  },
-  filterRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 12,
-  },
-  profileMetricsWrap: {
-    marginTop: 16,
-    gap: 12,
-  },
-  selfAssignmentSectionWrap: {
-    marginTop: 20,
-  },
-  selfAssignmentCard: {
-    marginTop: 16,
-    borderRadius: 5,
-  },
-  selfAssignmentHeader: {
-    gap: 12,
-  },
-  selfAssignmentTextWrap: {
-    flex: 1,
-  },
-  selfAssignmentTitle: {
-    marginTop: 10,
-  },
-  selfAssignmentActions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 4,
-  },
-  assignmentHelperText: {
-    marginTop: 12,
-  },
-  assignmentSuggestionList: {
-    marginTop: 16,
-    gap: 12,
-  },
-  assignmentSuggestionCard: {
-    borderRadius: 5,
-  },
-  assignmentSuggestionRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: 12,
-  },
-  assignmentSuggestionTextWrap: {
-    flex: 1,
-  },
-  assignmentChooserWrap: {
-    marginTop: 20,
-  },
-  assignmentSearchInput: {
-    marginTop: 12,
-  },
-  collaboratorSectionWrap: {
-    marginTop: 20,
-  },
-  metricCard: {
-    marginBottom: 0,
-  },
-  centeredState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 32,
-  },
-  emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 28,
-  },
-  stateText: {
-    marginTop: 8,
-    color: '#6B6B74',
-    textAlign: 'center',
-  },
-  emptyStateButton: {
-    marginTop: 16,
-  },
-  emptyStateActionRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: 12,
-    marginTop: 4,
-  },
-  personCard: {
-    marginTop: 16,
-  },
-  personHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: 8,
-  },
-  personPhotoWrap: {
-    marginRight: 4,
-  },
-  personPhoto: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    borderWidth: 2,
-    borderColor: '#CFC5FF',
-    backgroundColor: '#ECE8FF',
-  },
-  personPhotoFallback: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    borderWidth: 2,
-    borderColor: '#CFC5FF',
-    backgroundColor: '#ECE8FF',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  personHeaderText: {
-    flex: 1,
-  },
-  personNameRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    gap: 8,
-  },
-  metadataRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 8,
-  },
-  personNotes: {
-    marginTop: 12,
-    color: '#3E3E45',
-  },
-  cardActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  ownerSuggestionWrap: {
-    marginTop: 16,
-    paddingTop: 16,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#D7D1F9',
-  },
-  ownerSuggestionButton: {
-    marginTop: 12,
-    alignSelf: 'flex-start',
-  },
-  quickActionDialog: {
-    marginHorizontal: 16,
-  },
-  quickActionSubtitle: {
-    marginBottom: 8,
-  },
-});
