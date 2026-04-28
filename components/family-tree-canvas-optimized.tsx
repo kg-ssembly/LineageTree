@@ -89,10 +89,10 @@ function formatPersonName(person: PersonRecord) {
 // Subtree filtering (descendant / ascendant lineage) — preserved from original
 // ---------------------------------------------------------------------------
 function buildLineageSubtree(
-    people: PersonRecord[],
-    relationships: RelationshipRecord[],
-    rootPersonId: string | undefined,
-    direction: 'descendant' | 'ascendant',
+  people: PersonRecord[],
+  relationships: RelationshipRecord[],
+  rootPersonId: string | undefined,
+  direction: 'descendant' | 'ascendant',
 ) {
   if (!rootPersonId) return { renderedPeople: people, renderedRelationships: relationships };
   const peopleById = new Map(people.map((p) => [p.id, p]));
@@ -160,46 +160,46 @@ const PersonNode = React.memo(function PersonNode(props: PersonNodeProps) {
   const photo = getPreferredPersonPhoto(person);
 
   return (
-      <Pressable
-          onPress={() => onPress(person)}
-          hitSlop={6}
-          style={({ pressed }) => [
-            styles.node,
-            {
-              backgroundColor: surfaceColor,
-              borderColor: outlineColor,
-              left: x,
-              top: y,
-              width: C.NODE_WIDTH,
-              height: C.NODE_HEIGHT,
-              opacity: pressed ? 0.85 : 1,
-              // Web: ensure pointer events still bubble for the Pressable.
-              ...(Platform.OS === 'web' ? ({ cursor: 'pointer' } as any) : null),
-            },
-          ]}
-      >
-        {isCurrentUser ? (
-            <View style={[styles.nodeBadge, { backgroundColor: primaryColor }]}>
-              <Text variant="labelSmall" style={[styles.nodeBadgeText, { color: onPrimaryColor }]}>You</Text>
-            </View>
-        ) : null}
-        <View style={styles.nodeInnerRow}>
-          <View style={styles.nodeAvatarWrap}>
-            {photo ? (
-                <Image source={{ uri: photo.url }} style={styles.nodeAvatar} />
-            ) : (
-                <View style={[styles.nodeAvatarFallback, { borderColor: outlineColor, backgroundColor: variantSurface }]}>
-                  <MaterialCommunityIcons name={getPersonFallbackAvatarIcon(person)} size={28} color={primaryColor} />
-                </View>
-            )}
-          </View>
-          <View style={styles.nodeTextWrap}>
-            <Text variant="titleSmall" style={styles.nodeTitle} numberOfLines={2}>{formatPersonName(person)}</Text>
-            <Text variant="bodySmall" style={[styles.nodeMeta, { color: variantOnSurface }]} numberOfLines={1}>{getPersonLifeSpanLabel(person)}</Text>
-            <Text variant="bodySmall" style={[styles.nodeMeta, { color: variantOnSurface }]} numberOfLines={1}>{getPersonPresenceLabel(person)}</Text>
-          </View>
+    <Pressable
+      onPress={() => onPress(person)}
+      hitSlop={6}
+      style={({ pressed }) => [
+        styles.node,
+        {
+          backgroundColor: surfaceColor,
+          borderColor: outlineColor,
+          left: x,
+          top: y,
+          width: C.NODE_WIDTH,
+          height: C.NODE_HEIGHT,
+          opacity: pressed ? 0.85 : 1,
+          // Web: ensure pointer events still bubble for the Pressable.
+          ...(Platform.OS === 'web' ? ({ cursor: 'pointer' } as any) : null),
+        },
+      ]}
+    >
+      {isCurrentUser ? (
+        <View style={[styles.nodeBadge, { backgroundColor: primaryColor }]}>
+          <Text variant="labelSmall" style={[styles.nodeBadgeText, { color: onPrimaryColor }]}>You</Text>
         </View>
-      </Pressable>
+      ) : null}
+      <View style={styles.nodeInnerRow}>
+        <View style={styles.nodeAvatarWrap}>
+          {photo ? (
+            <Image source={{ uri: photo.url }} style={styles.nodeAvatar} />
+          ) : (
+            <View style={[styles.nodeAvatarFallback, { borderColor: outlineColor, backgroundColor: variantSurface }]}>
+              <MaterialCommunityIcons name={getPersonFallbackAvatarIcon(person)} size={28} color={primaryColor} />
+            </View>
+          )}
+        </View>
+        <View style={styles.nodeTextWrap}>
+          <Text variant="titleSmall" style={styles.nodeTitle} numberOfLines={2}>{formatPersonName(person)}</Text>
+          <Text variant="bodySmall" style={[styles.nodeMeta, { color: variantOnSurface }]} numberOfLines={1}>{getPersonLifeSpanLabel(person)}</Text>
+          <Text variant="bodySmall" style={[styles.nodeMeta, { color: variantOnSurface }]} numberOfLines={1}>{getPersonPresenceLabel(person)}</Text>
+        </View>
+      </View>
+    </Pressable>
   );
 });
 
@@ -207,17 +207,17 @@ const PersonNode = React.memo(function PersonNode(props: PersonNodeProps) {
 // Main component
 // ---------------------------------------------------------------------------
 function FamilyTreeCanvas({
-                            people,
-                            relationships,
-                            onPressPerson,
-                            currentUserPersonId,
-                            initialFocusPersonId,
-                            descendantRootPersonId,
-                            ascendantRootPersonId,
-                            allowFullscreen = true,
-                            floatingControls = false,
-                            fillAvailableSpace = false,
-                          }: FamilyTreeCanvasProps) {
+  people,
+  relationships,
+  onPressPerson,
+  currentUserPersonId,
+  initialFocusPersonId,
+  descendantRootPersonId,
+  ascendantRootPersonId,
+  allowFullscreen = true,
+  floatingControls = false,
+  fillAvailableSpace = false,
+}: FamilyTreeCanvasProps) {
   const theme = useTheme();
   const { height: windowHeight } = useWindowDimensions();
   const inlineViewportHeight = Math.max(420, windowHeight - 360);
@@ -244,19 +244,19 @@ function FamilyTreeCanvas({
 
   // ---- Layout (tidy tree) ----
   const layout = useMemo(
-      () => layoutFamilyTree(renderedPeople, renderedRelationships, C),
-      [renderedPeople, renderedRelationships],
+    () => layoutFamilyTree(renderedPeople, renderedRelationships, C),
+    [renderedPeople, renderedRelationships],
   );
   const { positionsByPersonId, contentWidth, contentHeight } = layout;
 
   // ---- Connectors (lane-allocated) ----
   const { spouseConnectors, parentChildConnectors } = useMemo(
-      () => buildConnectors(renderedRelationships, layout, C, {
-        parentChild: theme.colors.primary,
-        spouse: theme.colors.secondary,
-        secondaryParent: theme.colors.tertiary ?? theme.colors.outline,
-      }),
-      [renderedRelationships, layout, theme.colors.primary, theme.colors.secondary, theme.colors.tertiary, theme.colors.outline],
+    () => buildConnectors(renderedRelationships, layout, C, {
+      parentChild: theme.colors.primary,
+      spouse: theme.colors.secondary,
+      secondaryParent: theme.colors.tertiary ?? theme.colors.outline,
+    }),
+    [renderedRelationships, layout, theme.colors.primary, theme.colors.secondary, theme.colors.tertiary, theme.colors.outline],
   );
   const allConnectors = useMemo(() => [...parentChildConnectors, ...spouseConnectors], [parentChildConnectors, spouseConnectors]);
 
@@ -370,65 +370,65 @@ function FamilyTreeCanvas({
   };
 
   const panResponder = useMemo(
-      () => PanResponder.create({
-        // Don't capture taps — let the underlying Pressable receive them.
-        onStartShouldSetPanResponder: () => false,
-        onStartShouldSetPanResponderCapture: () => false,
-        onMoveShouldSetPanResponder: (e, g: PanResponderGestureState) => {
-          if (e.nativeEvent.touches.length >= 2) return true;
-          return Math.hypot(g.dx, g.dy) > DRAG_ACTIVATION_DISTANCE;
-        },
-        onMoveShouldSetPanResponderCapture: (e, g) => {
-          if (e.nativeEvent.touches.length >= 2) return true;
-          return Math.hypot(g.dx, g.dy) > DRAG_ACTIVATION_DISTANCE;
-        },
-        onPanResponderGrant: (e) => {
-          gestureMovedRef.current = false;
-          dragStartPanRef.current = panRef.current;
-          if (e.nativeEvent.touches.length >= 2) {
+    () => PanResponder.create({
+      // Don't capture taps — let the underlying Pressable receive them.
+      onStartShouldSetPanResponder: () => false,
+      onStartShouldSetPanResponderCapture: () => false,
+      onMoveShouldSetPanResponder: (e, g: PanResponderGestureState) => {
+        if (e.nativeEvent.touches.length >= 2) return true;
+        return Math.hypot(g.dx, g.dy) > DRAG_ACTIVATION_DISTANCE;
+      },
+      onMoveShouldSetPanResponderCapture: (e, g) => {
+        if (e.nativeEvent.touches.length >= 2) return true;
+        return Math.hypot(g.dx, g.dy) > DRAG_ACTIVATION_DISTANCE;
+      },
+      onPanResponderGrant: (e) => {
+        gestureMovedRef.current = false;
+        dragStartPanRef.current = panRef.current;
+        if (e.nativeEvent.touches.length >= 2) {
+          pinchStateRef.current = {
+            startDist: distanceBetweenTouches(e),
+            startScale: scaleRef.current,
+            focal: focalOfTouches(e),
+          };
+        } else {
+          pinchStateRef.current = null;
+        }
+      },
+      onPanResponderMove: (e, g) => {
+        if (!gestureMovedRef.current) {
+          gestureMovedRef.current = Math.hypot(g.dx, g.dy) > DRAG_ACTIVATION_DISTANCE;
+        }
+
+        // Pinch?
+        if (e.nativeEvent.touches.length >= 2) {
+          if (!pinchStateRef.current) {
             pinchStateRef.current = {
               startDist: distanceBetweenTouches(e),
               startScale: scaleRef.current,
               focal: focalOfTouches(e),
             };
-          } else {
-            pinchStateRef.current = null;
-          }
-        },
-        onPanResponderMove: (e, g) => {
-          if (!gestureMovedRef.current) {
-            gestureMovedRef.current = Math.hypot(g.dx, g.dy) > DRAG_ACTIVATION_DISTANCE;
-          }
-
-          // Pinch?
-          if (e.nativeEvent.touches.length >= 2) {
-            if (!pinchStateRef.current) {
-              pinchStateRef.current = {
-                startDist: distanceBetweenTouches(e),
-                startScale: scaleRef.current,
-                focal: focalOfTouches(e),
-              };
-              return;
-            }
-            const dist = distanceBetweenTouches(e);
-            if (dist <= 0 || pinchStateRef.current.startDist <= 0) return;
-            const next = pinchStateRef.current.startScale * (dist / pinchStateRef.current.startDist);
-            zoomAt(pinchStateRef.current.focal.x, pinchStateRef.current.focal.y, next);
             return;
           }
+          const dist = distanceBetweenTouches(e);
+          if (dist <= 0 || pinchStateRef.current.startDist <= 0) return;
+          const next = pinchStateRef.current.startScale * (dist / pinchStateRef.current.startDist);
+          zoomAt(pinchStateRef.current.focal.x, pinchStateRef.current.focal.y, next);
+          return;
+        }
 
-          // Single-finger drag → pan in canvas space.
-          pinchStateRef.current = null;
-          setPan({
-            x: dragStartPanRef.current.x + g.dx / scaleRef.current,
-            y: dragStartPanRef.current.y + g.dy / scaleRef.current,
-          });
-        },
-        onPanResponderRelease: () => { pinchStateRef.current = null; },
-        onPanResponderTerminate: () => { pinchStateRef.current = null; },
-        onPanResponderTerminationRequest: () => false,
-      }),
-      [zoomAt],
+        // Single-finger drag → pan in canvas space.
+        pinchStateRef.current = null;
+        setPan({
+          x: dragStartPanRef.current.x + g.dx / scaleRef.current,
+          y: dragStartPanRef.current.y + g.dy / scaleRef.current,
+        });
+      },
+      onPanResponderRelease: () => { pinchStateRef.current = null; },
+      onPanResponderTerminate: () => { pinchStateRef.current = null; },
+      onPanResponderTerminationRequest: () => false,
+    }),
+    [zoomAt],
   );
 
   // ---- Viewport culling ----
@@ -446,10 +446,10 @@ function FamilyTreeCanvas({
   }, [pan.x, pan.y, scale, activeViewportSize.width, activeViewportSize.height]);
 
   const intersects = (b: { x: number; y: number; w: number; h: number }) => (
-      b.x + b.w >= viewportRect.x &&
-      b.x <= viewportRect.x + viewportRect.w &&
-      b.y + b.h >= viewportRect.y &&
-      b.y <= viewportRect.y + viewportRect.h
+    b.x + b.w >= viewportRect.x &&
+    b.x <= viewportRect.x + viewportRect.w &&
+    b.y + b.h >= viewportRect.y &&
+    b.y <= viewportRect.y + viewportRect.h
   );
 
   const visiblePeople = useMemo(() => renderedPeople.filter((p) => {
@@ -459,8 +459,8 @@ function FamilyTreeCanvas({
   }), [renderedPeople, positionsByPersonId, viewportRect]);
 
   const visibleConnectors = useMemo(
-      () => allConnectors.filter((c: Connector) => intersects(c.bounds)),
-      [allConnectors, viewportRect],
+    () => allConnectors.filter((c: Connector) => intersects(c.bounds)),
+    [allConnectors, viewportRect],
   );
 
   // ---- Layout handlers ----
@@ -475,153 +475,153 @@ function FamilyTreeCanvas({
 
   // ---- Labels ----
   const controlsLabel = lineageMode === 'ascendant'
-      ? 'Drag to pan, pinch / Ctrl-scroll to zoom through earlier generations.'
-      : lineageMode === 'descendant'
-          ? 'Drag to pan, pinch / Ctrl-scroll to zoom through descendants.'
-          : 'Drag to pan, pinch or Ctrl+scroll to zoom.';
+    ? 'Drag to pan, pinch / Ctrl-scroll to zoom through earlier generations.'
+    : lineageMode === 'descendant'
+      ? 'Drag to pan, pinch / Ctrl-scroll to zoom through descendants.'
+      : 'Drag to pan, pinch or Ctrl+scroll to zoom.';
   const fullscreenTitle = lineageMode === 'ascendant' ? 'Full-screen ascendant tree'
-      : lineageMode === 'descendant' ? 'Full-screen descendant tree' : 'Full-screen family tree';
+    : lineageMode === 'descendant' ? 'Full-screen descendant tree' : 'Full-screen family tree';
 
   // ---- Render helpers ----
   const transformStyle = Platform.OS === 'web'
-      ? ({ transform: `translate3d(${pan.x * scale}px, ${pan.y * scale}px, 0) scale(${scale})`, transformOrigin: '0 0' } as any)
-      : { transform: [{ translateX: pan.x * scale }, { translateY: pan.y * scale }, { scale }], };
+    ? ({ transform: `translate3d(${pan.x * scale}px, ${pan.y * scale}px, 0) scale(${scale})`, transformOrigin: '0 0' } as any)
+    : { transform: [{ translateX: pan.x * scale }, { translateY: pan.y * scale }, { scale }], };
 
   const renderFloatingControls = (mode: 'inline' | 'fullscreen') => (
-      <View pointerEvents="box-none" style={styles.viewportOverlay}>
-        <View style={[styles.floatingHintCard, { backgroundColor: theme.colors.backdrop }]}>
-          <Text variant="bodySmall" style={[styles.floatingHintText, { color: theme.colors.onPrimary }]}>{controlsLabel}</Text>
-        </View>
-        <View style={[styles.floatingControlsCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant }]}>
-          <Chip compact icon="magnify">{scale.toFixed(2)}x</Chip>
-          <IconButton icon="minus" size={18} mode="contained-tonal" onPress={() => zoomBy(-0.15)} />
-          <IconButton icon="plus" size={18} mode="contained-tonal" onPress={() => zoomBy(0.15)} />
-          <Button compact mode="contained-tonal" onPress={resetView}>Reset</Button>
-          {allowFullscreen ? (
-              mode === 'fullscreen'
-                  ? <Button compact mode="contained" icon="close" onPress={() => setIsFullscreen(false)}>Close</Button>
-                  : <Button compact mode="contained" icon="fullscreen" onPress={() => setIsFullscreen(true)}>Fullscreen</Button>
-          ) : null}
-        </View>
+    <View pointerEvents="box-none" style={styles.viewportOverlay}>
+      <View style={[styles.floatingHintCard, { backgroundColor: theme.colors.backdrop }]}>
+        <Text variant="bodySmall" style={[styles.floatingHintText, { color: theme.colors.onPrimary }]}>{controlsLabel}</Text>
       </View>
+      <View style={[styles.floatingControlsCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant }]}>
+        <Chip compact icon="magnify">{scale.toFixed(2)}x</Chip>
+        <IconButton icon="minus" size={18} mode="contained-tonal" onPress={() => zoomBy(-0.15)} />
+        <IconButton icon="plus" size={18} mode="contained-tonal" onPress={() => zoomBy(0.15)} />
+        <Button compact mode="contained-tonal" onPress={resetView}>Reset</Button>
+        {allowFullscreen ? (
+          mode === 'fullscreen'
+            ? <Button compact mode="contained" icon="close" onPress={() => setIsFullscreen(false)}>Close</Button>
+            : <Button compact mode="contained" icon="fullscreen" onPress={() => setIsFullscreen(true)}>Fullscreen</Button>
+        ) : null}
+      </View>
+    </View>
   );
 
   const renderViewport = (mode: 'inline' | 'fullscreen', viewportStyle?: object) => (
-      <View
-          {...(Platform.OS === 'web' ? ({ onWheel: handleWheel } as any) : {})}
-          style={[
-            styles.viewport,
-            { borderColor: theme.colors.outlineVariant, backgroundColor: theme.colors.elevation.level1, overflow: 'hidden' },
-            viewportStyle,
-          ]}
-          onLayout={mode === 'fullscreen' ? onLayoutFullscreen : onLayoutInline}
-      >
-        {/* The transformed canvas — nodes are Pressables so tap hit-testing
+    <View
+      {...(Platform.OS === 'web' ? ({ onWheel: handleWheel } as any) : {})}
+      style={[
+        styles.viewport,
+        { borderColor: theme.colors.outlineVariant, backgroundColor: theme.colors.elevation.level1, overflow: 'hidden' },
+        viewportStyle,
+      ]}
+      onLayout={mode === 'fullscreen' ? onLayoutFullscreen : onLayoutInline}
+    >
+      {/* The transformed canvas — nodes are Pressables so tap hit-testing
           uses the platform's transform-aware hit pipeline. */}
-        <Animated.View
-            style={[
-              styles.canvas,
-              {
-                width: contentWidth,
-                height: contentHeight,
-                backgroundColor: theme.colors.elevation.level1,
-              },
-              transformStyle,
-            ]}
-            pointerEvents="box-none"
+      <Animated.View
+        style={[
+          styles.canvas,
+          {
+            width: contentWidth,
+            height: contentHeight,
+            backgroundColor: theme.colors.elevation.level1,
+          },
+          transformStyle,
+        ]}
+        pointerEvents="box-none"
+      >
+        <Svg
+          width={contentWidth}
+          height={contentHeight}
+          style={[StyleSheet.absoluteFill, { zIndex: 0 }]}
+          pointerEvents="none"
         >
-          <Svg
-              width={contentWidth}
-              height={contentHeight}
-              style={[StyleSheet.absoluteFill, { zIndex: 0 }]}
-              pointerEvents="none"
-          >
-            {visibleConnectors.map((c) => (
-                <Path
-                    key={c.key}
-                    d={c.d}
-                    fill="none"
-                    stroke={c.stroke}
-                    strokeWidth={c.strokeWidth}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                />
-            ))}
-          </Svg>
+          {visibleConnectors.map((c) => (
+            <Path
+              key={c.key}
+              d={c.d}
+              fill="none"
+              stroke={c.stroke}
+              strokeWidth={c.strokeWidth}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          ))}
+        </Svg>
 
-          {visiblePeople.map((person) => {
-            const pos = positionsByPersonId.get(person.id);
-            if (!pos) return null;
-            return (
-                <PersonNode
-                    key={person.id}
-                    person={person}
-                    x={pos.x}
-                    y={pos.y}
-                    isCurrentUser={currentUserPersonId === person.id}
-                    surfaceColor={theme.colors.surface}
-                    outlineColor={theme.colors.outlineVariant}
-                    primaryColor={theme.colors.primary}
-                    variantSurface={theme.colors.surfaceVariant}
-                    variantOnSurface={theme.colors.onSurfaceVariant}
-                    onPrimaryColor={theme.colors.onPrimary}
-                    onPress={onPressPerson}
-                />
-            );
-          })}
-        </Animated.View>
+        {visiblePeople.map((person) => {
+          const pos = positionsByPersonId.get(person.id);
+          if (!pos) return null;
+          return (
+            <PersonNode
+              key={person.id}
+              person={person}
+              x={pos.x}
+              y={pos.y}
+              isCurrentUser={currentUserPersonId === person.id}
+              surfaceColor={theme.colors.surface}
+              outlineColor={theme.colors.outlineVariant}
+              primaryColor={theme.colors.primary}
+              variantSurface={theme.colors.surfaceVariant}
+              variantOnSurface={theme.colors.onSurfaceVariant}
+              onPrimaryColor={theme.colors.onPrimary}
+              onPress={onPressPerson}
+            />
+          );
+        })}
+      </Animated.View>
 
-        {/* Gesture layer sits on top but only steals the gesture once the user
+      {/* Gesture layer sits on top but only steals the gesture once the user
           actually drags / pinches. Until then, taps reach the Pressables
           underneath via the platform's standard hit-testing. */}
-        <View
-            {...panResponder.panHandlers}
-            pointerEvents="box-only"
-            style={[
-              StyleSheet.absoluteFill,
-              Platform.OS === 'web'
-                  ? ({ cursor: 'grab', touchAction: 'none', userSelect: 'none', background: 'transparent' } as any)
-                  : null,
-            ]}
-        />
+      <View
+        {...panResponder.panHandlers}
+        pointerEvents="box-only"
+        style={[
+          StyleSheet.absoluteFill,
+          Platform.OS === 'web'
+            ? ({ cursor: 'grab', touchAction: 'none', userSelect: 'none', background: 'transparent' } as any)
+            : null,
+        ]}
+      />
 
-        {floatingControls ? renderFloatingControls(mode) : null}
-      </View>
+      {floatingControls ? renderFloatingControls(mode) : null}
+    </View>
   );
 
   return (
-      <View style={[styles.container, fillAvailableSpace ? styles.containerFill : null]}>
-        {!floatingControls ? (
-            <View style={styles.controlsRow}>
-              <Text variant="bodyMedium">{controlsLabel}</Text>
-              <View style={styles.zoomButtonsRow}>
-                <Chip compact icon="magnify-minus">{scale.toFixed(2)}x</Chip>
-                <Button compact mode="outlined" onPress={() => zoomBy(-0.15)}>-</Button>
-                <Button compact mode="outlined" onPress={() => zoomBy(0.15)}>+</Button>
-                <Button compact onPress={resetView}>Reset</Button>
-                {allowFullscreen ? <Button compact mode="contained-tonal" icon="fullscreen" onPress={() => setIsFullscreen(true)}>Fullscreen</Button> : null}
-              </View>
-            </View>
-        ) : null}
-
-        {renderViewport('inline', fillAvailableSpace ? styles.inlineViewportFill : { height: inlineViewportHeight })}
-
-        <Modal visible={isFullscreen} animationType="slide" onRequestClose={() => setIsFullscreen(false)}>
-          <View style={[styles.fullscreenContainer, { backgroundColor: theme.colors.background }]}>
-            {floatingControls ? (
-                renderViewport('fullscreen', styles.fullscreenViewport)
-            ) : (
-                <>
-                  <View style={styles.fullscreenHeader}>
-                    <Text variant="titleLarge">{fullscreenTitle}</Text>
-                    <IconButton icon="close" onPress={() => setIsFullscreen(false)} />
-                  </View>
-                  {renderViewport('fullscreen', { height: Math.max(320, windowHeight - 172), borderRadius: 5 })}
-                </>
-            )}
+    <View style={[styles.container, fillAvailableSpace ? styles.containerFill : null]}>
+      {!floatingControls ? (
+        <View style={styles.controlsRow}>
+          <Text variant="bodyMedium">{controlsLabel}</Text>
+          <View style={styles.zoomButtonsRow}>
+            <Chip compact icon="magnify-minus">{scale.toFixed(2)}x</Chip>
+            <Button compact mode="outlined" onPress={() => zoomBy(-0.15)}>-</Button>
+            <Button compact mode="outlined" onPress={() => zoomBy(0.15)}>+</Button>
+            <Button compact onPress={resetView}>Reset</Button>
+            {allowFullscreen ? <Button compact mode="contained-tonal" icon="fullscreen" onPress={() => setIsFullscreen(true)}>Fullscreen</Button> : null}
           </View>
-        </Modal>
-      </View>
+        </View>
+      ) : null}
+
+      {renderViewport('inline', fillAvailableSpace ? styles.inlineViewportFill : { height: inlineViewportHeight })}
+
+      <Modal visible={isFullscreen} animationType="slide" onRequestClose={() => setIsFullscreen(false)}>
+        <View style={[styles.fullscreenContainer, { backgroundColor: theme.colors.background }]}>
+          {floatingControls ? (
+            renderViewport('fullscreen', styles.fullscreenViewport)
+          ) : (
+            <>
+              <View style={styles.fullscreenHeader}>
+                <Text variant="titleLarge">{fullscreenTitle}</Text>
+                <IconButton icon="close" onPress={() => setIsFullscreen(false)} />
+              </View>
+              {renderViewport('fullscreen', { height: Math.max(320, windowHeight - 172), borderRadius: 5 })}
+            </>
+          )}
+        </View>
+      </Modal>
+    </View>
   );
 }
 
