@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Button, Dialog, HelperText, Portal, SegmentedButtons, TextInput } from 'react-native-paper';
-import type { CollaboratorRole } from '../../components/dto/tree';
-import { GlobalStyles } from '../styles/global-styles';
+import type { CollaboratorRole } from './dto/tree';
+import { GlobalStyles } from '../constants/styles';
 
 const styles = GlobalStyles.collaboratorDialog;
 

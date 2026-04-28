@@ -13,15 +13,15 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Button, Chip, IconButton, Text, useTheme } from 'react-native-paper';
 import Svg, { Line, Path } from 'react-native-svg';
-import type { PersonRecord } from '../../components/dto/person';
+import type { PersonRecord } from './dto/person';
 import {
   getPersonFallbackAvatarIcon,
   getPersonLifeSpanLabel,
   getPersonPresenceLabel,
   getPreferredPersonPhoto,
-} from '../../components/dto/person';
-import type { RelationshipRecord } from '../../components/dto/relationship';
-import { GlobalStyles } from '../styles/global-styles';
+} from './dto/person';
+import type { RelationshipRecord } from './dto/relationship';
+import { GlobalStyles } from '../constants/styles';
 
 const styles = GlobalStyles.familyTreeCanvas;
 

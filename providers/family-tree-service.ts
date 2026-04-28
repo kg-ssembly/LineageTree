@@ -21,12 +21,12 @@ import {
   ref,
   uploadBytes,
 } from 'firebase/storage';
-import { db, storage } from '../lib/firebase';
-import type { ApprovalRequest, ApprovalRequestPayload, ApprovalSubmissionResult } from '../../components/dto/approval';
-import type { PersonInput, PersonLifeEvent, PersonMutationPayload, PersonPhoto, PersonRecord } from '../../components/dto/person';
-import type { RelationshipRecord } from '../../components/dto/relationship';
-import type { CollaboratorRole, FamilyTree, TreeCollaborator, TreeRole } from '../../components/dto/tree';
-import type { UserProfile } from '../../components/dto/user';
+import { db, storage } from './firebase-provider';
+import type { ApprovalRequest, ApprovalRequestPayload, ApprovalSubmissionResult } from '../components/dto/approval';
+import type { PersonInput, PersonLifeEvent, PersonMutationPayload, PersonPhoto, PersonRecord } from '../components/dto/person';
+import type { RelationshipRecord } from '../components/dto/relationship';
+import type { CollaboratorRole, FamilyTree, TreeCollaborator, TreeRole } from '../components/dto/tree';
+import type { UserProfile } from '../components/dto/user';
 
 const TREES_COLLECTION = 'trees';
 const PEOPLE_COLLECTION = 'persons';

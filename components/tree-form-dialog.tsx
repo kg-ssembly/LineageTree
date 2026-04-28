@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Button, Dialog, HelperText, Portal, TextInput } from 'react-native-paper';
-import type { FamilyTree } from '../../components/dto/tree';
-import { GlobalStyles } from '../styles/global-styles';
+import type { FamilyTree } from './dto/tree';
+import { GlobalStyles } from '../constants/styles';
 
 const styles = GlobalStyles.treeFormDialog;
 
@@ -77,4 +77,5 @@ export default function TreeFormDialog({
     </Portal>
   );
 }
+
 

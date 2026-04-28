@@ -2,9 +2,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { Button, Chip, Dialog, HelperText, Portal, Text, TextInput } from 'react-native-paper';
 import { DatePickerModal } from 'react-native-paper-dates';
-import type { PersonLifeEvent, PersonLifeEventType } from '../../components/dto/person';
-import { getLifeEventTypeLabel, parsePersonDate } from '../../components/dto/person';
-import { GlobalStyles } from '../styles/global-styles';
+import type { PersonLifeEvent, PersonLifeEventType } from './dto/person';
+import { getLifeEventTypeLabel, parsePersonDate } from './dto/person';
+import { GlobalStyles } from '../constants/styles';
 
 const styles = GlobalStyles.lifeEventDialog;
 
@@ -210,5 +210,6 @@ export default function LifeEventDialog({
     </>
   );
 }
+
 
 

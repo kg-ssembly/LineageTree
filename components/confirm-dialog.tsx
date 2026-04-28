@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button, Dialog, Portal, Text } from 'react-native-paper';
-import { GlobalStyles } from '../styles/global-styles';
+import { GlobalStyles } from '../constants/styles';
 
 const styles = GlobalStyles.confirmDialog;
 

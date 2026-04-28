@@ -15,8 +15,8 @@ import {
   useTheme,
 } from 'react-native-paper';
 import { DatePickerModal } from 'react-native-paper-dates';
-import type { PersonGender, PersonLifeEvent, PersonMutationPayload, PersonPhoto, PersonRecord } from '../../components/dto/person';
-import { GlobalStyles } from '../styles/global-styles';
+import type { PersonGender, PersonLifeEvent, PersonMutationPayload, PersonPhoto, PersonRecord } from './dto/person';
+import { GlobalStyles } from '../constants/styles';
 
 const styles = GlobalStyles.personFormDialog;
 
