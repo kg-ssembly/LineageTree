@@ -215,6 +215,7 @@ function PeopleRelationshipsTabContent({
   onDeletePerson,
 }: SharedTabProps) {
   const theme = useTheme();
+  const [helperVisible, setHelperVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [genderFilter, setGenderFilter] = useState<'all' | PersonGender>('all');
   const [assetFilter, setAssetFilter] = useState<'all' | 'with-photos' | 'with-notes'>('all');
@@ -244,9 +245,18 @@ function PeopleRelationshipsTabContent({
       <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
         <View style={styles.sectionHeader}>
           <View style={styles.titleWrap}>
-            <Text variant="titleLarge">Family members</Text>
+            <View style={styles.titleWithHelperRow}>
+              <Text variant="titleLarge">Family members</Text>
+              <IconButton
+                icon="information-outline"
+                size={20}
+                style={styles.helperIconButton}
+                onPress={() => setHelperVisible(true)}
+                accessibilityLabel="About family members"
+              />
+            </View>
             <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-              Profiles keep notes and photo memories together. Tap a card to open the family member profile and gallery.
+              Tap a card to open that family member profile.
             </Text>
           </View>
         </View>
@@ -350,6 +360,18 @@ function PeopleRelationshipsTabContent({
           </>
         )}
       </Surface>
+
+      <Portal>
+        <Dialog visible={helperVisible} onDismiss={() => setHelperVisible(false)}>
+          <Dialog.Title>Family members</Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodyMedium">Profiles keep notes and photo memories together. Open any card to manage details, relationships, and gallery content.</Text>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setHelperVisible(false)}>Close</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
     </ScrollView>
   );
 }
@@ -414,6 +436,7 @@ function ProfileTabContent({
   onSetApprovalWindowHours,
 }: SharedTabProps) {
   const theme = useTheme();
+  const [helperVisible, setHelperVisible] = useState(false);
   const [activeManagementTab, setActiveManagementTab] = useState<TreeManagementTabKey>('overview');
   const [showLinkChooser, setShowLinkChooser] = useState(false);
   const [linkSearchQuery, setLinkSearchQuery] = useState('');
@@ -511,9 +534,18 @@ function ProfileTabContent({
   return (
     <ScrollView contentContainerStyle={styles.content}>
       <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
-        <Text variant="headlineSmall">{selectedTree.name}</Text>
+        <View style={styles.titleWithHelperRow}>
+          <Text variant="headlineSmall">{selectedTree.name}</Text>
+          <IconButton
+            icon="information-outline"
+            size={20}
+            style={styles.helperIconButton}
+            onPress={() => setHelperVisible(true)}
+            accessibilityLabel="About tree management"
+          />
+        </View>
         <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-          Review the current tree at a glance, manage collaborators, and keep profile links up to date.
+          Overview, collaborators, and approvals.
         </Text>
 
         <SegmentedButtons
@@ -938,6 +970,18 @@ function ProfileTabContent({
           </View>
         ) : null}
       </Surface>
+
+      <Portal>
+        <Dialog visible={helperVisible} onDismiss={() => setHelperVisible(false)}>
+          <Dialog.Title>Tree management</Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodyMedium">Use Overview for key metrics and self-linking, Collaborators for access control, and Approvals for review workflows and timing settings.</Text>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setHelperVisible(false)}>Close</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
     </ScrollView>
   );
 }

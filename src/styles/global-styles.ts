@@ -27,6 +27,12 @@ export class GlobalStyles {
     profileTextWrap: {
       marginTop: 16,
     },
+    titleWithHelperRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 8,
+    },
     name: {
       fontWeight: '800',
       marginBottom: 4,
@@ -37,6 +43,9 @@ export class GlobalStyles {
     heroDescription: {
       marginTop: 10,
       lineHeight: 22,
+    },
+    helperIconButton: {
+      margin: 0,
     },
     heroStatsRow: {
       flexDirection: 'row',
@@ -180,6 +189,15 @@ export class GlobalStyles {
     titleWrap: {
       flex: 1,
       minWidth: 220,
+    },
+    titleWithHelperRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 8,
+    },
+    helperIconButton: {
+      margin: 0,
     },
     sectionSubtitle: {
       marginTop: 4,
@@ -513,6 +531,15 @@ export class GlobalStyles {
     sectionHeaderText: {
       flex: 1,
       minWidth: 220,
+    },
+    titleWithHelperRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 8,
+    },
+    helperIconButton: {
+      margin: 0,
     },
     sectionSubtitle: {
       marginTop: 6,

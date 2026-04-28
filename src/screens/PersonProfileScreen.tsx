@@ -6,8 +6,10 @@ import {
   Button,
   Card,
   Chip,
+  Dialog,
   Divider,
   IconButton,
+  Portal,
   SegmentedButtons,
   Snackbar,
   Surface,
@@ -52,6 +54,8 @@ type LifeEventDialogState = {
   visible: boolean;
   event: PersonLifeEvent | null;
 };
+
+type HelperDialogKey = 'tabs' | 'member-profile' | 'relationships' | 'descendant-tree' | 'ascendant-tree' | 'memories-gallery';
 
 type PersonProfileTabKey = 'member-profile' | 'relationships' | 'descendant-tree' | 'ascendant-tree' | 'memories-gallery';
 
@@ -158,6 +162,33 @@ const PERSON_PROFILE_TAB_GROUPS: PersonProfileTabKey[][] = [
   ['ascendant-tree', 'memories-gallery'],
 ];
 
+const helperDialogCopy: Record<HelperDialogKey, { title: string; message: string }> = {
+  tabs: {
+    title: 'Family member sections',
+    message: 'Switch between profile details, relationships, lineage trees, and memories from these tabs.',
+  },
+  'member-profile': {
+    title: 'Member profile',
+    message: 'Core identity details and personal notes for this family member are shown here.',
+  },
+  relationships: {
+    title: 'Relationships',
+    message: 'Manage parents, children, and spouse connections and review relationship insights from this section.',
+  },
+  'descendant-tree': {
+    title: 'Descendant tree',
+    message: 'This view starts from the current family member and follows children and younger generations downward.',
+  },
+  'ascendant-tree': {
+    title: 'Ascendant tree',
+    message: 'This view starts from the current family member and follows parents and older generations upward.',
+  },
+  'memories-gallery': {
+    title: 'Memories & gallery',
+    message: 'Browse notes, photo memories, and life events that form this family member timeline.',
+  },
+};
+
 const styles = GlobalStyles.personProfile;
 
 export default function PersonProfileScreen({ navigation, route }: Props) {
@@ -197,6 +228,10 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const [snackVisible, setSnackVisible] = useState(false);
   const [activeTab, setActiveTab] = useState<PersonProfileTabKey>('member-profile');
+  const [helperDialog, setHelperDialog] = useState<{ visible: boolean; key: HelperDialogKey }>({
+    visible: false,
+    key: 'tabs',
+  });
 
   const selectedTree = useMemo(
     () => trees.find((tree) => tree.id === route.params.treeId) ?? null,
@@ -546,6 +581,10 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
     }
   };
 
+  const openHelperDialog = (key: HelperDialogKey) => {
+    setHelperDialog({ visible: true, key });
+  };
+
   if (!selectedTree || !person || loadingTreeData) {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: theme.colors.background }]}>
@@ -650,7 +689,16 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
         </Surface>
 
         <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
-          <Text variant="titleMedium">Family member tabs</Text>
+          <View style={styles.titleWithHelperRow}>
+            <Text variant="titleMedium">Family member tabs</Text>
+            <IconButton
+              icon="information-outline"
+              size={20}
+              style={styles.helperIconButton}
+              onPress={() => openHelperDialog('tabs')}
+              accessibilityLabel="About family member tabs"
+            />
+          </View>
           <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>Tap a tab to switch between overview details, relationships, lineage trees, and memories.</Text>
           {PERSON_PROFILE_TAB_GROUPS.map((group, index) => (
             <SegmentedButtons
@@ -668,7 +716,16 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
 
         {activeTab === 'member-profile' ? (
           <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
-            <Text variant="titleLarge">Member profile</Text>
+            <View style={styles.titleWithHelperRow}>
+              <Text variant="titleLarge">Member profile</Text>
+              <IconButton
+                icon="information-outline"
+                size={20}
+                style={styles.helperIconButton}
+                onPress={() => openHelperDialog('member-profile')}
+                accessibilityLabel="About member profile"
+              />
+            </View>
             <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>Core details and notes for this family member.</Text>
 
             <View style={styles.detailGrid}>
@@ -723,7 +780,16 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
           <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
             <View style={styles.sectionHeader}>
               <View style={styles.sectionHeaderText}>
-                <Text variant="titleLarge">Relationships</Text>
+                <View style={styles.titleWithHelperRow}>
+                  <Text variant="titleLarge">Relationships</Text>
+                  <IconButton
+                    icon="information-outline"
+                    size={20}
+                    style={styles.helperIconButton}
+                    onPress={() => openHelperDialog('relationships')}
+                    accessibilityLabel="About relationships"
+                  />
+                </View>
                 <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>Add, edit, or remove family connections directly from this family member.</Text>
               </View>
               {canEdit ? (
@@ -798,7 +864,16 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
           <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
             <View style={styles.sectionHeader}>
               <View style={styles.sectionHeaderText}>
-                <Text variant="titleLarge">Descendant tree</Text>
+                <View style={styles.titleWithHelperRow}>
+                  <Text variant="titleLarge">Descendant tree</Text>
+                  <IconButton
+                    icon="information-outline"
+                    size={20}
+                    style={styles.helperIconButton}
+                    onPress={() => openHelperDialog('descendant-tree')}
+                    accessibilityLabel="About descendant tree"
+                  />
+                </View>
                 <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
                   {descendantIds.length > 0
                     ? `Start with ${formatPersonName(person)} and follow ${descendantIds.length} ${descendantIds.length === 1 ? 'younger family member' : 'younger family members'} through children and grandchildren.`
@@ -822,7 +897,16 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
           <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
             <View style={styles.sectionHeader}>
               <View style={styles.sectionHeaderText}>
-                <Text variant="titleLarge">Ascendant tree</Text>
+                <View style={styles.titleWithHelperRow}>
+                  <Text variant="titleLarge">Ascendant tree</Text>
+                  <IconButton
+                    icon="information-outline"
+                    size={20}
+                    style={styles.helperIconButton}
+                    onPress={() => openHelperDialog('ascendant-tree')}
+                    accessibilityLabel="About ascendant tree"
+                  />
+                </View>
                 <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
                   {ascendantIds.length > 0
                     ? `Look upward from ${formatPersonName(person)} to ${ascendantIds.length === 1 ? '1 older family member' : `${ascendantIds.length} older family members`} through parents and grandparents.`
@@ -844,7 +928,16 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
 
         {activeTab === 'memories-gallery' ? (
           <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
-            <Text variant="titleLarge">Memories & gallery</Text>
+            <View style={styles.titleWithHelperRow}>
+              <Text variant="titleLarge">Memories & gallery</Text>
+              <IconButton
+                icon="information-outline"
+                size={20}
+                style={styles.helperIconButton}
+                onPress={() => openHelperDialog('memories-gallery')}
+                accessibilityLabel="About memories and gallery"
+              />
+            </View>
             <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>Notes, life events, and photos help this family member feel like a living timeline.</Text>
 
             <View style={[styles.notesBox, { backgroundColor: theme.colors.surfaceVariant }]}> 
@@ -1010,6 +1103,21 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
           ) : null}
         </View>
       </Modal>
+
+      <Portal>
+        <Dialog
+          visible={helperDialog.visible}
+          onDismiss={() => setHelperDialog((current) => ({ ...current, visible: false }))}
+        >
+          <Dialog.Title>{helperDialogCopy[helperDialog.key].title}</Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodyMedium">{helperDialogCopy[helperDialog.key].message}</Text>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setHelperDialog((current) => ({ ...current, visible: false }))}>Close</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
 
       <Snackbar
         visible={snackVisible}

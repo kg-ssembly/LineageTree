@@ -7,7 +7,9 @@ import {
   Button,
   Card,
   Chip,
+  Dialog,
   IconButton,
+  Portal,
   SegmentedButtons,
   Snackbar,
   Surface,
@@ -38,6 +40,23 @@ type ConfirmState = {
   message: string;
   confirmLabel: string;
   action: (() => Promise<void>) | null;
+};
+
+type HelperDialogKey = 'hero' | 'appearance' | 'trees';
+
+const helperDialogCopy: Record<HelperDialogKey, { title: string; message: string }> = {
+  hero: {
+    title: 'About your family archive',
+    message: 'Build family branches, preserve photo memories, and keep life events attached to every person in one living archive.',
+  },
+  appearance: {
+    title: 'Appearance settings',
+    message: 'Switch between light, dark, or system mode anytime. System mode follows your device settings automatically.',
+  },
+  trees: {
+    title: 'Family tree workspaces',
+    message: 'Each tree is a dedicated workspace where you manage family members, relationships, collaborators, photos, and approvals.',
+  },
 };
 
 function formatRole(role: ReturnType<typeof getTreeRole>) {
@@ -78,6 +97,10 @@ export default function HomeScreen({ navigation, route }: Props) {
     message: '',
     confirmLabel: 'Confirm',
     action: null,
+  });
+  const [helperDialog, setHelperDialog] = useState<{ visible: boolean; key: HelperDialogKey }>({
+    visible: false,
+    key: 'hero',
   });
 
   useEffect(() => {
@@ -203,6 +226,10 @@ export default function HomeScreen({ navigation, route }: Props) {
     }
   };
 
+  const openHelperDialog = (key: HelperDialogKey) => {
+    setHelperDialog({ visible: true, key });
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <ScrollView contentContainerStyle={styles.content}>
@@ -220,12 +247,21 @@ export default function HomeScreen({ navigation, route }: Props) {
           </View>
 
           <View style={styles.profileTextWrap}>
-            <Text variant="headlineMedium" style={[styles.name, { color: theme.colors.onSurface }]}>
-              Hi, {user?.displayName ?? 'there'}
-            </Text>
+            <View style={styles.titleWithHelperRow}>
+              <Text variant="headlineMedium" style={[styles.name, { color: theme.colors.onSurface }]}> 
+                Hi, {user?.displayName ?? 'there'}
+              </Text>
+              <IconButton
+                icon="information-outline"
+                size={20}
+                style={styles.helperIconButton}
+                onPress={() => openHelperDialog('hero')}
+                accessibilityLabel="About your family archive"
+              />
+            </View>
             <Text variant="bodyMedium" style={[styles.email, { color: theme.colors.onSurfaceVariant }]}>{user?.email}</Text>
             <Text variant="bodyMedium" style={[styles.heroDescription, { color: theme.colors.onSurfaceVariant }]}>
-              Build family branches, preserve photo memories, and keep life events attached to every person in one living archive.
+              Your family archive at a glance.
             </Text>
           </View>
 
@@ -273,8 +309,17 @@ export default function HomeScreen({ navigation, route }: Props) {
         <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
           <View style={styles.sectionHeader}>
             <View style={styles.sectionTextWrap}>
-              <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>Appearance</Text>
-              <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>Switch between light, dark, or system mode anytime.</Text>
+              <View style={styles.titleWithHelperRow}>
+                <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>Appearance</Text>
+                <IconButton
+                  icon="information-outline"
+                  size={20}
+                  style={styles.helperIconButton}
+                  onPress={() => openHelperDialog('appearance')}
+                  accessibilityLabel="About appearance settings"
+                />
+              </View>
+              <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>Theme and display preferences.</Text>
             </View>
           </View>
 
@@ -297,9 +342,18 @@ export default function HomeScreen({ navigation, route }: Props) {
         <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
           <View style={styles.sectionHeader}>
             <View style={styles.sectionTextWrap}>
-              <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>Family trees</Text>
+              <View style={styles.titleWithHelperRow}>
+                <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>Family trees</Text>
+                <IconButton
+                  icon="information-outline"
+                  size={20}
+                  style={styles.helperIconButton}
+                  onPress={() => openHelperDialog('trees')}
+                  accessibilityLabel="About family tree workspaces"
+                />
+              </View>
               <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-                Open a tree to manage people, relationships, and collaborators in its dedicated workspace.
+                Open a tree to continue where you left off.
               </Text>
             </View>
             <Button
@@ -420,6 +474,21 @@ export default function HomeScreen({ navigation, route }: Props) {
         onDismiss={closeConfirm}
         onConfirm={handleConfirm}
       />
+
+      <Portal>
+        <Dialog
+          visible={helperDialog.visible}
+          onDismiss={() => setHelperDialog((current) => ({ ...current, visible: false }))}
+        >
+          <Dialog.Title>{helperDialogCopy[helperDialog.key].title}</Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodyMedium">{helperDialogCopy[helperDialog.key].message}</Text>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setHelperDialog((current) => ({ ...current, visible: false }))}>Close</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
 
       <Snackbar
         visible={snackVisible}
