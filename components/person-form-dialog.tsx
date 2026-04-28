@@ -47,6 +47,7 @@ interface PersonFormDialogProps {
   relationshipCandidates?: PersonRecord[];
   onDismiss: () => void;
   onSubmit: (payload: PersonFormSubmission) => void | Promise<void>;
+  onDelete?: () => void | Promise<void>;
 }
 
 const genderOptions: Array<{ label: string; value: PersonGender }> = [
@@ -119,6 +120,7 @@ export default function PersonFormDialog({
   relationshipCandidates = [],
   onDismiss,
   onSubmit,
+  onDelete,
 }: PersonFormDialogProps) {
   const theme = useTheme();
   const [firstName, setFirstName] = useState('');
@@ -633,7 +635,25 @@ export default function PersonFormDialog({
               </View>
             </ScrollView>
           </Dialog.ScrollArea>
-          <Dialog.Actions style={[styles.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}> 
+          <Dialog.Actions style={[styles.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
+            {mode === 'edit' && onDelete ? (
+              <Button
+                textColor={theme.colors.error}
+                disabled={loading}
+                onPress={() => {
+                  Alert.alert(
+                    'Delete family member',
+                    'Remove this person and all their relationships? This cannot be undone.',
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      { text: 'Delete', style: 'destructive', onPress: () => void onDelete() },
+                    ],
+                  );
+                }}
+              >
+                Delete
+              </Button>
+            ) : null}
             <Button onPress={onDismiss} disabled={loading}>Cancel</Button>
             <Button onPress={handleSubmit} disabled={loading}>
               {mode === 'create' ? 'Create' : 'Save'}

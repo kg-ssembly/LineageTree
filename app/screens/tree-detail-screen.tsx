@@ -216,9 +216,6 @@ function PeopleRelationshipsTabContent({
   loadingTreeData,
   openPersonProfile,
   onOpenAddPerson,
-  onEditPerson,
-  openConfirm,
-  onDeletePerson,
 }: SharedTabProps) {
   const theme = useTheme();
   const [helperVisible, setHelperVisible] = useState(false);
@@ -262,7 +259,7 @@ function PeopleRelationshipsTabContent({
               />
             </View>
             <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-              Tap a card to open that family member profile.
+              Tap a card to open that family member's full profile.
             </Text>
           </View>
           {canEdit ? (
@@ -335,32 +332,15 @@ function PeopleRelationshipsTabContent({
                             {isCurrentUsersPerson ? <Chip compact icon="account">You</Chip> : null}
                           </View>
                           <View style={styles.metadataRow}>
-                            {person.gender !== 'unspecified' ? <Chip compact>{formatPersonGender(person.gender)}</Chip> : null}
                             {person.birthDate ? <Chip compact icon="calendar">{person.birthDate}</Chip> : null}
                             <Chip compact icon={isPersonDeceased(person) ? 'flower-outline' : 'heart-pulse'}>
                               {getPersonPresenceLabel(person)}
                             </Chip>
-                            <Chip compact icon="image-multiple">{person.photos.length} photos</Chip>
+                            <Chip compact icon="image-multiple">{person.photos.length}</Chip>
                           </View>
                         </View>
                         <View style={styles.cardActions}>
                           <IconButton icon="open-in-new" onPress={() => openPersonProfile(person)} />
-                          {canEdit ? (
-                            <>
-                              <IconButton icon="pencil" onPress={() => onEditPerson(person)} disabled={mutating} />
-                              <IconButton
-                                icon="delete"
-                                iconColor="#C62828"
-                                onPress={() => openConfirm(
-                                  'Delete family member',
-                                  `Delete ${formatPersonName(person)} and remove every relationship connected to this family member?`,
-                                  'Delete',
-                                  async () => onDeletePerson(person),
-                                )}
-                                disabled={mutating}
-                              />
-                            </>
-                          ) : null}
                         </View>
                       </View>
                     </Card.Content>
@@ -1323,14 +1303,6 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     }
   }, [addParentChildRelationship, addSpouseRelationship, selectedTree, user?.id]);
 
-  if (!selectedTree) {
-    return (
-      <View style={[styles.loadingContainer, { backgroundColor: theme.colors.background }]}>
-        <ActivityIndicator color={theme.colors.primary} />
-      </View>
-    );
-  }
-
   const personDialogRelationshipCandidates = useMemo(
     () => people.filter((candidate) => candidate.id !== personDialog.person?.id),
     [people, personDialog.person?.id],
@@ -1367,41 +1339,44 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     await rejectApprovalRequest(user.id, requestId);
   }, [rejectApprovalRequest, user?.id]);
 
-  const sharedTabProps: SharedTabProps = useMemo(() => ({
-    selectedTree: selectedTree!,
-    people,
-    relationships,
-    approvalRequests,
-    peopleById,
-    canEdit,
-    isOwner,
-    role,
-    userId: user?.id,
-    currentUserLabel,
-    currentAssignedPerson,
-    currentSelfAssignmentSuggestions,
-    availableSelfLinkPeople,
-    assignedPersonByUserId,
-    assignedUserIdByPersonId,
-    canCreateSelfProfile: canEdit,
-    mutating,
-    loadingTreeData,
-    openConfirm,
-    openPersonProfile,
-    onOpenAddPerson,
-    onOpenRelationshipDialog,
-    onOpenPersonQuickActions,
-    onOpenCollaboratorDialog,
-    onOpenAddSelf,
-    onEditPerson,
-    onDeletePerson,
-    onRemoveCollaborator,
-    onAssignPersonToUser: handleAssignPersonToUser,
-    onClearSelfAssignment: handleClearSelfAssignment,
-    onApproveApprovalRequest,
-    onRejectApprovalRequest,
-    onSetApprovalWindowHours,
-  }), [
+  const sharedTabProps: SharedTabProps | null = useMemo(() => {
+    if (!selectedTree) return null;
+    return {
+      selectedTree,
+      people,
+      relationships,
+      approvalRequests,
+      peopleById,
+      canEdit,
+      isOwner,
+      role,
+      userId: user?.id,
+      currentUserLabel,
+      currentAssignedPerson,
+      currentSelfAssignmentSuggestions,
+      availableSelfLinkPeople,
+      assignedPersonByUserId,
+      assignedUserIdByPersonId,
+      canCreateSelfProfile: canEdit,
+      mutating,
+      loadingTreeData,
+      openConfirm,
+      openPersonProfile,
+      onOpenAddPerson,
+      onOpenRelationshipDialog,
+      onOpenPersonQuickActions,
+      onOpenCollaboratorDialog,
+      onOpenAddSelf,
+      onEditPerson,
+      onDeletePerson,
+      onRemoveCollaborator,
+      onAssignPersonToUser: handleAssignPersonToUser,
+      onClearSelfAssignment: handleClearSelfAssignment,
+      onApproveApprovalRequest,
+      onRejectApprovalRequest,
+      onSetApprovalWindowHours,
+    };
+  }, [
     selectedTree, people, relationships, approvalRequests, peopleById, canEdit, isOwner, role,
     user?.id, currentUserLabel, currentAssignedPerson, currentSelfAssignmentSuggestions,
     availableSelfLinkPeople, assignedPersonByUserId, assignedUserIdByPersonId, mutating, loadingTreeData,
@@ -1410,6 +1385,14 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     handleAssignPersonToUser, handleClearSelfAssignment, onApproveApprovalRequest, onRejectApprovalRequest,
     onSetApprovalWindowHours,
   ]);
+
+  if (!selectedTree || !sharedTabProps) {
+    return (
+      <View style={[styles.loadingContainer, { backgroundColor: theme.colors.background }]}>
+        <ActivityIndicator color={theme.colors.primary} />
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -1490,6 +1473,10 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
         relationshipCandidates={personDialogRelationshipCandidates}
         onDismiss={closePersonDialog}
         onSubmit={handlePersonSubmit}
+        onDelete={personDialog.mode === 'edit' && personDialog.person ? async () => {
+          await onDeletePerson(personDialog.person!);
+          closePersonDialog();
+        } : undefined}
       />
 
       <PersonFormDialog

@@ -124,7 +124,7 @@ export function getPersonPresenceLabel(person?: PersonRecord | null) {
     return `In memory • ${formatPersonDate(person.deathDate)}`;
   }
 
-  return 'Still present';
+  return 'Present';
 }
 
 export function getPersonLifeSpanLabel(person?: PersonRecord | null) {

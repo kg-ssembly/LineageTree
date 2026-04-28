@@ -26,7 +26,105 @@ type ThemePalette = {
   error: string;
 };
 
-const palettes: Record<ResolvedTheme, ThemePalette> = {
+// ─────────────────────────────────────────────────────────────────────────────
+// THEME SELECTION
+// Change ACTIVE_THEME to switch between the three options below:
+//   'forest'   – warm earthy greens & terracotta  (organic, grounded feel)
+//   'ocean'    – deep teal & golden amber          (cool, professional)
+//   'midnight' – rich purples & warm gold          (current-style, refined)
+// ─────────────────────────────────────────────────────────────────────────────
+const ACTIVE_THEME: 'forest' | 'ocean' | 'midnight' = 'forest';
+
+// ── Option A: Forest Heritage ─────────────────────────────────────────────────
+const forestPalettes: Record<ResolvedTheme, ThemePalette> = {
+  light: {
+    primary: '#2D6A4F',
+    primaryContainer: '#C8E6D2',
+    secondary: '#E07B39',
+    tertiary: '#7B5E2A',
+    background: '#F6F3ED',
+    surface: '#FDFAF5',
+    surfaceVariant: '#EBE5D9',
+    secondaryContainer: '#DFE8DC',
+    tertiaryContainer: '#D8E5D6',
+    outline: '#6E8B65',
+    outlineVariant: '#CFCAB8',
+    onPrimary: '#FFFFFF',
+    onSecondary: '#FFFFFF',
+    onSurface: '#1A1C18',
+    onSurfaceVariant: '#605C4A',
+    shadow: '#0E1209',
+    scrim: '#000000',
+    error: '#BA1A1A',
+  },
+  dark: {
+    primary: '#52B788',
+    primaryContainer: '#1C4A34',
+    secondary: '#FFB77B',
+    tertiary: '#C9A96E',
+    background: '#131510',
+    surface: '#1B1E16',
+    surfaceVariant: '#252A1E',
+    secondaryContainer: '#5A3518',
+    tertiaryContainer: '#3D3013',
+    outline: '#8E956E',
+    outlineVariant: '#323829',
+    onPrimary: '#092818',
+    onSecondary: '#401E08',
+    onSurface: '#E2E5D6',
+    onSurfaceVariant: '#BAC0A4',
+    shadow: '#000000',
+    scrim: '#000000',
+    error: '#ffb4ab',
+  },
+};
+
+// ── Option B: Ocean Archive ───────────────────────────────────────────────────
+const oceanPalettes: Record<ResolvedTheme, ThemePalette> = {
+  light: {
+    primary: '#0E618F',
+    primaryContainer: '#C5E5F8',
+    secondary: '#C8760A',
+    tertiary: '#2A7D78',
+    background: '#F3F8FC',
+    surface: '#FAFCFF',
+    surfaceVariant: '#E0EEF6',
+    secondaryContainer: '#FFE0B2',
+    tertiaryContainer: '#C8EDE9',
+    outline: '#567B90',
+    outlineVariant: '#BDD1DC',
+    onPrimary: '#FFFFFF',
+    onSecondary: '#FFFFFF',
+    onSurface: '#0D1B24',
+    onSurfaceVariant: '#3F606E',
+    shadow: '#000000',
+    scrim: '#000000',
+    error: '#BA1A1A',
+  },
+  dark: {
+    primary: '#72B7E6',
+    primaryContainer: '#073D5E',
+    secondary: '#FFB74D',
+    tertiary: '#4DB6AC',
+    background: '#0C131A',
+    surface: '#141D25',
+    surfaceVariant: '#1C2A35',
+    secondaryContainer: '#5D3B00',
+    tertiaryContainer: '#0D3D39',
+    outline: '#5D8FA0',
+    outlineVariant: '#243845',
+    onPrimary: '#00293D',
+    onSecondary: '#3D2700',
+    onSurface: '#D8E8F4',
+    onSurfaceVariant: '#94B8C8',
+    shadow: '#000000',
+    scrim: '#000000',
+    error: '#FFB4AB',
+  },
+};
+
+// ── Option C: Midnight Amber (original purple, refined) ───────────────────────
+const midnightPalettes: Record<ResolvedTheme, ThemePalette> = {
   light: {
     primary: '#7B61FF',
     primaryContainer: '#E9E0FF',
@@ -69,6 +167,14 @@ const palettes: Record<ResolvedTheme, ThemePalette> = {
   },
 };
 
+const themeMap = {
+  forest: forestPalettes,
+  ocean: oceanPalettes,
+  midnight: midnightPalettes,
+};
+
+const palettes = themeMap[ACTIVE_THEME];
+
 function buildPaperTheme(mode: ResolvedTheme): AppTheme {
   const baseTheme = mode === 'dark' ? MD3DarkTheme : MD3LightTheme;
   const palette = palettes[mode];
@@ -98,11 +204,11 @@ function buildPaperTheme(mode: ResolvedTheme): AppTheme {
       error: palette.error,
       elevation: {
         level0: palette.background,
-        level1: mode === 'dark' ? '#172033' : '#FDFBFF',
-        level2: mode === 'dark' ? '#1D2942' : '#F7F1FF',
-        level3: mode === 'dark' ? '#223151' : '#EFE5FF',
-        level4: mode === 'dark' ? '#293A60' : '#E7DBFF',
-        level5: mode === 'dark' ? '#30426E' : '#DED1FF',
+        level1: mode === 'dark' ? '#1B2012' : '#F8F5EE',
+        level2: mode === 'dark' ? '#21271A' : '#F2EDE4',
+        level3: mode === 'dark' ? '#272E20' : '#EBE5D9',
+        level4: mode === 'dark' ? '#2E3626' : '#E4DCCE',
+        level5: mode === 'dark' ? '#343D2B' : '#DDD4C3',
       },
     },
   };
