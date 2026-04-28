@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Button, Chip, IconButton, Text, useTheme } from 'react-native-paper';
-import Svg, { Line, Path } from 'react-native-svg';
+import Svg, { Path } from 'react-native-svg';
 import type { PersonRecord } from './dto/person';
 import {
   getPersonFallbackAvatarIcon,
@@ -64,17 +64,6 @@ type GenerationLayout = {
   childGroupIdsByParentGroupId: Map<string, Set<string>>;
 };
 
-type TreeLineSegment = {
-  key: string;
-  x1: number;
-  y1: number;
-  x2: number;
-  y2: number;
-  stroke: string;
-  strokeWidth: number;
-  strokeDasharray?: string;
-};
-
 type TreeConnectorPath = {
   key: string;
   d: string;
@@ -82,39 +71,127 @@ type TreeConnectorPath = {
   strokeWidth: number;
 };
 
+type ObstacleBox = { x: number, y: number, w: number, h: number };
+
 function formatPersonName(person: PersonRecord) {
   return `${person.firstName} ${person.lastName}`.trim();
 }
 
-function createRoundedParentChildPath(
-  startX: number,
-  startY: number,
-  junctionY: number,
-  endX: number,
-  endY: number,
-) {
-  const horizontalDelta = endX - startX;
-  const upperVerticalDelta = junctionY - startY;
-  const lowerVerticalDelta = endY - junctionY;
+function findClearX(targetX: number, startY: number, endY: number, obstacles: ObstacleBox[]): number {
+  const pad = 6;
+  const blocking = obstacles.filter(o => Math.max(o.y - pad, startY) < Math.min(o.y + o.h + pad, endY));
 
-  if (Math.abs(horizontalDelta) < 1 || Math.abs(upperVerticalDelta) < 1 || Math.abs(lowerVerticalDelta) < 1) {
-    return `M ${startX} ${startY} L ${startX} ${junctionY} L ${endX} ${junctionY} L ${endX} ${endY}`;
+  const isClear = (cx: number) => !blocking.some(o => cx > o.x - pad && cx < o.x + o.w + pad);
+
+  if (isClear(targetX)) return targetX;
+
+  const candidates: number[] = [];
+  blocking.forEach(o => {
+    candidates.push(o.x - pad);
+    candidates.push(o.x + o.w + pad);
+  });
+
+  candidates.sort((a, b) => Math.abs(a - targetX) - Math.abs(b - targetX));
+
+  for (const cx of candidates) {
+    if (isClear(cx)) return cx;
+  }
+  return targetX;
+}
+
+function routeVertical(x: number, y1: number, y2: number, obstacles: ObstacleBox[]): string {
+  if (Math.abs(y1 - y2) < 1) {
+    return `L ${x} ${y2}`;
   }
 
-  const horizontalDirection = horizontalDelta >= 0 ? 1 : -1;
-  const upperVerticalDirection = upperVerticalDelta >= 0 ? 1 : -1;
-  const lowerVerticalDirection = lowerVerticalDelta >= 0 ? 1 : -1;
-  const firstRadius = Math.min(12, Math.abs(horizontalDelta) / 2, Math.abs(upperVerticalDelta) / 2);
-  const secondRadius = Math.min(12, Math.abs(horizontalDelta) / 2, Math.abs(lowerVerticalDelta) / 2);
+  const startY = Math.min(y1, y2);
+  const endY = Math.max(y1, y2);
+  const direction = y2 > y1 ? 1 : -1;
+  const pad = 6;
 
-  return [
-    `M ${startX} ${startY}`,
-    `L ${startX} ${junctionY - upperVerticalDirection * firstRadius}`,
-    `Q ${startX} ${junctionY} ${startX + horizontalDirection * firstRadius} ${junctionY}`,
-    `L ${endX - horizontalDirection * secondRadius} ${junctionY}`,
-    `Q ${endX} ${junctionY} ${endX} ${junctionY + lowerVerticalDirection * secondRadius}`,
-    `L ${endX} ${endY}`,
-  ].join(' ');
+  const hit = obstacles.filter(o =>
+    x > o.x - pad &&
+    x < o.x + o.w + pad &&
+    o.y + o.h > startY &&
+    o.y < endY
+  );
+
+  if (hit.length === 0) {
+    return `L ${x} ${y2}`;
+  }
+
+  const rowHits = new Map<number, ObstacleBox[]>();
+  hit.forEach(o => {
+    if (!rowHits.has(o.y)) rowHits.set(o.y, []);
+    rowHits.get(o.y)!.push(o);
+  });
+  
+  const sortedRowYs = [...rowHits.keys()].sort((a, b) => direction === 1 ? a - b : b - a);
+
+  let path = '';
+  let currentY = y1;
+
+  for (const rowY of sortedRowYs) {
+    const rowObstacles = rowHits.get(rowY)!;
+    const o = rowObstacles[0];
+    
+    const dodgeY = direction === 1 ? o.y - pad : o.y + o.h + pad;
+    if ((direction === 1 && dodgeY > currentY) || (direction === -1 && dodgeY < currentY)) {
+      path += ` L ${x} ${dodgeY}`;
+      currentY = dodgeY;
+    }
+
+    const passY = direction === 1 ? o.y + o.h + pad : o.y - pad;
+    
+    const clearX = findClearX(x, Math.min(currentY, passY), Math.max(currentY, passY), obstacles);
+
+    if (clearX !== x) {
+      path += ` L ${clearX} ${currentY}`;
+      path += ` L ${clearX} ${passY}`;
+      path += ` L ${x} ${passY}`;
+    } else {
+      path += ` L ${x} ${passY}`;
+    }
+    
+    currentY = passY;
+  }
+
+  if ((direction === 1 && y2 > currentY) || (direction === -1 && y2 < currentY)) {
+    path += ` L ${x} ${y2}`;
+  }
+  return path.trim();
+}
+
+function createTreeBranchPath(
+  parentX: number,
+  parentY: number,
+  junctionY: number,
+  childrenPoints: { x: number; topY: number }[],
+  obstacles: ObstacleBox[]
+) {
+  if (childrenPoints.length === 0) {
+    return '';
+  }
+
+  const parts = [
+    `M ${parentX} ${parentY}`,
+    routeVertical(parentX, parentY, junctionY, obstacles)
+  ];
+
+  const pointsX = [...childrenPoints.map((c) => c.x), parentX];
+  const minX = Math.min(...pointsX);
+  const maxX = Math.max(...pointsX);
+
+  if (minX !== maxX) {
+    parts.push(`M ${minX} ${junctionY} L ${maxX} ${junctionY}`);
+  }
+
+  childrenPoints.forEach((child) => {
+    parts.push(`M ${child.x} ${junctionY}`);
+    parts.push(routeVertical(child.x, junctionY, child.topY, obstacles));
+  });
+
+  return parts.filter(Boolean).join(' ');
 }
 
 function buildGenerations(people: PersonRecord[], relationships: RelationshipRecord[]): GenerationLayout {
@@ -625,7 +702,14 @@ function FamilyTreeCanvas({
       });
     });
 
-    const spouseSegments: TreeLineSegment[] = renderedRelationships
+    const obstacles: ObstacleBox[] = [...positionsByPersonId.values()].map(pos => ({
+      x: pos.x,
+      y: pos.y,
+      w: NODE_WIDTH,
+      h: NODE_HEIGHT
+    }));
+
+    const spouseSegments: TreeConnectorPath[] = renderedRelationships
       .filter((relationship) => relationship.type === 'spouse')
       .map((relationship) => {
         const fromPosition = positionsByPersonId.get(relationship.fromPersonId);
@@ -635,17 +719,30 @@ function FamilyTreeCanvas({
           return null;
         }
 
+        const isLeftRight = fromPosition.x < toPosition.x;
+        const leftPerson = isLeftRight ? fromPosition : toPosition;
+        const rightPerson = isLeftRight ? toPosition : fromPosition;
+        const isAdjacent = Math.abs(rightPerson.x - leftPerson.x) <= NODE_WIDTH + SPOUSE_GAP + 5;
+        
+        let pathD = '';
+        if (isAdjacent) {
+          pathD = `M ${leftPerson.x + NODE_WIDTH} ${leftPerson.y + NODE_HEIGHT / 2} L ${rightPerson.x} ${rightPerson.y + NODE_HEIGHT / 2}`;
+        } else {
+          // Route above the nodes to avoid passing through other spouses
+          const startX = leftPerson.x + NODE_WIDTH / 2;
+          const endX = rightPerson.x + NODE_WIDTH / 2;
+          const yTop = leftPerson.y - 12;
+          pathD = `M ${startX} ${leftPerson.y} L ${startX} ${yTop} L ${endX} ${yTop} L ${endX} ${rightPerson.y}`;
+        }
+
         return {
           key: relationship.id,
-          x1: fromPosition.x + NODE_WIDTH / 2,
-          y1: fromPosition.y + NODE_HEIGHT / 2,
-          x2: toPosition.x + NODE_WIDTH / 2,
-          y2: toPosition.y + NODE_HEIGHT / 2,
+          d: pathD,
           stroke: theme.colors.secondary,
           strokeWidth: 4,
-        } satisfies TreeLineSegment;
+        } satisfies TreeConnectorPath;
       })
-      .filter((segment): segment is TreeLineSegment => Boolean(segment));
+      .filter((segment): segment is TreeConnectorPath => Boolean(segment));
 
     const familyConnectionsByChildLevel = new Map<number, Array<{ parentGroupId: string; childPersonIds: string[] }>>();
 
@@ -709,13 +806,11 @@ function FamilyTreeCanvas({
             const junctionY = Math.min(childTopY - 10, parentBottomY + 10 + index * laneStep);
             const parentCenterX = parentBounds.centerX;
 
-            childCenters.forEach((child, childIndex) => {
-              parentChildPaths.push({
-                key: `child-${childLevel}-${entry.parentGroupId}-${childIndex}`,
-                d: createRoundedParentChildPath(parentCenterX, parentBottomY, junctionY, child.x, child.topY),
-                stroke: theme.colors.primary,
-                strokeWidth: 3,
-              });
+            parentChildPaths.push({
+              key: `child-${childLevel}-${entry.parentGroupId}`,
+              d: createTreeBranchPath(parentCenterX, parentBottomY, junctionY, childCenters, obstacles),
+              stroke: theme.colors.primary,
+              strokeWidth: 3,
             });
           });
       });
@@ -1082,7 +1177,7 @@ function FamilyTreeCanvas({
           },
         ]}
       >
-        <Svg width={canvasWidth} height={canvasHeight} style={StyleSheet.absoluteFill}>
+        <Svg width={canvasWidth} height={canvasHeight} style={[StyleSheet.absoluteFill, { zIndex: -1 }]}>
           {parentChildPaths.map((connector) => (
             <Path
               key={connector.key}
@@ -1095,15 +1190,14 @@ function FamilyTreeCanvas({
             />
           ))}
           {spouseSegments.map((segment) => (
-            <Line
+            <Path
               key={segment.key}
-              x1={segment.x1}
-              y1={segment.y1}
-              x2={segment.x2}
-              y2={segment.y2}
+              d={segment.d}
+              fill="none"
               stroke={segment.stroke}
               strokeWidth={segment.strokeWidth}
-              strokeDasharray={segment.strokeDasharray}
+              strokeLinecap="round"
+              strokeLinejoin="round"
             />
           ))}
         </Svg>
