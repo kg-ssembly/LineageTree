@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet } from 'react-native';
 import { Button, Dialog, HelperText, Portal, SegmentedButtons, TextInput } from 'react-native-paper';
 import type { CollaboratorRole } from '../types/tree';
+import { GlobalStyles } from '../styles/global-styles';
+
+const styles = GlobalStyles.collaboratorDialog;
 
 interface CollaboratorDialogProps {
   visible: boolean;
@@ -72,7 +74,7 @@ export default function CollaboratorDialog({
           <SegmentedButtons
             value={role}
             onValueChange={(value) => setRole(value as CollaboratorRole)}
-            style={{ marginTop: 12 }}
+            style={styles.roleButtons}
             buttons={[
               { value: 'viewer', label: 'Viewer' },
               { value: 'editor', label: 'Editor' },
@@ -88,9 +90,4 @@ export default function CollaboratorDialog({
   );
 }
 
-const styles = StyleSheet.create({
-  dialog: {
-    marginHorizontal: 16,
-  },
-});
 

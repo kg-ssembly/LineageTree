@@ -696,6 +696,447 @@ export class GlobalStyles {
     },
   });
 
+  static readonly treeFormDialog = StyleSheet.create({
+    dialog: {
+      marginHorizontal: 16,
+    },
+  });
+
+  static readonly confirmDialog = StyleSheet.create({
+    dialog: {
+      marginHorizontal: 16,
+    },
+  });
+
+  static readonly collaboratorDialog = StyleSheet.create({
+    dialog: {
+      marginHorizontal: 16,
+    },
+    roleButtons: {
+      marginTop: 12,
+    },
+  });
+
+  static readonly lifeEventDialog = StyleSheet.create({
+    dialog: {
+      maxHeight: '82%',
+      marginHorizontal: 16,
+    },
+    scrollArea: {
+      borderBottomWidth: 0,
+      borderTopWidth: 0,
+      paddingHorizontal: 0,
+    },
+    helperText: {
+      color: '#6B6B74',
+    },
+    typeWrap: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      marginTop: 16,
+    },
+    typeChip: {
+      marginRight: 8,
+      marginBottom: 8,
+    },
+    fieldSpacing: {
+      marginTop: 16,
+    },
+    dateActions: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      alignItems: 'center',
+      gap: 8,
+      marginTop: 8,
+    },
+  });
+
+  static readonly relationshipDialog = StyleSheet.create({
+    dialog: {
+      maxHeight: '90%',
+      marginHorizontal: 12,
+      borderRadius: 5,
+    },
+    dialogTitle: {
+      paddingBottom: 4,
+    },
+    scrollArea: {
+      borderBottomWidth: 0,
+      borderTopWidth: 0,
+      paddingHorizontal: 4,
+    },
+    content: {
+      paddingHorizontal: 4,
+      paddingBottom: 8,
+    },
+    dialogActions: {
+      paddingHorizontal: 8,
+      paddingTop: 8,
+      borderTopWidth: StyleSheet.hairlineWidth,
+    },
+    relationshipTypeCard: {
+      borderRadius: 5,
+      borderWidth: 1,
+      padding: 8,
+    },
+    section: {
+      marginTop: 16,
+    },
+    sectionCard: {
+      borderRadius: 5,
+      borderWidth: 1,
+      padding: 12,
+    },
+    searchInput: {
+      marginTop: 8,
+    },
+    peopleWrap: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      marginTop: 8,
+    },
+    personChip: {
+      marginRight: 8,
+      marginBottom: 8,
+    },
+  });
+
+  static readonly personRelationshipDialog = StyleSheet.create({
+    dialog: {
+      maxHeight: '82%',
+      marginHorizontal: 16,
+    },
+    scrollArea: {
+      borderBottomWidth: 0,
+      borderTopWidth: 0,
+      paddingHorizontal: 0,
+    },
+    helperText: {
+      color: '#6B6B74',
+    },
+    segmentedButtons: {
+      marginTop: 16,
+    },
+    section: {
+      marginTop: 16,
+    },
+    searchInput: {
+      marginTop: 8,
+    },
+    peopleWrap: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      marginTop: 12,
+    },
+    personChip: {
+      marginRight: 8,
+      marginBottom: 8,
+    },
+  });
+
+  static readonly relationshipInsightCard = StyleSheet.create({
+    card: {
+      marginTop: 16,
+    },
+    subtitle: {
+      marginTop: 6,
+      color: '#6B6B74',
+    },
+    section: {
+      marginTop: 16,
+    },
+    chipRow: {
+      paddingTop: 8,
+      paddingRight: 8,
+    },
+    chip: {
+      marginRight: 8,
+    },
+    actionsRow: {
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+      marginTop: 8,
+    },
+    lockedPersonRow: {
+      marginTop: 8,
+    },
+    resultBox: {
+      marginTop: 12,
+      padding: 16,
+      borderRadius: 5,
+      backgroundColor: '#F3F0FF',
+    },
+    pathText: {
+      marginTop: 8,
+      color: '#4E4E58',
+    },
+  });
+
+  static readonly personFormDialog = StyleSheet.create({
+    dialog: {
+      maxHeight: '92%',
+      marginHorizontal: 12,
+      borderRadius: 5,
+    },
+    dialogTitle: {
+      paddingBottom: 4,
+    },
+    scrollArea: {
+      borderBottomWidth: 0,
+      borderTopWidth: 0,
+      paddingHorizontal: 4,
+    },
+    content: {
+      paddingHorizontal: 4,
+      paddingBottom: 12,
+    },
+    dialogActions: {
+      paddingHorizontal: 8,
+      paddingTop: 8,
+      borderTopWidth: StyleSheet.hairlineWidth,
+    },
+    fieldSpacing: {
+      marginTop: 8,
+    },
+    sectionSpacing: {
+      marginTop: 16,
+    },
+    birthDateActions: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      alignItems: 'center',
+      gap: 8,
+      marginTop: 8,
+    },
+    chipGroup: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      marginTop: 8,
+    },
+    chip: {
+      marginRight: 8,
+      marginBottom: 8,
+    },
+    relationshipHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    helperText: {
+      marginTop: 8,
+      color: '#6B6B74',
+    },
+    pendingRelationshipCard: {
+      marginTop: 12,
+      padding: 12,
+      borderRadius: 5,
+      borderWidth: 1,
+      borderColor: '#D7D1F9',
+      backgroundColor: '#F7F5FF',
+    },
+    relationshipChipRow: {
+      paddingTop: 12,
+      paddingRight: 8,
+    },
+    relationshipChip: {
+      marginRight: 8,
+    },
+    photoHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      gap: 12,
+    },
+    photoActionRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+      marginTop: 12,
+    },
+    photoHint: {
+      marginTop: 8,
+      opacity: 0.7,
+    },
+    photoList: {
+      paddingTop: 12,
+      paddingBottom: 4,
+    },
+    photoCard: {
+      marginRight: 12,
+      position: 'relative',
+    },
+    photo: {
+      width: 96,
+      height: 96,
+      borderRadius: 12,
+      backgroundColor: '#ECE8FF',
+    },
+    photoRemoveButton: {
+      position: 'absolute',
+      top: -6,
+      right: -6,
+      backgroundColor: '#FFFFFF',
+      margin: 0,
+    },
+    photoPrimaryButton: {
+      position: 'absolute',
+      top: -6,
+      left: -6,
+      backgroundColor: '#FFFFFF',
+      margin: 0,
+    },
+  });
+
+  static readonly familyTreeCanvas = StyleSheet.create({
+    container: {
+      marginTop: 16,
+    },
+    containerFill: {
+      flex: 1,
+      marginTop: 0,
+    },
+    controlsRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      flexWrap: 'wrap',
+      gap: 8,
+      marginBottom: 12,
+    },
+    zoomButtonsRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    viewport: {
+      position: 'relative',
+      overflow: 'hidden',
+      borderRadius: 5,
+      borderWidth: 1,
+      borderColor: '#DDD8FF',
+      backgroundColor: '#F5F2FF',
+    },
+    fullscreenContainer: {
+      flex: 1,
+      padding: 12,
+    },
+    fullscreenViewport: {
+      flex: 1,
+      minHeight: 320,
+    },
+    fullscreenHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    fullscreenSubtitle: {
+      marginTop: 4,
+      marginBottom: 12,
+    },
+    canvas: {
+      backgroundColor: '#F5F2FF',
+    },
+    inlineViewportFill: {
+      flex: 1,
+      minHeight: 320,
+    },
+    viewportOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      justifyContent: 'space-between',
+      padding: 12,
+      zIndex: 4,
+      elevation: 4,
+    },
+    gestureLayer: {
+      ...StyleSheet.absoluteFillObject,
+      zIndex: 2,
+    },
+    floatingHintCard: {
+      alignSelf: 'flex-start',
+      maxWidth: 300,
+      borderRadius: 5,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+    },
+    floatingHintText: {
+      lineHeight: 18,
+    },
+    floatingControlsCard: {
+      alignSelf: 'flex-end',
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'flex-end',
+      flexWrap: 'wrap',
+      gap: 4,
+      borderWidth: 1,
+      borderRadius: 5,
+      padding: 4,
+    },
+    node: {
+      position: 'absolute',
+      backgroundColor: '#FFFFFF',
+      borderRadius: 5,
+      borderWidth: 1,
+      borderColor: '#CFC5FF',
+      padding: 12,
+      justifyContent: 'center',
+      shadowColor: '#000000',
+      shadowOpacity: 0.08,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 4 },
+      elevation: 2,
+    },
+    nodeInnerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+    nodeAvatarWrap: {
+      flexShrink: 0,
+    },
+    nodeAvatar: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      borderWidth: 2,
+      borderColor: '#CFC5FF',
+      backgroundColor: '#ECE8FF',
+    },
+    nodeAvatarFallback: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      borderWidth: 2,
+      borderColor: '#CFC5FF',
+      backgroundColor: 'transparent',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    nodeTextWrap: {
+      flex: 1,
+    },
+    nodeBadge: {
+      position: 'absolute',
+      top: 8,
+      right: 8,
+      borderRadius: 5,
+      paddingHorizontal: 8,
+      paddingVertical: 2,
+      zIndex: 1,
+    },
+    nodeBadgeText: {
+      fontWeight: '700',
+    },
+    nodeTitle: {
+      fontWeight: '700',
+    },
+    nodeMeta: {
+      color: '#6B6B74',
+      marginTop: 4,
+    },
+  });
+
   static readonly login = StyleSheet.create({
     flex: { flex: 1 },
     scroll: { flexGrow: 1, justifyContent: 'center', padding: 20 },

@@ -1,9 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { Button, Chip, Dialog, HelperText, Portal, Text, TextInput } from 'react-native-paper';
 import { DatePickerModal } from 'react-native-paper-dates';
 import type { PersonLifeEvent, PersonLifeEventType } from '../types/person';
 import { getLifeEventTypeLabel, parsePersonDate } from '../types/person';
+import { GlobalStyles } from '../styles/global-styles';
+
+const styles = GlobalStyles.lifeEventDialog;
 
 interface LifeEventDialogProps {
   visible: boolean;
@@ -208,37 +211,4 @@ export default function LifeEventDialog({
   );
 }
 
-const styles = StyleSheet.create({
-  dialog: {
-    maxHeight: '82%',
-    marginHorizontal: 16,
-  },
-  scrollArea: {
-    borderBottomWidth: 0,
-    borderTopWidth: 0,
-    paddingHorizontal: 0,
-  },
-  helperText: {
-    color: '#6B6B74',
-  },
-  typeWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginTop: 16,
-  },
-  typeChip: {
-    marginRight: 8,
-    marginBottom: 8,
-  },
-  fieldSpacing: {
-    marginTop: 16,
-  },
-  dateActions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 8,
-  },
-});
 

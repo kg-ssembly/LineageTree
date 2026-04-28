@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Image, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { Alert, Image, Platform, ScrollView, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import {
   Button,
@@ -16,6 +16,9 @@ import {
 } from 'react-native-paper';
 import { DatePickerModal } from 'react-native-paper-dates';
 import type { PersonGender, PersonLifeEvent, PersonMutationPayload, PersonPhoto, PersonRecord } from '../types/person';
+import { GlobalStyles } from '../styles/global-styles';
+
+const styles = GlobalStyles.personFormDialog;
 
 export type PendingRelationshipMode = 'parent-of' | 'child-of' | 'spouse-of';
 
@@ -677,117 +680,3 @@ export default function PersonFormDialog({
   );
 }
 
-const styles = StyleSheet.create({
-  dialog: {
-    maxHeight: '92%',
-    marginHorizontal: 12,
-    borderRadius: 5,
-  },
-  dialogTitle: {
-    paddingBottom: 4,
-  },
-  scrollArea: {
-    borderBottomWidth: 0,
-    borderTopWidth: 0,
-    paddingHorizontal: 4,
-  },
-  content: {
-    paddingHorizontal: 4,
-    paddingBottom: 12,
-  },
-  dialogActions: {
-    paddingHorizontal: 8,
-    paddingTop: 8,
-    borderTopWidth: StyleSheet.hairlineWidth,
-  },
-  fieldSpacing: {
-    marginTop: 8,
-  },
-  sectionSpacing: {
-    marginTop: 16,
-  },
-  birthDateActions: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 8,
-  },
-  chipGroup: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginTop: 8,
-  },
-  chip: {
-    marginRight: 8,
-    marginBottom: 8,
-  },
-  relationshipHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  helperText: {
-    marginTop: 8,
-    color: '#6B6B74',
-  },
-  pendingRelationshipCard: {
-    marginTop: 12,
-    padding: 12,
-    borderRadius: 5,
-    borderWidth: 1,
-    borderColor: '#D7D1F9',
-    backgroundColor: '#F7F5FF',
-  },
-  relationshipChipRow: {
-    paddingTop: 12,
-    paddingRight: 8,
-  },
-  relationshipChip: {
-    marginRight: 8,
-  },
-  photoHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: 12,
-  },
-  photoActionRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 12,
-  },
-  photoHint: {
-    marginTop: 8,
-    opacity: 0.7,
-  },
-  photoList: {
-    paddingTop: 12,
-    paddingBottom: 4,
-  },
-  photoCard: {
-    marginRight: 12,
-    position: 'relative',
-  },
-  photo: {
-    width: 96,
-    height: 96,
-    borderRadius: 12,
-    backgroundColor: '#ECE8FF',
-  },
-  photoRemoveButton: {
-    position: 'absolute',
-    top: -6,
-    right: -6,
-    backgroundColor: '#FFFFFF',
-    margin: 0,
-  },
-  photoPrimaryButton: {
-    position: 'absolute',
-    top: -6,
-    left: -6,
-    backgroundColor: '#FFFFFF',
-    margin: 0,
-  },
-});

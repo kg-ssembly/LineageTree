@@ -1,8 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { Button, Chip, Dialog, HelperText, Portal, SegmentedButtons, Text, TextInput, useTheme } from 'react-native-paper';
 import type { PersonRecord } from '../types/person';
 import type { RelationshipRecord, RelationshipType } from '../types/relationship';
+import { GlobalStyles } from '../styles/global-styles';
+
+const styles = GlobalStyles.relationshipDialog;
 
 interface RelationshipDialogProps {
   visible: boolean;
@@ -199,52 +202,3 @@ export default function RelationshipDialog({
   );
 }
 
-const styles = StyleSheet.create({
-  dialog: {
-    maxHeight: '90%',
-    marginHorizontal: 12,
-    borderRadius: 5,
-  },
-  dialogTitle: {
-    paddingBottom: 4,
-  },
-  scrollArea: {
-    borderBottomWidth: 0,
-    borderTopWidth: 0,
-    paddingHorizontal: 4,
-  },
-  content: {
-    paddingHorizontal: 4,
-    paddingBottom: 8,
-  },
-  dialogActions: {
-    paddingHorizontal: 8,
-    paddingTop: 8,
-    borderTopWidth: StyleSheet.hairlineWidth,
-  },
-  relationshipTypeCard: {
-    borderRadius: 5,
-    borderWidth: 1,
-    padding: 8,
-  },
-  section: {
-    marginTop: 16,
-  },
-  sectionCard: {
-    borderRadius: 5,
-    borderWidth: 1,
-    padding: 12,
-  },
-  searchInput: {
-    marginTop: 8,
-  },
-  peopleWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginTop: 8,
-  },
-  personChip: {
-    marginRight: 8,
-    marginBottom: 8,
-  },
-});

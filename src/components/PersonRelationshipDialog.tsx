@@ -1,8 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { Button, Chip, Dialog, HelperText, Portal, SegmentedButtons, Text, TextInput } from 'react-native-paper';
 import type { PersonRecord } from '../types/person';
 import type { RelationshipRecord } from '../types/relationship';
+import { GlobalStyles } from '../styles/global-styles';
+
+const styles = GlobalStyles.personRelationshipDialog;
 
 export type PersonRelationshipMode = 'parent-of' | 'child-of' | 'spouse-of';
 
@@ -204,36 +207,4 @@ export default function PersonRelationshipDialog({
   );
 }
 
-const styles = StyleSheet.create({
-  dialog: {
-    maxHeight: '82%',
-    marginHorizontal: 16,
-  },
-  scrollArea: {
-    borderBottomWidth: 0,
-    borderTopWidth: 0,
-    paddingHorizontal: 0,
-  },
-  helperText: {
-    color: '#6B6B74',
-  },
-  segmentedButtons: {
-    marginTop: 16,
-  },
-  section: {
-    marginTop: 16,
-  },
-  searchInput: {
-    marginTop: 8,
-  },
-  peopleWrap: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginTop: 12,
-  },
-  personChip: {
-    marginRight: 8,
-    marginBottom: 8,
-  },
-});
 

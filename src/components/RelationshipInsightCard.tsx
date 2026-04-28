@@ -1,9 +1,12 @@
 import React, { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { Button, Card, Chip, Text, useTheme } from 'react-native-paper';
 import type { PersonRecord } from '../types/person';
 import type { RelationshipRecord } from '../types/relationship';
 import { computeRelationshipInsight } from '../services';
+import { GlobalStyles } from '../styles/global-styles';
+
+const styles = GlobalStyles.relationshipInsightCard;
 
 interface RelationshipInsightCardProps {
   people: PersonRecord[];
@@ -157,41 +160,4 @@ export default function RelationshipInsightCard({
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    marginTop: 16,
-  },
-  subtitle: {
-    marginTop: 6,
-    color: '#6B6B74',
-  },
-  section: {
-    marginTop: 16,
-  },
-  chipRow: {
-    paddingTop: 8,
-    paddingRight: 8,
-  },
-  chip: {
-    marginRight: 8,
-  },
-  actionsRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginTop: 8,
-  },
-  lockedPersonRow: {
-    marginTop: 8,
-  },
-  resultBox: {
-    marginTop: 12,
-    padding: 16,
-    borderRadius: 5,
-    backgroundColor: '#F3F0FF',
-  },
-  pathText: {
-    marginTop: 8,
-    color: '#4E4E58',
-  },
-});
 

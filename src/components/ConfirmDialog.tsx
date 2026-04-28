@@ -1,6 +1,8 @@
 import React from 'react';
-import { StyleSheet } from 'react-native';
 import { Button, Dialog, Portal, Text } from 'react-native-paper';
+import { GlobalStyles } from '../styles/global-styles';
+
+const styles = GlobalStyles.confirmDialog;
 
 interface ConfirmDialogProps {
   visible: boolean;
@@ -43,9 +45,4 @@ export default function ConfirmDialog({
   );
 }
 
-const styles = StyleSheet.create({
-  dialog: {
-    marginHorizontal: 16,
-  },
-});
 
