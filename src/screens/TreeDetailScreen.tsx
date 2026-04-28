@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Image, ScrollView, StyleSheet, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { createMaterialTopTabNavigator } from '@react-navigation/material-top-tabs';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   ActivityIndicator,
@@ -118,7 +118,7 @@ interface SharedTabProps {
   onSetApprovalWindowHours: (hours: number) => Promise<void>;
 }
 
-const Tab = createMaterialTopTabNavigator<TreeDetailTabParamList>();
+const Tab = createBottomTabNavigator<TreeDetailTabParamList>();
 
 function formatPersonName(person?: PersonRecord | null) {
   if (!person) {
@@ -1347,18 +1347,15 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
         initialRouteName={initialTab}
         screenOptions={({ route: currentRoute }) => ({
           lazy: true,
-          lazyPreloadDistance: 0,
-          swipeEnabled: true,
+          headerShown: false,
           tabBarActiveTintColor: theme.colors.primary,
           tabBarInactiveTintColor: theme.colors.onSurfaceVariant,
           tabBarShowIcon: true,
-          tabBarStyle: [styles.tabBar, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.outlineVariant }],
-          tabBarIndicatorStyle: [styles.tabIndicator, { backgroundColor: theme.colors.primary }],
+          tabBarStyle: [styles.tabBar, { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.outlineVariant }],
           tabBarLabelStyle: styles.tabLabel,
           tabBarItemStyle: styles.tabItem,
-          tabBarPressColor: theme.colors.secondaryContainer,
           sceneStyle: [styles.tabScene, { backgroundColor: theme.colors.background }],
-          tabBarIcon: ({ color }) => {
+          tabBarIcon: ({ color, size }) => {
             const iconName = currentRoute.name === 'PeopleRelationshipsTab'
               ? 'account-group-outline'
               : currentRoute.name === 'VisualisationTab'
@@ -1366,7 +1363,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
                 : currentRoute.name === 'ProfileTab'
                   ? 'card-account-details-outline'
                   : 'home-outline';
-            return <MaterialCommunityIcons name={iconName} size={20} color={color} />;
+            return <MaterialCommunityIcons name={iconName} size={size} color={color} />;
           },
         })}
       >
@@ -1555,14 +1552,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8F7FF',
   },
   tabBar: {
+    height: 64,
+    paddingTop: 6,
+    paddingBottom: 8,
+    borderTopWidth: 1,
     elevation: 0,
     shadowOpacity: 0,
-    borderBottomWidth: 1,
-    minHeight: 64,
-  },
-  tabIndicator: {
-    height: 3,
-    borderRadius: 999,
   },
   tabLabel: {
     fontSize: 12,
@@ -1570,7 +1565,7 @@ const styles = StyleSheet.create({
     textTransform: 'none',
   },
   tabItem: {
-    minHeight: 64,
+    minHeight: 52,
   },
   content: {
     padding: 16,
