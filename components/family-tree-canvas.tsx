@@ -508,10 +508,14 @@ function FamilyTreeCanvas({
 
   const renderViewport = (mode: 'inline' | 'fullscreen', viewportStyle?: object) => (
       <View
+          {...panResponder.panHandlers}
           {...(Platform.OS === 'web' ? ({ onWheel: handleWheel } as any) : {})}
           style={[
             styles.viewport,
             { borderColor: theme.colors.outlineVariant, backgroundColor: theme.colors.elevation.level1, overflow: 'hidden' },
+            Platform.OS === 'web'
+                ? ({ cursor: 'grab', touchAction: 'none', userSelect: 'none' } as any)
+                : null,
             viewportStyle,
           ]}
           onLayout={mode === 'fullscreen' ? onLayoutFullscreen : onLayoutInline}
@@ -571,19 +575,6 @@ function FamilyTreeCanvas({
           })}
         </Animated.View>
 
-        {/* Gesture layer sits on top but only steals the gesture once the user
-          actually drags / pinches. Until then, taps reach the Pressables
-          underneath via the platform's standard hit-testing. */}
-        <View
-            {...panResponder.panHandlers}
-            pointerEvents="box-only"
-            style={[
-              StyleSheet.absoluteFill,
-              Platform.OS === 'web'
-                  ? ({ cursor: 'grab', touchAction: 'none', userSelect: 'none', background: 'transparent' } as any)
-                  : null,
-            ]}
-        />
 
         {floatingControls ? renderFloatingControls(mode) : null}
       </View>

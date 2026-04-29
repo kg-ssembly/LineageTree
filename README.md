@@ -60,6 +60,8 @@ npm run export:web
 
 This repo is configured for Firebase Hosting with the default Firebase project set to `lineagetree` in `.firebaserc`.
 
+Note: Expo web export emits some runtime assets, including icon fonts, under `dist/assets/node_modules/`. Firebase Hosting must not ignore that path during deploys or the deployed site will serve `index.html` instead of the font files.
+
 First-time setup:
 
 ```powershell
