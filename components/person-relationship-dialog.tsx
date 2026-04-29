@@ -199,8 +199,8 @@ export default function PersonRelationshipDialog({
           </ScrollView>
         </Dialog.ScrollArea>
         <Dialog.Actions>
-          <Button onPress={onDismiss} disabled={loading}>Cancel</Button>
-          <Button onPress={handleSubmit} disabled={loading || !person || candidates.length === 0}>Save</Button>
+          <Button mode="outlined" onPress={onDismiss} disabled={loading}>Cancel</Button>
+          <Button mode="contained" onPress={handleSubmit} disabled={loading || !person || candidates.length === 0}>Save</Button>
         </Dialog.Actions>
       </Dialog>
     </Portal>

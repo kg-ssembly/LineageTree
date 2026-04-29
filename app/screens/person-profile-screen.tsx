@@ -20,7 +20,7 @@ import { ConfirmDialog, FamilyTreeCanvas, LifeEventDialog, PersonFormDialog, Per
 import type { PersonRelationshipMode } from '../../components/person-relationship-dialog';
 import { useAuthStore } from '../../stores/auth-store';
 import { useTreeStore } from '../../stores/tree-store';
-import type { PersonGender, PersonLifeEvent, PersonMutationPayload, PersonRecord } from '../../components/dto/person';
+import type { PersonLifeEvent, PersonMutationPayload, PersonRecord } from '../../components/dto/person';
 import {
   formatPersonDate,
   getLifeEventTypeLabel,
@@ -150,7 +150,7 @@ function getAscendantIds(rootPersonId: string, relationships: RelationshipRecord
 }
 
 const PERSON_PROFILE_TABS: Array<{ key: PersonProfileTabKey; label: string }> = [
-  { key: 'member-profile', label: 'Member profile' },
+  { key: 'member-profile', label: 'Profile' },
   { key: 'relationships', label: 'Relationships' },
   { key: 'descendant-tree', label: 'Descendant tree' },
   { key: 'ascendant-tree', label: 'Ascendant tree' },
@@ -165,27 +165,27 @@ const PERSON_PROFILE_TAB_GROUPS: PersonProfileTabKey[][] = [
 const helperDialogCopy: Record<HelperDialogKey, { title: string; message: string }> = {
   tabs: {
     title: 'Family member sections',
-    message: 'Switch between profile details, relationships, lineage trees, and memories from these tabs.',
+    message: 'Profile shows core identity details and notes. Relationships lets you add, edit, or remove parent, child, and spouse connections. Descendant tree follows children downward through generations. Ascendant tree follows parents upward. Memories & gallery holds chronological life events, notes, and a photo gallery.',
   },
   'member-profile': {
     title: 'Member profile',
-    message: 'Core identity details and personal notes for this family member are shown here.',
+    message: 'Displays the first name, last name, birth date, gender, presence status, and photo count for this family member. Personal notes are shown at the bottom of this section. Use the Edit button in the header to update any of these details.',
   },
   relationships: {
     title: 'Relationships',
-    message: 'Manage parents, children, and spouse connections and review relationship insights from this section.',
+    message: 'Add new parent, child, or spouse connections with the button above. Tap the pencil to edit an existing link or the bin to remove it. The Relationship insight tool at the bottom lets you search for the path between any two family members in the tree.',
   },
   'descendant-tree': {
     title: 'Descendant tree',
-    message: 'This view starts from the current family member and follows children and younger generations downward.',
+    message: 'The canvas starts at this family member and draws children, grandchildren, and every subsequent generation downward. Tap any node to open that person\'s full profile. Pinch or use the zoom buttons to navigate a large tree.',
   },
   'ascendant-tree': {
     title: 'Ascendant tree',
-    message: 'This view starts from the current family member and follows parents and older generations upward.',
+    message: 'The canvas starts at this family member and draws parents, grandparents, and every prior generation upward. Tap any node to open that person\'s full profile. Pinch or use the zoom buttons to navigate a large tree.',
   },
   'memories-gallery': {
     title: 'Memories & gallery',
-    message: 'Browse notes, photo memories, and life events that form this family member timeline.',
+    message: 'Notes capture free-form details about this family member. The photo gallery shows all uploaded images — tap any photo to open the full-screen viewer and swipe through. Life events form a date-ordered timeline of milestones such as marriage, graduation, a move, retirement, or any custom family memory.',
   },
 };
 
@@ -689,17 +689,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
         </Surface>
 
         <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
-          <View style={styles.titleWithHelperRow}>
-            <Text variant="titleMedium">Family member tabs</Text>
-            <IconButton
-              icon="information-outline"
-              size={20}
-              style={styles.helperIconButton}
-              onPress={() => openHelperDialog('tabs')}
-              accessibilityLabel="About family member tabs"
-            />
-          </View>
-          <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>Tap a tab to switch between overview details, relationships, lineage trees, and memories.</Text>
+
           {PERSON_PROFILE_TAB_GROUPS.map((group, index) => (
             <SegmentedButtons
               key={`person-profile-tab-group-${group.join('-')}`}
@@ -726,7 +716,6 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
                 accessibilityLabel="About member profile"
               />
             </View>
-            <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>Core details and notes for this family member.</Text>
 
             <View style={styles.detailGrid}>
               <Card mode="outlined" style={[styles.detailCard, { backgroundColor: theme.colors.elevation.level1, borderColor: theme.colors.outlineVariant }]}>
@@ -790,7 +779,6 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
                     accessibilityLabel="About relationships"
                   />
                 </View>
-                <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>Add, edit, or remove family connections directly from this family member.</Text>
               </View>
               {canEdit ? (
                 <Button mode="contained" icon="family-tree" onPress={() => setRelationshipDialog({ visible: true, relationship: null })}>
@@ -874,11 +862,11 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
                     accessibilityLabel="About descendant tree"
                   />
                 </View>
-                <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-                  {descendantIds.length > 0
-                    ? `Start with ${formatPersonName(person)} and follow ${descendantIds.length} ${descendantIds.length === 1 ? 'younger family member' : 'younger family members'} through children and grandchildren.`
-                    : `No children or grandchildren are linked yet. Add family relationships to start ${formatPersonName(person)}’s branch.`}
-                </Text>
+                {descendantIds.length > 0 ? (
+                  <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
+                    {descendantIds.length} {descendantIds.length === 1 ? 'descendant' : 'descendants'}
+                  </Text>
+                ) : null}
               </View>
             </View>
 
@@ -907,11 +895,11 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
                     accessibilityLabel="About ascendant tree"
                   />
                 </View>
-                <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-                  {ascendantIds.length > 0
-                    ? `Look upward from ${formatPersonName(person)} to ${ascendantIds.length === 1 ? '1 older family member' : `${ascendantIds.length} older family members`} through parents and grandparents.`
-                    : `No parents or grandparents are linked yet. Add family relationships to build ${formatPersonName(person)}’s earlier generations.`}
-                </Text>
+                {ascendantIds.length > 0 ? (
+                  <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
+                    {ascendantIds.length} {ascendantIds.length === 1 ? 'ancestor' : 'ancestors'}
+                  </Text>
+                ) : null}
               </View>
             </View>
 
@@ -938,9 +926,8 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
                 accessibilityLabel="About memories and gallery"
               />
             </View>
-            <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>Notes, life events, and photos help this family member feel like a living timeline.</Text>
 
-            <View style={[styles.notesBox, { backgroundColor: theme.colors.surfaceVariant }]}> 
+            <View style={[styles.notesBox, { backgroundColor: theme.colors.surfaceVariant }]}>
               <Text variant="titleSmall">Notes</Text>
               <Text variant="bodyMedium" style={[styles.notesText, { color: theme.colors.onSurfaceVariant }]}> 
                 {person.notes || 'No notes added yet.'}
@@ -950,8 +937,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
             <Divider style={styles.sectionDivider} />
 
             <View style={styles.gallerySection}>
-              <Text variant="titleSmall">Photo gallery</Text>
-              <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>Tap any photo to open the full-screen viewer and scroll through the gallery.</Text>
+              <Text variant="titleSmall">Photo gallery ({person.photos.length})</Text>
               {person.photos.length > 0 ? (
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.galleryRow}>
                   {person.photos.map((photo, index) => (
@@ -963,7 +949,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
                   ))}
                 </ScrollView>
               ) : (
-                <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>No photos in the gallery yet.</Text>
+                <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>No photos yet.</Text>
               )}
             </View>
 
@@ -972,8 +958,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
             <View style={styles.lifeEventsSection}>
               <View style={styles.sectionHeader}>
                 <View style={styles.sectionHeaderText}>
-                  <Text variant="titleSmall">Life events</Text>
-                  <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>Add milestones like married, divorced, moved, graduated, or custom family memories.</Text>
+                  <Text variant="titleSmall">Life events ({memoryTimeline.length})</Text>
                 </View>
                 {canEdit ? (
                   <Button mode="contained-tonal" icon="plus" onPress={() => setLifeEventDialog({ visible: true, event: null })}>

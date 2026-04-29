@@ -46,16 +46,16 @@ type HelperDialogKey = 'hero' | 'appearance' | 'trees';
 
 const helperDialogCopy: Record<HelperDialogKey, { title: string; message: string }> = {
   hero: {
-    title: 'About your family archive',
-    message: 'Build family branches, preserve photo memories, and keep life events attached to every person in one living archive.',
+    title: 'Your family archive',
+    message: 'Each family tree is a dedicated workspace where you store people, photos, life events, and relationships. The stats above show how many trees you own or share, and whether any are currently active. Use the New tree button to create one, or tap any existing tree below to open it.',
   },
   appearance: {
     title: 'Appearance settings',
-    message: 'Switch between light, dark, or system mode anytime. System mode follows your device settings automatically.',
+    message: 'Light mode gives a bright, airy workspace. Dark mode switches to a cosy, low-light workspace. System mode reads your device setting automatically and switches when the device does — no manual action needed.',
   },
   trees: {
     title: 'Family tree workspaces',
-    message: 'Each tree is a dedicated workspace where you manage family members, relationships, collaborators, photos, and approvals.',
+    message: 'Each tree is a self-contained workspace for one family branch. Tap a card to continue where you left off. Star a tree to make it your default — it opens automatically on next launch. Owners can rename or delete their trees; editors and viewers can only browse.',
   },
 };
 
@@ -262,8 +262,7 @@ export default function HomeScreen({ navigation, route }: Props) {
             <Text variant="bodyMedium" style={[styles.email, { color: theme.colors.onSurfaceVariant }]}>{user?.email}</Text>
             <Text variant="bodyMedium" style={[styles.heroDescription, { color: theme.colors.onSurfaceVariant }]}>
               Your family archive at a glance.
-            </Text>
-          </View>
+            </Text>          </View>
 
           <View style={styles.heroStatsRow}>
             <Surface style={[styles.statCard, { backgroundColor: theme.colors.surface }]} elevation={0}>
@@ -335,7 +334,7 @@ export default function HomeScreen({ navigation, route }: Props) {
           />
 
           <View style={[styles.appearanceHint, { backgroundColor: theme.colors.surfaceVariant }]}>
-            <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>{appearanceSummary}</Text>
+            <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>{preference === 'system' ? 'System' : preference === 'dark' ? 'Dark mode' : 'Light mode'}</Text>
           </View>
         </Surface>
 
@@ -353,7 +352,7 @@ export default function HomeScreen({ navigation, route }: Props) {
                 />
               </View>
               <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-                Open a tree to continue where you left off.
+                Your trees
               </Text>
             </View>
             <Button

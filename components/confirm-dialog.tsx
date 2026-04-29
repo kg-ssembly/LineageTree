@@ -33,10 +33,10 @@ export default function ConfirmDialog({
           <Text variant="bodyMedium">{message}</Text>
         </Dialog.Content>
         <Dialog.Actions>
-          <Button onPress={onDismiss} disabled={loading}>
+          <Button mode="outlined" onPress={onDismiss} disabled={loading}>
             {cancelLabel}
           </Button>
-          <Button onPress={onConfirm} disabled={loading}>
+          <Button mode="contained" onPress={onConfirm} disabled={loading}>
             {confirmLabel}
           </Button>
         </Dialog.Actions>

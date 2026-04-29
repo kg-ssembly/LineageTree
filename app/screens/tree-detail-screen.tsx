@@ -40,7 +40,7 @@ import {
 import type { RelationshipRecord } from '../../components/dto/relationship';
 import type { RootStackParamList, TreeDetailTabParamList } from '../../components/dto/navigation';
 import { getUserDisplayLabel, getUserNameParts, type UserProfile } from '../../components/dto/user';
-import { formatPersonGender, formatPersonName } from '../../components/person-formatting';
+import { formatPersonName } from '../../components/person-formatting';
 import {
   canEditTreeContent,
   canManageTree,
@@ -208,6 +208,8 @@ function buildSelfAssignmentSuggestions(
 }
 
 
+const PEOPLE_PAGE_SIZE = 10;
+
 function PeopleRelationshipsTabContent({
   people,
   currentAssignedPerson,
@@ -222,6 +224,7 @@ function PeopleRelationshipsTabContent({
   const [searchQuery, setSearchQuery] = useState('');
   const [genderFilter, setGenderFilter] = useState<'all' | PersonGender>('all');
   const [assetFilter, setAssetFilter] = useState<'all' | 'with-photos' | 'with-notes'>('all');
+  const [visibleCount, setVisibleCount] = useState(PEOPLE_PAGE_SIZE);
 
   const filteredPeople = useMemo(
     () => people.filter((person) => {
@@ -243,6 +246,14 @@ function PeopleRelationshipsTabContent({
     [assetFilter, genderFilter, people, searchQuery],
   );
 
+  // Reset pagination whenever the filter/search changes
+  useEffect(() => {
+    setVisibleCount(PEOPLE_PAGE_SIZE);
+  }, [searchQuery, genderFilter, assetFilter]);
+
+  const visiblePeople = useMemo(() => filteredPeople.slice(0, visibleCount), [filteredPeople, visibleCount]);
+  const hasMore = visibleCount < filteredPeople.length;
+
   return (
     <ScrollView contentContainerStyle={styles.content}>
       <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
@@ -259,7 +270,7 @@ function PeopleRelationshipsTabContent({
               />
             </View>
             <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-              Tap a card to open that family member's full profile.
+              Tap a card to open a profile.
             </Text>
           </View>
           {canEdit ? (
@@ -310,43 +321,54 @@ function PeopleRelationshipsTabContent({
                 </Text>
               </View>
             ) : (
-              filteredPeople.map((person) => {
-                const preferredPhoto = getPreferredPersonPhoto(person);
-                const isCurrentUsersPerson = currentAssignedPerson?.id === person.id;
-                return (
-                  <Card key={person.id} style={[styles.personCard, { backgroundColor: theme.colors.elevation.level1, borderColor: theme.colors.outlineVariant }]} mode="outlined" onPress={() => openPersonProfile(person)}>
-                    <Card.Content>
-                      <View style={styles.personHeader}>
-                        <View style={styles.personPhotoWrap}>
-                          {preferredPhoto ? (
-                            <Image source={{ uri: preferredPhoto.url }} style={styles.personPhoto} />
-                          ) : (
-                            <View style={styles.personPhotoFallback}>
-                              <MaterialCommunityIcons name={getPersonFallbackAvatarIcon(person)} size={30} color={theme.colors.primary} />
+              <>
+                {visiblePeople.map((person) => {
+                  const preferredPhoto = getPreferredPersonPhoto(person);
+                  const isCurrentUsersPerson = currentAssignedPerson?.id === person.id;
+                  return (
+                    <Card key={person.id} style={[styles.personCard, { backgroundColor: theme.colors.elevation.level1, borderColor: theme.colors.outlineVariant }]} mode="outlined" onPress={() => openPersonProfile(person)}>
+                      <Card.Content>
+                        <View style={styles.personHeader}>
+                          <View style={styles.personPhotoWrap}>
+                            {preferredPhoto ? (
+                              <Image source={{ uri: preferredPhoto.url }} style={styles.personPhoto} />
+                            ) : (
+                              <View style={styles.personPhotoFallback}>
+                                <MaterialCommunityIcons name={getPersonFallbackAvatarIcon(person)} size={30} color={theme.colors.primary} />
+                              </View>
+                            )}
+                          </View>
+                          <View style={styles.personHeaderText}>
+                            <View style={styles.personNameRow}>
+                              <Text variant="titleLarge">{formatPersonName(person)}</Text>
+                              {isCurrentUsersPerson ? <Chip compact icon="account">You</Chip> : null}
                             </View>
-                          )}
-                        </View>
-                        <View style={styles.personHeaderText}>
-                          <View style={styles.personNameRow}>
-                            <Text variant="titleLarge">{formatPersonName(person)}</Text>
-                            {isCurrentUsersPerson ? <Chip compact icon="account">You</Chip> : null}
+                            <View style={styles.metadataRow}>
+                              {person.birthDate ? <Chip compact icon="calendar">{person.birthDate}</Chip> : null}
+                              <Chip compact icon={isPersonDeceased(person) ? 'flower-outline' : 'heart-pulse'}>
+                                {getPersonPresenceLabel(person)}
+                              </Chip>
+                              <Chip compact icon="image-multiple">{person.photos.length}</Chip>
+                            </View>
                           </View>
-                          <View style={styles.metadataRow}>
-                            {person.birthDate ? <Chip compact icon="calendar">{person.birthDate}</Chip> : null}
-                            <Chip compact icon={isPersonDeceased(person) ? 'flower-outline' : 'heart-pulse'}>
-                              {getPersonPresenceLabel(person)}
-                            </Chip>
-                            <Chip compact icon="image-multiple">{person.photos.length}</Chip>
+                          <View style={styles.cardActions}>
+                            <IconButton icon="open-in-new" onPress={() => openPersonProfile(person)} />
                           </View>
                         </View>
-                        <View style={styles.cardActions}>
-                          <IconButton icon="open-in-new" onPress={() => openPersonProfile(person)} />
-                        </View>
-                      </View>
-                    </Card.Content>
-                  </Card>
-                );
-              })
+                      </Card.Content>
+                    </Card>
+                  );
+                })}
+                {hasMore ? (
+                  <Button
+                    mode="outlined"
+                    onPress={() => setVisibleCount((current) => current + PEOPLE_PAGE_SIZE)}
+                    style={[styles.emptyStateButton, { alignSelf: 'center' }]}
+                  >
+                    Load more ({filteredPeople.length - visibleCount} remaining)
+                  </Button>
+                ) : null}
+              </>
             )}
           </>
         )}
@@ -356,7 +378,7 @@ function PeopleRelationshipsTabContent({
         <Dialog visible={helperVisible} onDismiss={() => setHelperVisible(false)}>
           <Dialog.Title>Family members</Dialog.Title>
           <Dialog.Content>
-            <Text variant="bodyMedium">Profiles keep notes and photo memories together. Open any card to manage details, relationships, and gallery content.</Text>
+            <Text variant="bodyMedium">Each card represents one person in this family tree. Tap a card to open their full profile, where you can view photos, life events, relationships, and personal notes. Use the search bar and filters to find a specific person by name, gender, or whether they have photos or notes. The Add family member button creates a new person and lets you link relationships immediately.</Text>
           </Dialog.Content>
           <Dialog.Actions>
             <Button onPress={() => setHelperVisible(false)}>Close</Button>
@@ -536,7 +558,7 @@ function ProfileTabContent({
           />
         </View>
         <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-          Overview, collaborators, and approvals.
+          Overview · Collaborators · Approvals
         </Text>
 
         <SegmentedButtons
@@ -738,7 +760,7 @@ function ProfileTabContent({
           <View style={styles.sectionHeader}>
             <View style={styles.titleWrap}>
               <Text variant="titleLarge">Collaborators</Text>
-              <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>Owners manage access. Editors can update family members and relationships. Viewers can browse the tree.</Text>
+              <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>Owners manage access. Editors can update content. Viewers can browse.</Text>
             </View>
             {isOwner ? (
               <Button mode="contained" icon="account-plus" onPress={onOpenCollaboratorDialog} disabled={mutating}>
@@ -881,7 +903,7 @@ function ProfileTabContent({
           <View style={styles.collaboratorSectionWrap}>
           <View style={styles.treeSettingsWrap}>
             <Text variant="titleSmall">Approval settings</Text>
-            <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>Family member profile edits and relationship changes auto-approve after this many hours if no one reviews them. Single-collaborator trees still approve immediately.</Text>
+              <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>Family member profile edits and relationship changes auto-approve after the set number of hours. Single-collaborator trees approve immediately.</Text>
             <View style={styles.approvalWindowRow}>
               <TextInput
                 mode="outlined"
@@ -908,7 +930,7 @@ function ProfileTabContent({
           <View style={styles.sectionHeader}>
             <View style={styles.titleWrap}>
               <Text variant="titleLarge">Pending approvals</Text>
-              <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>One other collaborator can approve or reject family member and relationship changes. If nobody reviews them before the deadline, they auto-approve.</Text>
+              <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>Collaborator edits awaiting review — they auto-approve if nobody acts before the deadline.</Text>
             </View>
           </View>
 
@@ -966,7 +988,7 @@ function ProfileTabContent({
         <Dialog visible={helperVisible} onDismiss={() => setHelperVisible(false)}>
           <Dialog.Title>Tree management</Dialog.Title>
           <Dialog.Content>
-            <Text variant="bodyMedium">Use Overview for key metrics and self-linking, Collaborators for access control, and Approvals for review workflows and timing settings.</Text>
+            <Text variant="bodyMedium">Overview shows key stats and lets you link your account to a family member profile. Collaborators manages who has access — owners can add, remove, or change roles, and can suggest a person link for any unlinked member. Approvals shows pending edits awaiting another collaborator's review; you can also set the auto-approve window here (the number of hours before an unreviewed change is accepted automatically).</Text>
           </Dialog.Content>
           <Dialog.Actions>
             <Button onPress={() => setHelperVisible(false)}>Close</Button>

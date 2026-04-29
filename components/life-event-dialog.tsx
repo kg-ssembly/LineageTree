@@ -183,8 +183,8 @@ export default function LifeEventDialog({
             </ScrollView>
           </Dialog.ScrollArea>
           <Dialog.Actions>
-            <Button onPress={onDismiss} disabled={loading}>Cancel</Button>
-            <Button onPress={handleSubmit} disabled={loading}>Save</Button>
+            <Button mode="outlined" onPress={onDismiss} disabled={loading}>Cancel</Button>
+            <Button mode="contained" onPress={handleSubmit} disabled={loading}>Save</Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>

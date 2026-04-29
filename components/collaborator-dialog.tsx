@@ -82,8 +82,8 @@ export default function CollaboratorDialog({
           />
         </Dialog.Content>
         <Dialog.Actions>
-          <Button onPress={onDismiss} disabled={loading}>Cancel</Button>
-          <Button onPress={handleSubmit} disabled={loading}>Invite</Button>
+          <Button mode="outlined" onPress={onDismiss} disabled={loading}>Cancel</Button>
+          <Button mode="contained" onPress={handleSubmit} disabled={loading}>Invite</Button>
         </Dialog.Actions>
       </Dialog>
     </Portal>

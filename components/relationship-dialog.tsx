@@ -194,8 +194,8 @@ export default function RelationshipDialog({
           </ScrollView>
         </Dialog.ScrollArea>
         <Dialog.Actions style={[styles.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}> 
-          <Button onPress={onDismiss} disabled={loading}>Cancel</Button>
-          <Button onPress={handleSubmit} disabled={loading || people.length < 2}>Save</Button>
+          <Button mode="outlined" onPress={onDismiss} disabled={loading}>Cancel</Button>
+          <Button mode="contained" onPress={handleSubmit} disabled={loading || people.length < 2}>Save</Button>
         </Dialog.Actions>
       </Dialog>
     </Portal>

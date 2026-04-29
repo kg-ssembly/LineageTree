@@ -68,8 +68,8 @@ export default function TreeFormDialog({
           </HelperText>
         </Dialog.Content>
         <Dialog.Actions>
-          <Button onPress={onDismiss} disabled={loading}>Cancel</Button>
-          <Button onPress={handleSubmit} disabled={loading}>
+          <Button mode="outlined" onPress={onDismiss} disabled={loading}>Cancel</Button>
+          <Button mode="contained" onPress={handleSubmit} disabled={loading}>
             {mode === 'create' ? 'Create' : 'Save'}
           </Button>
         </Dialog.Actions>

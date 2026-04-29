@@ -635,9 +635,10 @@ export default function PersonFormDialog({
               </View>
             </ScrollView>
           </Dialog.ScrollArea>
-          <Dialog.Actions style={[styles.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
+          <Dialog.Actions style={[styles.dialogActions, { borderTopColor: theme.colors.outlineVariant, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
             {mode === 'edit' && onDelete ? (
               <Button
+                mode="text"
                 textColor={theme.colors.error}
                 disabled={loading}
                 onPress={() => {
@@ -651,13 +652,17 @@ export default function PersonFormDialog({
                   );
                 }}
               >
-                Delete
+                Delete member
               </Button>
-            ) : null}
-            <Button onPress={onDismiss} disabled={loading}>Cancel</Button>
-            <Button onPress={handleSubmit} disabled={loading}>
-              {mode === 'create' ? 'Create' : 'Save'}
-            </Button>
+            ) : (
+              <View />
+            )}
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <Button mode="outlined" onPress={onDismiss} disabled={loading}>Cancel</Button>
+              <Button mode="contained" onPress={handleSubmit} disabled={loading}>
+                {mode === 'create' ? 'Create' : 'Save'}
+              </Button>
+            </View>
           </Dialog.Actions>
         </Dialog>
       </Portal>
