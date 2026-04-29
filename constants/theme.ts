@@ -181,7 +181,7 @@ function buildPaperTheme(mode: ResolvedTheme): AppTheme {
 
   return {
     ...baseTheme,
-    roundness: 5,
+    roundness: 6,
     colors: {
       ...baseTheme.colors,
       primary: palette.primary,
@@ -204,11 +204,11 @@ function buildPaperTheme(mode: ResolvedTheme): AppTheme {
       error: palette.error,
       elevation: {
         level0: palette.background,
-        level1: mode === 'dark' ? '#1B2012' : '#F8F5EE',
-        level2: mode === 'dark' ? '#21271A' : '#F2EDE4',
-        level3: mode === 'dark' ? '#272E20' : '#EBE5D9',
-        level4: mode === 'dark' ? '#2E3626' : '#E4DCCE',
-        level5: mode === 'dark' ? '#343D2B' : '#DDD4C3',
+        level1: mode === 'dark' ? '#1C2118' : '#FDFAF5',
+        level2: mode === 'dark' ? '#222819' : '#F8F4EB',
+        level3: mode === 'dark' ? '#272E20' : '#F2EDE2',
+        level4: mode === 'dark' ? '#2D3524' : '#ECE6D8',
+        level5: mode === 'dark' ? '#323B28' : '#E6DFCE',
       },
     },
   };

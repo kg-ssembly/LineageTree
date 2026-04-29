@@ -1,5 +1,28 @@
 import {StyleSheet} from 'react-native';
 
+// ── Forest palette constants (mirrors theme.ts forestPalettes) ────────────────
+const F = {
+  background:       '#F6F3ED',
+  surface:          '#FDFAF5',
+  surfaceVariant:   '#EBE5D9',
+  outlineVariant:   '#CFCAB8',
+  onSurface:        '#1A1C18',
+  onSurfaceVariant: '#605C4A',
+  onSurfaceDeep:    '#3E3A2C',
+  primaryGreen:     '#2D6A4F',
+  canvasBg:         '#F0EBE0',
+  canvasBorder:     '#C8D4C0',
+  nodeBg:           '#FFFEFB',
+  nodeBorder:       '#CFCAB8',
+  avatarBg:         '#EBE5D9',
+  avatarBorder:     '#C8D4C0',
+  hintBg:           '#EEE8D8',
+  pendingBg:        '#F5F2EA',
+  pendingBorder:    '#CFCAB8',
+  photoPreferred:   '#2D6A4F',
+  photoBg:          '#EBE5D9',
+};
+
 export class GlobalStyles {
     static readonly home = StyleSheet.create({
         container: {
@@ -10,7 +33,7 @@ export class GlobalStyles {
             paddingBottom: 40,
         },
         profileCard: {
-            borderRadius: 5,
+            borderRadius: 24,
             padding: 20,
             marginBottom: 16,
         },
@@ -55,7 +78,7 @@ export class GlobalStyles {
         },
         statCard: {
             flex: 1,
-            borderRadius: 5,
+            borderRadius: 18,
             paddingVertical: 16,
             paddingHorizontal: 14,
         },
@@ -72,7 +95,7 @@ export class GlobalStyles {
             height: 48,
         },
         sectionCard: {
-            borderRadius: 5,
+            borderRadius: 24,
             padding: 16,
             marginBottom: 16,
         },
@@ -95,7 +118,7 @@ export class GlobalStyles {
         },
         appearanceHint: {
             marginTop: 16,
-            borderRadius: 5,
+            borderRadius: 18,
             padding: 14,
         },
         centeredState: {
@@ -114,7 +137,7 @@ export class GlobalStyles {
         },
         treeCard: {
             marginTop: 12,
-            borderRadius: 5,
+            borderRadius: 18,
             borderWidth: 1,
         },
         treeHeader: {
@@ -144,16 +167,16 @@ export class GlobalStyles {
     static readonly treeDetail = StyleSheet.create({
         container: {
             flex: 1,
-            backgroundColor: '#F8F7FF',
+            backgroundColor: F.background,
         },
         loadingContainer: {
             flex: 1,
             justifyContent: 'center',
             alignItems: 'center',
-            backgroundColor: '#F8F7FF',
+            backgroundColor: F.background,
         },
         tabScene: {
-            backgroundColor: '#F8F7FF',
+            backgroundColor: F.background,
         },
         tabBar: {
             height: 64,
@@ -176,7 +199,7 @@ export class GlobalStyles {
             paddingBottom: 40,
         },
         sectionCard: {
-            borderRadius: 5,
+            borderRadius: 24,
             padding: 16,
             marginBottom: 16,
         },
@@ -203,7 +226,7 @@ export class GlobalStyles {
         },
         sectionSubtitle: {
             marginTop: 4,
-            color: '#6B6B74',
+            color: F.onSurfaceVariant,
         },
         managementSegmentedButtons: {
             marginTop: 16,
@@ -253,7 +276,7 @@ export class GlobalStyles {
             flex: 1,
         },
         collaboratorMeta: {
-            color: '#6B6B74',
+            color: F.onSurfaceVariant,
             marginTop: 4,
         },
         collaboratorChipRow: {
@@ -277,7 +300,7 @@ export class GlobalStyles {
             flex: 1,
             alignItems: 'center',
             justifyContent: 'center',
-            borderRadius: 5,
+            borderRadius: 24,
             paddingHorizontal: 24,
         },
         filterInput: {
@@ -298,7 +321,7 @@ export class GlobalStyles {
         },
         selfAssignmentCard: {
             marginTop: 16,
-            borderRadius: 5,
+            borderRadius: 18,
         },
         selfAssignmentHeader: {
             gap: 12,
@@ -323,7 +346,7 @@ export class GlobalStyles {
             gap: 12,
         },
         assignmentSuggestionCard: {
-            borderRadius: 5,
+            borderRadius: 18,
         },
         assignmentSuggestionRow: {
             flexDirection: 'row',
@@ -358,7 +381,7 @@ export class GlobalStyles {
         },
         stateText: {
             marginTop: 8,
-            color: '#6B6B74',
+            color: F.onSurfaceVariant,
             textAlign: 'center',
         },
         emptyStateButton: {
@@ -388,16 +411,16 @@ export class GlobalStyles {
             height: 64,
             borderRadius: 32,
             borderWidth: 2,
-            borderColor: '#EAF0E8',
-            backgroundColor: '#F2F5F1',
+            borderColor: F.avatarBorder,
+            backgroundColor: F.avatarBg,
         },
         personPhotoFallback: {
             width: 64,
             height: 64,
             borderRadius: 32,
             borderWidth: 2,
-            borderColor: '#EAF0E8',
-            backgroundColor: '#F2F5F1',
+            borderColor: F.avatarBorder,
+            backgroundColor: F.avatarBg,
             alignItems: 'center',
             justifyContent: 'center',
         },
@@ -418,7 +441,7 @@ export class GlobalStyles {
         },
         personNotes: {
             marginTop: 12,
-            color: '#3E3E45',
+            color: F.onSurfaceDeep,
         },
         cardActions: {
             flexDirection: 'row',
@@ -429,7 +452,7 @@ export class GlobalStyles {
             marginTop: 16,
             paddingTop: 16,
             borderTopWidth: StyleSheet.hairlineWidth,
-            borderTopColor: '#D7D1F9',
+            borderTopColor: F.outlineVariant,
         },
         ownerSuggestionButton: {
             marginTop: 12,
@@ -446,20 +469,20 @@ export class GlobalStyles {
     static readonly personProfile = StyleSheet.create({
         container: {
             flex: 1,
-            backgroundColor: '#F8F7FF',
+            backgroundColor: F.background,
         },
         loadingContainer: {
             flex: 1,
             justifyContent: 'center',
             alignItems: 'center',
-            backgroundColor: '#F8F7FF',
+            backgroundColor: F.background,
         },
         content: {
             padding: 16,
             paddingBottom: 40,
         },
         heroCard: {
-            borderRadius: 5,
+            borderRadius: 24,
             padding: 20,
             marginBottom: 16,
         },
@@ -489,7 +512,7 @@ export class GlobalStyles {
         },
         heroSubtext: {
             marginTop: 6,
-            color: '#6B6B74',
+            color: F.onSurfaceVariant,
         },
         metadataRow: {
             flexDirection: 'row',
@@ -500,7 +523,7 @@ export class GlobalStyles {
         claimBox: {
             marginTop: 16,
             padding: 16,
-            borderRadius: 5,
+            borderRadius: 18,
         },
         claimRow: {
             gap: 12,
@@ -510,10 +533,10 @@ export class GlobalStyles {
         },
         claimText: {
             marginTop: 6,
-            color: '#6B6B74',
+            color: F.onSurfaceVariant,
         },
         sectionCard: {
-            borderRadius: 5,
+            borderRadius: 24,
             padding: 16,
             marginBottom: 16,
         },
@@ -546,7 +569,7 @@ export class GlobalStyles {
         },
         sectionSubtitle: {
             marginTop: 6,
-            color: '#6B6B74',
+            color: F.onSurfaceVariant,
         },
         detailGrid: {
             flexDirection: 'row',
@@ -558,18 +581,18 @@ export class GlobalStyles {
             minWidth: 160,
             flexGrow: 1,
             flexBasis: 160,
-            borderRadius: 5,
+            borderRadius: 18,
         },
         detailLabel: {
             marginBottom: 8,
-            color: '#6B6B74',
+            color: F.onSurfaceVariant,
         },
         relationshipList: {
             marginTop: 16,
         },
         relationshipCard: {
             marginBottom: 12,
-            borderRadius: 5,
+            borderRadius: 18,
         },
         relationshipRow: {
             flexDirection: 'row',
@@ -588,7 +611,7 @@ export class GlobalStyles {
         },
         relationshipSubtitle: {
             marginTop: 6,
-            color: '#6B6B74',
+            color: F.onSurfaceVariant,
         },
         rowActions: {
             flexDirection: 'row',
@@ -602,18 +625,18 @@ export class GlobalStyles {
         },
         stateText: {
             marginTop: 8,
-            color: '#6B6B74',
+            color: F.onSurfaceVariant,
             textAlign: 'center',
         },
         notesBox: {
             marginTop: 16,
             padding: 16,
-            borderRadius: 5,
-            backgroundColor: '#F3F0FF',
+            borderRadius: 18,
+            backgroundColor: F.hintBg,
         },
         notesText: {
             marginTop: 8,
-            color: '#4E4E58',
+            color: F.onSurfaceDeep,
         },
         sectionDivider: {
             marginTop: 20,
@@ -629,16 +652,16 @@ export class GlobalStyles {
         photoCard: {
             marginRight: 12,
             overflow: 'hidden',
-            borderRadius: 5,
+            borderRadius: 18,
         },
         photoCardPreferred: {
-            borderColor: '#7C4DFF',
+            borderColor: F.photoPreferred,
             borderWidth: 2,
         },
         photo: {
             width: 220,
             height: 180,
-            backgroundColor: '#ECE8FF',
+            backgroundColor: F.avatarBg,
         },
         lifeEventsSection: {
             marginTop: 12,
@@ -648,7 +671,7 @@ export class GlobalStyles {
         },
         timelineCard: {
             marginBottom: 12,
-            borderRadius: 5,
+            borderRadius: 18,
         },
         timelineRow: {
             flexDirection: 'row',
@@ -669,11 +692,11 @@ export class GlobalStyles {
         },
         timelineDescription: {
             marginTop: 8,
-            color: '#4E4E58',
+            color: F.onSurfaceDeep,
         },
         viewerBackdrop: {
             flex: 1,
-            backgroundColor: 'rgba(12, 10, 24, 0.94)',
+            backgroundColor: 'rgba(12, 10, 14, 0.94)',
             justifyContent: 'center',
             paddingHorizontal: 12,
             paddingVertical: 16,
@@ -728,7 +751,7 @@ export class GlobalStyles {
             paddingHorizontal: 0,
         },
         helperText: {
-            color: '#6B6B74',
+            color: F.onSurfaceVariant,
         },
         typeWrap: {
             flexDirection: 'row',
@@ -755,7 +778,7 @@ export class GlobalStyles {
         dialog: {
             maxHeight: '90%',
             marginHorizontal: 12,
-            borderRadius: 5,
+            borderRadius: 24,
         },
         dialogTitle: {
             paddingBottom: 4,
@@ -775,7 +798,7 @@ export class GlobalStyles {
             borderTopWidth: StyleSheet.hairlineWidth,
         },
         relationshipTypeCard: {
-            borderRadius: 5,
+            borderRadius: 18,
             borderWidth: 1,
             padding: 8,
         },
@@ -783,7 +806,7 @@ export class GlobalStyles {
             marginTop: 16,
         },
         sectionCard: {
-            borderRadius: 5,
+            borderRadius: 18,
             borderWidth: 1,
             padding: 12,
         },
@@ -812,7 +835,7 @@ export class GlobalStyles {
             paddingHorizontal: 0,
         },
         helperText: {
-            color: '#6B6B74',
+            color: F.onSurfaceVariant,
         },
         segmentedButtons: {
             marginTop: 16,
@@ -840,7 +863,7 @@ export class GlobalStyles {
         },
         subtitle: {
             marginTop: 6,
-            color: '#6B6B74',
+            color: F.onSurfaceVariant,
         },
         section: {
             marginTop: 16,
@@ -863,12 +886,12 @@ export class GlobalStyles {
         resultBox: {
             marginTop: 12,
             padding: 16,
-            borderRadius: 5,
-            backgroundColor: '#F3F0FF',
+            borderRadius: 18,
+            backgroundColor: F.hintBg,
         },
         pathText: {
             marginTop: 8,
-            color: '#4E4E58',
+            color: F.onSurfaceDeep,
         },
     });
 
@@ -876,7 +899,7 @@ export class GlobalStyles {
         dialog: {
             maxHeight: '92%',
             marginHorizontal: 12,
-            borderRadius: 5,
+            borderRadius: 24,
         },
         dialogTitle: {
             paddingBottom: 4,
@@ -924,15 +947,15 @@ export class GlobalStyles {
         },
         helperText: {
             marginTop: 8,
-            color: '#6B6B74',
+            color: F.onSurfaceVariant,
         },
         pendingRelationshipCard: {
             marginTop: 12,
             padding: 12,
-            borderRadius: 5,
+            borderRadius: 18,
             borderWidth: 1,
-            borderColor: '#D7D1F9',
-            backgroundColor: '#F7F5FF',
+            borderColor: F.pendingBorder,
+            backgroundColor: F.pendingBg,
         },
         relationshipChipRow: {
             paddingTop: 12,
@@ -969,20 +992,20 @@ export class GlobalStyles {
             width: 96,
             height: 96,
             borderRadius: 12,
-            backgroundColor: '#ECE8FF',
+            backgroundColor: F.photoBg,
         },
         photoRemoveButton: {
             position: 'absolute',
             top: -6,
             right: -6,
-            backgroundColor: '#FFFFFF',
+            backgroundColor: F.surface,
             margin: 0,
         },
         photoPrimaryButton: {
             position: 'absolute',
             top: -6,
             left: -6,
-            backgroundColor: '#FFFFFF',
+            backgroundColor: F.surface,
             margin: 0,
         },
     });
@@ -1012,10 +1035,10 @@ export class GlobalStyles {
         viewport: {
             position: 'relative',
             overflow: 'hidden',
-            borderRadius: 5,
+            borderRadius: 24,
             borderWidth: 1,
-            borderColor: '#DDD8FF',
-            backgroundColor: '#F5F2FF',
+            borderColor: F.canvasBorder,
+            backgroundColor: F.canvasBg,
         },
         fullscreenContainer: {
             flex: 1,
@@ -1035,7 +1058,7 @@ export class GlobalStyles {
             marginBottom: 12,
         },
         canvas: {
-            backgroundColor: '#F5F2FF',
+            backgroundColor: F.canvasBg,
         },
         inlineViewportFill: {
             flex: 1,
@@ -1055,7 +1078,7 @@ export class GlobalStyles {
         floatingHintCard: {
             alignSelf: 'flex-start',
             maxWidth: 300,
-            borderRadius: 5,
+            borderRadius: 18,
             paddingHorizontal: 12,
             paddingVertical: 10,
         },
@@ -1070,19 +1093,19 @@ export class GlobalStyles {
             flexWrap: 'wrap',
             gap: 4,
             borderWidth: 1,
-            borderRadius: 5,
+            borderRadius: 18,
             padding: 4,
         },
         node: {
             position: 'absolute',
-            backgroundColor: '#FFFFFF',
-            borderRadius: 5,
+            backgroundColor: F.nodeBg,
+            borderRadius: 18,
             borderWidth: 1,
-            borderColor: '#CFC5FF',
+            borderColor: F.nodeBorder,
             padding: 12,
             justifyContent: 'center',
-            shadowColor: '#000000',
-            shadowOpacity: 0.08,
+            shadowColor: '#1F2C1B',
+            shadowOpacity: 0.10,
             shadowRadius: 8,
             shadowOffset: {width: 0, height: 4},
             elevation: 2,
@@ -1100,15 +1123,15 @@ export class GlobalStyles {
             height: 44,
             borderRadius: 22,
             borderWidth: 2,
-            borderColor: '#CFCAB8',
-            backgroundColor: '#ECE8FF',
+            borderColor: F.avatarBorder,
+            backgroundColor: F.avatarBg,
         },
         nodeAvatarFallback: {
             width: 44,
             height: 44,
             borderRadius: 22,
             borderWidth: 2,
-            borderColor: '#CFC5FF',
+            borderColor: F.nodeBorder,
             backgroundColor: 'transparent',
             alignItems: 'center',
             justifyContent: 'center',
@@ -1120,7 +1143,7 @@ export class GlobalStyles {
             position: 'absolute',
             top: 8,
             right: 8,
-            borderRadius: 5,
+            borderRadius: 18,
             paddingHorizontal: 8,
             paddingVertical: 2,
             zIndex: 1,
@@ -1132,7 +1155,7 @@ export class GlobalStyles {
             fontWeight: '700',
         },
         nodeMeta: {
-            color: '#6B6B74',
+            color: F.onSurfaceVariant,
             marginTop: 4,
         },
     });
@@ -1152,13 +1175,13 @@ export class GlobalStyles {
             lineHeight: 24,
         },
         card: {
-            borderRadius: 5,
+            borderRadius: 24,
             padding: 24,
         },
         title: {marginBottom: 4, fontWeight: '700'},
         subtitle: {marginBottom: 20},
         input: {marginTop: 4},
-        button: {marginTop: 24, borderRadius: 5},
+        button: {marginTop: 24, borderRadius: 999},
         buttonContent: {height: 52},
         linkButton: {marginTop: 10},
     });
@@ -1178,13 +1201,13 @@ export class GlobalStyles {
             lineHeight: 24,
         },
         card: {
-            borderRadius: 5,
+            borderRadius: 24,
             padding: 24,
         },
         title: {marginBottom: 4, fontWeight: '700'},
         subtitle: {marginBottom: 20},
         input: {marginTop: 4},
-        button: {marginTop: 24, borderRadius: 5},
+        button: {marginTop: 24, borderRadius: 999},
         buttonContent: {height: 52},
         linkButton: {marginTop: 10},
     });
