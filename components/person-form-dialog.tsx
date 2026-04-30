@@ -10,6 +10,7 @@ import {
   Menu,
   Portal,
   SegmentedButtons,
+  Switch,
   Text,
   TextInput,
   useTheme,
@@ -61,11 +62,6 @@ const genderOptions: Array<{ label: string; value: PersonGender }> = [
   { label: 'Other', value: 'other' },
 ];
 
-const relationshipModeOptions: Array<{ label: string; value: PendingRelationshipMode }> = [
-  { label: 'Parent of', value: 'parent-of' },
-  { label: 'Child of', value: 'child-of' },
-  { label: 'Spouse of', value: 'spouse-of' },
-];
 
 function formatIsoDate(date: Date) {
   const year = date.getFullYear();
@@ -127,6 +123,8 @@ export default function PersonFormDialog({
   onDelete,
 }: PersonFormDialogProps) {
   const theme = useTheme();
+  const [step, setStep] = useState<1 | 2>(1);
+  const [isPresent, setIsPresent] = useState(true);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [birthDate, setBirthDate] = useState('');
@@ -168,6 +166,9 @@ export default function PersonFormDialog({
     }
     lastInitKeyRef.current = initKey;
 
+    setStep(1);
+    const initialDeathDate = person?.deathDate ?? initialValues?.deathDate ?? '';
+    setIsPresent(!initialDeathDate);
     setFirstName(person?.firstName ?? initialValues?.firstName ?? '');
     setLastName(person?.lastName ?? initialValues?.lastName ?? '');
     setBirthDate(person?.birthDate ?? initialValues?.birthDate ?? '');
@@ -270,6 +271,31 @@ export default function PersonFormDialog({
   }, [mode, pendingRelationships, relationships, relationshipCandidates]);
   // ─────────────────────────────────────────────────────────────────────────
 
+  // Gender-aware relationship mode labels
+  const relationshipModeOptions = useMemo(() => [
+    {
+      label: gender === 'male' ? 'Father of' : gender === 'female' ? 'Mother of' : 'Parent of',
+      value: 'parent-of' as PendingRelationshipMode,
+    },
+    {
+      label: gender === 'male' ? 'Son of' : gender === 'female' ? 'Daughter of' : 'Child of',
+      value: 'child-of' as PendingRelationshipMode,
+    },
+    { label: 'Spouse of', value: 'spouse-of' as PendingRelationshipMode },
+  ], [gender]);
+
+  const handleNextStep = () => {
+    if (!firstName.trim()) {
+      setFirstNameError('First name is required.');
+      return;
+    }
+    if (!isPresent && birthDate && deathDate && deathDate < birthDate) {
+      setDeathDateError('Death date cannot be earlier than birth date.');
+      return;
+    }
+    setStep(2);
+  };
+
   const addImageFromResult = (result: ImagePicker.ImagePickerResult) => {
     if (!result.canceled && result.assets.length > 0) {
       setNewPhotoUris((current) => [...current, result.assets[0].uri]);
@@ -348,7 +374,7 @@ export default function PersonFormDialog({
       }
     }
 
-    if (birthDate && deathDate && deathDate < birthDate) {
+    if (birthDate && !isPresent && deathDate && deathDate < birthDate) {
       setDeathDateError('Death date cannot be earlier than birth date.');
       return;
     }
@@ -357,7 +383,7 @@ export default function PersonFormDialog({
       firstName,
       lastName,
       birthDate,
-      deathDate,
+      deathDate: isPresent ? '' : deathDate,
       gender,
       notes,
       lifeEvents,
@@ -377,9 +403,27 @@ export default function PersonFormDialog({
           onDismiss={loading ? undefined : onDismiss}
           style={[styles.dialog, { backgroundColor: theme.colors.surface }]}
         >
-          <Dialog.Title style={styles.dialogTitle}>{mode === 'create' ? 'Add family member' : 'Edit family member'}</Dialog.Title>
+          <Dialog.Title style={styles.dialogTitle}>
+            {mode === 'create'
+              ? (step === 1 ? 'Add family member' : 'Add relationships')
+              : 'Edit family member'}
+          </Dialog.Title>
+          {mode === 'create' ? (
+            <View style={[styles.stepProgressRow, { borderBottomColor: theme.colors.outlineVariant }]}>
+              <View style={[styles.stepDot, step >= 1 && { backgroundColor: theme.colors.primary }]} />
+              <View style={[styles.stepLine, { backgroundColor: step >= 2 ? theme.colors.primary : theme.colors.outlineVariant }]} />
+              <View style={[styles.stepDot, step >= 2 && { backgroundColor: theme.colors.primary }]} />
+              <Text variant="labelSmall" style={[styles.stepLabel, { color: theme.colors.onSurfaceVariant }]}>
+                Step {step} of 2
+              </Text>
+            </View>
+          ) : null}
           <Dialog.ScrollArea style={styles.scrollArea}>
             <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+
+              {/* ── Step 1: core info ──────────────────────────────────────── */}
+              {(mode !== 'create' || step === 1) ? (
+                <>
               <TextInput
                 mode="outlined"
                 label="First name *"
@@ -464,36 +508,48 @@ export default function PersonFormDialog({
               </View>
 
               <View style={styles.sectionSpacing}>
-                <Text variant="titleSmall">Date of death</Text>
-                <View style={styles.birthDateActions}>
-                  <Button
-                    mode="outlined"
-                    icon="calendar-heart"
-                    onPress={() => setDeathDatePickerVisible(true)}
-                    disabled={loading}
-                  >
-                    {formatDateButtonLabel(deathDate)}
-                  </Button>
-                  {deathDate ? (
-                    <Button
-                      onPress={() => {
+                <View style={styles.presentRow}>
+                  <Text variant="titleSmall">Still present</Text>
+                  <Switch
+                    value={isPresent}
+                    onValueChange={(value) => {
+                      setIsPresent(value);
+                      if (value) {
                         setDeathDate('');
-                        if (deathDateError) {
-                          setDeathDateError(null);
-                        }
-                      }}
-                      disabled={loading}
-                    >
-                      Clear
-                    </Button>
-                  ) : null}
+                        setDeathDateError(null);
+                      }
+                    }}
+                    disabled={loading}
+                  />
                 </View>
-                <HelperText type="info" visible={!deathDateError}>
-                  Leave blank to mark this family member as still present.
-                </HelperText>
-                <HelperText type="error" visible={!!deathDateError}>
-                  {deathDateError}
-                </HelperText>
+                {!isPresent ? (
+                  <>
+                    <View style={styles.birthDateActions}>
+                      <Button
+                        mode="outlined"
+                        icon="calendar-heart"
+                        onPress={() => setDeathDatePickerVisible(true)}
+                        disabled={loading}
+                      >
+                        {formatDateButtonLabel(deathDate)}
+                      </Button>
+                      {deathDate ? (
+                        <Button
+                          onPress={() => {
+                            setDeathDate('');
+                            if (deathDateError) setDeathDateError(null);
+                          }}
+                          disabled={loading}
+                        >
+                          Clear
+                        </Button>
+                      ) : null}
+                    </View>
+                    <HelperText type="error" visible={!!deathDateError}>
+                      {deathDateError}
+                    </HelperText>
+                  </>
+                ) : null}
               </View>
 
               <View style={styles.sectionSpacing}>
@@ -513,6 +569,12 @@ export default function PersonFormDialog({
                 </View>
               </View>
 
+              </> /* end step 1 */
+              ) : null}
+
+              {/* ── Step 2 content (or always visible in edit mode) ──────── */}
+              {(mode === 'edit' || step === 2) ? (
+                <>
               {mode === 'create' && relationshipCandidates.length > 0 ? (
                 <View style={styles.sectionSpacing}>
                   <View style={styles.relationshipHeader}>
@@ -526,7 +588,18 @@ export default function PersonFormDialog({
                   </Text>
 
                   {pendingRelationships.map((draft, index) => {
-                    const filteredCandidates = relationshipCandidates.filter((candidate) => formatPersonName(candidate).toLowerCase().includes(draft.searchQuery.trim().toLowerCase()));
+                    const filteredCandidates = draft.relatedPersonId
+                      ? []
+                      : relationshipCandidates.filter((candidate) =>
+                          formatPersonName(candidate).toLowerCase().includes(draft.searchQuery.trim().toLowerCase()),
+                        );
+                    const selectedPerson = draft.relatedPersonId
+                      ? relationshipCandidates.find((c) => c.id === draft.relatedPersonId)
+                      : null;
+                    const clearSelection = () =>
+                      setPendingRelationships((current) =>
+                        current.map((item) => item.key === draft.key ? { ...item, relatedPersonId: '', searchQuery: '' } : item),
+                      );
                     return (
                       <View key={draft.key} style={styles.pendingRelationshipCard}>
                         <View style={styles.relationshipHeader}>
@@ -542,37 +615,49 @@ export default function PersonFormDialog({
                           value={draft.mode}
                           onValueChange={(value) => {
                             setPendingRelationships((current) => current.map((item) => item.key === draft.key ? { ...item, mode: value as PendingRelationshipMode } : item));
-                            if (relationshipError) {
-                              setRelationshipError(null);
-                            }
+                            if (relationshipError) setRelationshipError(null);
                           }}
                           buttons={relationshipModeOptions}
                         />
-                        <TextInput
-                          mode="outlined"
-                          label="Search family member"
-                          value={draft.searchQuery}
-                          onChangeText={(value) => setPendingRelationships((current) => current.map((item) => item.key === draft.key ? { ...item, searchQuery: value } : item))}
-                          style={styles.fieldSpacing}
-                          disabled={loading}
-                        />
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.relationshipChipRow}>
-                          {filteredCandidates.map((candidate) => (
+                        {selectedPerson ? (
+                          <View style={styles.selectedPersonRow}>
                             <Chip
-                              key={`${draft.key}-${candidate.id}`}
-                              selected={draft.relatedPersonId === candidate.id}
-                              onPress={() => {
-                                setPendingRelationships((current) => current.map((item) => item.key === draft.key ? { ...item, relatedPersonId: candidate.id } : item));
-                                if (relationshipError) {
-                                  setRelationshipError(null);
-                                }
-                              }}
-                              style={styles.relationshipChip}
+                              selected
+                              closeIcon="close"
+                              onClose={clearSelection}
+                              onPress={clearSelection}
+                              style={styles.selectedPersonChip}
                             >
-                              {formatPersonName(candidate)}
+                              {formatPersonName(selectedPerson)}
                             </Chip>
-                          ))}
-                        </ScrollView>
+                          </View>
+                        ) : (
+                          <>
+                            <TextInput
+                              mode="outlined"
+                              label="Search family member"
+                              value={draft.searchQuery}
+                              onChangeText={(value) => setPendingRelationships((current) => current.map((item) => item.key === draft.key ? { ...item, searchQuery: value } : item))}
+                              style={styles.fieldSpacing}
+                              disabled={loading}
+                            />
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.relationshipChipRow}>
+                              {filteredCandidates.map((candidate) => (
+                                <Chip
+                                  key={`${draft.key}-${candidate.id}`}
+                                  onPress={() => {
+                                    setPendingRelationships((current) => current.map((item) => item.key === draft.key ? { ...item, relatedPersonId: candidate.id, searchQuery: '' } : item));
+                                    if (relationshipError) setRelationshipError(null);
+                                  }}
+                                  style={styles.relationshipChip}
+                                  disabled={loading}
+                                >
+                                  {formatPersonName(candidate)}
+                                </Chip>
+                              ))}
+                            </ScrollView>
+                          </>
+                        )}
                       </View>
                     );
                   })}
@@ -697,9 +782,12 @@ export default function PersonFormDialog({
                   </HelperText>
                 ) : null}
               </View>
+              </> /* end step 2 / edit wrapper */
+              ) : null}
             </ScrollView>
           </Dialog.ScrollArea>
           <Dialog.Actions style={[styles.dialogActions, { borderTopColor: theme.colors.outlineVariant, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
+            {/* Left side: delete button (edit) or step indicator (create step 2) */}
             {mode === 'edit' && onDelete ? (
               <Button
                 mode="text"
@@ -718,14 +806,26 @@ export default function PersonFormDialog({
               >
                 Delete member
               </Button>
+            ) : mode === 'create' && step === 2 ? (
+              <Button mode="outlined" onPress={() => setStep(1)} disabled={loading}>Back</Button>
             ) : (
               <View />
             )}
+            {/* Right side: step-1 next or final submit */}
             <View style={{ flexDirection: 'row', gap: 8 }}>
-              <Button mode="outlined" onPress={onDismiss} disabled={loading}>Cancel</Button>
-              <Button mode="contained" onPress={handleSubmit} disabled={loading}>
-                {mode === 'create' ? 'Create' : 'Save'}
-              </Button>
+              {mode === 'create' && step === 1 ? (
+                <>
+                  <Button mode="outlined" onPress={onDismiss} disabled={loading}>Cancel</Button>
+                  <Button mode="contained" onPress={handleNextStep} disabled={loading}>Next</Button>
+                </>
+              ) : (
+                <>
+                  <Button mode="outlined" onPress={mode === 'edit' ? onDismiss : onDismiss} disabled={loading}>Cancel</Button>
+                  <Button mode="contained" onPress={handleSubmit} disabled={loading}>
+                    {mode === 'create' ? 'Create' : 'Save'}
+                  </Button>
+                </>
+              )}
             </View>
           </Dialog.Actions>
         </Dialog>

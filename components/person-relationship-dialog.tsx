@@ -21,39 +21,22 @@ interface PersonRelationshipDialogProps {
 }
 
 function formatPersonName(person?: PersonRecord | null) {
-  if (!person) {
-    return 'Unknown family member';
-  }
-
+  if (!person) return 'Unknown family member';
   return `${person.firstName} ${person.lastName}`.trim();
 }
 
 function getDraftFromRelationship(personId: string, relationship?: RelationshipRecord | null) {
-  if (!relationship) {
-    return {
-      mode: 'parent-of' as PersonRelationshipMode,
-      relatedPersonId: '',
-    };
-  }
-
+  if (!relationship) return { mode: 'parent-of' as PersonRelationshipMode, relatedPersonId: '' };
   if (relationship.type === 'spouse') {
     return {
       mode: 'spouse-of' as PersonRelationshipMode,
       relatedPersonId: relationship.fromPersonId === personId ? relationship.toPersonId : relationship.fromPersonId,
     };
   }
-
   if (relationship.fromPersonId === personId) {
-    return {
-      mode: 'parent-of' as PersonRelationshipMode,
-      relatedPersonId: relationship.toPersonId,
-    };
+    return { mode: 'parent-of' as PersonRelationshipMode, relatedPersonId: relationship.toPersonId };
   }
-
-  return {
-    mode: 'child-of' as PersonRelationshipMode,
-    relatedPersonId: relationship.fromPersonId,
-  };
+  return { mode: 'child-of' as PersonRelationshipMode, relatedPersonId: relationship.fromPersonId };
 }
 
 export default function PersonRelationshipDialog({
@@ -72,10 +55,7 @@ export default function PersonRelationshipDialog({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!visible || !person) {
-      return;
-    }
-
+    if (!visible || !person) return;
     const draft = getDraftFromRelationship(person.id, editingRelationship);
     setMode(draft.mode);
     setRelatedPersonId(draft.relatedPersonId);
@@ -83,56 +63,63 @@ export default function PersonRelationshipDialog({
     setError(null);
   }, [editingRelationship, person, visible]);
 
+  // Gender-aware mode button labels
+  const modeButtons = useMemo(() => [
+    {
+      value: 'parent-of',
+      label: person?.gender === 'male' ? 'Father of' : person?.gender === 'female' ? 'Mother of' : 'Parent of',
+    },
+    {
+      value: 'child-of',
+      label: person?.gender === 'male' ? 'Son of' : person?.gender === 'female' ? 'Daughter of' : 'Child of',
+    },
+    { value: 'spouse-of', label: 'Spouse of' },
+  ], [person?.gender]);
+
   const candidates = useMemo(() => {
-    // IDs that are already children of this person  → cannot be selected as a parent
     const childIds = new Set(
       relationships
         .filter((r) => r.type === 'parent-child' && r.fromPersonId === person?.id)
         .map((r) => r.toPersonId),
     );
-    // IDs that are already parents of this person → cannot be selected as a child
     const parentIds = new Set(
       relationships
         .filter((r) => r.type === 'parent-child' && r.toPersonId === person?.id)
         .map((r) => r.fromPersonId),
     );
-
     return people.filter((candidate) => {
       if (candidate.id === person?.id) return false;
       if (mode === 'parent-of') return !childIds.has(candidate.id);
       if (mode === 'child-of') return !parentIds.has(candidate.id);
-      return true; // spouse — no extra structural filter needed
+      return true;
     });
   }, [people, person?.id, relationships, mode]);
 
+  const selectedPerson = useMemo(
+    () => (relatedPersonId ? candidates.find((c) => c.id === relatedPersonId) ?? null : null),
+    [candidates, relatedPersonId],
+  );
+
   const filteredCandidates = useMemo(
-    () => candidates.filter((candidate) => formatPersonName(candidate).toLowerCase().includes(searchQuery.trim().toLowerCase())),
+    () => candidates.filter((c) => formatPersonName(c).toLowerCase().includes(searchQuery.trim().toLowerCase())),
     [candidates, searchQuery],
   );
 
   const duplicateRelationship = useMemo(() => {
-    if (!person || !relatedPersonId) {
-      return false;
-    }
-
+    if (!person || !relatedPersonId) return false;
     return relationships.some((relationship) => {
-      if (relationship.id === editingRelationship?.id) {
-        return false;
-      }
-
+      if (relationship.id === editingRelationship?.id) return false;
       if (mode === 'spouse-of') {
         const [firstId, secondId] = [person.id, relatedPersonId].sort();
         return relationship.type === 'spouse'
           && relationship.fromPersonId === firstId
           && relationship.toPersonId === secondId;
       }
-
       if (mode === 'parent-of') {
         return relationship.type === 'parent-child'
           && relationship.fromPersonId === person.id
           && relationship.toPersonId === relatedPersonId;
       }
-
       return relationship.type === 'parent-child'
         && relationship.fromPersonId === relatedPersonId
         && relationship.toPersonId === person.id;
@@ -140,22 +127,16 @@ export default function PersonRelationshipDialog({
   }, [editingRelationship?.id, mode, person, relatedPersonId, relationships]);
 
   const handleSubmit = async () => {
-    if (!person) {
-      setError('This family member could not be loaded.');
-      return;
-    }
-
-    if (!relatedPersonId) {
-      setError('Choose a related family member first.');
-      return;
-    }
-
-    if (duplicateRelationship) {
-      setError('That relationship already exists.');
-      return;
-    }
-
+    if (!person) { setError('This family member could not be loaded.'); return; }
+    if (!relatedPersonId) { setError('Choose a related family member first.'); return; }
+    if (duplicateRelationship) { setError('That relationship already exists.'); return; }
     await onSubmit({ mode, relatedPersonId });
+  };
+
+  const clearSelection = () => {
+    setRelatedPersonId('');
+    setSearchQuery('');
+    setError(null);
   };
 
   return (
@@ -172,42 +153,56 @@ export default function PersonRelationshipDialog({
               value={mode}
               onValueChange={(value) => {
                 setMode(value as PersonRelationshipMode);
+                setRelatedPersonId('');
+                setSearchQuery('');
                 setError(null);
               }}
-              buttons={[
-                { value: 'parent-of', label: 'Parent of' },
-                { value: 'child-of', label: 'Child of' },
-                { value: 'spouse-of', label: 'Spouse of' },
-              ]}
+              buttons={modeButtons}
               style={styles.segmentedButtons}
             />
 
             <View style={styles.section}>
               <Text variant="titleSmall">Select related family member</Text>
-              <TextInput
-                mode="outlined"
-                label="Search family member"
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                style={styles.searchInput}
-                disabled={loading}
-              />
-              <View style={styles.peopleWrap}>
-                {filteredCandidates.map((candidate) => (
+              {selectedPerson ? (
+                <View style={{ marginTop: 12 }}>
                   <Chip
-                    key={candidate.id}
-                    selected={relatedPersonId === candidate.id}
-                    onPress={() => {
-                      setRelatedPersonId(candidate.id);
-                      setError(null);
-                    }}
-                    disabled={loading}
-                    style={styles.personChip}
+                    selected
+                    closeIcon="close"
+                    onClose={clearSelection}
+                    onPress={clearSelection}
+                    style={{ alignSelf: 'flex-start' }}
                   >
-                    {formatPersonName(candidate)}
+                    {formatPersonName(selectedPerson)}
                   </Chip>
-                ))}
-              </View>
+                </View>
+              ) : (
+                <>
+                  <TextInput
+                    mode="outlined"
+                    label="Search family member"
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                    style={styles.searchInput}
+                    disabled={loading}
+                  />
+                  <View style={styles.peopleWrap}>
+                    {filteredCandidates.map((candidate) => (
+                      <Chip
+                        key={candidate.id}
+                        onPress={() => {
+                          setRelatedPersonId(candidate.id);
+                          setSearchQuery('');
+                          setError(null);
+                        }}
+                        disabled={loading}
+                        style={styles.personChip}
+                      >
+                        {formatPersonName(candidate)}
+                      </Chip>
+                    ))}
+                  </View>
+                </>
+              )}
             </View>
 
             <HelperText type="error" visible={!!error || duplicateRelationship}>
@@ -223,5 +218,3 @@ export default function PersonRelationshipDialog({
     </Portal>
   );
 }
-
-

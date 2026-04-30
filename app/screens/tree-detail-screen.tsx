@@ -81,12 +81,13 @@ type SelfAssignmentSuggestion = {
   reason: string;
 };
 
-type TreeManagementTabKey = 'overview' | 'collaborators' | 'approvals';
+type TreeManagementTabKey = 'overview' | 'collaborators' | 'approvals' | 'trees';
 
 const TREE_MANAGEMENT_TABS: Array<{ key: TreeManagementTabKey; label: string }> = [
   { key: 'overview', label: 'Overview' },
   { key: 'collaborators', label: 'Collaborators' },
   { key: 'approvals', label: 'Approvals' },
+  { key: 'trees', label: 'My Trees' },
 ];
 
 export interface SharedTabProps {
@@ -217,10 +218,75 @@ function buildSelfAssignmentSuggestions(
 }
 
 
-const PEOPLE_PAGE_SIZE = 10;
+const PEOPLE_PAGE_SIZE = 5;
+
+type MemberFilters = {
+  gender: 'all' | PersonGender;
+  presence: 'all' | 'present' | 'deceased';
+  hasPhotos: boolean | null;
+  hasNotes: boolean | null;
+  hasParents: boolean | null;
+  hasChildren: boolean | null;
+  hasSpouse: boolean | null;
+  birthYearFrom: string;
+  birthYearTo: string;
+};
+
+const DEFAULT_FILTERS: MemberFilters = {
+  gender: 'all',
+  presence: 'all',
+  hasPhotos: null,
+  hasNotes: null,
+  hasParents: null,
+  hasChildren: null,
+  hasSpouse: null,
+  birthYearFrom: '',
+  birthYearTo: '',
+};
+
+function countActiveFilters(f: MemberFilters): number {
+  let count = 0;
+  if (f.gender !== 'all') count++;
+  if (f.presence !== 'all') count++;
+  if (f.hasPhotos !== null) count++;
+  if (f.hasNotes !== null) count++;
+  if (f.hasParents !== null) count++;
+  if (f.hasChildren !== null) count++;
+  if (f.hasSpouse !== null) count++;
+  if (f.birthYearFrom) count++;
+  if (f.birthYearTo) count++;
+  return count;
+}
+
+function TriToggleChip({ label, value, onChange, disabled }: {
+  label: string;
+  value: boolean | null;
+  onChange: (next: boolean | null) => void;
+  disabled?: boolean;
+}) {
+  const theme = useTheme();
+  // Cycle: null → true → false → null
+  const handlePress = () => onChange(value === null ? true : value === true ? false : null);
+  const icon = value === true ? 'check' : value === false ? 'close' : undefined;
+  const bg = value !== null ? (value ? theme.colors.primaryContainer : theme.colors.errorContainer) : undefined;
+  const fg = value !== null ? (value ? theme.colors.onPrimaryContainer : theme.colors.onErrorContainer) : undefined;
+  return (
+    <Chip
+      selected={value !== null}
+      icon={icon}
+      onPress={handlePress}
+      disabled={disabled}
+      style={[{ marginRight: 8, marginBottom: 8 }, bg ? { backgroundColor: bg } : undefined]}
+      selectedColor={fg}
+    >
+      {label}
+    </Chip>
+  );
+}
 
 export function PeopleRelationshipsTabContent({
   people,
+  relationships,
   currentAssignedPerson,
   canEdit,
   mutating,
@@ -230,38 +296,92 @@ export function PeopleRelationshipsTabContent({
 }: SharedTabProps) {
   const theme = useTheme();
   const [helperVisible, setHelperVisible] = useState(false);
+  const [filterModalVisible, setFilterModalVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [genderFilter, setGenderFilter] = useState<'all' | PersonGender>('all');
-  const [assetFilter, setAssetFilter] = useState<'all' | 'with-photos' | 'with-notes'>('all');
+  const [filters, setFilters] = useState<MemberFilters>(DEFAULT_FILTERS);
+  const [draftFilters, setDraftFilters] = useState<MemberFilters>(DEFAULT_FILTERS);
   const [visibleCount, setVisibleCount] = useState(PEOPLE_PAGE_SIZE);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const activeFilterCount = useMemo(() => countActiveFilters(filters), [filters]);
+
+  // Pre-compute per-person relationship presence for fast filtering
+  const personRelStats = useMemo(() => {
+    const parentOf = new Set<string>();   // has at least one child
+    const childOf = new Set<string>();    // has at least one parent
+    const spouseOf = new Set<string>();   // has spouse
+    relationships.forEach((r) => {
+      if (r.type === 'parent-child') {
+        parentOf.add(r.fromPersonId);
+        childOf.add(r.toPersonId);
+      } else if (r.type === 'spouse') {
+        spouseOf.add(r.fromPersonId);
+        spouseOf.add(r.toPersonId);
+      }
+    });
+    return { parentOf, childOf, spouseOf };
+  }, [relationships]);
 
   const filteredPeople = useMemo(
     () => people.filter((person) => {
-      const normalizedQuery = searchQuery.trim().toLowerCase();
-      const searchableText = [
-        formatPersonName(person),
-        person.birthDate,
-        person.deathDate,
-        person.notes,
-        getPersonPresenceLabel(person),
-      ].join(' ').toLowerCase();
-      const matchesSearch = searchableText.includes(normalizedQuery);
-      const matchesGender = genderFilter === 'all' || person.gender === genderFilter;
-      const matchesAsset = assetFilter === 'all'
-        || (assetFilter === 'with-photos' ? person.photos.length > 0 : person.notes.trim().length > 0);
-
-      return matchesSearch && matchesGender && matchesAsset;
+      // text search
+      const q = searchQuery.trim().toLowerCase();
+      if (q) {
+        const text = [formatPersonName(person), person.birthDate, person.deathDate, person.notes, getPersonPresenceLabel(person)].join(' ').toLowerCase();
+        if (!text.includes(q)) return false;
+      }
+      // gender
+      if (filters.gender !== 'all' && person.gender !== filters.gender) return false;
+      // presence
+      if (filters.presence === 'present' && person.deathDate) return false;
+      if (filters.presence === 'deceased' && !person.deathDate) return false;
+      // assets
+      if (filters.hasPhotos === true && person.photos.length === 0) return false;
+      if (filters.hasPhotos === false && person.photos.length > 0) return false;
+      if (filters.hasNotes === true && !person.notes.trim()) return false;
+      if (filters.hasNotes === false && person.notes.trim()) return false;
+      // relationships
+      if (filters.hasParents === true && !personRelStats.childOf.has(person.id)) return false;
+      if (filters.hasParents === false && personRelStats.childOf.has(person.id)) return false;
+      if (filters.hasChildren === true && !personRelStats.parentOf.has(person.id)) return false;
+      if (filters.hasChildren === false && personRelStats.parentOf.has(person.id)) return false;
+      if (filters.hasSpouse === true && !personRelStats.spouseOf.has(person.id)) return false;
+      if (filters.hasSpouse === false && personRelStats.spouseOf.has(person.id)) return false;
+      // birth year range
+      if (filters.birthYearFrom || filters.birthYearTo) {
+        const birthYear = person.birthDate ? parseInt(person.birthDate.slice(0, 4), 10) : null;
+        if (birthYear === null) return false;
+        if (filters.birthYearFrom && birthYear < parseInt(filters.birthYearFrom, 10)) return false;
+        if (filters.birthYearTo && birthYear > parseInt(filters.birthYearTo, 10)) return false;
+      }
+      return true;
     }),
-    [assetFilter, genderFilter, people, searchQuery],
+    [filters, people, searchQuery, personRelStats],
   );
 
-  // Reset pagination whenever the filter/search changes
+  // Reset to page 1 whenever filters/search change
   useEffect(() => {
+    setCurrentPage(1);
     setVisibleCount(PEOPLE_PAGE_SIZE);
-  }, [searchQuery, genderFilter, assetFilter]);
+  }, [searchQuery, filters]);
 
-  const visiblePeople = useMemo(() => filteredPeople.slice(0, visibleCount), [filteredPeople, visibleCount]);
-  const hasMore = visibleCount < filteredPeople.length;
+  const totalPages = Math.max(1, Math.ceil(filteredPeople.length / PEOPLE_PAGE_SIZE));
+  const pageStart = (currentPage - 1) * PEOPLE_PAGE_SIZE;
+  const visiblePeople = useMemo(() => filteredPeople.slice(pageStart, pageStart + PEOPLE_PAGE_SIZE), [filteredPeople, pageStart]);
+
+  const openFilterModal = () => {
+    setDraftFilters(filters);
+    setFilterModalVisible(true);
+  };
+
+  const applyFilters = () => {
+    setFilters(draftFilters);
+    setFilterModalVisible(false);
+  };
+
+  const clearAllFilters = () => {
+    setDraftFilters(DEFAULT_FILTERS);
+  };
 
   return (
     <ScrollView contentContainerStyle={styles.content}>
@@ -284,53 +404,56 @@ export function PeopleRelationshipsTabContent({
           </View>
           {canEdit ? (
             <Button mode="contained" icon="account-plus" onPress={onOpenAddPerson} disabled={mutating}>
-              Add family member
+              Add
             </Button>
           ) : null}
         </View>
 
-        <TextInput
-          mode="outlined"
-          label="Search family members"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          style={styles.filterInput}
-          left={<TextInput.Icon icon="magnify" />}
-        />
-
-        <View style={styles.filterRow}>
-          <Chip selected={genderFilter === 'all'} onPress={() => setGenderFilter('all')}>All genders</Chip>
-          <Chip selected={genderFilter === 'unspecified'} onPress={() => setGenderFilter('unspecified')}>Unspecified</Chip>
-          <Chip selected={genderFilter === 'female'} onPress={() => setGenderFilter('female')}>Female</Chip>
-          <Chip selected={genderFilter === 'male'} onPress={() => setGenderFilter('male')}>Male</Chip>
-          <Chip selected={genderFilter === 'non-binary'} onPress={() => setGenderFilter('non-binary')}>Non-binary</Chip>
-          <Chip selected={genderFilter === 'other'} onPress={() => setGenderFilter('other')}>Other</Chip>
-        </View>
-
-        <View style={styles.filterRow}>
-          <Chip selected={assetFilter === 'all'} onPress={() => setAssetFilter('all')}>All family members</Chip>
-          <Chip selected={assetFilter === 'with-photos'} onPress={() => setAssetFilter('with-photos')}>Has photos</Chip>
-          <Chip selected={assetFilter === 'with-notes'} onPress={() => setAssetFilter('with-notes')}>Has notes</Chip>
+        {/* Search bar + filter button row */}
+        <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', marginBottom: 4 }}>
+          <TextInput
+            mode="outlined"
+            label="Search family members"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            style={[styles.filterInput, { flex: 1, marginBottom: 0 }]}
+            left={<TextInput.Icon icon="magnify" />}
+            right={searchQuery ? <TextInput.Icon icon="close" onPress={() => setSearchQuery('')} /> : undefined}
+          />
+          <Button
+            mode={activeFilterCount > 0 ? 'contained' : 'outlined'}
+            icon="tune"
+            onPress={openFilterModal}
+            contentStyle={{ flexDirection: 'row-reverse' }}
+          >
+            {activeFilterCount > 0 ? `Filters (${activeFilterCount})` : 'Filters'}
+          </Button>
         </View>
 
         {loadingTreeData ? (
           <View style={styles.centeredState}>
             <ActivityIndicator color={theme.colors.primary} />
-              <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>Loading tree details…</Text>
+            <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>Loading tree details…</Text>
           </View>
         ) : (
           <>
             {filteredPeople.length === 0 ? (
               <View style={styles.emptyState}>
                 <Text variant="titleMedium">No matching family members</Text>
-                  <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}> 
+                <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
                   {people.length === 0
                     ? (canEdit ? 'Add a family member to start building this family tree.' : 'This shared tree does not have any family members yet.')
-                    : 'Try adjusting the search or filters to find a family member.'}
+                    : 'Try adjusting the search or filters.'}
                 </Text>
+                {activeFilterCount > 0 ? (
+                  <Button mode="outlined" onPress={() => setFilters(DEFAULT_FILTERS)} style={{ marginTop: 8 }}>Clear filters</Button>
+                ) : null}
               </View>
             ) : (
               <>
+                <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 8 }}>
+                  {filteredPeople.length} member{filteredPeople.length !== 1 ? 's' : ''} · page {currentPage} of {totalPages}
+                </Text>
                 {visiblePeople.map((person) => {
                   const preferredPhoto = getPreferredPersonPhoto(person);
                   const isCurrentUsersPerson = currentAssignedPerson?.id === person.id;
@@ -368,26 +491,125 @@ export function PeopleRelationshipsTabContent({
                     </Card>
                   );
                 })}
-                {hasMore ? (
-                  <Button
-                    mode="outlined"
-                    onPress={() => setVisibleCount((current) => current + PEOPLE_PAGE_SIZE)}
-                    style={[styles.emptyStateButton, { alignSelf: 'center' }]}
-                  >
-                    Load more ({filteredPeople.length - visibleCount} remaining)
-                  </Button>
-                ) : null}
+
+                {/* Pagination controls */}
+                <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, marginTop: 12 }}>
+                  <IconButton
+                    icon="chevron-left"
+                    onPress={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                  />
+                  <Text variant="bodyMedium">{currentPage} / {totalPages}</Text>
+                  <IconButton
+                    icon="chevron-right"
+                    onPress={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                  />
+                </View>
               </>
             )}
           </>
         )}
       </Surface>
 
+      {/* ── Filter modal ─────────────────────────────────────────────────── */}
+      <Portal>
+        <Dialog visible={filterModalVisible} onDismiss={() => setFilterModalVisible(false)} style={{ maxHeight: '85%' }}>
+          <Dialog.Title>Filter members</Dialog.Title>
+          <Dialog.ScrollArea>
+            <ScrollView keyboardShouldPersistTaps="handled">
+
+              <Text variant="titleSmall" style={{ marginTop: 8, marginBottom: 4 }}>Gender</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                {(['all', 'female', 'male', 'non-binary', 'other', 'unspecified'] as const).map((g) => (
+                  <Chip
+                    key={g}
+                    selected={draftFilters.gender === g}
+                    onPress={() => setDraftFilters((f) => ({ ...f, gender: g }))}
+                    style={{ marginRight: 8, marginBottom: 8 }}
+                  >
+                    {g === 'all' ? 'All genders' : g.charAt(0).toUpperCase() + g.slice(1)}
+                  </Chip>
+                ))}
+              </View>
+
+              <Text variant="titleSmall" style={{ marginTop: 8, marginBottom: 4 }}>Presence</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                {(['all', 'present', 'deceased'] as const).map((p) => (
+                  <Chip
+                    key={p}
+                    selected={draftFilters.presence === p}
+                    onPress={() => setDraftFilters((f) => ({ ...f, presence: p }))}
+                    style={{ marginRight: 8, marginBottom: 8 }}
+                  >
+                    {p === 'all' ? 'Any' : p.charAt(0).toUpperCase() + p.slice(1)}
+                  </Chip>
+                ))}
+              </View>
+
+              <Text variant="titleSmall" style={{ marginTop: 8, marginBottom: 4 }}>Birth year range</Text>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <TextInput
+                  mode="outlined"
+                  label="From"
+                  value={draftFilters.birthYearFrom}
+                  onChangeText={(v) => setDraftFilters((f) => ({ ...f, birthYearFrom: v.replace(/\D/g, '') }))}
+                  keyboardType="numeric"
+                  maxLength={4}
+                  style={{ flex: 1 }}
+                />
+                <TextInput
+                  mode="outlined"
+                  label="To"
+                  value={draftFilters.birthYearTo}
+                  onChangeText={(v) => setDraftFilters((f) => ({ ...f, birthYearTo: v.replace(/\D/g, '') }))}
+                  keyboardType="numeric"
+                  maxLength={4}
+                  style={{ flex: 1 }}
+                />
+              </View>
+
+              <Text variant="titleSmall" style={{ marginTop: 12, marginBottom: 4 }}>Has photos</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                <TriToggleChip label="Has photos" value={draftFilters.hasPhotos} onChange={(v) => setDraftFilters((f) => ({ ...f, hasPhotos: v }))} />
+              </View>
+
+              <Text variant="titleSmall" style={{ marginTop: 8, marginBottom: 4 }}>Has notes</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                <TriToggleChip label="Has notes" value={draftFilters.hasNotes} onChange={(v) => setDraftFilters((f) => ({ ...f, hasNotes: v }))} />
+              </View>
+
+              <Text variant="titleSmall" style={{ marginTop: 8, marginBottom: 4 }}>Relationships</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                <TriToggleChip label="Has parents" value={draftFilters.hasParents} onChange={(v) => setDraftFilters((f) => ({ ...f, hasParents: v }))} />
+                <TriToggleChip label="Has children" value={draftFilters.hasChildren} onChange={(v) => setDraftFilters((f) => ({ ...f, hasChildren: v }))} />
+                <TriToggleChip label="Has spouse" value={draftFilters.hasSpouse} onChange={(v) => setDraftFilters((f) => ({ ...f, hasSpouse: v }))} />
+              </View>
+
+              <Button
+                mode="outlined"
+                icon="filter-remove"
+                onPress={clearAllFilters}
+                style={{ marginTop: 12 }}
+              >
+                Clear all filters
+              </Button>
+
+            </ScrollView>
+          </Dialog.ScrollArea>
+          <Dialog.Actions>
+            <Button mode="outlined" onPress={() => setFilterModalVisible(false)}>Cancel</Button>
+            <Button mode="contained" onPress={applyFilters}>Apply</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
+
+      {/* ── Helper dialog ────────────────────────────────────────────────── */}
       <Portal>
         <Dialog visible={helperVisible} onDismiss={() => setHelperVisible(false)}>
           <Dialog.Title>Family members</Dialog.Title>
           <Dialog.Content>
-            <Text variant="bodyMedium">Each card represents one person in this family tree. Tap a card to open their full profile, where you can view photos, life events, relationships, and personal notes. Use the search bar and filters to find a specific person by name, gender, or whether they have photos or notes. The Add family member button creates a new person and lets you link relationships immediately.</Text>
+            <Text variant="bodyMedium">Each card represents one person in this family tree. Tap a card to open their full profile. Use the search bar and Filters button to narrow by name, gender, presence, birth year, photos, notes, or relationship status. The tri-state filter chips cycle through: unset → must have → must not have.</Text>
           </Dialog.Content>
           <Dialog.Actions>
             <Button onPress={() => setHelperVisible(false)}>Close</Button>
@@ -397,6 +619,7 @@ export function PeopleRelationshipsTabContent({
     </ScrollView>
   );
 }
+
 
 export function VisualisationTabContent({
   people,
@@ -456,6 +679,14 @@ function ProfileTabContent({
   onApproveApprovalRequest,
   onRejectApprovalRequest,
   onSetApprovalWindowHours,
+  trees,
+  defaultTreeId,
+  loadingTrees,
+  onCreateTree,
+  onEditTree,
+  onConfirmDeleteTree,
+  onToggleDefaultTree,
+  onSwitchTree,
 }: SharedTabProps) {
   const theme = useTheme();
   const [helperVisible, setHelperVisible] = useState(false);
@@ -991,6 +1222,109 @@ function ProfileTabContent({
           </View>
           </View>
         ) : null}
+
+        {/* ── My Trees tab ─────────────────────────────────────────────── */}
+        {activeManagementTab === 'trees' ? (
+          <View style={styles.tabContent}>
+            <View style={styles.sectionHeader}>
+              <Text variant="titleMedium">My Family Trees</Text>
+              {onCreateTree ? (
+                <Button mode="contained" icon="plus" onPress={onCreateTree} disabled={mutating} compact>
+                  New tree
+                </Button>
+              ) : null}
+            </View>
+            {loadingTrees ? (
+              <View style={styles.centeredState}>
+                <ActivityIndicator color={theme.colors.primary} />
+              </View>
+            ) : (trees ?? []).length === 0 ? (
+              <View style={styles.emptyState}>
+                <Text variant="titleMedium">No trees yet</Text>
+                <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
+                  Create your first family tree to start building.
+                </Text>
+              </View>
+            ) : (
+              (trees ?? []).map((tree) => {
+                const isDefault = tree.id === defaultTreeId;
+                const isSelected = tree.id === selectedTree.id;
+                const treeRole = getTreeRole(tree, userId);
+                return (
+                  <Card
+                    key={tree.id}
+                    style={[
+                      styles.personCard,
+                      {
+                        backgroundColor: isSelected ? theme.colors.primaryContainer : theme.colors.elevation.level1,
+                        borderColor: isSelected ? theme.colors.primary : theme.colors.outlineVariant,
+                      },
+                    ]}
+                    mode="outlined"
+                  >
+                    <Card.Content>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <View style={{ flex: 1 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                            <Text variant="titleMedium" style={isSelected ? { color: theme.colors.onPrimaryContainer } : undefined}>
+                              {tree.name}
+                            </Text>
+                            {isDefault ? (
+                              <Chip compact icon="star" style={{ backgroundColor: theme.colors.secondaryContainer }}>Default</Chip>
+                            ) : null}
+                            {isSelected ? (
+                              <Chip compact icon="check-circle" style={{ backgroundColor: theme.colors.primaryContainer }}>Active</Chip>
+                            ) : null}
+                          </View>
+                          <Text variant="bodySmall" style={{ color: isSelected ? theme.colors.onPrimaryContainer : theme.colors.onSurfaceVariant, marginTop: 2 }}>
+                            {tree.memberIds?.length ?? 0} member{(tree.memberIds?.length ?? 0) !== 1 ? 's' : ''} · {formatRole(treeRole)}
+                          </Text>
+                        </View>
+                        <View style={{ flexDirection: 'row', gap: 4 }}>
+                          {onToggleDefaultTree ? (
+                            <IconButton
+                              icon={isDefault ? 'star' : 'star-outline'}
+                              size={20}
+                              iconColor={isDefault ? theme.colors.secondary : theme.colors.onSurfaceVariant}
+                              onPress={() => onToggleDefaultTree(tree)}
+                              disabled={mutating}
+                            />
+                          ) : null}
+                          {!isSelected && onSwitchTree ? (
+                            <IconButton
+                              icon="swap-horizontal"
+                              size={20}
+                              onPress={() => onSwitchTree(tree)}
+                              disabled={mutating}
+                            />
+                          ) : null}
+                          {onEditTree ? (
+                            <IconButton
+                              icon="pencil-outline"
+                              size={20}
+                              onPress={() => onEditTree(tree)}
+                              disabled={mutating}
+                            />
+                          ) : null}
+                          {onConfirmDeleteTree && treeRole === 'owner' ? (
+                            <IconButton
+                              icon="delete-outline"
+                              size={20}
+                              iconColor={theme.colors.error}
+                              onPress={() => onConfirmDeleteTree(tree)}
+                              disabled={mutating}
+                            />
+                          ) : null}
+                        </View>
+                      </View>
+                    </Card.Content>
+                  </Card>
+                );
+              })
+            )}
+          </View>
+        ) : null}
+
       </Surface>
 
       <Portal>

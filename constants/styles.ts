@@ -1017,6 +1017,41 @@ export class GlobalStyles {
             marginTop: 12,
             borderRadius: 8,
         },
+        presentRow: {
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+        },
+        stepProgressRow: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingHorizontal: 24,
+            paddingBottom: 12,
+            gap: 6,
+            borderBottomWidth: StyleSheet.hairlineWidth,
+        },
+        stepDot: {
+            width: 10,
+            height: 10,
+            borderRadius: 5,
+            backgroundColor: '#ccc',
+        },
+        stepLine: {
+            flex: 1,
+            height: 2,
+            borderRadius: 1,
+        },
+        stepLabel: {
+            marginLeft: 4,
+        },
+        selectedPersonRow: {
+            marginTop: 12,
+            flexDirection: 'row',
+            alignItems: 'center',
+        },
+        selectedPersonChip: {
+            alignSelf: 'flex-start',
+        },
         photoHeader: {
             flexDirection: 'row',
             justifyContent: 'space-between',
