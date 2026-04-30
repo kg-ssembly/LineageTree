@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   ActivityIndicator,
   Avatar,
@@ -14,6 +16,7 @@ import {
   Snackbar,
   Surface,
   Text,
+  TextInput,
   useTheme,
 } from 'react-native-paper';
 import { ConfirmDialog, TreeFormDialog } from '../../components';
@@ -42,41 +45,368 @@ type ConfirmState = {
   action: (() => Promise<void>) | null;
 };
 
-type HelperDialogKey = 'hero' | 'appearance' | 'trees';
-
-const helperDialogCopy: Record<HelperDialogKey, { title: string; message: string }> = {
-  hero: {
-    title: 'Your family archive',
-    message: 'Each family tree is a dedicated workspace where you store people, photos, life events, and relationships. The stats above show how many trees you own or share, and whether any are currently active. Use the New tree button to create one, or tap any existing tree below to open it.',
-  },
-  appearance: {
-    title: 'Appearance settings',
-    message: 'Light mode gives a bright, airy workspace. Dark mode switches to a cosy, low-light workspace. System mode reads your device setting automatically and switches when the device does — no manual action needed.',
-  },
-  trees: {
-    title: 'Family tree workspaces',
-    message: 'Each tree is a self-contained workspace for one family branch. Tap a card to continue where you left off. Star a tree to make it your default — it opens automatically on next launch. Owners can rename or delete their trees; editors and viewers can only browse.',
-  },
-};
-
 function formatRole(role: ReturnType<typeof getTreeRole>) {
-  if (!role) {
-    return 'Shared';
-  }
-
+  if (!role) return 'Shared';
   return role.charAt(0).toUpperCase() + role.slice(1);
 }
 
+const Tab = createBottomTabNavigator();
 const styles = GlobalStyles.home;
+
+const localStyles = StyleSheet.create({
+  tabBar: {
+    height: 64,
+    paddingTop: 6,
+    paddingBottom: 8,
+    borderTopWidth: 1,
+    elevation: 0,
+    shadowOpacity: 0,
+  },
+  tabLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'none' as const,
+  },
+  tabItem: {
+    minHeight: 52,
+  },
+  profileHeroCard: {
+    borderRadius: 24,
+    padding: 20,
+    marginBottom: 16,
+  },
+  profileAvatarRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 16,
+  },
+  profileNameWrap: {
+    flex: 1,
+  },
+  editNameRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 8,
+    marginTop: 16,
+  },
+  editNameInput: {
+    flex: 1,
+  },
+  signOutButton: {
+    marginTop: 16,
+  },
+  signOutButtonContent: {
+    height: 48,
+  },
+});
+
+// ── Profile Tab ────────────────────────────────────────────────────────────────
+
+type ProfileTabProps = {
+  onSignOut: () => void;
+  authLoading: boolean;
+};
+
+function ProfileTabContent({ onSignOut, authLoading }: ProfileTabProps) {
+  const theme = useTheme();
+  const { user, updateDisplayName } = useAuthStore();
+  const preference = useThemeStore((state) => state.preference);
+  const setPreference = useThemeStore((state) => state.setPreference);
+  const [editName, setEditName] = useState(user?.displayName ?? '');
+  const [savingName, setSavingName] = useState(false);
+  const [nameError, setNameError] = useState<string | null>(null);
+
+  const isDirty = editName.trim() !== (user?.displayName ?? '').trim();
+
+  const handleSaveName = async () => {
+    if (!editName.trim()) {
+      setNameError('Display name cannot be empty.');
+      return;
+    }
+    setNameError(null);
+    setSavingName(true);
+    try {
+      await updateDisplayName(editName.trim());
+    } catch {
+      setNameError('Failed to update name. Please try again.');
+    } finally {
+      setSavingName(false);
+    }
+  };
+
+  const appearanceSummary =
+    preference === 'dark'
+      ? 'Dark mode is enabled for a cosy, low-light workspace.'
+      : 'Light mode is enabled for a bright, airy workspace.';
+
+  return (
+    <ScrollView contentContainerStyle={styles.content}>
+      {/* Hero */}
+      <Surface style={[localStyles.profileHeroCard, { backgroundColor: theme.colors.elevation.level2 }]} elevation={2}>
+        <View style={localStyles.profileAvatarRow}>
+          <Avatar.Text
+            size={72}
+            label={user?.displayName ? user.displayName.slice(0, 2).toUpperCase() : '??'}
+            style={{ backgroundColor: theme.colors.primary }}
+            color={theme.colors.onPrimary}
+          />
+          <View style={localStyles.profileNameWrap}>
+            <Text variant="headlineSmall" style={{ color: theme.colors.onSurface, fontWeight: '800' }}>
+              {user?.displayName ?? 'Unknown'}
+            </Text>
+            <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 2 }}>
+              {user?.email}
+            </Text>
+            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
+              Member since {user?.createdAt ? new Date(user.createdAt).getFullYear() : '—'}
+            </Text>
+          </View>
+        </View>
+      </Surface>
+
+      {/* Edit profile */}
+      <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
+        <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>Edit profile</Text>
+        <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
+          Update your display name.
+        </Text>
+        <View style={localStyles.editNameRow}>
+          <TextInput
+            label="Display name"
+            value={editName}
+            onChangeText={(value) => { setEditName(value); setNameError(null); }}
+            mode="outlined"
+            style={localStyles.editNameInput}
+            error={!!nameError}
+            disabled={savingName}
+          />
+          <IconButton
+            icon="content-save-outline"
+            mode="contained"
+            iconColor={theme.colors.onPrimary}
+            containerColor={theme.colors.primary}
+            size={24}
+            onPress={handleSaveName}
+            disabled={savingName || !isDirty}
+          />
+        </View>
+        {nameError ? (
+          <Text variant="bodySmall" style={{ color: theme.colors.error, marginTop: 4 }}>{nameError}</Text>
+        ) : null}
+      </Surface>
+
+      {/* Appearance */}
+      <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
+        <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>Appearance</Text>
+        <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
+          Theme and display preferences.
+        </Text>
+        <SegmentedButtons
+          value={preference}
+          onValueChange={(value) => setPreference(value as ThemePreference)}
+          buttons={[
+            { value: 'light', label: 'Light', icon: 'white-balance-sunny' },
+            { value: 'dark', label: 'Dark', icon: 'weather-night' },
+          ]}
+          style={styles.themeSwitch}
+        />
+        <View style={[styles.appearanceHint, { backgroundColor: theme.colors.surfaceVariant }]}>
+          <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>{appearanceSummary}</Text>
+        </View>
+      </Surface>
+
+      {/* Sign out */}
+      <Button
+        mode="contained-tonal"
+        icon="logout"
+        onPress={onSignOut}
+        disabled={authLoading}
+        contentStyle={localStyles.signOutButtonContent}
+        buttonColor={theme.colors.secondaryContainer}
+        textColor={theme.colors.onSurface}
+        style={localStyles.signOutButton}
+      >
+        Log out
+      </Button>
+    </ScrollView>
+  );
+}
+
+// ── Tree Management Tab ────────────────────────────────────────────────────────
+
+type TreeManagementTabProps = {
+  onOpenTree: (tree: FamilyTree) => void;
+  onOpenCreateTree: () => void;
+  onOpenEditTree: (tree: FamilyTree) => void;
+  onConfirmDeleteTree: (tree: FamilyTree) => void;
+  onToggleDefaultTree: (tree: FamilyTree) => void;
+};
+
+function TreeManagementTabContent({
+  onOpenTree,
+  onOpenCreateTree,
+  onOpenEditTree,
+  onConfirmDeleteTree,
+  onToggleDefaultTree,
+}: TreeManagementTabProps) {
+  const theme = useTheme();
+  const { user } = useAuthStore();
+  const { trees, selectedTreeId: treeSelectedId, loadingTrees, mutating } = useTreeStore();
+
+  const stats = useMemo(() => ({
+    trees: trees.length,
+    active: treeSelectedId ? 1 : 0,
+    shared: trees.filter((t) => t.collaborators.length > 1).length,
+  }), [treeSelectedId, trees]);
+
+  return (
+    <ScrollView contentContainerStyle={styles.content}>
+      {/* Stats */}
+      <Surface style={[styles.profileCard, { backgroundColor: theme.colors.elevation.level2 }]} elevation={2}>
+        <View style={styles.titleWithHelperRow}>
+          <Text variant="headlineMedium" style={[styles.name, { color: theme.colors.onSurface }]}>
+            My trees
+          </Text>
+        </View>
+        <Text variant="bodyMedium" style={[styles.heroDescription, { color: theme.colors.onSurfaceVariant }]}>
+          Manage your family tree workspaces.
+        </Text>
+        <View style={styles.heroStatsRow}>
+          <Surface style={[styles.statCard, { backgroundColor: theme.colors.surface }]} elevation={0}>
+            <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>{stats.trees}</Text>
+            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>Trees</Text>
+          </Surface>
+          <Surface style={[styles.statCard, { backgroundColor: theme.colors.surface }]} elevation={0}>
+            <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>{stats.shared}</Text>
+            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>Shared</Text>
+          </Surface>
+          <Surface style={[styles.statCard, { backgroundColor: theme.colors.surface }]} elevation={0}>
+            <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>{stats.active}</Text>
+            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>Active</Text>
+          </Surface>
+        </View>
+        <View style={styles.heroActionsRow}>
+          <Button
+            mode="contained"
+            icon="plus"
+            onPress={onOpenCreateTree}
+            disabled={mutating}
+            contentStyle={styles.headerButtonContent}
+            style={styles.heroActionButton}
+          >
+            New tree
+          </Button>
+        </View>
+      </Surface>
+
+      {/* Tree list */}
+      <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
+        <View style={styles.sectionHeader}>
+          <View style={styles.sectionTextWrap}>
+            <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>Family trees</Text>
+            <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
+              Your trees
+            </Text>
+          </View>
+          <Button
+            mode="contained"
+            icon="plus"
+            onPress={onOpenCreateTree}
+            disabled={mutating}
+          >
+            New tree
+          </Button>
+        </View>
+
+        {loadingTrees ? (
+          <View style={styles.centeredState}>
+            <ActivityIndicator color={theme.colors.primary} />
+            <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>Loading your trees…</Text>
+          </View>
+        ) : trees.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Text variant="titleMedium" style={{ color: theme.colors.onSurface }}>No family trees yet</Text>
+            <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
+              Create your first tree to start adding people, photos, and relationships.
+            </Text>
+          </View>
+        ) : (
+          <View>
+            {trees.map((tree) => {
+              const isSelected = tree.id === treeSelectedId;
+              const isDefaultTree = user?.defaultTreeId === tree.id;
+              const role = getTreeRole(tree, user?.id);
+              const ownerCanManage = canManageTree(tree, user?.id);
+
+              return (
+                <Card
+                  key={tree.id}
+                  mode="contained"
+                  style={[
+                    styles.treeCard,
+                    {
+                      backgroundColor: isSelected ? theme.colors.elevation.level2 : theme.colors.elevation.level1,
+                      borderColor: isSelected ? theme.colors.primary : theme.colors.outlineVariant,
+                    },
+                  ]}
+                  onPress={() => onOpenTree(tree)}
+                >
+                  <Card.Content>
+                    <View style={styles.treeHeader}>
+                      <View style={styles.treeTextWrap}>
+                        <Text variant="titleLarge" style={{ color: theme.colors.onSurface }}>{tree.name}</Text>
+                        <Text variant="bodyMedium" style={[styles.treeMetaText, { color: theme.colors.onSurfaceVariant }]}>
+                          {tree.collaborators.length} member{tree.collaborators.length === 1 ? '' : 's'}
+                        </Text>
+                        <View style={styles.treeChipRow}>
+                          <Chip compact icon="account-key">{formatRole(role)}</Chip>
+                          {isDefaultTree ? <Chip compact icon="star" style={{ backgroundColor: theme.colors.secondaryContainer }}>Default</Chip> : null}
+                          {isSelected ? <Chip compact icon="check-circle" style={{ backgroundColor: theme.colors.tertiaryContainer }}>Active</Chip> : null}
+                        </View>
+                      </View>
+                      <View style={styles.cardActions}>
+                        <IconButton
+                          icon={isDefaultTree ? 'star' : 'star-outline'}
+                          iconColor={isDefaultTree ? theme.colors.secondary : theme.colors.onSurfaceVariant}
+                          onPress={() => onToggleDefaultTree(tree)}
+                          disabled={mutating}
+                        />
+                        {ownerCanManage ? (
+                          <>
+                            <IconButton
+                              icon="pencil"
+                              iconColor={theme.colors.primary}
+                              onPress={() => onOpenEditTree(tree)}
+                              disabled={mutating}
+                            />
+                            <IconButton
+                              icon="delete"
+                              iconColor={theme.colors.error}
+                              onPress={() => onConfirmDeleteTree(tree)}
+                              disabled={mutating}
+                            />
+                          </>
+                        ) : null}
+                      </View>
+                    </View>
+                  </Card.Content>
+                </Card>
+              );
+            })}
+          </View>
+        )}
+      </Surface>
+    </ScrollView>
+  );
+}
+
+// ── Home Screen ────────────────────────────────────────────────────────────────
 
 export default function HomeScreen({ navigation, route }: Props) {
   const theme = useTheme();
   const { user, signOut, loading: authLoading, setDefaultTreeId } = useAuthStore();
-  const preference = useThemeStore((state) => state.preference);
-  const setPreference = useThemeStore((state) => state.setPreference);
   const {
     trees,
-    selectedTreeId,
     loadingTrees,
     mutating,
     error,
@@ -98,31 +428,18 @@ export default function HomeScreen({ navigation, route }: Props) {
     confirmLabel: 'Confirm',
     action: null,
   });
-  const [helperDialog, setHelperDialog] = useState<{ visible: boolean; key: HelperDialogKey }>({
+  const [helperDialog, setHelperDialog] = useState<{ visible: boolean; title: string; message: string }>({
     visible: false,
-    key: 'hero',
+    title: '',
+    message: '',
   });
 
   useEffect(() => {
-    if (error) {
-      setSnackVisible(true);
-    }
+    if (error) setSnackVisible(true);
   }, [error]);
 
-  const stats = useMemo(() => ({
-    trees: trees.length,
-    active: selectedTreeId ? 1 : 0,
-    shared: trees.filter((tree) => tree.collaborators.length > 1).length,
-  }), [selectedTreeId, trees]);
-
-  const appearanceSummary = preference === 'system'
-    ? 'Following your device appearance automatically.'
-    : preference === 'dark'
-      ? 'Dark mode is enabled for a cozy, cinematic workspace.'
-      : 'Light mode is enabled for a bright, airy workspace.';
-
   const defaultTree = useMemo(
-    () => trees.find((tree) => tree.id === user?.defaultTreeId) ?? null,
+    () => trees.find((t) => t.id === user?.defaultTreeId) ?? null,
     [trees, user?.defaultTreeId],
   );
 
@@ -132,38 +449,20 @@ export default function HomeScreen({ navigation, route }: Props) {
   }, [user?.id]);
 
   useEffect(() => {
-    if (loadingTrees || !user?.defaultTreeId || defaultTree) {
-      return;
-    }
-
-    if (clearedMissingDefaultTreeRef.current === user.defaultTreeId) {
-      return;
-    }
-
+    if (loadingTrees || !user?.defaultTreeId || defaultTree) return;
+    if (clearedMissingDefaultTreeRef.current === user.defaultTreeId) return;
     clearedMissingDefaultTreeRef.current = user.defaultTreeId;
     void setDefaultTreeId(null);
   }, [defaultTree, loadingTrees, setDefaultTreeId, user?.defaultTreeId]);
 
   useEffect(() => {
-    if (!user || loadingTrees || hasAutoOpenedTreeRef.current || trees.length === 0) {
-      return;
-    }
-
-    if (route.params?.skipAutoOpen) {
-      return;
-    }
-
+    if (!user || loadingTrees || hasAutoOpenedTreeRef.current || trees.length === 0) return;
+    if (route.params?.skipAutoOpen) return;
     const targetTree = defaultTree ?? trees[0];
-    if (!targetTree) {
-      return;
-    }
-
+    if (!targetTree) return;
     hasAutoOpenedTreeRef.current = true;
     selectTree(targetTree.id);
-    navigation.navigate('TreeDetail', {
-      treeId: targetTree.id,
-      initialTab: 'VisualisationTab',
-    });
+    navigation.navigate('TreeDetail', { treeId: targetTree.id, initialTab: 'VisualisationTab' });
   }, [defaultTree, loadingTrees, navigation, route.params?.skipAutoOpen, selectTree, trees, user]);
 
   const openConfirm = (title: string, message: string, confirmLabel: string, action: () => Promise<void>) => {
@@ -175,10 +474,7 @@ export default function HomeScreen({ navigation, route }: Props) {
   };
 
   const handleConfirm = async () => {
-    if (!confirmState.action) {
-      return;
-    }
-
+    if (!confirmState.action) return;
     try {
       await confirmState.action();
       closeConfirm();
@@ -188,25 +484,16 @@ export default function HomeScreen({ navigation, route }: Props) {
   };
 
   const handleTreeSubmit = async (name: string) => {
-    if (!user) {
-      return;
-    }
-
+    if (!user) return;
     try {
       if (treeDialog.mode === 'create') {
         const tree = await createTree({ id: user.id, email: user.email, displayName: user.displayName }, name);
-        if (!user.defaultTreeId) {
-          await setDefaultTreeId(tree.id);
-        }
+        if (!user.defaultTreeId) await setDefaultTreeId(tree.id);
         setTreeDialog({ visible: false, mode: 'create', tree: null });
         navigation.navigate('TreeDetail', { treeId: tree.id, initialTab: 'VisualisationTab' });
         return;
       }
-
-      if (treeDialog.tree) {
-        await renameTree(treeDialog.tree.id, name);
-      }
-
+      if (treeDialog.tree) await renameTree(treeDialog.tree.id, name);
       setTreeDialog({ visible: false, mode: 'create', tree: null });
     } catch {
       // surfaced by store snackbar
@@ -222,238 +509,56 @@ export default function HomeScreen({ navigation, route }: Props) {
     try {
       await setDefaultTreeId(user?.defaultTreeId === tree.id ? null : tree.id);
     } catch {
-      // surfaced by auth store update failures if any are added later
+      // ignored
     }
   };
 
-  const openHelperDialog = (key: HelperDialogKey) => {
-    setHelperDialog({ visible: true, key });
+  const handleConfirmDeleteTree = (tree: FamilyTree) => {
+    openConfirm(
+      'Delete family tree',
+      `Delete "${tree.name}" and all of its people, photos, and relationships? This cannot be undone.`,
+      'Delete',
+      async () => {
+        await removeTree(tree);
+        if (user?.defaultTreeId === tree.id) await setDefaultTreeId(null);
+      },
+    );
   };
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <Surface style={[styles.profileCard, { backgroundColor: theme.colors.elevation.level2 }]} elevation={2}>
-          <View style={styles.heroTopRow}>
-            <Avatar.Text
-              size={76}
-              label={user?.displayName ? user.displayName.slice(0, 2).toUpperCase() : '??'}
-              style={[styles.avatar, { backgroundColor: theme.colors.primary }]}
-              color={theme.colors.onPrimary}
+      <Tab.Navigator
+        screenOptions={({ route: currentRoute }) => ({
+          lazy: true,
+          headerShown: false,
+          tabBarActiveTintColor: theme.colors.primary,
+          tabBarInactiveTintColor: theme.colors.onSurfaceVariant,
+          tabBarShowIcon: true,
+          tabBarStyle: [localStyles.tabBar, { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.outlineVariant }],
+          tabBarLabelStyle: localStyles.tabLabel,
+          tabBarItemStyle: localStyles.tabItem,
+          sceneStyle: { backgroundColor: theme.colors.background },
+          tabBarIcon: ({ color, size }) => {
+            const iconName = currentRoute.name === 'MyProfileTab' ? 'account-circle-outline' : 'family-tree';
+            return <MaterialCommunityIcons name={iconName} size={size} color={color} />;
+          },
+        })}
+      >
+        <Tab.Screen name="MyProfileTab" options={{ title: 'My Profile' }}>
+          {() => <ProfileTabContent onSignOut={signOut} authLoading={authLoading} />}
+        </Tab.Screen>
+        <Tab.Screen name="TreeManagementTab" options={{ title: 'Tree Management' }}>
+          {() => (
+            <TreeManagementTabContent
+              onOpenTree={openTree}
+              onOpenCreateTree={() => setTreeDialog({ visible: true, mode: 'create', tree: null })}
+              onOpenEditTree={(tree) => setTreeDialog({ visible: true, mode: 'edit', tree })}
+              onConfirmDeleteTree={handleConfirmDeleteTree}
+              onToggleDefaultTree={handleToggleDefaultTree}
             />
-            <Chip compact icon="weather-sunset-up" style={{ backgroundColor: theme.colors.secondaryContainer }}>
-              Family stories, beautifully organized
-            </Chip>
-          </View>
-
-          <View style={styles.profileTextWrap}>
-            <View style={styles.titleWithHelperRow}>
-              <Text variant="headlineMedium" style={[styles.name, { color: theme.colors.onSurface }]}> 
-                Hi, {user?.displayName ?? 'there'}
-              </Text>
-              <IconButton
-                icon="information-outline"
-                size={20}
-                style={styles.helperIconButton}
-                onPress={() => openHelperDialog('hero')}
-                accessibilityLabel="About your family archive"
-              />
-            </View>
-            <Text variant="bodyMedium" style={[styles.email, { color: theme.colors.onSurfaceVariant }]}>{user?.email}</Text>
-            <Text variant="bodyMedium" style={[styles.heroDescription, { color: theme.colors.onSurfaceVariant }]}>
-              Your family archive at a glance.
-            </Text>          </View>
-
-          <View style={styles.heroStatsRow}>
-            <Surface style={[styles.statCard, { backgroundColor: theme.colors.surface }]} elevation={0}>
-              <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>{stats.trees}</Text>
-              <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>Trees</Text>
-            </Surface>
-            <Surface style={[styles.statCard, { backgroundColor: theme.colors.surface }]} elevation={0}>
-              <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>{stats.shared}</Text>
-              <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>Shared</Text>
-            </Surface>
-            <Surface style={[styles.statCard, { backgroundColor: theme.colors.surface }]} elevation={0}>
-              <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>{stats.active}</Text>
-              <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>Active</Text>
-            </Surface>
-          </View>
-
-          <View style={styles.heroActionsRow}>
-            <Button
-              mode="contained"
-              icon="plus"
-              onPress={() => setTreeDialog({ visible: true, mode: 'create', tree: null })}
-              disabled={mutating}
-              contentStyle={styles.headerButtonContent}
-              style={styles.heroActionButton}
-            >
-              New tree
-            </Button>
-            <Button
-              mode="contained-tonal"
-              icon="logout"
-              onPress={signOut}
-              disabled={authLoading}
-              contentStyle={styles.headerButtonContent}
-              buttonColor={theme.colors.secondaryContainer}
-              textColor={theme.colors.onSurface}
-              style={styles.heroActionButton}
-            >
-              Log out
-            </Button>
-          </View>
-        </Surface>
-
-        <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
-          <View style={styles.sectionHeader}>
-            <View style={styles.sectionTextWrap}>
-              <View style={styles.titleWithHelperRow}>
-                <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>Appearance</Text>
-                <IconButton
-                  icon="information-outline"
-                  size={20}
-                  style={styles.helperIconButton}
-                  onPress={() => openHelperDialog('appearance')}
-                  accessibilityLabel="About appearance settings"
-                />
-              </View>
-              <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>Theme and display preferences.</Text>
-            </View>
-          </View>
-
-          <SegmentedButtons
-            value={preference}
-            onValueChange={(value) => setPreference(value as ThemePreference)}
-            buttons={[
-              { value: 'light', label: 'Light', icon: 'white-balance-sunny' },
-              { value: 'dark', label: 'Dark', icon: 'weather-night' },
-              { value: 'system', label: 'System', icon: 'theme-light-dark' },
-            ]}
-            style={styles.themeSwitch}
-          />
-
-          <View style={[styles.appearanceHint, { backgroundColor: theme.colors.surfaceVariant }]}>
-            <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>{preference === 'system' ? 'System' : preference === 'dark' ? 'Dark mode' : 'Light mode'}</Text>
-          </View>
-        </Surface>
-
-        <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
-          <View style={styles.sectionHeader}>
-            <View style={styles.sectionTextWrap}>
-              <View style={styles.titleWithHelperRow}>
-                <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>Family trees</Text>
-                <IconButton
-                  icon="information-outline"
-                  size={20}
-                  style={styles.helperIconButton}
-                  onPress={() => openHelperDialog('trees')}
-                  accessibilityLabel="About family tree workspaces"
-                />
-              </View>
-              <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-                Your trees
-              </Text>
-            </View>
-            <Button
-              mode="contained"
-              icon="plus"
-              onPress={() => setTreeDialog({ visible: true, mode: 'create', tree: null })}
-              disabled={mutating}
-            >
-              New tree
-            </Button>
-          </View>
-
-          {loadingTrees ? (
-            <View style={styles.centeredState}>
-              <ActivityIndicator color={theme.colors.primary} />
-              <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>Loading your trees…</Text>
-            </View>
-          ) : trees.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Text variant="titleMedium" style={{ color: theme.colors.onSurface }}>No family trees yet</Text>
-              <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
-                Create your first tree to start adding people, photos, and relationships.
-              </Text>
-            </View>
-          ) : (
-            <View>
-              {trees.map((tree) => {
-                const isSelected = tree.id === selectedTreeId;
-                const isDefaultTree = user?.defaultTreeId === tree.id;
-                const role = getTreeRole(tree, user?.id);
-                const ownerCanManage = canManageTree(tree, user?.id);
-
-                return (
-                  <Card
-                    key={tree.id}
-                    mode="contained"
-                    style={[
-                      styles.treeCard,
-                      {
-                        backgroundColor: isSelected ? theme.colors.elevation.level2 : theme.colors.elevation.level1,
-                        borderColor: isSelected ? theme.colors.primary : theme.colors.outlineVariant,
-                      },
-                    ]}
-                    onPress={() => openTree(tree)}
-                  >
-                    <Card.Content>
-                      <View style={styles.treeHeader}>
-                        <View style={styles.treeTextWrap}>
-                          <Text variant="titleLarge" style={{ color: theme.colors.onSurface }}>{tree.name}</Text>
-                          <Text variant="bodyMedium" style={[styles.treeMetaText, { color: theme.colors.onSurfaceVariant }]}>
-                            {tree.collaborators.length} member{tree.collaborators.length === 1 ? '' : 's'}
-                          </Text>
-                          <View style={styles.treeChipRow}>
-                            <Chip compact icon="account-key">{formatRole(role)}</Chip>
-                            {isDefaultTree ? <Chip compact icon="star" style={{ backgroundColor: theme.colors.secondaryContainer }}>Default</Chip> : null}
-                            {isSelected ? <Chip compact icon="check-circle" style={{ backgroundColor: theme.colors.tertiaryContainer }}>Active</Chip> : null}
-                          </View>
-                        </View>
-                        <View style={styles.cardActions}>
-                          <IconButton
-                            icon={isDefaultTree ? 'star' : 'star-outline'}
-                            iconColor={isDefaultTree ? theme.colors.secondary : theme.colors.onSurfaceVariant}
-                            onPress={() => handleToggleDefaultTree(tree)}
-                            disabled={mutating}
-                          />
-                          {ownerCanManage ? (
-                            <>
-                              <IconButton
-                                icon="pencil"
-                                iconColor={theme.colors.primary}
-                                onPress={() => setTreeDialog({ visible: true, mode: 'edit', tree })}
-                                disabled={mutating}
-                              />
-                              <IconButton
-                                icon="delete"
-                                iconColor={theme.colors.error}
-                                onPress={() => openConfirm(
-                                  'Delete family tree',
-                                  `Delete “${tree.name}” and all of its people, photos, and relationships? This cannot be undone.`,
-                                  'Delete',
-                                  async () => {
-                                    await removeTree(tree);
-                                    if (user?.defaultTreeId === tree.id) {
-                                      await setDefaultTreeId(null);
-                                    }
-                                  },
-                                )}
-                                disabled={mutating}
-                              />
-                            </>
-                          ) : null}
-                        </View>
-                      </View>
-                    </Card.Content>
-                  </Card>
-                );
-              })}
-            </View>
           )}
-        </Surface>
-      </ScrollView>
+        </Tab.Screen>
+      </Tab.Navigator>
 
       <TreeFormDialog
         visible={treeDialog.visible}
@@ -477,32 +582,23 @@ export default function HomeScreen({ navigation, route }: Props) {
       <Portal>
         <Dialog
           visible={helperDialog.visible}
-          onDismiss={() => setHelperDialog((current) => ({ ...current, visible: false }))}
+          onDismiss={() => setHelperDialog((c) => ({ ...c, visible: false }))}
         >
-          <Dialog.Title>{helperDialogCopy[helperDialog.key].title}</Dialog.Title>
+          <Dialog.Title>{helperDialog.title}</Dialog.Title>
           <Dialog.Content>
-            <Text variant="bodyMedium">{helperDialogCopy[helperDialog.key].message}</Text>
+            <Text variant="bodyMedium">{helperDialog.message}</Text>
           </Dialog.Content>
           <Dialog.Actions>
-            <Button onPress={() => setHelperDialog((current) => ({ ...current, visible: false }))}>Close</Button>
+            <Button onPress={() => setHelperDialog((c) => ({ ...c, visible: false }))}>Close</Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>
 
       <Snackbar
         visible={snackVisible}
-        onDismiss={() => {
-          setSnackVisible(false);
-          clearError();
-        }}
+        onDismiss={() => { setSnackVisible(false); clearError(); }}
         duration={5000}
-        action={{
-          label: 'Dismiss',
-          onPress: () => {
-            setSnackVisible(false);
-            clearError();
-          },
-        }}
+        action={{ label: 'Dismiss', onPress: () => { setSnackVisible(false); clearError(); } }}
       >
         {error}
       </Snackbar>

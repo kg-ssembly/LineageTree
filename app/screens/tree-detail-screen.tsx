@@ -89,7 +89,7 @@ const TREE_MANAGEMENT_TABS: Array<{ key: TreeManagementTabKey; label: string }> 
   { key: 'approvals', label: 'Approvals' },
 ];
 
-interface SharedTabProps {
+export interface SharedTabProps {
   selectedTree: FamilyTree;
   people: PersonRecord[];
   relationships: RelationshipRecord[];
@@ -123,6 +123,15 @@ interface SharedTabProps {
   onApproveApprovalRequest: (requestId: string) => Promise<void>;
   onRejectApprovalRequest: (requestId: string) => Promise<void>;
   onSetApprovalWindowHours: (hours: number) => Promise<void>;
+  // Tree management (used by TreeSettingsTabContent in flat-nav context)
+  trees?: FamilyTree[];
+  defaultTreeId?: string | null;
+  loadingTrees?: boolean;
+  onCreateTree?: () => void;
+  onEditTree?: (tree: FamilyTree) => void;
+  onConfirmDeleteTree?: (tree: FamilyTree) => void;
+  onToggleDefaultTree?: (tree: FamilyTree) => void;
+  onSwitchTree?: (tree: FamilyTree) => void;
 }
 
 const Tab = createBottomTabNavigator<TreeDetailTabParamList>();
@@ -210,7 +219,7 @@ function buildSelfAssignmentSuggestions(
 
 const PEOPLE_PAGE_SIZE = 10;
 
-function PeopleRelationshipsTabContent({
+export function PeopleRelationshipsTabContent({
   people,
   currentAssignedPerson,
   canEdit,
@@ -389,7 +398,7 @@ function PeopleRelationshipsTabContent({
   );
 }
 
-function VisualisationTabContent({
+export function VisualisationTabContent({
   people,
   relationships,
   onOpenPersonQuickActions,
@@ -999,6 +1008,9 @@ function ProfileTabContent({
   );
 }
 
+/** Exported alias used by main-screen.tsx (flat 4-tab navigation). */
+export const TreeSettingsTabContent = ProfileTabContent;
+
 export default function TreeDetailScreen({ navigation, route }: Props) {
   const theme = useTheme();
   const { user } = useAuthStore();
@@ -1131,7 +1143,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
       if (navigation.canGoBack()) {
         navigation.goBack();
       } else {
-        navigation.navigate('Home');
+        navigation.navigate('Main');
       }
     }
   }, [loadingTrees, navigation, route.params.treeId, selectedTree, selectedTreeId]);
@@ -1467,9 +1479,10 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
           listeners={() => ({
             tabPress: (event) => {
               event.preventDefault();
-              navigation.reset({
+              // Legacy: navigate back to the main flat-nav screen
+              (navigation as any).reset({
                 index: 0,
-                routes: [{ name: 'Home', params: { skipAutoOpen: true } }],
+                routes: [{ name: 'Main' }],
               });
             },
           })}
@@ -1616,4 +1629,5 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     </View>
   );
 }
+
 

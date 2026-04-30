@@ -1,5 +1,4 @@
 import React, { useEffect } from 'react';
-import { useColorScheme } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFonts } from 'expo-font';
@@ -12,10 +11,9 @@ import RootNavigator from './app/navigation/root-navigator';
 import { useThemeStore } from './stores/theme-store';
 
 export default function App() {
-  const systemColorScheme = useColorScheme();
   const preference = useThemeStore((state) => state.preference);
   const hydrateTheme = useThemeStore((state) => state.hydrate);
-  const { paperTheme, navigationTheme, resolvedTheme } = getAppThemes(preference, systemColorScheme);
+  const { paperTheme, navigationTheme, resolvedTheme } = getAppThemes(preference);
   const [fontsLoaded] = useFonts({
     ...MaterialCommunityIcons.font,
   });

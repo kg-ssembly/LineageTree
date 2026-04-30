@@ -7,8 +7,7 @@ import { useAuthStore } from '../../stores/auth-store';
 import { useTreeStore } from '../../stores/tree-store';
 import LoginScreen from '../screens/auth/login-screen';
 import SignUpScreen from '../screens/auth/sign-up-screen';
-import HomeScreen from '../screens/home-screen';
-import TreeDetailScreen from '../screens/tree-detail-screen';
+import MainScreen from '../screens/main-screen';
 import PersonProfileScreen from '../screens/person-profile-screen';
 import type { RootStackParamList } from '../../components/dto/navigation';
 
@@ -36,7 +35,7 @@ export default function RootNavigator() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }} edges={["top"]}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }} edges={['top']}>
       <Stack.Navigator
         screenOptions={{
           headerStyle: { backgroundColor: theme.colors.surface },
@@ -48,17 +47,8 @@ export default function RootNavigator() {
       >
         {user ? (
           <>
-            <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
-            <Stack.Screen
-              name="TreeDetail"
-              component={TreeDetailScreen}
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="PersonProfile"
-              component={PersonProfileScreen}
-              options={{ headerShown: false }}
-            />
+            <Stack.Screen name="Main" component={MainScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="PersonProfile" component={PersonProfileScreen} options={{ headerShown: false }} />
           </>
         ) : (
           <>
@@ -70,4 +60,3 @@ export default function RootNavigator() {
     </SafeAreaView>
   );
 }
-

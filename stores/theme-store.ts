@@ -14,11 +14,11 @@ interface ThemeState {
 let hydrationPromise: Promise<void> | null = null;
 
 function isThemePreference(value: string | null): value is ThemePreference {
-  return value === 'light' || value === 'dark' || value === 'system';
+  return value === 'light' || value === 'dark';
 }
 
 export const useThemeStore = create<ThemeState>((set, get) => ({
-  preference: 'system',
+  preference: 'light',
   hydrated: false,
   setPreference: async (preference) => {
     set({ preference });

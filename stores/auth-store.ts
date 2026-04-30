@@ -7,7 +7,7 @@ import {
   updateProfile,
   User as FirebaseUser,
 } from 'firebase/auth';
-import { deleteField, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { deleteField, doc, getDoc, setDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { auth, db } from '../providers/firebase-provider';
 import type { UserProfile } from '../components/dto/user';
 
@@ -23,6 +23,7 @@ export interface AuthState {
   signUp: (email: string, password: string, displayName: string) => Promise<void>;
   signOut: () => Promise<void>;
   setDefaultTreeId: (treeId: string | null) => Promise<void>;
+  updateDisplayName: (displayName: string) => Promise<void>;
   clearError: () => void;
   /** Call once on app mount to listen for auth state changes */
   init: () => () => void;
@@ -168,6 +169,25 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ loading: false, error: humaniseError(err.code ?? '') });
       throw err;
     }
+  },
+
+  updateDisplayName: async (displayName: string) => {
+    const { firebaseUser, user } = get();
+    if (!firebaseUser || !user) {
+      return;
+    }
+
+    const trimmed = displayName.trim();
+    if (!trimmed) {
+      return;
+    }
+
+    await updateProfile(firebaseUser, { displayName: trimmed });
+    await updateDoc(doc(db, 'users', user.id), { displayName: trimmed });
+
+    set((state) => ({
+      user: state.user ? { ...state.user, displayName: trimmed } : null,
+    }));
   },
 }));
 

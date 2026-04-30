@@ -1,7 +1,7 @@
 import { DarkTheme as NavigationDarkTheme, DefaultTheme as NavigationLightTheme, type Theme as NavigationTheme } from '@react-navigation/native';
 import { MD3DarkTheme, MD3LightTheme, type MD3Theme } from 'react-native-paper';
 
-export type ThemePreference = 'light' | 'dark' | 'system';
+export type ThemePreference = 'light' | 'dark';
 export type ResolvedTheme = 'light' | 'dark';
 export type AppTheme = MD3Theme;
 
@@ -232,16 +232,13 @@ function buildNavigationTheme(mode: ResolvedTheme): NavigationTheme {
   };
 }
 
-export function resolveThemePreference(preference: ThemePreference, systemColorScheme?: string | null): ResolvedTheme {
-  if (preference === 'light' || preference === 'dark') {
-    return preference;
-  }
-
-  return systemColorScheme === 'dark' ? 'dark' : 'light';
+export function resolveThemePreference(preference: ThemePreference): ResolvedTheme {
+  return preference;
 }
 
-export function getAppThemes(preference: ThemePreference, systemColorScheme?: string | null) {
-  const resolvedTheme = resolveThemePreference(preference, systemColorScheme);
+
+export function getAppThemes(preference: ThemePreference) {
+  const resolvedTheme = resolveThemePreference(preference);
 
   return {
     resolvedTheme,

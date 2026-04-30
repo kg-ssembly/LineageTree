@@ -162,6 +162,51 @@ export class GlobalStyles {
             flexDirection: 'row',
             alignItems: 'center',
         },
+        tabBar: {
+            height: 64,
+            paddingTop: 6,
+            paddingBottom: 8,
+            borderTopWidth: 1,
+            elevation: 0,
+            shadowOpacity: 0,
+        },
+        tabLabel: {
+            fontSize: 12,
+            fontWeight: '700',
+            textTransform: 'none',
+        },
+        tabItem: {
+            minHeight: 52,
+        },
+        // Profile tab
+        profileHeroCard: {
+            borderRadius: 24,
+            padding: 20,
+            marginBottom: 16,
+        },
+        profileAvatarRow: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 16,
+        },
+        profileNameWrap: {
+            flex: 1,
+        },
+        editNameRow: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 8,
+            marginTop: 16,
+        },
+        editNameInput: {
+            flex: 1,
+        },
+        signOutButton: {
+            marginTop: 16,
+        },
+        signOutButtonContent: {
+            height: 48,
+        },
     });
 
     static readonly treeDetail = StyleSheet.create({

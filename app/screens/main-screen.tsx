@@ -1,0 +1,843 @@
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ScrollView, StyleSheet, View } from 'react-native';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import {
+  Avatar,
+  Button,
+  Dialog,
+  IconButton,
+  List,
+  Portal,
+  SegmentedButtons,
+  Snackbar,
+  Surface,
+  Text,
+  TextInput,
+  useTheme,
+} from 'react-native-paper';
+import {
+  CollaboratorDialog,
+  ConfirmDialog,
+  PersonFormDialog,
+  RelationshipDialog,
+  TreeFormDialog,
+} from '../../components';
+import type { PersonFormSubmission } from '../../components/person-form-dialog';
+import type { PendingRelationshipSubmission } from '../../components/person-form-dialog';
+import { useAuthStore } from '../../stores/auth-store';
+import { useThemeStore } from '../../stores/theme-store';
+import { useTreeStore } from '../../stores/tree-store';
+import type { PersonRecord } from '../../components/dto/person';
+import type { MainTabParamList, RootStackParamList } from '../../components/dto/navigation';
+import { getUserNameParts, getUserDisplayLabel } from '../../components/dto/user';
+import { formatPersonName } from '../../components/person-formatting';
+import {
+  canEditTreeContent,
+  canManageTree,
+  getAssignedPersonId,
+  getTreeRole,
+  type CollaboratorRole,
+  type FamilyTree,
+} from '../../components/dto/tree';
+import type { ThemePreference } from '../../constants/theme';
+import { GlobalStyles } from '../../constants/styles';
+import {
+  PeopleRelationshipsTabContent,
+  TreeSettingsTabContent,
+  VisualisationTabContent,
+  type SharedTabProps,
+} from './tree-detail-screen';
+
+type Props = NativeStackScreenProps<RootStackParamList, 'Main'>;
+
+// ─── Local types ──────────────────────────────────────────────────────────────
+
+type PersonDialogState = {
+  visible: boolean;
+  mode: 'create' | 'edit';
+  person: PersonRecord | null;
+  initialPendingRelationships: PendingRelationshipSubmission[];
+};
+
+type NodeQuickActionState = {
+  visible: boolean;
+  person: PersonRecord | null;
+};
+
+type ConfirmState = {
+  visible: boolean;
+  title: string;
+  message: string;
+  confirmLabel: string;
+  action: (() => Promise<void>) | null;
+};
+
+type TreeDialogState = {
+  visible: boolean;
+  mode: 'create' | 'edit';
+  tree: FamilyTree | null;
+};
+
+// ─── Navigator ────────────────────────────────────────────────────────────────
+
+const Tab = createBottomTabNavigator<MainTabParamList>();
+const styles = GlobalStyles.treeDetail;
+const homeStyles = GlobalStyles.home;
+
+// ─── Tab icon map ─────────────────────────────────────────────────────────────
+
+const TAB_ICONS: Record<keyof MainTabParamList, string> = {
+  TreeTab: 'family-tree',
+  MembersTab: 'account-group-outline',
+  TreeSettingsTab: 'cog-outline',
+  MyProfileTab: 'account-circle-outline',
+};
+
+// ─── Local styles ─────────────────────────────────────────────────────────────
+
+const localStyles = StyleSheet.create({
+  noTreeGate: {
+    flex: 1,
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+    padding: 32,
+    gap: 16,
+  },
+  noTreeGateText: {
+    textAlign: 'center' as const,
+  },
+  profileHeroCard: {
+    borderRadius: 24,
+    padding: 20,
+    marginBottom: 16,
+  },
+  profileAvatarRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 16,
+  },
+  profileNameWrap: {
+    flex: 1,
+  },
+  editNameRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 8,
+    marginTop: 16,
+  },
+  editNameInput: {
+    flex: 1,
+  },
+  signOutButtonContent: {
+    height: 48,
+  },
+  signOutButton: {
+    marginTop: 16,
+  },
+});
+
+// ─── No-tree gate ─────────────────────────────────────────────────────────────
+
+function NoTreeGate({ onCreateTree }: { onCreateTree: () => void }) {
+  const theme = useTheme();
+  return (
+    <View style={[localStyles.noTreeGate, { backgroundColor: theme.colors.background }]}>
+      <MaterialCommunityIcons name="family-tree" size={64} color={theme.colors.primary} />
+      <Text variant="headlineSmall" style={[localStyles.noTreeGateText, { color: theme.colors.onSurface }]}>
+        No family tree yet
+      </Text>
+      <Text variant="bodyMedium" style={[localStyles.noTreeGateText, { color: theme.colors.onSurfaceVariant }]}>
+        Create your first family tree to start adding people, photos, and relationships.
+      </Text>
+      <Button mode="contained" icon="plus" onPress={onCreateTree}>
+        Create family tree
+      </Button>
+    </View>
+  );
+}
+
+// ─── User Profile Tab ─────────────────────────────────────────────────────────
+
+type UserProfileTabProps = {
+  onSignOut: () => void;
+  authLoading: boolean;
+};
+
+function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTabProps) {
+  const theme = useTheme();
+  const { user, updateDisplayName } = useAuthStore();
+  const preference = useThemeStore((state) => state.preference);
+  const setPreference = useThemeStore((state) => state.setPreference);
+  const [editName, setEditName] = useState(user?.displayName ?? '');
+  const [savingName, setSavingName] = useState(false);
+  const [nameError, setNameError] = useState<string | null>(null);
+
+  const isDirty = editName.trim() !== (user?.displayName ?? '').trim();
+
+  const handleSaveName = async () => {
+    if (!editName.trim()) {
+      setNameError('Display name cannot be empty.');
+      return;
+    }
+    setNameError(null);
+    setSavingName(true);
+    try {
+      await updateDisplayName(editName.trim());
+    } catch {
+      setNameError('Failed to update name. Please try again.');
+    } finally {
+      setSavingName(false);
+    }
+  };
+
+  const appearanceSummary =
+    preference === 'dark'
+      ? 'Dark mode is enabled for a cosy, low-light workspace.'
+      : 'Light mode is enabled for a bright, airy workspace.';
+
+  return (
+    <ScrollView contentContainerStyle={styles.content}>
+      {/* Hero */}
+      <Surface style={[localStyles.profileHeroCard, { backgroundColor: theme.colors.elevation.level2 }]} elevation={2}>
+        <View style={localStyles.profileAvatarRow}>
+          <Avatar.Text
+            size={72}
+            label={user?.displayName ? user.displayName.slice(0, 2).toUpperCase() : '??'}
+            style={{ backgroundColor: theme.colors.primary }}
+            color={theme.colors.onPrimary}
+          />
+          <View style={localStyles.profileNameWrap}>
+            <Text variant="headlineSmall" style={{ color: theme.colors.onSurface, fontWeight: '800' }}>
+              {user?.displayName ?? 'Unknown'}
+            </Text>
+            <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 2 }}>
+              {user?.email}
+            </Text>
+            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
+              Member since {user?.createdAt ? new Date(user.createdAt).getFullYear() : '—'}
+            </Text>
+          </View>
+        </View>
+      </Surface>
+
+      {/* Edit profile */}
+      <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
+        <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>Edit profile</Text>
+        <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
+          Update your display name.
+        </Text>
+        <View style={localStyles.editNameRow}>
+          <TextInput
+            label="Display name"
+            value={editName}
+            onChangeText={(value) => { setEditName(value); setNameError(null); }}
+            mode="outlined"
+            style={localStyles.editNameInput}
+            error={!!nameError}
+            disabled={savingName}
+          />
+          <IconButton
+            icon="content-save-outline"
+            mode="contained"
+            iconColor={theme.colors.onPrimary}
+            containerColor={theme.colors.primary}
+            size={24}
+            onPress={handleSaveName}
+            disabled={savingName || !isDirty}
+          />
+        </View>
+        {nameError ? (
+          <Text variant="bodySmall" style={{ color: theme.colors.error, marginTop: 4 }}>{nameError}</Text>
+        ) : null}
+      </Surface>
+
+      {/* Appearance */}
+      <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
+        <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>Appearance</Text>
+        <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
+          Theme and display preferences.
+        </Text>
+        <SegmentedButtons
+          value={preference}
+          onValueChange={(value) => setPreference(value as ThemePreference)}
+          buttons={[
+            { value: 'light', label: 'Light', icon: 'white-balance-sunny' },
+            { value: 'dark', label: 'Dark', icon: 'weather-night' },
+          ]}
+          style={homeStyles.themeSwitch}
+        />
+        <View style={[homeStyles.appearanceHint, { backgroundColor: theme.colors.surfaceVariant }]}>
+          <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>{appearanceSummary}</Text>
+        </View>
+      </Surface>
+
+      {/* Sign out */}
+      <Button
+        mode="contained-tonal"
+        icon="logout"
+        onPress={onSignOut}
+        disabled={authLoading}
+        contentStyle={localStyles.signOutButtonContent}
+        style={localStyles.signOutButton}
+      >
+        Log out
+      </Button>
+    </ScrollView>
+  );
+}
+
+// ─── Main Screen ──────────────────────────────────────────────────────────────
+
+export default function MainScreen({ navigation }: Props) {
+  const theme = useTheme();
+  const { user, signOut, loading: authLoading, setDefaultTreeId } = useAuthStore();
+  const {
+    trees,
+    selectedTreeId,
+    people,
+    relationships,
+    approvalRequests,
+    loadingTrees,
+    loadingTreeData,
+    mutating,
+    error,
+    notice,
+    selectTree,
+    addCollaborator,
+    removeCollaborator,
+    createPerson,
+    createTree,
+    renameTree,
+    removeTree,
+    assignPersonToUser,
+    clearSelfAssignment,
+    updatePerson,
+    removePerson,
+    addParentChildRelationship,
+    addSpouseRelationship,
+    approveApprovalRequest,
+    rejectApprovalRequest,
+    setApprovalWindowHours,
+    clearError,
+    clearNotice,
+  } = useTreeStore();
+
+  // ── Dialog / overlay state ──────────────────────────────────────────────────
+
+  const [personDialog, setPersonDialog] = useState<PersonDialogState>({
+    visible: false,
+    mode: 'create',
+    person: null,
+    initialPendingRelationships: [],
+  });
+  const [selfPersonDialogVisible, setSelfPersonDialogVisible] = useState(false);
+  const [relationshipDialogVisible, setRelationshipDialogVisible] = useState(false);
+  const [collaboratorDialogVisible, setCollaboratorDialogVisible] = useState(false);
+  const [nodeQuickActionState, setNodeQuickActionState] = useState<NodeQuickActionState>({ visible: false, person: null });
+  const [treeDialog, setTreeDialog] = useState<TreeDialogState>({ visible: false, mode: 'create', tree: null });
+  const [snackVisible, setSnackVisible] = useState(false);
+  const [confirmState, setConfirmState] = useState<ConfirmState>({
+    visible: false,
+    title: '',
+    message: '',
+    confirmLabel: 'Confirm',
+    action: null,
+  });
+
+  // ── Derived state ───────────────────────────────────────────────────────────
+
+  const selectedTree = useMemo(
+    () => trees.find((t) => t.id === selectedTreeId) ?? null,
+    [trees, selectedTreeId],
+  );
+
+  const peopleById = useMemo(
+    () => new Map(people.map((p) => [p.id, p])),
+    [people],
+  );
+
+  const existingLastNames = useMemo(
+    () => [...new Set(people.map((p) => p.lastName.trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b)),
+    [people],
+  );
+
+  const currentUserLabel = useMemo(() => getUserDisplayLabel(user), [user]);
+
+  const assignedUserIdByPersonId = useMemo(
+    () => new Map(Object.entries(selectedTree?.personAssignments ?? {}).map(([uid, pid]) => [pid, uid])),
+    [selectedTree?.personAssignments],
+  );
+
+  const assignedPersonByUserId = useMemo(
+    () => new Map(
+      Object.entries(selectedTree?.personAssignments ?? {})
+        .map(([uid, pid]) => {
+          const p = peopleById.get(pid);
+          return p ? [uid, p] as const : null;
+        })
+        .filter((e): e is readonly [string, PersonRecord] => Boolean(e)),
+    ),
+    [peopleById, selectedTree?.personAssignments],
+  );
+
+  const currentAssignedPersonId = selectedTree ? getAssignedPersonId(selectedTree, user?.id) : null;
+
+  const currentAssignedPerson = useMemo(
+    () => (currentAssignedPersonId ? peopleById.get(currentAssignedPersonId) ?? null : null),
+    [currentAssignedPersonId, peopleById],
+  );
+
+  const availableSelfLinkPeople = useMemo(
+    () => people
+      .filter((p) => { const uid = assignedUserIdByPersonId.get(p.id); return !uid || uid === user?.id; })
+      .sort((a, b) => formatPersonName(a).localeCompare(formatPersonName(b))),
+    [assignedUserIdByPersonId, people, user?.id],
+  );
+
+  const role = selectedTree ? getTreeRole(selectedTree, user?.id) : null;
+  const isOwner = selectedTree ? canManageTree(selectedTree, user?.id) : false;
+  const canEdit = selectedTree ? canEditTreeContent(selectedTree, user?.id) : false;
+
+  const selfUserNameParts = useMemo(() => getUserNameParts(user), [user]);
+  const selfInitialValues = useMemo(() => ({
+    firstName: selfUserNameParts.firstName,
+    lastName: selfUserNameParts.lastName,
+    gender: 'unspecified' as const,
+    birthDate: '',
+    deathDate: '',
+    notes: '',
+    lifeEvents: [],
+    existingPhotos: [],
+    removedPhotos: [],
+    newPhotoUris: [],
+    preferredPhotoRef: '',
+  }), [selfUserNameParts.firstName, selfUserNameParts.lastName]);
+
+  // ── Auto-select tree ────────────────────────────────────────────────────────
+
+  const hasAutoSelectedRef = useRef(false);
+
+  useEffect(() => {
+    if (loadingTrees || selectedTreeId || hasAutoSelectedRef.current) return;
+    const target = trees.find((t) => t.id === user?.defaultTreeId) ?? trees[0];
+    if (target) {
+      hasAutoSelectedRef.current = true;
+      selectTree(target.id);
+    }
+  }, [loadingTrees, selectedTreeId, trees, user?.defaultTreeId, selectTree]);
+
+  // Reset flag when user changes
+  useEffect(() => { hasAutoSelectedRef.current = false; }, [user?.id]);
+
+  // ── Error / notice ──────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    if (error || notice) setSnackVisible(true);
+  }, [error, notice]);
+
+  // ── Shared handlers ─────────────────────────────────────────────────────────
+
+  const openConfirm = useCallback((title: string, message: string, confirmLabel: string, action: () => Promise<void>) => {
+    setConfirmState({ visible: true, title, message, confirmLabel, action });
+  }, []);
+
+  const closeConfirm = useCallback(() => {
+    setConfirmState({ visible: false, title: '', message: '', confirmLabel: 'Confirm', action: null });
+  }, []);
+
+  const handleConfirmAction = useCallback(async () => {
+    if (!confirmState.action) return;
+    try {
+      await confirmState.action();
+      closeConfirm();
+    } catch {
+      // surfaced via snackbar
+    }
+  }, [closeConfirm, confirmState.action]);
+
+  const openPersonProfile = useCallback((person: PersonRecord) => {
+    if (!selectedTree) return;
+    navigation.navigate('PersonProfile', { treeId: selectedTree.id, personId: person.id });
+  }, [navigation, selectedTree]);
+
+  const closePersonDialog = useCallback(() => {
+    setPersonDialog({ visible: false, mode: 'create', person: null, initialPendingRelationships: [] });
+  }, []);
+
+  const closeNodeQuickActions = useCallback(() => {
+    setNodeQuickActionState({ visible: false, person: null });
+  }, []);
+
+  const openCreateRelativeDialog = useCallback((mode: PendingRelationshipSubmission['mode'], relatedPerson: PersonRecord) => {
+    setNodeQuickActionState({ visible: false, person: null });
+    setPersonDialog({ visible: true, mode: 'create', person: null, initialPendingRelationships: [{ mode, relatedPersonId: relatedPerson.id }] });
+  }, []);
+
+  // ── Tree CRUD ───────────────────────────────────────────────────────────────
+
+  const handleTreeDialogSubmit = useCallback(async (name: string) => {
+    if (!user) return;
+    try {
+      if (treeDialog.mode === 'create') {
+        const tree = await createTree({ id: user.id, email: user.email, displayName: user.displayName }, name);
+        if (!user.defaultTreeId) await setDefaultTreeId(tree.id);
+        selectTree(tree.id);
+      } else if (treeDialog.tree) {
+        await renameTree(treeDialog.tree.id, name);
+      }
+      setTreeDialog({ visible: false, mode: 'create', tree: null });
+    } catch {
+      // surfaced via snackbar
+    }
+  }, [createTree, renameTree, selectTree, setDefaultTreeId, treeDialog, user]);
+
+  const handleToggleDefaultTree = useCallback(async (tree: FamilyTree) => {
+    try {
+      await setDefaultTreeId(user?.defaultTreeId === tree.id ? null : tree.id);
+    } catch {
+      // ignored
+    }
+  }, [setDefaultTreeId, user?.defaultTreeId]);
+
+  const handleSwitchTree = useCallback((tree: FamilyTree) => {
+    selectTree(tree.id);
+  }, [selectTree]);
+
+  const handleConfirmDeleteTree = useCallback((tree: FamilyTree) => {
+    openConfirm(
+      'Delete family tree',
+      `Delete "${tree.name}" and all its people, photos, and relationships? This cannot be undone.`,
+      'Delete',
+      async () => {
+        await removeTree(tree);
+        if (user?.defaultTreeId === tree.id) await setDefaultTreeId(null);
+      },
+    );
+  }, [openConfirm, removeTree, setDefaultTreeId, user?.defaultTreeId]);
+
+  // ── Person / relationship handlers ───────────────────────────────────────────
+
+  const handleCollaboratorSubmit = useCallback(async ({ email, role: cRole }: { email: string; role: CollaboratorRole }) => {
+    if (!selectedTree) return;
+    try {
+      await addCollaborator(selectedTree.id, email, cRole);
+      setCollaboratorDialogVisible(false);
+    } catch { /* snackbar */ }
+  }, [addCollaborator, selectedTree]);
+
+  const createPersonFromPayload = useCallback(async (payload: PersonFormSubmission) => {
+    if (!user?.id || !selectedTree) return null;
+    const created = await createPerson(user.id, selectedTree.id, {
+      firstName: payload.firstName, lastName: payload.lastName, birthDate: payload.birthDate,
+      deathDate: payload.deathDate, gender: payload.gender, notes: payload.notes,
+      lifeEvents: payload.lifeEvents, preferredPhotoRef: payload.preferredPhotoRef,
+    }, payload.newPhotoUris);
+    for (const pr of payload.pendingRelationships) {
+      if (pr.mode === 'parent-of') await addParentChildRelationship(user.id, selectedTree.id, created.id, pr.relatedPersonId);
+      else if (pr.mode === 'child-of') await addParentChildRelationship(user.id, selectedTree.id, pr.relatedPersonId, created.id);
+      else await addSpouseRelationship(user.id, selectedTree.id, created.id, pr.relatedPersonId);
+    }
+    return created;
+  }, [addParentChildRelationship, addSpouseRelationship, createPerson, selectedTree, user?.id]);
+
+  const handlePersonSubmit = useCallback(async (payload: PersonFormSubmission) => {
+    if (!user?.id || !selectedTree) return;
+    try {
+      if (personDialog.mode === 'create') await createPersonFromPayload(payload);
+      else if (personDialog.person) await updatePerson(user.id, personDialog.person, payload);
+      closePersonDialog();
+    } catch { /* snackbar */ }
+  }, [closePersonDialog, createPersonFromPayload, personDialog.mode, personDialog.person, selectedTree, updatePerson, user?.id]);
+
+  const handleSelfPersonSubmit = useCallback(async (payload: PersonFormSubmission) => {
+    if (!user?.id || !selectedTree) return;
+    try {
+      const created = await createPersonFromPayload(payload);
+      if (created) await assignPersonToUser(user.id, selectedTree.id, user.id, created.id);
+      setSelfPersonDialogVisible(false);
+    } catch { /* snackbar */ }
+  }, [assignPersonToUser, createPersonFromPayload, selectedTree, user?.id]);
+
+  const handleAssignPersonToUser = useCallback(async (targetUserId: string, personId: string) => {
+    if (!user?.id || !selectedTree) return;
+    try { await assignPersonToUser(user.id, selectedTree.id, targetUserId, personId); } catch { /* snackbar */ }
+  }, [assignPersonToUser, selectedTree, user?.id]);
+
+  const handleClearSelfAssignment = useCallback(async () => {
+    if (!user?.id || !selectedTree) return;
+    try { await clearSelfAssignment(selectedTree.id, user.id); } catch { /* snackbar */ }
+  }, [clearSelfAssignment, selectedTree, user?.id]);
+
+  const handleRelationshipSubmit = useCallback(async ({ type, fromPersonId, toPersonId }: { type: 'parent-child' | 'spouse'; fromPersonId: string; toPersonId: string }) => {
+    if (!user?.id || !selectedTree) return;
+    try {
+      if (type === 'spouse') await addSpouseRelationship(user.id, selectedTree.id, fromPersonId, toPersonId);
+      else await addParentChildRelationship(user.id, selectedTree.id, fromPersonId, toPersonId);
+      setRelationshipDialogVisible(false);
+    } catch { /* snackbar */ }
+  }, [addParentChildRelationship, addSpouseRelationship, selectedTree, user?.id]);
+
+  const onOpenAddPerson = useCallback(() => setPersonDialog({ visible: true, mode: 'create', person: null, initialPendingRelationships: [] }), []);
+  const onOpenRelationshipDialog = useCallback(() => setRelationshipDialogVisible(true), []);
+  const onOpenPersonQuickActions = useCallback((person: PersonRecord) => setNodeQuickActionState({ visible: true, person }), []);
+  const onOpenCollaboratorDialog = useCallback(() => setCollaboratorDialogVisible(true), []);
+  const onOpenAddSelf = useCallback(() => setSelfPersonDialogVisible(true), []);
+  const onEditPerson = useCallback((p: PersonRecord) => setPersonDialog({ visible: true, mode: 'edit', person: p, initialPendingRelationships: [] }), []);
+  const onDeletePerson = useCallback(async (p: PersonRecord) => {
+    if (!user?.id) return;
+    await removePerson(user.id, p);
+  }, [removePerson, user?.id]);
+  const onRemoveCollaborator = useCallback(async (uid: string) => {
+    if (!selectedTree) return;
+    await removeCollaborator(selectedTree.id, uid);
+  }, [removeCollaborator, selectedTree]);
+  const onSetApprovalWindowHours = useCallback(async (hours: number) => {
+    if (!selectedTree) return;
+    await setApprovalWindowHours(selectedTree.id, hours);
+  }, [selectedTree, setApprovalWindowHours]);
+  const onApproveApprovalRequest = useCallback(async (id: string) => {
+    if (!user?.id) return;
+    await approveApprovalRequest(user.id, id);
+  }, [approveApprovalRequest, user?.id]);
+  const onRejectApprovalRequest = useCallback(async (id: string) => {
+    if (!user?.id) return;
+    await rejectApprovalRequest(user.id, id);
+  }, [rejectApprovalRequest, user?.id]);
+
+  const personDialogRelationshipCandidates = useMemo(
+    () => people.filter((p) => p.id !== personDialog.person?.id),
+    [people, personDialog.person?.id],
+  );
+
+  const currentSelfAssignmentSuggestions: SharedTabProps['currentSelfAssignmentSuggestions'] = useMemo(
+    () => [],
+    [],
+  );
+
+  // ── sharedTabProps ──────────────────────────────────────────────────────────
+
+  const sharedTabProps = useMemo((): SharedTabProps | null => {
+    if (!selectedTree) return null;
+    return {
+      selectedTree,
+      people,
+      relationships,
+      approvalRequests,
+      peopleById,
+      canEdit,
+      isOwner,
+      role,
+      userId: user?.id,
+      currentUserLabel,
+      currentAssignedPerson,
+      currentSelfAssignmentSuggestions,
+      availableSelfLinkPeople,
+      assignedPersonByUserId,
+      assignedUserIdByPersonId,
+      canCreateSelfProfile: canEdit,
+      mutating,
+      loadingTreeData,
+      openConfirm,
+      openPersonProfile,
+      onOpenAddPerson,
+      onOpenRelationshipDialog,
+      onOpenPersonQuickActions,
+      onOpenCollaboratorDialog,
+      onOpenAddSelf,
+      onEditPerson,
+      onDeletePerson,
+      onRemoveCollaborator,
+      onAssignPersonToUser: handleAssignPersonToUser,
+      onClearSelfAssignment: handleClearSelfAssignment,
+      onApproveApprovalRequest,
+      onRejectApprovalRequest,
+      onSetApprovalWindowHours,
+      // Tree management
+      trees,
+      defaultTreeId: user?.defaultTreeId,
+      loadingTrees,
+      onCreateTree: () => setTreeDialog({ visible: true, mode: 'create', tree: null }),
+      onEditTree: (t) => setTreeDialog({ visible: true, mode: 'edit', tree: t }),
+      onConfirmDeleteTree: handleConfirmDeleteTree,
+      onToggleDefaultTree: handleToggleDefaultTree,
+      onSwitchTree: handleSwitchTree,
+    };
+  }, [
+    selectedTree, people, relationships, approvalRequests, peopleById, canEdit, isOwner, role,
+    user?.id, user?.defaultTreeId, currentUserLabel, currentAssignedPerson, currentSelfAssignmentSuggestions,
+    availableSelfLinkPeople, assignedPersonByUserId, assignedUserIdByPersonId, mutating, loadingTreeData,
+    openConfirm, openPersonProfile, onOpenAddPerson, onOpenRelationshipDialog, onOpenPersonQuickActions,
+    onOpenCollaboratorDialog, onOpenAddSelf, onEditPerson, onDeletePerson, onRemoveCollaborator,
+    handleAssignPersonToUser, handleClearSelfAssignment, onApproveApprovalRequest, onRejectApprovalRequest,
+    onSetApprovalWindowHours, trees, loadingTrees, handleConfirmDeleteTree, handleToggleDefaultTree, handleSwitchTree,
+  ]);
+
+  // ── Render ──────────────────────────────────────────────────────────────────
+
+  const noTreeGate = (
+    <NoTreeGate onCreateTree={() => setTreeDialog({ visible: true, mode: 'create', tree: null })} />
+  );
+
+  return (
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <Tab.Navigator
+        screenOptions={({ route: r }) => ({
+          lazy: true,
+          headerShown: false,
+          tabBarActiveTintColor: theme.colors.primary,
+          tabBarInactiveTintColor: theme.colors.onSurfaceVariant,
+          tabBarShowIcon: true,
+          tabBarStyle: [styles.tabBar, { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.outlineVariant }],
+          tabBarLabelStyle: styles.tabLabel,
+          tabBarItemStyle: styles.tabItem,
+          sceneStyle: [styles.tabScene, { backgroundColor: theme.colors.background }],
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name={(TAB_ICONS[r.name as keyof MainTabParamList] ?? 'circle') as any} size={size} color={color} />
+          ),
+        })}
+      >
+        <Tab.Screen name="TreeTab" options={{ title: 'Tree' }}>
+          {() => (sharedTabProps ? <VisualisationTabContent {...sharedTabProps} /> : noTreeGate)}
+        </Tab.Screen>
+
+        <Tab.Screen name="MembersTab" options={{ title: 'Members' }}>
+          {() => (sharedTabProps ? <PeopleRelationshipsTabContent {...sharedTabProps} /> : noTreeGate)}
+        </Tab.Screen>
+
+        <Tab.Screen name="TreeSettingsTab" options={{ title: 'Settings' }}>
+          {() => (sharedTabProps ? <TreeSettingsTabContent {...sharedTabProps} /> : noTreeGate)}
+        </Tab.Screen>
+
+        <Tab.Screen name="MyProfileTab" options={{ title: 'Profile' }}>
+          {() => <UserProfileTabContent onSignOut={signOut} authLoading={authLoading} />}
+        </Tab.Screen>
+      </Tab.Navigator>
+
+      {/* ── Dialogs ── */}
+
+      <CollaboratorDialog
+        visible={collaboratorDialogVisible}
+        loading={mutating}
+        onDismiss={() => setCollaboratorDialogVisible(false)}
+        onSubmit={handleCollaboratorSubmit}
+      />
+
+      <PersonFormDialog
+        visible={personDialog.visible}
+        mode={personDialog.mode}
+        person={personDialog.person}
+        initialPendingRelationships={personDialog.initialPendingRelationships}
+        loading={mutating}
+        existingLastNames={existingLastNames}
+        relationshipCandidates={personDialogRelationshipCandidates}
+        onDismiss={closePersonDialog}
+        onSubmit={handlePersonSubmit}
+        onDelete={personDialog.mode === 'edit' && personDialog.person ? async () => {
+          await onDeletePerson(personDialog.person!);
+          closePersonDialog();
+        } : undefined}
+      />
+
+      <PersonFormDialog
+        visible={selfPersonDialogVisible}
+        mode="create"
+        initialValues={selfInitialValues}
+        loading={mutating}
+        existingLastNames={existingLastNames}
+        relationshipCandidates={people}
+        onDismiss={useCallback(() => setSelfPersonDialogVisible(false), [])}
+        onSubmit={handleSelfPersonSubmit}
+      />
+
+      <RelationshipDialog
+        visible={relationshipDialogVisible}
+        people={people}
+        relationships={relationships}
+        loading={mutating}
+        onDismiss={() => setRelationshipDialogVisible(false)}
+        onSubmit={handleRelationshipSubmit}
+      />
+
+      <TreeFormDialog
+        visible={treeDialog.visible}
+        mode={treeDialog.mode}
+        tree={treeDialog.tree}
+        loading={mutating}
+        onDismiss={() => setTreeDialog({ visible: false, mode: 'create', tree: null })}
+        onSubmit={handleTreeDialogSubmit}
+      />
+
+      <Portal>
+        <Dialog visible={nodeQuickActionState.visible} onDismiss={closeNodeQuickActions} style={styles.quickActionDialog}>
+          <Dialog.Title>{nodeQuickActionState.person ? formatPersonName(nodeQuickActionState.person) : 'Quick actions'}</Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodyMedium" style={[styles.quickActionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
+              Choose what you want to do with this family member.
+            </Text>
+            <List.Item
+              title="Open profile"
+              description="See photos, memories, and full relationship details"
+              left={(props) => <List.Icon {...props} icon="account-arrow-right-outline" />}
+              onPress={() => {
+                const p = nodeQuickActionState.person;
+                if (!p) return;
+                closeNodeQuickActions();
+                openPersonProfile(p);
+              }}
+            />
+            {canEdit && nodeQuickActionState.person ? (
+              <>
+                <List.Item
+                  title="Add parent"
+                  description={`Create a new parent for ${formatPersonName(nodeQuickActionState.person)}`}
+                  left={(props) => <List.Icon {...props} icon="account-arrow-up-outline" />}
+                  onPress={() => openCreateRelativeDialog('parent-of', nodeQuickActionState.person!)}
+                  disabled={mutating}
+                />
+                <List.Item
+                  title="Add child"
+                  description={`Create a new child for ${formatPersonName(nodeQuickActionState.person)}`}
+                  left={(props) => <List.Icon {...props} icon="account-arrow-down-outline" />}
+                  onPress={() => openCreateRelativeDialog('child-of', nodeQuickActionState.person!)}
+                  disabled={mutating}
+                />
+                <List.Item
+                  title="Add spouse"
+                  description={`Create a spouse for ${formatPersonName(nodeQuickActionState.person)}`}
+                  left={(props) => <List.Icon {...props} icon="account-heart-outline" />}
+                  onPress={() => openCreateRelativeDialog('spouse-of', nodeQuickActionState.person!)}
+                  disabled={mutating}
+                />
+              </>
+            ) : null}
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={closeNodeQuickActions}>Close</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
+
+      <ConfirmDialog
+        visible={confirmState.visible}
+        title={confirmState.title}
+        message={confirmState.message}
+        confirmLabel={confirmState.confirmLabel}
+        loading={mutating}
+        onDismiss={closeConfirm}
+        onConfirm={handleConfirmAction}
+      />
+
+      <Snackbar
+        visible={snackVisible}
+        onDismiss={() => { setSnackVisible(false); clearError(); clearNotice(); }}
+        duration={5000}
+        action={{ label: 'Dismiss', onPress: () => { setSnackVisible(false); clearError(); clearNotice(); } }}
+      >
+        {error ?? notice}
+      </Snackbar>
+    </View>
+  );
+}
+
