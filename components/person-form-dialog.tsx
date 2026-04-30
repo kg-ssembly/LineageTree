@@ -16,6 +16,7 @@ import {
 } from 'react-native-paper';
 import { DatePickerModal } from 'react-native-paper-dates';
 import type { PersonGender, PersonLifeEvent, PersonMutationPayload, PersonPhoto, PersonRecord } from './dto/person';
+import type { RelationshipRecord } from './dto/relationship';
 import { GlobalStyles } from '../constants/styles';
 
 const styles = GlobalStyles.personFormDialog;
@@ -45,6 +46,8 @@ interface PersonFormDialogProps {
   loading?: boolean;
   existingLastNames?: string[];
   relationshipCandidates?: PersonRecord[];
+  /** All existing relationships in the tree — used to suggest co-parents */
+  relationships?: RelationshipRecord[];
   onDismiss: () => void;
   onSubmit: (payload: PersonFormSubmission) => void | Promise<void>;
   onDelete?: () => void | Promise<void>;
@@ -118,6 +121,7 @@ export default function PersonFormDialog({
   loading = false,
   existingLastNames = [],
   relationshipCandidates = [],
+  relationships = [],
   onDismiss,
   onSubmit,
   onDelete,
@@ -236,6 +240,35 @@ export default function PersonFormDialog({
 
     setLastName(suggestedLastName);
   }, [lastNameTouched, mode, suggestedLastName]);
+
+  // ── Co-parent suggestion ──────────────────────────────────────────────────
+  // When user sets a "child-of" relationship, check if that parent has a spouse
+  // who isn't already in pendingRelationships. If so, offer to add them too.
+  const coParentSuggestion = useMemo((): PersonRecord | null => {
+    if (mode !== 'create' || !relationships.length) return null;
+
+    const childOfDraft = pendingRelationships.find((d) => d.mode === 'child-of' && d.relatedPersonId);
+    if (!childOfDraft) return null;
+
+    const parentId = childOfDraft.relatedPersonId;
+
+    // Find a spouse of that parent
+    const spouseId = relationships.find(
+      (r) => r.type === 'spouse' && (r.fromPersonId === parentId || r.toPersonId === parentId),
+    );
+    if (!spouseId) return null;
+
+    const otherParentId = spouseId.fromPersonId === parentId ? spouseId.toPersonId : spouseId.fromPersonId;
+
+    // Only suggest if not already added
+    const alreadyAdded = pendingRelationships.some(
+      (d) => d.mode === 'child-of' && d.relatedPersonId === otherParentId,
+    );
+    if (alreadyAdded) return null;
+
+    return relationshipCandidates.find((c) => c.id === otherParentId) ?? null;
+  }, [mode, pendingRelationships, relationships, relationshipCandidates]);
+  // ─────────────────────────────────────────────────────────────────────────
 
   const addImageFromResult = (result: ImagePicker.ImagePickerResult) => {
     if (!result.canceled && result.assets.length > 0) {
@@ -546,6 +579,37 @@ export default function PersonFormDialog({
                   <HelperText type="error" visible={!!relationshipError}>
                     {relationshipError}
                   </HelperText>
+
+                  {coParentSuggestion ? (
+                    <View style={[styles.coParentBanner, { backgroundColor: theme.colors.secondaryContainer, borderRadius: 8 }]}>
+                      <View style={{ flex: 1 }}>
+                        <Text variant="labelMedium" style={{ color: theme.colors.onSecondaryContainer }}>
+                          Also add {formatPersonName(coParentSuggestion)} as a parent?
+                        </Text>
+                        <Text variant="bodySmall" style={{ color: theme.colors.onSecondaryContainer, opacity: 0.8 }}>
+                          They are a spouse of the selected parent.
+                        </Text>
+                      </View>
+                      <Button
+                        compact
+                        mode="contained-tonal"
+                        onPress={() => {
+                          setPendingRelationships((current) => [
+                            ...current,
+                            {
+                              key: `${Date.now()}-${Math.random()}`,
+                              mode: 'child-of',
+                              relatedPersonId: coParentSuggestion.id,
+                              searchQuery: '',
+                            },
+                          ]);
+                        }}
+                        disabled={loading}
+                      >
+                        Add
+                      </Button>
+                    </View>
+                  ) : null}
                 </View>
               ) : null}
 

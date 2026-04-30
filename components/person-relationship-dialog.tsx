@@ -83,10 +83,27 @@ export default function PersonRelationshipDialog({
     setError(null);
   }, [editingRelationship, person, visible]);
 
-  const candidates = useMemo(
-    () => people.filter((candidate) => candidate.id !== person?.id),
-    [people, person?.id],
-  );
+  const candidates = useMemo(() => {
+    // IDs that are already children of this person  → cannot be selected as a parent
+    const childIds = new Set(
+      relationships
+        .filter((r) => r.type === 'parent-child' && r.fromPersonId === person?.id)
+        .map((r) => r.toPersonId),
+    );
+    // IDs that are already parents of this person → cannot be selected as a child
+    const parentIds = new Set(
+      relationships
+        .filter((r) => r.type === 'parent-child' && r.toPersonId === person?.id)
+        .map((r) => r.fromPersonId),
+    );
+
+    return people.filter((candidate) => {
+      if (candidate.id === person?.id) return false;
+      if (mode === 'parent-of') return !childIds.has(candidate.id);
+      if (mode === 'child-of') return !parentIds.has(candidate.id);
+      return true; // spouse — no extra structural filter needed
+    });
+  }, [people, person?.id, relationships, mode]);
 
   const filteredCandidates = useMemo(
     () => candidates.filter((candidate) => formatPersonName(candidate).toLowerCase().includes(searchQuery.trim().toLowerCase())),

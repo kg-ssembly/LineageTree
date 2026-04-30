@@ -1009,6 +1009,14 @@ export class GlobalStyles {
         relationshipChip: {
             marginRight: 8,
         },
+        coParentBanner: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 12,
+            padding: 12,
+            marginTop: 12,
+            borderRadius: 8,
+        },
         photoHeader: {
             flexDirection: 'row',
             justifyContent: 'space-between',

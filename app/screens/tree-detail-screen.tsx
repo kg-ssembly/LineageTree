@@ -1506,6 +1506,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
         loading={mutating}
         existingLastNames={existingLastNames}
         relationshipCandidates={personDialogRelationshipCandidates}
+        relationships={relationships}
         onDismiss={closePersonDialog}
         onSubmit={handlePersonSubmit}
         onDelete={personDialog.mode === 'edit' && personDialog.person ? async () => {
