@@ -185,6 +185,7 @@ export function buildConnectors(
   layout: LayoutResult,
   C: LayoutConstants,
   colors: { parentChild: string; spouse: string; secondaryParent: string },
+  ghostPersonIds?: Set<string>,
 ): { spouseConnectors: Connector[]; parentChildConnectors: Connector[] } {
   const { positionsByPersonId, spouseGroupIdByPersonId, spouseGroupsById, levelBySpouseGroupId, contentWidth } = layout;
 
@@ -238,6 +239,10 @@ export function buildConnectors(
     const left = a.x < b.x ? a : b;
     const right = a.x < b.x ? b : a;
 
+    // Determine if this is a cross-family bridge (one end is a ghost).
+    const isBridge = ghostPersonIds &&
+      (ghostPersonIds.has(pair.rel.fromPersonId) || ghostPersonIds.has(pair.rel.toPersonId));
+
     let pts: { x: number; y: number }[];
     if (pair.adjacent) {
       pts = [
@@ -257,12 +262,21 @@ export function buildConnectors(
       ];
     }
 
+    // Compute label midpoint for bridge connectors.
+    const midIdx = Math.floor(pts.length / 2);
+    const labelPos = pts.length >= 2
+      ? { x: (pts[midIdx - 1].x + pts[midIdx].x) / 2, y: (pts[midIdx - 1].y + pts[midIdx].y) / 2 }
+      : { x: pts[0].x, y: pts[0].y };
+
     spouseConnectors.push({
       key: `spouse-${pair.rel.id}`,
       d: pointsToRoundedPath(pts, 12),
-      stroke: colors.spouse,
-      strokeWidth: 3,
+      stroke: isBridge ? colors.secondaryParent : colors.spouse,
+      strokeWidth: isBridge ? 2 : 3,
       bounds: boundsOf(pts),
+      dashArray: isBridge ? '8,5' : undefined,
+      label: isBridge ? '⬌ married into family' : undefined,
+      labelPosition: isBridge ? labelPos : undefined,
     });
   });
 

@@ -37,7 +37,7 @@ import {
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Button, Chip, IconButton, Text, useTheme } from 'react-native-paper';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { Path, Text as SvgText } from 'react-native-svg';
 
 import type { PersonRecord } from './dto/person';
 import {
@@ -56,6 +56,14 @@ import {
   DEFAULT_LAYOUT_CONSTANTS,
   LayoutConstants,
 } from './family-tree-types';
+import {
+  buildSurnameClusters,
+  extractSurname,
+  filterForActiveSurnames,
+  findFamilyBridges,
+  getConnectedSurnames,
+  getSortedSurnames,
+} from './family-tree-surname-clusters';
 
 const styles = GlobalStyles.familyTreeCanvas;
 
@@ -148,6 +156,7 @@ type PersonNodeProps = {
   x: number;
   y: number;
   isCurrentUser: boolean;
+  isGhost: boolean;
   surfaceColor: string;
   outlineColor: string;
   primaryColor: string;
@@ -157,7 +166,7 @@ type PersonNodeProps = {
   onPress: (person: PersonRecord) => void;
 };
 const PersonNode = React.memo(function PersonNode(props: PersonNodeProps) {
-  const { person, x, y, isCurrentUser, surfaceColor, outlineColor, primaryColor, variantSurface, variantOnSurface, onPrimaryColor, onPress } = props;
+  const { person, x, y, isCurrentUser, isGhost, surfaceColor, outlineColor, primaryColor, variantSurface, variantOnSurface, onPrimaryColor, onPress } = props;
   const photo = getPreferredPersonPhoto(person);
 
   return (
@@ -168,12 +177,13 @@ const PersonNode = React.memo(function PersonNode(props: PersonNodeProps) {
             styles.node,
             {
               backgroundColor: surfaceColor,
-              borderColor: outlineColor,
+              borderColor: isGhost ? primaryColor : outlineColor,
+              borderStyle: isGhost ? 'dashed' as const : 'solid' as const,
               left: x,
               top: y,
               width: C.NODE_WIDTH,
               height: C.NODE_HEIGHT,
-              opacity: pressed ? 0.85 : 1,
+              opacity: pressed ? 0.85 : isGhost ? 0.7 : 1,
               // Web: ensure pointer events still bubble for the Pressable.
               ...(Platform.OS === 'web' ? ({ cursor: 'pointer' } as any) : null),
             },
@@ -228,6 +238,7 @@ function FamilyTreeCanvas({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [inlineViewportSize, setInlineViewportSize] = useState({ width: 0, height: 0 });
   const [fullscreenViewportSize, setFullscreenViewportSize] = useState({ width: 0, height: 0 });
+  const [activeSurnames, setActiveSurnames] = useState<string[]>([]);
 
   // Refs that need to stay current inside gesture callbacks.
   const scaleRef = useRef(scale);
@@ -243,21 +254,100 @@ function FamilyTreeCanvas({
     return { renderedPeople: people, renderedRelationships: relationships };
   }, [people, relationships, ascendantRootPersonId, descendantRootPersonId]);
 
+  // ---- Surname clustering ----
+  const surnameClusters = useMemo(
+    () => buildSurnameClusters(renderedPeople),
+    [renderedPeople],
+  );
+  const sortedSurnames = useMemo(
+    () => getSortedSurnames(surnameClusters),
+    [surnameClusters],
+  );
+  const allBridges = useMemo(
+    () => findFamilyBridges(renderedPeople, renderedRelationships),
+    [renderedPeople, renderedRelationships],
+  );
+
+  // Determine the "seed" person for initial surname selection (doesn't depend on layout).
+  const seedFocusPersonId = initialFocusPersonId ?? ascendantRootPersonId ?? descendantRootPersonId ?? renderedPeople[0]?.id;
+
+  // Auto-select initial surnames when data changes.
+  useEffect(() => {
+    if (sortedSurnames.length === 0) return;
+    // If only 1-2 surnames exist, show them all (no clustering needed).
+    if (sortedSurnames.length <= 2) {
+      setActiveSurnames(sortedSurnames.slice(0, 2));
+      return;
+    }
+    // Default to the largest surname. If the focused person has a surname, start there.
+    let startSurname = sortedSurnames[0];
+    if (seedFocusPersonId) {
+      const focusPerson = renderedPeople.find((p) => p.id === seedFocusPersonId);
+      if (focusPerson) {
+        const fs = extractSurname(focusPerson);
+        if (surnameClusters.has(fs)) startSurname = fs;
+      }
+    }
+    // Pair with the most-connected other surname.
+    const connected = getConnectedSurnames(startSurname, allBridges);
+    const second = connected.length > 0 ? connected[0] : sortedSurnames.find((s) => s !== startSurname);
+    setActiveSurnames(second ? [startSurname, second] : [startSurname]);
+  }, [sortedSurnames, seedFocusPersonId, renderedPeople, surnameClusters, allBridges]);
+
+  // Determine if clustering is active (more than 2 surnames in the data).
+  const clusteringActive = sortedSurnames.length > 2;
+
+  // Filter people/relationships to active surnames.
+  const {
+    filteredPeople: clusterPeople,
+    filteredRelationships: clusterRelationships,
+    ghostPersonIds,
+    activeBridges: clusterActiveBridges,
+    externalBridges: clusterExternalBridges,
+  } = useMemo(() => {
+    if (!clusteringActive || activeSurnames.length === 0) {
+      return {
+        filteredPeople: renderedPeople,
+        filteredRelationships: renderedRelationships,
+        ghostPersonIds: new Set<string>(),
+        activeBridges: [],
+        externalBridges: [],
+      };
+    }
+    return filterForActiveSurnames(renderedPeople, renderedRelationships, activeSurnames);
+  }, [clusteringActive, renderedPeople, renderedRelationships, activeSurnames]);
+
+  // Navigation: switch to a different surname pair.
+  const navigateToSurname = useCallback((targetSurname: string) => {
+    setActiveSurnames((prev) => {
+      if (prev.includes(targetSurname)) return prev;
+      // Keep the surname that connects to the target, replace the other.
+      const bridgesTo = allBridges.filter(
+        (b) => b.fromSurname === targetSurname || b.toSurname === targetSurname,
+      );
+      const connectedToTarget = new Set(
+        bridgesTo.flatMap((b) => [b.fromSurname, b.toSurname]).filter((s) => s !== targetSurname),
+      );
+      const keepSurname = prev.find((s) => connectedToTarget.has(s));
+      return keepSurname ? [keepSurname, targetSurname] : [targetSurname, ...(prev.length > 0 ? [prev[0]] : [])].slice(0, 2);
+    });
+  }, [allBridges]);
+
   // ---- Layout (tidy tree) ----
   const layout = useMemo(
-      () => layoutFamilyTree(renderedPeople, renderedRelationships, C),
-      [renderedPeople, renderedRelationships],
+      () => layoutFamilyTree(clusterPeople, clusterRelationships, C),
+      [clusterPeople, clusterRelationships],
   );
   const { positionsByPersonId, contentWidth, contentHeight } = layout;
 
   // ---- Connectors (lane-allocated) ----
   const { spouseConnectors, parentChildConnectors } = useMemo(
-      () => buildConnectors(renderedRelationships, layout, C, {
+      () => buildConnectors(clusterRelationships, layout, C, {
         parentChild: theme.colors.primary,
         spouse: theme.colors.secondary,
         secondaryParent: theme.colors.tertiary ?? theme.colors.outline,
-      }),
-      [renderedRelationships, layout, theme.colors.primary, theme.colors.secondary, theme.colors.tertiary, theme.colors.outline],
+      }, ghostPersonIds),
+      [clusterRelationships, layout, theme.colors.primary, theme.colors.secondary, theme.colors.tertiary, theme.colors.outline, ghostPersonIds],
   );
   const allConnectors = useMemo(() => [...parentChildConnectors, ...spouseConnectors], [parentChildConnectors, spouseConnectors]);
 
@@ -453,11 +543,11 @@ function FamilyTreeCanvas({
       b.y <= viewportRect.y + viewportRect.h
   );
 
-  const visiblePeople = useMemo(() => renderedPeople.filter((p) => {
+  const visiblePeople = useMemo(() => clusterPeople.filter((p) => {
     const pos = positionsByPersonId.get(p.id);
     if (!pos) return false;
     return intersects({ x: pos.x, y: pos.y, w: C.NODE_WIDTH, h: C.NODE_HEIGHT });
-  }), [renderedPeople, positionsByPersonId, viewportRect]);
+  }), [clusterPeople, positionsByPersonId, viewportRect]);
 
   const visibleConnectors = useMemo(
       () => allConnectors.filter((c: Connector) => intersects(c.bounds)),
@@ -542,15 +632,29 @@ function FamilyTreeCanvas({
               pointerEvents="none"
           >
             {visibleConnectors.map((c) => (
-                <Path
-                    key={c.key}
-                    d={c.d}
-                    fill="none"
-                    stroke={c.stroke}
-                    strokeWidth={c.strokeWidth}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                />
+                <React.Fragment key={c.key}>
+                  <Path
+                      d={c.d}
+                      fill="none"
+                      stroke={c.stroke}
+                      strokeWidth={c.strokeWidth}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      {...(c.dashArray ? { strokeDasharray: c.dashArray } : {})}
+                  />
+                  {c.label && c.labelPosition ? (
+                    <SvgText
+                      x={c.labelPosition.x}
+                      y={c.labelPosition.y - 6}
+                      fontSize={10}
+                      fill={c.stroke}
+                      textAnchor="middle"
+                      fontWeight="bold"
+                    >
+                      {c.label}
+                    </SvgText>
+                  ) : null}
+                </React.Fragment>
             ))}
           </Svg>
 
@@ -564,6 +668,7 @@ function FamilyTreeCanvas({
                     x={pos.x}
                     y={pos.y}
                     isCurrentUser={currentUserPersonId === person.id}
+                    isGhost={ghostPersonIds.has(person.id)}
                     surfaceColor={theme.colors.surface}
                     outlineColor={theme.colors.outlineVariant}
                     primaryColor={theme.colors.primary}
@@ -581,8 +686,43 @@ function FamilyTreeCanvas({
       </View>
   );
 
+  // ---- Surname selector bar ----
+  const renderSurnameSelector = () => {
+    if (!clusteringActive) return null;
+    const connectedToActive = new Set<string>();
+    for (const s of activeSurnames) {
+      getConnectedSurnames(s, allBridges).forEach((c) => connectedToActive.add(c));
+    }
+    // Remove already-active ones
+    activeSurnames.forEach((s) => connectedToActive.delete(s));
+
+    return (
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6, paddingHorizontal: 8, paddingVertical: 6 }}>
+        <Text variant="labelMedium" style={{ marginRight: 4 }}>Families:</Text>
+        {sortedSurnames.map((surname) => {
+          const isActive = activeSurnames.includes(surname);
+          const isConnected = connectedToActive.has(surname);
+          return (
+            <Chip
+              key={surname}
+              compact
+              selected={isActive}
+              mode={isActive ? 'flat' : 'outlined'}
+              icon={isConnected ? 'link-variant' : undefined}
+              onPress={() => navigateToSurname(surname)}
+              style={isActive ? { backgroundColor: theme.colors.primaryContainer } : undefined}
+            >
+              {surname} ({surnameClusters.get(surname)?.memberIds.size ?? 0})
+            </Chip>
+          );
+        })}
+      </View>
+    );
+  };
+
   return (
       <View style={[styles.container, fillAvailableSpace ? styles.containerFill : null]}>
+        {renderSurnameSelector()}
         {!floatingControls ? (
             <View style={styles.controlsRow}>
               <Text variant="bodyMedium">{controlsLabel}</Text>

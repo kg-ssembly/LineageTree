@@ -28,6 +28,12 @@ export type Connector = {
   strokeWidth: number;
   /** Bounding box in canvas coordinates — used for viewport culling. */
   bounds: { x: number; y: number; w: number; h: number };
+  /** If set, the connector is rendered as a dashed line (cross-family bridge). */
+  dashArray?: string;
+  /** Optional label to show on the connector (e.g., bridge person's name). */
+  label?: string;
+  /** Midpoint for label placement. */
+  labelPosition?: { x: number; y: number };
 };
 
 export type FamilyGraph = {
