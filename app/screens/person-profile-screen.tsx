@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Dimensions, Image, Modal, Pressable, ScrollView, View } from 'react-native';
+import { Dimensions, Image, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
   ActivityIndicator,
@@ -10,7 +10,6 @@ import {
   Divider,
   IconButton,
   Portal,
-  SegmentedButtons,
   Snackbar,
   Surface,
   Text,
@@ -157,10 +156,6 @@ const PERSON_PROFILE_TABS: Array<{ key: PersonProfileTabKey; label: string }> = 
   { key: 'memories-gallery', label: 'Memories & gallery' },
 ];
 
-const PERSON_PROFILE_TAB_GROUPS: PersonProfileTabKey[][] = [
-  ['member-profile', 'relationships', 'descendant-tree'],
-  ['ascendant-tree', 'memories-gallery'],
-];
 
 const helperDialogCopy: Record<HelperDialogKey, { title: string; message: string }> = {
   tabs: {
@@ -191,6 +186,24 @@ const helperDialogCopy: Record<HelperDialogKey, { title: string; message: string
 
 const styles = GlobalStyles.personProfile;
 
+const tabStripStyles = StyleSheet.create({
+  card: {
+    borderRadius: 16,
+    marginBottom: 16,
+    overflow: 'hidden',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  content: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  item: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginHorizontal: 2,
+  },
+});
+
 export default function PersonProfileScreen({ navigation, route }: Props) {
   const theme = useTheme();
   const { user } = useAuthStore();
@@ -208,6 +221,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
     assignPersonToUser,
     clearSelfAssignment,
     updatePerson,
+    removePerson,
     addParentChildRelationship,
     addSpouseRelationship,
     removeRelationship,
@@ -585,6 +599,14 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
     setHelperDialog({ visible: true, key });
   };
 
+  // ─── Back button ──────────────────────────────────────────────────────────────
+  // Navigate back to the main tab screen (PersonProfile is a stack screen on top of Main).
+  const handleGoBack = () => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    }
+  };
+
   if (!selectedTree || !person || loadingTreeData) {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: theme.colors.background }]}>
@@ -603,13 +625,10 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
             <Button
               mode="text"
               icon="arrow-left"
-              onPress={() => navigation.navigate('TreeDetail', {
-                treeId: route.params.treeId,
-                initialTab: 'ProfileTab',
-              })}
+              onPress={handleGoBack}
               contentStyle={styles.heroToolbarButtonContent}
             >
-              Back to tree management
+              Back
             </Button>
           </View>
           <View style={styles.heroHeader}>
@@ -636,12 +655,12 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
           </View>
 
           {user?.id ? (
-            <View style={[styles.claimBox, { backgroundColor: theme.colors.elevation.level1 }]}> 
+            <View style={[styles.claimBox, { backgroundColor: theme.colors.elevation.level1 }]}>
               {isCurrentUsersPerson ? (
                 <View style={styles.claimRow}>
                   <View style={styles.claimTextWrap}>
                     <Text variant="titleSmall">This is your linked profile</Text>
-                    <Text variant="bodySmall" style={[styles.claimText, { color: theme.colors.onSurfaceVariant }]}> 
+                    <Text variant="bodySmall" style={[styles.claimText, { color: theme.colors.onSurfaceVariant }]}>
                       Anywhere this family member appears in the tree, you will now see a You badge. Unlink this profile first if you want to claim someone else.
                     </Text>
                   </View>
@@ -652,7 +671,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
               ) : linkedCollaborator ? (
                 <>
                   <Text variant="titleSmall">Already linked to someone else</Text>
-                  <Text variant="bodySmall" style={[styles.claimText, { color: theme.colors.onSurfaceVariant }]}> 
+                  <Text variant="bodySmall" style={[styles.claimText, { color: theme.colors.onSurfaceVariant }]}>
                     This profile is already linked to {linkedCollaborator.displayName || linkedCollaborator.email}.
                   </Text>
                 </>
@@ -660,7 +679,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
                 <View style={styles.claimRow}>
                   <View style={styles.claimTextWrap}>
                     <Text variant="titleSmall">You already claimed another profile</Text>
-                    <Text variant="bodySmall" style={[styles.claimText, { color: theme.colors.onSurfaceVariant }]}> 
+                    <Text variant="bodySmall" style={[styles.claimText, { color: theme.colors.onSurfaceVariant }]}>
                       Unclaim yourself from {formatPersonName(currentAssignedPerson)} before claiming a different family member.
                     </Text>
                   </View>
@@ -675,7 +694,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
                 <View style={styles.claimRow}>
                   <View style={styles.claimTextWrap}>
                     <Text variant="titleSmall">Is this you?</Text>
-                    <Text variant="bodySmall" style={[styles.claimText, { color: theme.colors.onSurfaceVariant }]}> 
+                    <Text variant="bodySmall" style={[styles.claimText, { color: theme.colors.onSurfaceVariant }]}>
                       Tap once to link your account to this family member profile.
                     </Text>
                   </View>
@@ -688,20 +707,34 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
           ) : null}
         </Surface>
 
-        <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
-
-          {PERSON_PROFILE_TAB_GROUPS.map((group, index) => (
-            <SegmentedButtons
-              key={`person-profile-tab-group-${group.join('-')}`}
-              value={group.includes(activeTab) ? activeTab : ''}
-              onValueChange={(value) => setActiveTab(value as PersonProfileTabKey)}
-              buttons={group.map((key) => ({
-                value: key,
-                label: PERSON_PROFILE_TABS.find((tab) => tab.key === key)?.label ?? key,
-              }))}
-              style={index === 0 ? styles.managementSegmentedButtons : styles.managementSegmentedButtonsSecondary}
-            />
-          ))}
+        {/* ── Scrollable tab strip ──────────────────────────────────────────────── */}
+        <Surface style={[tabStripStyles.card, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.outlineVariant }]} elevation={1}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={tabStripStyles.content}
+          >
+            {PERSON_PROFILE_TABS.map((tab) => {
+              const isActive = activeTab === tab.key;
+              return (
+                <Pressable
+                  key={tab.key}
+                  onPress={() => setActiveTab(tab.key)}
+                  style={[
+                    tabStripStyles.item,
+                    isActive && { borderBottomColor: theme.colors.primary, borderBottomWidth: 2 },
+                  ]}
+                >
+                  <Text
+                    variant="labelLarge"
+                    style={{ color: isActive ? theme.colors.primary : theme.colors.onSurfaceVariant }}
+                  >
+                    {tab.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
         </Surface>
 
         {activeTab === 'member-profile' ? (
@@ -756,9 +789,9 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
               </Card>
             </View>
 
-            <View style={[styles.notesBox, { backgroundColor: theme.colors.surfaceVariant }]}> 
+            <View style={[styles.notesBox, { backgroundColor: theme.colors.surfaceVariant }]}>
               <Text variant="titleSmall">Notes</Text>
-              <Text variant="bodyMedium" style={[styles.notesText, { color: theme.colors.onSurfaceVariant }]}> 
+              <Text variant="bodyMedium" style={[styles.notesText, { color: theme.colors.onSurfaceVariant }]}>
                 {person.notes || 'No notes added yet.'}
               </Text>
             </View>
@@ -815,10 +848,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
                                 `Remove the ${entry.title.toLowerCase()} connection?`,
                                 'Remove',
                                 async () => {
-                                  if (!user?.id) {
-                                    return;
-                                  }
-
+                                  if (!user?.id) return;
                                   await removeRelationship(user.id, entry.relationship.id);
                                 },
                               )}
@@ -869,7 +899,6 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
                 ) : null}
               </View>
             </View>
-
             <FamilyTreeCanvas
               people={people}
               relationships={relationships}
@@ -902,7 +931,6 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
                 ) : null}
               </View>
             </View>
-
             <FamilyTreeCanvas
               people={people}
               relationships={relationships}
@@ -929,7 +957,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
 
             <View style={[styles.notesBox, { backgroundColor: theme.colors.surfaceVariant }]}>
               <Text variant="titleSmall">Notes</Text>
-              <Text variant="bodyMedium" style={[styles.notesText, { color: theme.colors.onSurfaceVariant }]}> 
+              <Text variant="bodyMedium" style={[styles.notesText, { color: theme.colors.onSurfaceVariant }]}>
                 {person.notes || 'No notes added yet.'}
               </Text>
             </View>
@@ -973,7 +1001,6 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
                     const editableEvent = !item.system
                       ? person.lifeEvents.find((event) => event.id === item.id) ?? null
                       : null;
-
                     return (
                       <Card key={item.id} mode="outlined" style={[styles.timelineCard, { backgroundColor: theme.colors.elevation.level1, borderColor: theme.colors.outlineVariant }]}>
                         <Card.Content>
@@ -998,7 +1025,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
                                   iconColor="#C62828"
                                   onPress={() => openConfirm(
                                     'Delete life event',
-                                    `Delete the “${editableEvent.title}” memory from ${formatPersonName(person)}?`,
+                                    `Delete the "${editableEvent.title}" memory from ${formatPersonName(person)}?`,
                                     'Delete',
                                     async () => handleDeleteLifeEvent(editableEvent),
                                   )}
@@ -1032,6 +1059,12 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
         relationshipCandidates={people.filter((candidate) => candidate.id !== person.id)}
         onDismiss={() => setEditorVisible(false)}
         onSubmit={handlePersonSubmit}
+        onDelete={canEdit ? async () => {
+          if (!user?.id) return;
+          await removePerson(user.id, person);
+          setEditorVisible(false);
+          if (navigation.canGoBack()) navigation.goBack();
+        } : undefined}
       />
 
       <PersonRelationshipDialog
@@ -1080,7 +1113,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
               contentOffset={{ x: (viewerIndex ?? 0) * viewerWidth, y: 0 }}
             >
               {person.photos.map((photo) => (
-                <View key={`viewer-${photo.id}`} style={[styles.viewerSlide, { width: viewerWidth }]}> 
+                <View key={`viewer-${photo.id}`} style={[styles.viewerSlide, { width: viewerWidth }]}>
                   <Image source={{ uri: photo.url }} style={styles.viewerImage} resizeMode="contain" />
                 </View>
               ))}
@@ -1118,5 +1151,4 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
     </View>
   );
 }
-
 

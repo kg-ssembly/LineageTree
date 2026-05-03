@@ -591,6 +591,21 @@ export class GlobalStyles {
         managementSegmentedButtonsSecondary: {
             marginTop: 10,
         },
+        tabStripCard: {
+            borderRadius: 16,
+            marginBottom: 16,
+            overflow: 'hidden',
+            borderBottomWidth: StyleSheet.hairlineWidth,
+        },
+        tabStripContent: {
+            paddingHorizontal: 8,
+            paddingVertical: 4,
+        },
+        tabStripItem: {
+            paddingHorizontal: 16,
+            paddingVertical: 12,
+            marginHorizontal: 2,
+        },
         sectionHeader: {
             flexDirection: 'row',
             justifyContent: 'space-between',
