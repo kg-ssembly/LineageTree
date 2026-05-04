@@ -37,7 +37,7 @@ import {
   View,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Button, Chip, IconButton, Text, useTheme } from 'react-native-paper';
+import { Button, Chip, IconButton, Menu, Text, useTheme } from 'react-native-paper';
 import Svg, { Path, Text as SvgText } from 'react-native-svg';
 
 import type { PersonRecord } from './dto/person';
@@ -97,6 +97,12 @@ interface FamilyTreeCanvasProps {
    * a family-cluster switch from outside the canvas.
    */
   familySwitchRef?: React.MutableRefObject<((surname: string) => void) | null>;
+  /**
+   * Optional ref kept in sync with the currently viewed surname cluster.
+   * Lets parent components read which family is on screen (e.g. to decide
+   * which alternative family to offer in a Quick-Actions dialog).
+   */
+  activeFamilyRef?: React.MutableRefObject<string | null>;
 }
 
 function formatPersonName(person: PersonRecord) {
@@ -269,6 +275,7 @@ function FamilyTreeCanvas({
                             floatingControls = false,
                             fillAvailableSpace = false,
                             familySwitchRef,
+                            activeFamilyRef,
                           }: FamilyTreeCanvasProps) {
   const theme = useTheme();
   const { height: windowHeight } = useWindowDimensions();
@@ -365,6 +372,16 @@ function FamilyTreeCanvas({
       if (familySwitchRef) familySwitchRef.current = null;
     };
   }, [familySwitchRef, navigateToSurname]);
+
+  // Keep activeFamilyRef in sync with the current surname cluster.
+  useEffect(() => {
+    if (activeFamilyRef) {
+      activeFamilyRef.current = activeSurnames[0] ?? null;
+    }
+  }, [activeFamilyRef, activeSurnames]);
+
+  // State for the family-selector dropdown menu.
+  const [familySelectorMenuVisible, setFamilySelectorMenuVisible] = useState(false);
 
   // ---- Layout (tidy tree) ----
   const layout = useMemo(
@@ -737,29 +754,55 @@ function FamilyTreeCanvas({
   );
 
   // ---- Surname selector bar ----
+  // Shows the CURRENT family prominently. Tapping it opens a menu of the
+  // OTHER available families to switch to.
   const renderSurnameSelector = () => {
     if (!clusteringActive) return null;
 
+    const currentSurname = activeSurnames[0] ?? '';
+    const otherSurnames = sortedSurnames.filter((s) => s !== currentSurname);
+
     return (
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6, paddingHorizontal: 8, paddingVertical: 6 }}>
-        <Text variant="labelMedium" style={{ marginRight: 4 }}>Families:</Text>
-        {sortedSurnames.map((surname) => {
-          const isActive = activeSurnames.includes(surname);
-          const isConnected = !isActive && getConnectedSurnames(activeSurnames[0] ?? '', allBridges).includes(surname);
-          return (
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 8, paddingVertical: 6 }}>
+        <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>Viewing:</Text>
+        <Menu
+          visible={familySelectorMenuVisible}
+          onDismiss={() => setFamilySelectorMenuVisible(false)}
+          anchor={
             <Chip
-              key={surname}
               compact
-              selected={isActive}
-              mode={isActive ? 'flat' : 'outlined'}
-              icon={isConnected ? 'link-variant' : undefined}
-              onPress={() => navigateToSurname(surname)}
-              style={isActive ? { backgroundColor: theme.colors.primaryContainer } : undefined}
+              selected
+              mode="flat"
+              icon="check"
+              closeIcon="chevron-down"
+              onPress={() => setFamilySelectorMenuVisible(true)}
+              onClose={() => setFamilySelectorMenuVisible(true)}
+              style={{ backgroundColor: theme.colors.primaryContainer }}
+              textStyle={{ color: theme.colors.onPrimaryContainer }}
             >
-              {surname} ({surnameClusters.get(surname)?.memberIds.size ?? 0})
+              {currentSurname} family
             </Chip>
-          );
-        })}
+          }
+        >
+          {otherSurnames.length > 0 ? (
+            otherSurnames.map((surname) => {
+              const isConnected = getConnectedSurnames(currentSurname, allBridges).includes(surname);
+              return (
+                <Menu.Item
+                  key={surname}
+                  leadingIcon={isConnected ? 'link-variant' : 'swap-horizontal'}
+                  title={`${surname} family`}
+                  onPress={() => {
+                    setFamilySelectorMenuVisible(false);
+                    navigateToSurname(surname);
+                  }}
+                />
+              );
+            })
+          ) : (
+            <Menu.Item title="No other families found" disabled />
+          )}
+        </Menu>
       </View>
     );
   };
