@@ -230,6 +230,8 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
     visible: false,
     key: 'tabs',
   });
+  const [relationshipPage, setRelationshipPage] = useState(1);
+  const relationshipPageSize = 3;
 
   const selectedTree = useMemo(
     () => trees.find((tree) => tree.id === route.params.treeId) ?? null,
@@ -333,6 +335,12 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
       .sort((left, right) => right.relationship.createdAt.localeCompare(left.relationship.createdAt));
   }, [peopleById, person, relationships]);
 
+  const totalRelationshipPages = Math.ceil(relationshipEntries.length / relationshipPageSize);
+  const paginatedRelationships = useMemo(() => {
+    const start = (relationshipPage - 1) * relationshipPageSize;
+    return relationshipEntries.slice(start, start + relationshipPageSize);
+  }, [relationshipEntries, relationshipPage]);
+
   const memoryTimeline = useMemo(() => {
     if (!person) {
       return [] as Array<{
@@ -415,6 +423,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
 
   useEffect(() => {
     setActiveTab('member-profile');
+    setRelationshipPage(1);
   }, [route.params.personId]);
 
   useEffect(() => {
@@ -750,61 +759,79 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
               ) : null}
             </View>
 
+            <RelationshipInsightCard
+                people={people}
+                relationships={relationships}
+                lockedFromPersonId={person.id}
+                title={`How ${formatPersonName(person)} relates to others`}
+                subtitle={`Pick another family member to see how they connect to ${formatPersonName(person)}.`}
+            />
+
             {relationshipEntries.length > 0 ? (
-              <View style={styles.relationshipList}>
-                {relationshipEntries.map((entry) => (
-                  <Card key={entry.relationship.id} mode="outlined" style={[styles.relationshipCard, { backgroundColor: theme.colors.elevation.level1, borderColor: theme.colors.outlineVariant }]}>
-                    <Card.Content>
-                      <View style={styles.relationshipRow}>
-                        <View style={styles.relationshipTextWrap}>
-                          <Chip compact style={styles.relationshipChip}>
-                            {entry.mode === 'parent-of' ? 'Parent of' : entry.mode === 'child-of' ? 'Child of' : 'Spouse of'}
-                          </Chip>
-                          <Text variant="titleMedium" style={styles.relationshipTitle}>{formatPersonName(entry.relatedPerson)}</Text>
-                          <Text variant="bodySmall" style={[styles.relationshipSubtitle, { color: theme.colors.onSurfaceVariant }]}>{entry.subtitle}</Text>
-                        </View>
-                        {canEdit ? (
-                          <View style={styles.rowActions}>
-                            <IconButton
-                              icon="pencil"
-                              onPress={() => setRelationshipDialog({ visible: true, relationship: entry.relationship })}
-                              disabled={mutating}
-                            />
-                            <IconButton
-                              icon="delete"
-                              iconColor="#C62828"
-                              onPress={() => openConfirm(
-                                'Remove relationship',
-                                `Remove the ${entry.title.toLowerCase()} connection?`,
-                                'Remove',
-                                async () => {
-                                  if (!user?.id) return;
-                                  await removeRelationship(user.id, entry.relationship.id);
-                                },
-                              )}
-                              disabled={mutating}
-                            />
+              <>
+                <View style={styles.relationshipList}>
+                  {paginatedRelationships.map((entry) => (
+                    <Card key={entry.relationship.id} mode="outlined" style={[styles.relationshipCard, { backgroundColor: theme.colors.elevation.level1, borderColor: theme.colors.outlineVariant }]}>
+                      <Card.Content>
+                        <View style={styles.relationshipRow}>
+                          <View style={styles.relationshipTextWrap}>
+                            <Chip compact style={styles.relationshipChip}>
+                              {entry.mode === 'parent-of' ? 'Parent of' : entry.mode === 'child-of' ? 'Child of' : 'Spouse of'}
+                            </Chip>
+                            <Text variant="titleMedium" style={styles.relationshipTitle}>{formatPersonName(entry.relatedPerson)}</Text>
+                            <Text variant="bodySmall" style={[styles.relationshipSubtitle, { color: theme.colors.onSurfaceVariant }]}>{entry.subtitle}</Text>
                           </View>
-                        ) : null}
-                      </View>
-                    </Card.Content>
-                  </Card>
-                ))}
-              </View>
+                          {canEdit ? (
+                            <View style={styles.rowActions}>
+                              <IconButton
+                                icon="pencil"
+                                onPress={() => setRelationshipDialog({ visible: true, relationship: entry.relationship })}
+                                disabled={mutating}
+                              />
+                              <IconButton
+                                icon="delete"
+                                iconColor="#C62828"
+                                onPress={() => openConfirm(
+                                  'Remove relationship',
+                                  `Remove the ${entry.title.toLowerCase()} connection?`,
+                                  'Remove',
+                                  async () => {
+                                    if (!user?.id) return;
+                                    await removeRelationship(user.id, entry.relationship.id);
+                                  },
+                                )}
+                                disabled={mutating}
+                              />
+                            </View>
+                          ) : null}
+                        </View>
+                      </Card.Content>
+                    </Card>
+                  ))}
+                </View>
+
+                {totalRelationshipPages > 1 && (
+                  <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, marginTop: 12 }}>
+                    <IconButton
+                      icon="chevron-left"
+                      onPress={() => setRelationshipPage((p) => Math.max(1, p - 1))}
+                      disabled={relationshipPage === 1}
+                    />
+                    <Text variant="bodyMedium">{relationshipPage} / {totalRelationshipPages}</Text>
+                    <IconButton
+                      icon="chevron-right"
+                      onPress={() => setRelationshipPage((p) => Math.min(totalRelationshipPages, p + 1))}
+                      disabled={relationshipPage === totalRelationshipPages}
+                    />
+                  </View>
+                )}
+              </>
             ) : (
               <View style={styles.emptyState}>
                 <Text variant="titleMedium">No relationships yet</Text>
                 <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>Add parents, children, or spouses from this family member to grow the story around them.</Text>
               </View>
             )}
-
-            <RelationshipInsightCard
-              people={people}
-              relationships={relationships}
-              lockedFromPersonId={person.id}
-              title="How this family member relates to others"
-              subtitle={`Pick another family member to see how they connect to ${formatPersonName(person)}.`}
-            />
           </Surface>
         ) : null}
 
@@ -1089,4 +1116,3 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
     </View>
   );
 }
-

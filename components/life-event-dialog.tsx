@@ -115,7 +115,7 @@ export default function LifeEventDialog({
         <Dialog visible={visible} onDismiss={loading ? undefined : onDismiss} style={styles.dialog}>
           <Dialog.Title>{event ? 'Edit life event' : 'Add life event'}</Dialog.Title>
           <Dialog.ScrollArea style={styles.scrollArea}>
-            <ScrollView keyboardShouldPersistTaps="handled">
+            <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
               <Text variant="bodyMedium" style={styles.helperText}>
                 Capture milestones like marriage, divorce, moves, or other memorable family moments.
               </Text>
@@ -209,6 +209,4 @@ export default function LifeEventDialog({
     </>
   );
 }
-
-
 

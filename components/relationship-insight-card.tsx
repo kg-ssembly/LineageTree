@@ -84,9 +84,9 @@ export default function RelationshipInsightCard({
     <Card mode="outlined" style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant }]}>
       <Card.Content>
         <Text variant="titleMedium">{title}</Text>
-        <Text variant="bodyMedium" style={[styles.subtitle, { color: theme.colors.onSurfaceVariant }]}>
-          {effectiveSubtitle}
-        </Text>
+        {/*<Text variant="bodyMedium" style={[styles.subtitle, { color: theme.colors.onSurfaceVariant }]}>*/}
+        {/*  {effectiveSubtitle}*/}
+        {/*</Text>*/}
 
         {!lockedFromPersonId ? (
           <View style={styles.section}>

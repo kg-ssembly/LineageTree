@@ -808,7 +808,10 @@ export class GlobalStyles {
         scrollArea: {
             borderBottomWidth: 0,
             borderTopWidth: 0,
-            paddingHorizontal: 0,
+            paddingHorizontal: 16,
+        },
+        content: {
+            paddingBottom: 12,
         },
         helperText: {
             color: F.onSurfaceVariant,
@@ -846,11 +849,10 @@ export class GlobalStyles {
         scrollArea: {
             borderBottomWidth: 0,
             borderTopWidth: 0,
-            paddingHorizontal: 4,
+            paddingHorizontal: 16,
         },
         content: {
-            paddingHorizontal: 4,
-            paddingBottom: 8,
+            paddingBottom: 16,
         },
         dialogActions: {
             paddingHorizontal: 8,
@@ -892,7 +894,10 @@ export class GlobalStyles {
         scrollArea: {
             borderBottomWidth: 0,
             borderTopWidth: 0,
-            paddingHorizontal: 0,
+            paddingHorizontal: 16,
+        },
+        content: {
+            paddingBottom: 16,
         },
         helperText: {
             color: F.onSurfaceVariant,
@@ -967,10 +972,9 @@ export class GlobalStyles {
         scrollArea: {
             borderBottomWidth: 0,
             borderTopWidth: 0,
-            paddingHorizontal: 4,
+            paddingHorizontal: 16,
         },
         content: {
-            paddingHorizontal: 4,
             paddingBottom: 12,
         },
         dialogActions: {

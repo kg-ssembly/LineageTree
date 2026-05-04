@@ -144,7 +144,7 @@ export default function PersonRelationshipDialog({
       <Dialog visible={visible} onDismiss={loading ? undefined : onDismiss} style={styles.dialog}>
         <Dialog.Title>{editingRelationship ? 'Edit relationship' : 'Add relationship'}</Dialog.Title>
         <Dialog.ScrollArea style={styles.scrollArea}>
-          <ScrollView keyboardShouldPersistTaps="handled">
+          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
             <Text variant="bodyMedium" style={styles.helperText}>
               Manage connections directly from {formatPersonName(person)}.
             </Text>
