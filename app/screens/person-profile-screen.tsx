@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Dimensions, Image, Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Dimensions, Image, Modal, Pressable, ScrollView, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
   ActivityIndicator,
+  BottomNavigation,
   Button,
   Card,
   Chip,
@@ -149,14 +150,6 @@ function getAscendantIds(rootPersonId: string, relationships: RelationshipRecord
   return [...ascendantIds];
 }
 
-const PERSON_PROFILE_TABS: Array<{ key: PersonProfileTabKey; label: string }> = [
-  { key: 'member-profile', label: 'Profile' },
-  { key: 'relationships', label: 'Relationships' },
-  { key: 'descendant-tree', label: 'Descendant tree' },
-  { key: 'ascendant-tree', label: 'Ascendant tree' },
-  { key: 'memories-gallery', label: 'Memories & gallery' },
-];
-
 
 const helperDialogCopy: Record<HelperDialogKey, { title: string; message: string }> = {
   tabs: {
@@ -187,23 +180,13 @@ const helperDialogCopy: Record<HelperDialogKey, { title: string; message: string
 
 const styles = GlobalStyles.personProfile;
 
-const tabStripStyles = StyleSheet.create({
-  card: {
-    borderRadius: 16,
-    marginBottom: 16,
-    overflow: 'hidden',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  content: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  item: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginHorizontal: 2,
-  },
-});
+const TAB_ROUTES: Array<{ key: PersonProfileTabKey; title: string; focusedIcon: string; unfocusedIcon: string }> = [
+  { key: 'member-profile', title: 'Profile', focusedIcon: 'account', unfocusedIcon: 'account-outline' },
+  { key: 'relationships', title: 'Relationships', focusedIcon: 'family-tree', unfocusedIcon: 'family-tree' },
+  { key: 'descendant-tree', title: 'Descendants', focusedIcon: 'arrow-down-thick', unfocusedIcon: 'arrow-down-thick' },
+  { key: 'ascendant-tree', title: 'Ancestors', focusedIcon: 'arrow-up-thick', unfocusedIcon: 'arrow-up-thick' },
+  { key: 'memories-gallery', title: 'Memories', focusedIcon: 'image-multiple', unfocusedIcon: 'image-multiple-outline' },
+];
 
 export default function PersonProfileScreen({ navigation, route }: Props) {
   const theme = useTheme();
@@ -647,14 +630,6 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
             ) : null}
           </View>
 
-          <View style={styles.metadataRow}>
-            {person.gender !== 'unspecified' ? <Chip compact>{formatPersonGender(person.gender)}</Chip> : null}
-            <Chip compact icon={isPersonDeceased(person) ? 'flower-outline' : 'heart-pulse'}>{getPersonPresenceLabel(person)}</Chip>
-            <Chip compact icon="image-multiple">{person.photos.length} photos</Chip>
-            {preferredPhoto ? <Chip compact icon="star">Preferred photo selected</Chip> : null}
-            {linkedCollaborator && !isCurrentUsersPerson ? <Chip compact icon="link-variant">Linked</Chip> : null}
-          </View>
-
           {user?.id ? (
             <View style={[styles.claimBox, { backgroundColor: theme.colors.elevation.level1 }]}>
               {isCurrentUsersPerson ? (
@@ -676,21 +651,6 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
                     This profile is already linked to {linkedCollaborator.displayName || linkedCollaborator.email}.
                   </Text>
                 </>
-              ) : currentAssignedPerson ? (
-                <View style={styles.claimRow}>
-                  <View style={styles.claimTextWrap}>
-                    <Text variant="titleSmall">You already claimed another profile</Text>
-                    <Text variant="bodySmall" style={[styles.claimText, { color: theme.colors.onSurfaceVariant }]}>
-                      Unclaim yourself from {formatPersonName(currentAssignedPerson)} before claiming a different family member.
-                    </Text>
-                  </View>
-                  <Button mode="outlined" icon="open-in-new" onPress={() => navigation.push('PersonProfile', {
-                    treeId: route.params.treeId,
-                    personId: currentAssignedPerson.id,
-                  })} disabled={mutating}>
-                    Open current family member
-                  </Button>
-                </View>
               ) : canClaimPerson ? (
                 <View style={styles.claimRow}>
                   <View style={styles.claimTextWrap}>
@@ -708,35 +668,6 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
           ) : null}
         </Surface>
 
-        {/* ── Scrollable tab strip ──────────────────────────────────────────────── */}
-        <Surface style={[tabStripStyles.card, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.outlineVariant }]} elevation={1}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={tabStripStyles.content}
-          >
-            {PERSON_PROFILE_TABS.map((tab) => {
-              const isActive = activeTab === tab.key;
-              return (
-                <Pressable
-                  key={tab.key}
-                  onPress={() => setActiveTab(tab.key)}
-                  style={[
-                    tabStripStyles.item,
-                    isActive && { borderBottomColor: theme.colors.primary, borderBottomWidth: 2 },
-                  ]}
-                >
-                  <Text
-                    variant="labelLarge"
-                    style={{ color: isActive ? theme.colors.primary : theme.colors.onSurfaceVariant }}
-                  >
-                    {tab.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-        </Surface>
 
         {activeTab === 'member-profile' ? (
           <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
@@ -749,6 +680,14 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
                 onPress={() => openHelperDialog('member-profile')}
                 accessibilityLabel="About member profile"
               />
+            </View>
+
+            <View style={styles.metadataRow}>
+              {person.gender !== 'unspecified' ? <Chip compact>{formatPersonGender(person.gender)}</Chip> : null}
+              <Chip compact icon={isPersonDeceased(person) ? 'flower-outline' : 'heart-pulse'}>{getPersonPresenceLabel(person)}</Chip>
+              <Chip compact icon="image-multiple">{person.photos.length} photos</Chip>
+              {preferredPhoto ? <Chip compact icon="star">Preferred photo selected</Chip> : null}
+              {linkedCollaborator && !isCurrentUsersPerson ? <Chip compact icon="link-variant">Linked</Chip> : null}
             </View>
 
             <View style={styles.detailGrid}>
@@ -776,24 +715,6 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
                 <Card.Content>
                   <Text variant="labelMedium" style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>Birth date</Text>
                   <Text variant="titleMedium">{person.birthDate ? formatPersonDate(person.birthDate) : 'Unknown'}</Text>
-                </Card.Content>
-              </Card>
-              <Card mode="outlined" style={[styles.detailCard, { backgroundColor: theme.colors.elevation.level1, borderColor: theme.colors.outlineVariant }]}>
-                <Card.Content>
-                  <Text variant="labelMedium" style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>Status</Text>
-                  <Text variant="titleMedium">{getPersonPresenceLabel(person)}</Text>
-                </Card.Content>
-              </Card>
-              <Card mode="outlined" style={[styles.detailCard, { backgroundColor: theme.colors.elevation.level1, borderColor: theme.colors.outlineVariant }]}>
-                <Card.Content>
-                  <Text variant="labelMedium" style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>Gender</Text>
-                  <Text variant="titleMedium">{person.gender === 'unspecified' ? 'Unspecified' : formatPersonGender(person.gender)}</Text>
-                </Card.Content>
-              </Card>
-              <Card mode="outlined" style={[styles.detailCard, { backgroundColor: theme.colors.elevation.level1, borderColor: theme.colors.outlineVariant }]}>
-                <Card.Content>
-                  <Text variant="labelMedium" style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>Photos</Text>
-                  <Text variant="titleMedium">{person.photos.length}</Text>
                 </Card.Content>
               </Card>
             </View>
@@ -1058,6 +979,14 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
           </Surface>
         ) : null}
       </ScrollView>
+
+      <BottomNavigation.Bar
+        navigationState={{
+          index: TAB_ROUTES.findIndex((r) => r.key === activeTab),
+          routes: TAB_ROUTES,
+        }}
+        onTabPress={({ route }) => setActiveTab(route.key as PersonProfileTabKey)}
+      />
 
       <PersonFormDialog
         visible={editorVisible}

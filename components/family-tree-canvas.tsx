@@ -206,7 +206,7 @@ const PersonNode = React.memo(function PersonNode(props: PersonNodeProps) {
   const borderWidth = isHighlighted ? 2.5 : 1;
 
   const badgeLabel = isMaidenNameMember
-    ? `née ${person.maidenName!.trim()}`
+    ? `${person.maidenName!.trim()}`
     : isCrossSurnameChild
     ? '⬡ Mixed'
     : null;

@@ -7,7 +7,7 @@ export function formatPersonName(person?: PersonRecord | null) {
 
   const name = `${person.firstName} ${person.lastName}`.trim();
   if (person.maidenName?.trim()) {
-    return `${name} (née ${person.maidenName.trim()})`;
+    return `${name} (${person.maidenName.trim()})`;
   }
   return name;
 }

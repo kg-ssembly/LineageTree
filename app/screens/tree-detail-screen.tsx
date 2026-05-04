@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Image, ScrollView, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -12,7 +12,6 @@ import {
   IconButton,
   List,
   Portal,
-  SegmentedButtons,
   Snackbar,
   Surface,
   Text,
@@ -89,6 +88,25 @@ const TREE_MANAGEMENT_TABS: Array<{ key: TreeManagementTabKey; label: string }> 
   { key: 'approvals', label: 'Approvals' },
   { key: 'trees', label: 'My Trees' },
 ];
+
+const settingsTabStripStyles = StyleSheet.create({
+  card: {
+    borderRadius: 12,
+    marginTop: 8,
+    marginBottom: 16,
+    overflow: 'hidden',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  content: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  item: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginHorizontal: 2,
+  },
+});
 
 export interface SharedTabProps {
   selectedTree: FamilyTree;
@@ -805,19 +823,35 @@ function ProfileTabContent({
             accessibilityLabel="About tree management"
           />
         </View>
-        <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-          Overview · Collaborators · Approvals
-        </Text>
 
-        <SegmentedButtons
-          value={activeManagementTab}
-          onValueChange={(value) => setActiveManagementTab(value as TreeManagementTabKey)}
-          buttons={TREE_MANAGEMENT_TABS.map((tab) => ({
-            value: tab.key,
-            label: tab.label,
-          }))}
-          style={styles.managementSegmentedButtons}
-        />
+        <Surface style={[settingsTabStripStyles.card, { backgroundColor: theme.colors.elevation.level1, borderBottomColor: theme.colors.outlineVariant }]} elevation={0}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={settingsTabStripStyles.content}
+          >
+            {TREE_MANAGEMENT_TABS.map((tab) => {
+              const isActive = activeManagementTab === tab.key;
+              return (
+                <Pressable
+                  key={tab.key}
+                  onPress={() => setActiveManagementTab(tab.key)}
+                  style={[
+                    settingsTabStripStyles.item,
+                    isActive && { borderBottomColor: theme.colors.primary, borderBottomWidth: 2 },
+                  ]}
+                >
+                  <Text
+                    variant="labelLarge"
+                    style={{ color: isActive ? theme.colors.primary : theme.colors.onSurfaceVariant }}
+                  >
+                    {tab.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </Surface>
 
         {activeManagementTab === 'overview' ? (
           <>
@@ -1233,7 +1267,7 @@ function ProfileTabContent({
 
         {/* ── My Trees tab ─────────────────────────────────────────────── */}
         {activeManagementTab === 'trees' ? (
-          <View style={styles.tabContent}>
+          <View>
             <View style={styles.sectionHeader}>
               <Text variant="titleMedium">My Family Trees</Text>
               {onCreateTree ? (
