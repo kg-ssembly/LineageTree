@@ -3,7 +3,7 @@ import { ScrollView, View } from 'react-native';
 import { Button, Chip, Dialog, HelperText, Portal, Text, TextInput } from 'react-native-paper';
 import { DatePickerModal } from 'react-native-paper-dates';
 import type { PersonLifeEvent, PersonLifeEventType } from './dto/person';
-import { getLifeEventTypeLabel, parsePersonDate } from './dto/person';
+import { formatPersonDate, getLifeEventTypeLabel, parsePersonDate } from './dto/person';
 import { GlobalStyles } from '../constants/styles';
 
 const styles = GlobalStyles.lifeEventDialog;
@@ -49,8 +49,7 @@ function getDefaultTitle(type: PersonLifeEventType) {
 }
 
 function formatDateButtonLabel(value: string) {
-  const parsed = parsePersonDate(value);
-  return parsed ? parsed.toLocaleDateString() : 'Pick a date';
+  return value ? formatPersonDate(value) : 'Pick a date';
 }
 
 export default function LifeEventDialog({

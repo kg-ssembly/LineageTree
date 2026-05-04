@@ -116,7 +116,20 @@ export function parsePersonDate(value: string) {
 
 export function formatPersonDate(value: string) {
   const parsed = parsePersonDate(value);
-  return parsed ? parsed.toLocaleDateString() : (value || 'Unknown');
+  if (!parsed) {
+    return value || 'Unknown';
+  }
+
+  return formatDate(parsed);
+}
+
+export function formatDate(date: Date) {
+  const day = date.getDate();
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const month = months[date.getMonth()];
+  const year = date.getFullYear();
+
+  return `${day} ${month} ${year}`;
 }
 
 export function isPersonDeceased(person?: PersonRecord | null) {
@@ -163,4 +176,3 @@ export function getLifeEventTypeLabel(type: PersonLifeEventType) {
       return 'Custom';
   }
 }
-

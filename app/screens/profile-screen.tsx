@@ -17,6 +17,13 @@ import {
 import { useAuthStore } from '../../stores/auth-store';
 import { useThemeStore } from '../../stores/theme-store';
 import type { ThemePreference } from '../../constants/theme';
+import { formatDate } from '../../components/dto/person';
+import type { RootStackParamList } from '../../components/dto/navigation';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+
+// No props needed for the content component directly unless passed by the navigator
+// type Props = NativeStackScreenProps<RootStackParamList, 'Profile'>;
+
 import { GlobalStyles } from '../../constants/styles';
 import { StyleSheet } from 'react-native';
 
@@ -110,7 +117,7 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
               {user?.email}
             </Text>
             <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
-              Member since {user?.createdAt ? new Date(user.createdAt).getFullYear() : '—'}
+              Member since {user?.createdAt ? formatDate(new Date(user.createdAt)) : '—'}
             </Text>
           </View>
         </View>

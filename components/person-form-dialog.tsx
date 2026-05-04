@@ -17,6 +17,7 @@ import {
 } from 'react-native-paper';
 import { DatePickerModal } from 'react-native-paper-dates';
 import type { PersonGender, PersonLifeEvent, PersonMutationPayload, PersonPhoto, PersonRecord } from './dto/person';
+import { formatPersonDate } from './dto/person';
 import type { RelationshipRecord } from './dto/relationship';
 import { GlobalStyles } from '../constants/styles';
 
@@ -80,8 +81,7 @@ function parseIsoDate(value: string) {
 }
 
 function formatDateButtonLabel(value: string) {
-  const parsedDate = parseIsoDate(value);
-  return parsedDate ? parsedDate.toLocaleDateString() : 'Pick a date';
+  return value ? formatPersonDate(value) : 'Pick a date';
 }
 
 function formatPersonName(person: PersonRecord) {

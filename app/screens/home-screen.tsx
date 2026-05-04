@@ -28,6 +28,7 @@ import type { RootStackParamList } from '../../components/dto/navigation';
 import type { FamilyTree } from '../../components/dto/tree';
 import { canManageTree, getTreeRole } from '../../components/dto/tree';
 import { GlobalStyles } from '../../constants/styles';
+import { formatDate } from '../../components/dto/person';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Home'>;
 
@@ -158,7 +159,7 @@ function ProfileTabContent({ onSignOut, authLoading }: ProfileTabProps) {
               {user?.email}
             </Text>
             <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
-              Member since {user?.createdAt ? new Date(user.createdAt).getFullYear() : '—'}
+              Member since {user?.createdAt ? formatDate(new Date(user.createdAt)) : '—'}
             </Text>
           </View>
         </View>

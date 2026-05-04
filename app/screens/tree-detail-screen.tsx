@@ -31,6 +31,7 @@ import { useAuthStore } from '../../stores/auth-store';
 import { useTreeStore } from '../../stores/tree-store';
 import type { PersonGender, PersonRecord } from '../../components/dto/person';
 import {
+  formatPersonDate,
   getPersonFallbackAvatarIcon,
   getPersonPresenceLabel,
   getPreferredPersonPhoto,
@@ -498,7 +499,7 @@ export function PeopleRelationshipsTabContent({
                               {isCurrentUsersPerson ? <Chip compact icon="account">You</Chip> : null}
                             </View>
                             <View style={styles.metadataRow}>
-                              {person.birthDate ? <Chip compact icon="calendar">{person.birthDate}</Chip> : null}
+                              {person.birthDate ? <Chip compact icon="calendar">{formatPersonDate(person.birthDate)}</Chip> : null}
                               <Chip compact icon={isPersonDeceased(person) ? 'flower-outline' : 'heart-pulse'}>
                                 {getPersonPresenceLabel(person)}
                               </Chip>
