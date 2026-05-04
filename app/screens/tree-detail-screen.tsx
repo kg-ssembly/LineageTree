@@ -133,6 +133,8 @@ export interface SharedTabProps {
   onConfirmDeleteTree?: (tree: FamilyTree) => void;
   onToggleDefaultTree?: (tree: FamilyTree) => void;
   onSwitchTree?: (tree: FamilyTree) => void;
+  /** Ref populated by FamilyTreeCanvas to allow parents to call navigateToSurname. */
+  familySwitchRef?: React.MutableRefObject<((surname: string) => void) | null>;
 }
 
 const Tab = createBottomTabNavigator<TreeDetailTabParamList>();
@@ -626,6 +628,7 @@ export function VisualisationTabContent({
   relationships,
   onOpenPersonQuickActions,
   currentAssignedPerson,
+  familySwitchRef,
 }: SharedTabProps) {
   const theme = useTheme();
 
@@ -640,6 +643,7 @@ export function VisualisationTabContent({
           initialFocusPersonId={currentAssignedPerson?.id ?? undefined}
           floatingControls
           fillAvailableSpace
+          familySwitchRef={familySwitchRef}
         />
       ) : (
         <View style={[styles.visualisationEmptyState, { backgroundColor: theme.colors.surface }]}>

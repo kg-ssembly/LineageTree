@@ -127,6 +127,7 @@ export default function PersonFormDialog({
   const [isPresent, setIsPresent] = useState(true);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [maidenName, setMaidenName] = useState('');
   const [birthDate, setBirthDate] = useState('');
   const [deathDate, setDeathDate] = useState('');
   const [gender, setGender] = useState<PersonGender>('unspecified');
@@ -171,6 +172,7 @@ export default function PersonFormDialog({
     setIsPresent(!initialDeathDate);
     setFirstName(person?.firstName ?? initialValues?.firstName ?? '');
     setLastName(person?.lastName ?? initialValues?.lastName ?? '');
+    setMaidenName(person?.maidenName ?? '');
     setBirthDate(person?.birthDate ?? initialValues?.birthDate ?? '');
     setDeathDate(person?.deathDate ?? initialValues?.deathDate ?? '');
     setGender(person?.gender ?? initialValues?.gender ?? 'unspecified');
@@ -241,6 +243,15 @@ export default function PersonFormDialog({
 
     setLastName(suggestedLastName);
   }, [lastNameTouched, mode, suggestedLastName]);
+
+  // ── Maiden name suggestion ────────────────────────────────────────────────
+  // Show a hint when a spouse-of relationship is selected, reminding the user
+  // to record a maiden name if the person's surname changed upon marriage.
+  const showMaidenNameSuggestion = useMemo(() => {
+    if (maidenName.trim()) return false; // already filled in
+    return pendingRelationships.some((d) => d.mode === 'spouse-of' && d.relatedPersonId);
+  }, [maidenName, pendingRelationships]);
+  // ─────────────────────────────────────────────────────────────────────────
 
   // ── Co-parent suggestion ──────────────────────────────────────────────────
   // When user sets a "child-of" relationship, check if that parent has a spouse
@@ -382,6 +393,7 @@ export default function PersonFormDialog({
     await onSubmit({
       firstName,
       lastName,
+      maidenName,
       birthDate,
       deathDate: isPresent ? '' : deathDate,
       gender,
@@ -486,6 +498,21 @@ export default function PersonFormDialog({
                     Suggested surname from selected relationship: {suggestedLastName}
                   </HelperText>
                 ) : null}
+              </View>
+
+              <View style={styles.sectionSpacing}>
+                <Text variant="titleSmall">Maiden name</Text>
+                <TextInput
+                  mode="outlined"
+                  label="Maiden / birth surname (optional)"
+                  value={maidenName}
+                  onChangeText={setMaidenName}
+                  disabled={loading}
+                  style={styles.fieldSpacing}
+                />
+                <HelperText type="info" visible>
+                  The surname this person was born with or used before marriage.
+                </HelperText>
               </View>
 
               <View style={styles.sectionSpacing}>
@@ -693,6 +720,19 @@ export default function PersonFormDialog({
                       >
                         Add
                       </Button>
+                    </View>
+                  ) : null}
+
+                  {showMaidenNameSuggestion ? (
+                    <View style={[styles.coParentBanner, { backgroundColor: theme.colors.tertiaryContainer ?? theme.colors.secondaryContainer, borderRadius: 8 }]}>
+                      <View style={{ flex: 1 }}>
+                        <Text variant="labelMedium" style={{ color: (theme.colors as any).onTertiaryContainer ?? theme.colors.onSecondaryContainer }}>
+                          💍 Did their surname change at marriage?
+                        </Text>
+                        <Text variant="bodySmall" style={{ color: (theme.colors as any).onTertiaryContainer ?? theme.colors.onSecondaryContainer, opacity: 0.8 }}>
+                          Record their original surname as a maiden name in Step 1.
+                        </Text>
+                      </View>
                     </View>
                   ) : null}
                 </View>

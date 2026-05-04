@@ -5,6 +5,15 @@ export function formatPersonName(person?: PersonRecord | null) {
     return 'Unknown family member';
   }
 
+  const name = `${person.firstName} ${person.lastName}`.trim();
+  if (person.maidenName?.trim()) {
+    return `${name} (née ${person.maidenName.trim()})`;
+  }
+  return name;
+}
+
+export function formatPersonNameShort(person?: PersonRecord | null) {
+  if (!person) return 'Unknown family member';
   return `${person.firstName} ${person.lastName}`.trim();
 }
 

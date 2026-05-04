@@ -42,7 +42,10 @@ export function extractSurname(person: PersonRecord): string {
 
 /**
  * Build surname clusters from a list of people.
- * Each person is assigned to exactly one surname cluster based on their lastName.
+ * Each person is assigned to their lastName cluster.
+ * People with a maiden name are ALSO counted in their maiden surname cluster
+ * (so the chip appears in the family selector), but they render as ghost nodes
+ * when a non-current-name family is viewed.
  */
 export function buildSurnameClusters(
   people: PersonRecord[],
@@ -55,6 +58,15 @@ export function buildSurnameClusters(
       clusters.set(surname, { surname, memberIds: new Set() });
     }
     clusters.get(surname)!.memberIds.add(person.id);
+
+    // Also register in maiden-name cluster so the chip appears.
+    const maiden = person.maidenName?.trim();
+    if (maiden && maiden !== surname) {
+      if (!clusters.has(maiden)) {
+        clusters.set(maiden, { surname: maiden, memberIds: new Set() });
+      }
+      clusters.get(maiden)!.memberIds.add(person.id);
+    }
   }
 
   return clusters;
@@ -121,7 +133,7 @@ export function filterForActiveSurnames(
   const personById = new Map(people.map((p) => [p.id, p]));
   const activeSet = new Set(activeSurnames);
 
-  // Determine which people are in active clusters.
+  // Determine which people are in active clusters (by current lastName).
   const activePersonIds = new Set<string>();
   for (const person of people) {
     if (activeSet.has(extractSurname(person))) {
@@ -150,6 +162,15 @@ export function filterForActiveSurnames(
     }
   }
 
+  // People whose MAIDEN name matches the active surname (but current lastName does not)
+  // appear as ghost nodes in that family's view — they "originally belonged" to this family.
+  for (const person of people) {
+    const maiden = person.maidenName?.trim();
+    if (maiden && activeSet.has(maiden) && !activePersonIds.has(person.id)) {
+      ghostPersonIds.add(person.id);
+    }
+  }
+
   // Include active people + ghost people.
   const includedIds = new Set([...activePersonIds, ...ghostPersonIds]);
   const filteredPeople = people.filter((p) => includedIds.has(p.id));
@@ -166,6 +187,54 @@ export function filterForActiveSurnames(
     activeBridges,
     externalBridges,
   };
+}
+
+/**
+ * Return the set of person IDs that have a non-empty maiden name recorded.
+ * These are highlighted in the tree with a "née" badge and offer a
+ * "View [maiden] family tree" option when tapped.
+ */
+export function findMaidenNameMembers(people: PersonRecord[]): Set<string> {
+  const result = new Set<string>();
+  for (const person of people) {
+    if (person.maidenName?.trim()) {
+      result.add(person.id);
+    }
+  }
+  return result;
+}
+
+/**
+ * Identify children who have parents from two different surname families.
+ * These are children of cross-family marriages (one parent from each surname).
+ * Uses the full (unfiltered) people + relationships list so ghost nodes don't
+ * cause missed detections.
+ */
+export function findCrossSurnameChildren(
+  people: PersonRecord[],
+  relationships: RelationshipRecord[],
+): Set<string> {
+  const personById = new Map(people.map((p) => [p.id, p]));
+  // childId → set of parent surnames
+  const parentSurnamesByChild = new Map<string, Set<string>>();
+
+  for (const rel of relationships) {
+    if (rel.type !== 'parent-child') continue;
+    const parent = personById.get(rel.fromPersonId);
+    if (!parent) continue;
+    if (!parentSurnamesByChild.has(rel.toPersonId)) {
+      parentSurnamesByChild.set(rel.toPersonId, new Set());
+    }
+    parentSurnamesByChild.get(rel.toPersonId)!.add(extractSurname(parent));
+  }
+
+  const result = new Set<string>();
+  for (const [childId, surnames] of parentSurnamesByChild) {
+    if (surnames.size > 1) {
+      result.add(childId);
+    }
+  }
+  return result;
 }
 
 /**

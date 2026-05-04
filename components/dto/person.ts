@@ -23,6 +23,8 @@ export interface PersonRecord {
   ownerId: string;
   firstName: string;
   lastName: string;
+  /** Maiden name (birth surname before marriage). Optional. */
+  maidenName?: string;
   birthDate: string;
   deathDate: string;
   gender: PersonGender;
@@ -37,6 +39,8 @@ export interface PersonRecord {
 export interface PersonInput {
   firstName: string;
   lastName: string;
+  /** Maiden name (birth surname before marriage). Optional. */
+  maidenName?: string;
   birthDate: string;
   deathDate: string;
   gender: PersonGender;

@@ -22,6 +22,7 @@ import React, {
   useState,
 } from 'react';
 import {
+  Alert,
   Animated,
   GestureResponderEvent,
   Image,
@@ -60,7 +61,9 @@ import {
   buildSurnameClusters,
   extractSurname,
   filterForActiveSurnames,
+  findCrossSurnameChildren,
   findFamilyBridges,
+  findMaidenNameMembers,
   getConnectedSurnames,
   getSortedSurnames,
 } from './family-tree-surname-clusters';
@@ -88,6 +91,12 @@ interface FamilyTreeCanvasProps {
   allowFullscreen?: boolean;
   floatingControls?: boolean;
   fillAvailableSpace?: boolean;
+  /**
+   * Optional ref that gets populated with the canvas's internal
+   * navigateToSurname function, allowing a parent dialog to trigger
+   * a family-cluster switch from outside the canvas.
+   */
+  familySwitchRef?: React.MutableRefObject<((surname: string) => void) | null>;
 }
 
 function formatPersonName(person: PersonRecord) {
@@ -157,34 +166,61 @@ type PersonNodeProps = {
   y: number;
   isCurrentUser: boolean;
   isGhost: boolean;
+  isCrossSurnameChild: boolean;
+  isMaidenNameMember: boolean;
   surfaceColor: string;
   outlineColor: string;
   primaryColor: string;
+  tertiaryColor: string;
+  onTertiaryColor: string;
   variantSurface: string;
   variantOnSurface: string;
   onPrimaryColor: string;
   onPress: (person: PersonRecord) => void;
 };
 const PersonNode = React.memo(function PersonNode(props: PersonNodeProps) {
-  const { person, x, y, isCurrentUser, isGhost, surfaceColor, outlineColor, primaryColor, variantSurface, variantOnSurface, onPrimaryColor, onPress } = props;
+  const {
+    person, x, y, isCurrentUser, isGhost, isCrossSurnameChild, isMaidenNameMember,
+    surfaceColor, outlineColor, primaryColor, tertiaryColor, onTertiaryColor,
+    variantSurface, variantOnSurface, onPrimaryColor,
+    onPress,
+  } = props;
   const photo = getPreferredPersonPhoto(person);
+
+  const handlePress = useCallback(() => {
+    onPress(person);
+  }, [person, onPress]);
+
+  const isHighlighted = isMaidenNameMember || isCrossSurnameChild;
+  const borderColor = isHighlighted
+    ? tertiaryColor
+    : isGhost
+    ? primaryColor
+    : outlineColor;
+  const borderWidth = isHighlighted ? 2.5 : 1;
+
+  const badgeLabel = isMaidenNameMember
+    ? `née ${person.maidenName!.trim()}`
+    : isCrossSurnameChild
+    ? '⬡ Mixed'
+    : null;
 
   return (
       <Pressable
-          onPress={() => onPress(person)}
+          onPress={handlePress}
           hitSlop={6}
           style={({ pressed }) => [
             styles.node,
             {
               backgroundColor: surfaceColor,
-              borderColor: isGhost ? primaryColor : outlineColor,
+              borderColor,
+              borderWidth,
               borderStyle: isGhost ? 'dashed' as const : 'solid' as const,
               left: x,
               top: y,
               width: C.NODE_WIDTH,
               height: C.NODE_HEIGHT,
               opacity: pressed ? 0.85 : isGhost ? 0.7 : 1,
-              // Web: ensure pointer events still bubble for the Pressable.
               ...(Platform.OS === 'web' ? ({ cursor: 'pointer' } as any) : null),
             },
           ]}
@@ -193,6 +229,10 @@ const PersonNode = React.memo(function PersonNode(props: PersonNodeProps) {
             <View style={[styles.nodeBadge, { backgroundColor: primaryColor }]}>
               <Text variant="labelSmall" style={[styles.nodeBadgeText, { color: onPrimaryColor }]}>You</Text>
             </View>
+        ) : badgeLabel ? (
+            <View style={[styles.nodeBadge, { backgroundColor: tertiaryColor }]}>
+              <Text variant="labelSmall" style={[styles.nodeBadgeText, { color: onTertiaryColor }]} numberOfLines={1}>{badgeLabel}</Text>
+            </View>
         ) : null}
         <View style={styles.nodeInnerRow}>
           <View style={styles.nodeAvatarWrap}>
@@ -200,12 +240,12 @@ const PersonNode = React.memo(function PersonNode(props: PersonNodeProps) {
                 <Image source={{ uri: photo.url }} style={styles.nodeAvatar} />
             ) : (
                 <View style={[styles.nodeAvatarFallback, { borderColor: outlineColor, backgroundColor: variantSurface }]}>
-                  <MaterialCommunityIcons name={getPersonFallbackAvatarIcon(person)} size={28} color={primaryColor} />
+                  <MaterialCommunityIcons name={getPersonFallbackAvatarIcon(person)} size={28} color={isHighlighted ? tertiaryColor : primaryColor} />
                 </View>
             )}
           </View>
           <View style={styles.nodeTextWrap}>
-            <Text variant="titleSmall" style={styles.nodeTitle} numberOfLines={2}>{formatPersonName(person)}</Text>
+            <Text variant="titleSmall" style={styles.nodeTitle} numberOfLines={2}>{`${person.firstName} ${person.lastName}`.trim()}</Text>
             <Text variant="bodySmall" style={[styles.nodeMeta, { color: variantOnSurface }]} numberOfLines={1}>{getPersonLifeSpanLabel(person)}</Text>
             <Text variant="bodySmall" style={[styles.nodeMeta, { color: variantOnSurface }]} numberOfLines={1}>{getPersonPresenceLabel(person)}</Text>
           </View>
@@ -228,6 +268,7 @@ function FamilyTreeCanvas({
                             allowFullscreen = true,
                             floatingControls = false,
                             fillAvailableSpace = false,
+                            familySwitchRef,
                           }: FamilyTreeCanvasProps) {
   const theme = useTheme();
   const { height: windowHeight } = useWindowDimensions();
@@ -274,11 +315,6 @@ function FamilyTreeCanvas({
   // Auto-select initial surnames when data changes.
   useEffect(() => {
     if (sortedSurnames.length === 0) return;
-    // If only 1-2 surnames exist, show them all (no clustering needed).
-    if (sortedSurnames.length <= 2) {
-      setActiveSurnames(sortedSurnames.slice(0, 2));
-      return;
-    }
     // Default to the largest surname. If the focused person has a surname, start there.
     let startSurname = sortedSurnames[0];
     if (seedFocusPersonId) {
@@ -288,14 +324,11 @@ function FamilyTreeCanvas({
         if (surnameClusters.has(fs)) startSurname = fs;
       }
     }
-    // Pair with the most-connected other surname.
-    const connected = getConnectedSurnames(startSurname, allBridges);
-    const second = connected.length > 0 ? connected[0] : sortedSurnames.find((s) => s !== startSurname);
-    setActiveSurnames(second ? [startSurname, second] : [startSurname]);
-  }, [sortedSurnames, seedFocusPersonId, renderedPeople, surnameClusters, allBridges]);
+    setActiveSurnames([startSurname]);
+  }, [sortedSurnames, seedFocusPersonId, renderedPeople, surnameClusters]);
 
-  // Determine if clustering is active (more than 2 surnames in the data).
-  const clusteringActive = sortedSurnames.length > 2;
+  // Determine if clustering is active (more than 1 surname in the data → show one family at a time).
+  const clusteringActive = sortedSurnames.length >= 2;
 
   // Filter people/relationships to active surnames.
   const {
@@ -317,21 +350,21 @@ function FamilyTreeCanvas({
     return filterForActiveSurnames(renderedPeople, renderedRelationships, activeSurnames);
   }, [clusteringActive, renderedPeople, renderedRelationships, activeSurnames]);
 
-  // Navigation: switch to a different surname pair.
+  // Navigation: switch to a different surname (one family shown at a time).
   const navigateToSurname = useCallback((targetSurname: string) => {
-    setActiveSurnames((prev) => {
-      if (prev.includes(targetSurname)) return prev;
-      // Keep the surname that connects to the target, replace the other.
-      const bridgesTo = allBridges.filter(
-        (b) => b.fromSurname === targetSurname || b.toSurname === targetSurname,
-      );
-      const connectedToTarget = new Set(
-        bridgesTo.flatMap((b) => [b.fromSurname, b.toSurname]).filter((s) => s !== targetSurname),
-      );
-      const keepSurname = prev.find((s) => connectedToTarget.has(s));
-      return keepSurname ? [keepSurname, targetSurname] : [targetSurname, ...(prev.length > 0 ? [prev[0]] : [])].slice(0, 2);
-    });
-  }, [allBridges]);
+    setActiveSurnames([targetSurname]);
+  }, []);
+
+  // Expose navigateToSurname to the parent via an optional ref so the Quick
+  // Actions dialog (or any parent component) can trigger a family switch.
+  useEffect(() => {
+    if (familySwitchRef) {
+      familySwitchRef.current = navigateToSurname;
+    }
+    return () => {
+      if (familySwitchRef) familySwitchRef.current = null;
+    };
+  }, [familySwitchRef, navigateToSurname]);
 
   // ---- Layout (tidy tree) ----
   const layout = useMemo(
@@ -350,6 +383,19 @@ function FamilyTreeCanvas({
       [clusterRelationships, layout, theme.colors.primary, theme.colors.secondary, theme.colors.tertiary, theme.colors.outline, ghostPersonIds],
   );
   const allConnectors = useMemo(() => [...parentChildConnectors, ...spouseConnectors], [parentChildConnectors, spouseConnectors]);
+
+  // ---- Cross-surname children ----
+  // Detect children whose parents have different surnames (full pre-cluster dataset).
+  const crossSurnameChildIds = useMemo(
+    () => findCrossSurnameChildren(renderedPeople, renderedRelationships),
+    [renderedPeople, renderedRelationships],
+  );
+
+  // ---- Maiden name members ----
+  const maidenNameMemberIds = useMemo(
+    () => findMaidenNameMembers(renderedPeople),
+    [renderedPeople],
+  );
 
   // ---- Active viewport ----
   const activeViewportSize = isFullscreen ? fullscreenViewportSize : inlineViewportSize;
@@ -669,9 +715,13 @@ function FamilyTreeCanvas({
                     y={pos.y}
                     isCurrentUser={currentUserPersonId === person.id}
                     isGhost={ghostPersonIds.has(person.id)}
+                    isCrossSurnameChild={crossSurnameChildIds.has(person.id)}
+                    isMaidenNameMember={maidenNameMemberIds.has(person.id)}
                     surfaceColor={theme.colors.surface}
                     outlineColor={theme.colors.outlineVariant}
                     primaryColor={theme.colors.primary}
+                    tertiaryColor={theme.colors.tertiary ?? theme.colors.secondary}
+                    onTertiaryColor={(theme.colors as any).onTertiary ?? theme.colors.onPrimary}
                     variantSurface={theme.colors.surfaceVariant}
                     variantOnSurface={theme.colors.onSurfaceVariant}
                     onPrimaryColor={theme.colors.onPrimary}
@@ -689,19 +739,13 @@ function FamilyTreeCanvas({
   // ---- Surname selector bar ----
   const renderSurnameSelector = () => {
     if (!clusteringActive) return null;
-    const connectedToActive = new Set<string>();
-    for (const s of activeSurnames) {
-      getConnectedSurnames(s, allBridges).forEach((c) => connectedToActive.add(c));
-    }
-    // Remove already-active ones
-    activeSurnames.forEach((s) => connectedToActive.delete(s));
 
     return (
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6, paddingHorizontal: 8, paddingVertical: 6 }}>
         <Text variant="labelMedium" style={{ marginRight: 4 }}>Families:</Text>
         {sortedSurnames.map((surname) => {
           const isActive = activeSurnames.includes(surname);
-          const isConnected = connectedToActive.has(surname);
+          const isConnected = !isActive && getConnectedSurnames(activeSurnames[0] ?? '', allBridges).includes(surname);
           return (
             <Chip
               key={surname}

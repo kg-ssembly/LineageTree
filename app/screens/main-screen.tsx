@@ -34,6 +34,10 @@ import type { MainTabParamList, RootStackParamList } from '../../components/dto/
 import { getUserNameParts, getUserDisplayLabel } from '../../components/dto/user';
 import { formatPersonName } from '../../components/person-formatting';
 import {
+  findCrossSurnameChildren,
+  extractSurname,
+} from '../../components/family-tree-surname-clusters';
+import {
   canEditTreeContent,
   canManageTree,
   getAssignedPersonId,
@@ -207,6 +211,11 @@ export default function MainScreen({ navigation }: Props) {
     [people],
   );
 
+  const crossSurnameChildIds = useMemo(
+    () => findCrossSurnameChildren(people, relationships),
+    [people, relationships],
+  );
+
   const currentUserLabel = useMemo(() => getUserDisplayLabel(user), [user]);
 
   const assignedUserIdByPersonId = useMemo(
@@ -262,6 +271,7 @@ export default function MainScreen({ navigation }: Props) {
   // ── Auto-select tree ────────────────────────────────────────────────────────
 
   const hasAutoSelectedRef = useRef(false);
+  const canvasFamilySwitchRef = useRef<((surname: string) => void) | null>(null);
 
   useEffect(() => {
     if (loadingTrees || selectedTreeId || hasAutoSelectedRef.current) return;
@@ -507,6 +517,7 @@ export default function MainScreen({ navigation }: Props) {
       onConfirmDeleteTree: handleConfirmDeleteTree,
       onToggleDefaultTree: handleToggleDefaultTree,
       onSwitchTree: handleSwitchTree,
+      familySwitchRef: canvasFamilySwitchRef,
     };
   }, [
     selectedTree, people, relationships, approvalRequests, peopleById, canEdit, isOwner, role,
@@ -632,6 +643,32 @@ export default function MainScreen({ navigation }: Props) {
                 openPersonProfile(p);
               }}
             />
+            {/* Maiden name: offer to view their maiden-name family tree */}
+            {nodeQuickActionState.person?.maidenName?.trim() ? (
+              <List.Item
+                title={`View ${nodeQuickActionState.person.maidenName.trim()} family tree`}
+                description={`Switch to the ${nodeQuickActionState.person.maidenName.trim()} surname family view`}
+                left={(props) => <List.Icon {...props} icon="family-tree" />}
+                onPress={() => {
+                  const maiden = nodeQuickActionState.person!.maidenName!.trim();
+                  closeNodeQuickActions();
+                  canvasFamilySwitchRef.current?.(maiden);
+                }}
+              />
+            ) : null}
+            {/* Cross-surname child: offer to view their family tree */}
+            {nodeQuickActionState.person && !nodeQuickActionState.person.maidenName?.trim() && crossSurnameChildIds.has(nodeQuickActionState.person.id) ? (
+              <List.Item
+                title={`View ${extractSurname(nodeQuickActionState.person)} family tree`}
+                description="This person has parents from different families"
+                left={(props) => <List.Icon {...props} icon="source-branch" />}
+                onPress={() => {
+                  const surname = extractSurname(nodeQuickActionState.person!);
+                  closeNodeQuickActions();
+                  canvasFamilySwitchRef.current?.(surname);
+                }}
+              />
+            ) : null}
             {canEdit && nodeQuickActionState.person ? (
               <>
                 <List.Item

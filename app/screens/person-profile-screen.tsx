@@ -73,6 +73,7 @@ function buildPersonMutationPayload(
   return {
     firstName: person.firstName,
     lastName: person.lastName,
+    maidenName: person.maidenName ?? '',
     birthDate: person.birthDate,
     deathDate: person.deathDate,
     gender: person.gender,
@@ -763,6 +764,14 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
                   <Text variant="titleMedium">{person.lastName || 'Unknown'}</Text>
                 </Card.Content>
               </Card>
+              {person.maidenName?.trim() ? (
+                <Card mode="outlined" style={[styles.detailCard, { backgroundColor: theme.colors.elevation.level1, borderColor: theme.colors.outlineVariant }]}>
+                  <Card.Content>
+                    <Text variant="labelMedium" style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>Maiden name</Text>
+                    <Text variant="titleMedium">{person.maidenName.trim()}</Text>
+                  </Card.Content>
+                </Card>
+              ) : null}
               <Card mode="outlined" style={[styles.detailCard, { backgroundColor: theme.colors.elevation.level1, borderColor: theme.colors.outlineVariant }]}>
                 <Card.Content>
                   <Text variant="labelMedium" style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>Birth date</Text>
