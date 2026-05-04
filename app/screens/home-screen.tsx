@@ -540,12 +540,12 @@ export default function HomeScreen({ navigation, route }: Props) {
           tabBarItemStyle: localStyles.tabItem,
           sceneStyle: { backgroundColor: theme.colors.background },
           tabBarIcon: ({ color, size }) => {
-            const iconName = currentRoute.name === 'MyProfileTab' ? 'account-circle-outline' : 'family-tree';
+            const iconName = currentRoute.name === 'myProfile' ? 'account-circle-outline' : 'family-tree';
             return <MaterialCommunityIcons name={iconName} size={size} color={color} />;
           },
         })}
       >
-        <Tab.Screen name="MyProfileTab" options={{ title: 'My Profile' }}>
+        <Tab.Screen name="myProfile" options={{ title: 'My Profile' }}>
           {() => <ProfileTabContent onSignOut={signOut} authLoading={authLoading} />}
         </Tab.Screen>
         <Tab.Screen name="TreeManagementTab" options={{ title: 'Tree Management' }}>

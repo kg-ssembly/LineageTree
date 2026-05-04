@@ -1,8 +1,8 @@
 export type MainTabParamList = {
-  TreeTab: undefined;
-  MembersTab: undefined;
-  TreeSettingsTab: undefined;
-  MyProfileTab: undefined;
+  tree: undefined;
+  members: undefined;
+  treeSettings: undefined;
+  myProfile: undefined;
 };
 
 // Legacy — used by tree-detail-screen.tsx (kept for compatibility)

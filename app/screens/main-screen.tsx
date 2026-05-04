@@ -94,10 +94,10 @@ const homeStyles = GlobalStyles.home;
 // ─── Tab icon map ─────────────────────────────────────────────────────────────
 
 const TAB_ICONS: Record<keyof MainTabParamList, string> = {
-  TreeTab: 'family-tree',
-  MembersTab: 'account-group-outline',
-  TreeSettingsTab: 'cog-outline',
-  MyProfileTab: 'account-circle-outline',
+  tree: 'family-tree',
+  members: 'account-group-outline',
+  treeSettings: 'cog-outline',
+  myProfile: 'account-circle-outline',
 };
 
 // ─── Local styles ─────────────────────────────────────────────────────────────
@@ -555,19 +555,19 @@ export default function MainScreen({ navigation }: Props) {
           ),
         })}
       >
-        <Tab.Screen name="TreeTab" options={{ title: 'Tree' }}>
+        <Tab.Screen name="tree" options={{ title: 'Tree' }}>
           {() => (sharedTabProps ? <VisualisationTabContent {...sharedTabProps} /> : noTreeGate)}
         </Tab.Screen>
 
-        <Tab.Screen name="MembersTab" options={{ title: 'Members' }}>
+        <Tab.Screen name="members" options={{ title: 'Members' }}>
           {() => (sharedTabProps ? <PeopleRelationshipsTabContent {...sharedTabProps} /> : noTreeGate)}
         </Tab.Screen>
 
-        <Tab.Screen name="TreeSettingsTab" options={{ title: 'Settings' }}>
+        <Tab.Screen name="treeSettings" options={{ title: 'Settings' }}>
           {() => (sharedTabProps ? <TreeSettingsTabContent {...sharedTabProps} /> : noTreeGate)}
         </Tab.Screen>
 
-        <Tab.Screen name="MyProfileTab" options={{ title: 'Profile' }}>
+        <Tab.Screen name="myProfile" options={{ title: 'Profile' }}>
           {() => <UserProfileTabContent onSignOut={signOut} authLoading={authLoading} />}
         </Tab.Screen>
       </Tab.Navigator>
