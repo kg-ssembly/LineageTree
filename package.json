@@ -8,7 +8,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "export:web": "expo export --platform web",
-    "deploy:web": "npm run export:web && npx firebase-tools deploy --only hosting",
+    "deploy:web": "expo export --platform web && node -e \"require('fs').cpSync('web-public','dist',{recursive:true,force:true})\" && npx firebase-tools deploy --only hosting",
     "deploy:firebase": "npx firebase-tools deploy --only firestore:rules,storage",
     "build:android": "eas build --platform android --profile production",
     "build:preview": "eas build --platform android --profile preview",

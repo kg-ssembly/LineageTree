@@ -1,18 +1,12 @@
 {
   "hosting": {
     "public": "dist",
-    "predeploy": [
-      "node -e \"const fs=require('fs');fs.cpSync('web-public','dist',{recursive:true,force:true});\""
-    ],
+    "cleanUrls": true,
     "ignore": [
       "firebase.json",
       "**/.*"
     ],
     "rewrites": [
-      {
-        "source": "/privacy-policy",
-        "destination": "/privacy-policy.html"
-      },
       {
         "source": "**",
         "destination": "/index.html"
