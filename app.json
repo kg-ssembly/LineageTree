@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "lineagetree",
-    "slug": "lineagetree",
+    "slug": "lineage-tree",
     "scheme": "lineagetree",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -14,10 +14,14 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.ssembly.lineagetree",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
-      "package": "com.ssembly.linagetree",
+      "package": "com.ssembly.lineagetree",
       "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -28,7 +32,8 @@
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.READ_MEDIA_IMAGES",
-        "android.permission.READ_EXTERNAL_STORAGE"
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "plugins": [
@@ -45,6 +50,12 @@
       "favicon": "./assets/favicon.png",
       "output": "single",
       "bundler": "metro"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "2a5ef864-0b11-4cbb-bd0b-2e0c43e01603"
+      }
+    },
+    "owner": "ssembly"
   }
 }
