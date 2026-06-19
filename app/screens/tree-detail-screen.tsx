@@ -408,7 +408,7 @@ export function PeopleRelationshipsTabContent({
 
   return (
     <ScrollView contentContainerStyle={styles.content}>
-      <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
+      <View>
         <View style={styles.sectionHeader}>
           <View style={styles.titleWrap}>
             <View style={styles.titleWithHelperRow}>
@@ -533,7 +533,7 @@ export function PeopleRelationshipsTabContent({
             )}
           </>
         )}
-      </Surface>
+      </View>
 
       {/* ── Filter modal ─────────────────────────────────────────────────── */}
       <Portal>
@@ -813,7 +813,7 @@ function ProfileTabContent({
 
   return (
     <ScrollView contentContainerStyle={styles.content}>
-      <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
+      <View>
         <View style={styles.titleWithHelperRow}>
           <Text variant="headlineSmall">{selectedTree.name}</Text>
           <IconButton
@@ -1270,12 +1270,12 @@ function ProfileTabContent({
         {activeManagementTab === 'trees' ? (
           <View>
             <View style={styles.sectionHeader}>
-              <Text variant="titleMedium">My Family Trees</Text>
-              {onCreateTree ? (
-                <Button mode="contained" icon="plus" onPress={onCreateTree} disabled={mutating} compact>
-                  New tree
-                </Button>
-              ) : null}
+              <View style={styles.titleWrap}>
+                <Text variant="titleMedium">My Family Trees</Text>
+                <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
+                  Switch between trees or manage the one you are working in now.
+                </Text>
+              </View>
             </View>
             {loadingTrees ? (
               <View style={styles.centeredState}>
@@ -1287,6 +1287,11 @@ function ProfileTabContent({
                 <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
                   Create your first family tree to start building.
                 </Text>
+                {onCreateTree ? (
+                  <Button mode="contained" icon="plus" onPress={onCreateTree} disabled={mutating} style={styles.emptyStateButton}>
+                    Create a tree
+                  </Button>
+                ) : null}
               </View>
             ) : (
               (trees ?? []).map((tree) => {
@@ -1368,7 +1373,7 @@ function ProfileTabContent({
           </View>
         ) : null}
 
-      </Surface>
+      </View>
 
       <Portal>
         <Dialog visible={helperVisible} onDismiss={() => setHelperVisible(false)}>

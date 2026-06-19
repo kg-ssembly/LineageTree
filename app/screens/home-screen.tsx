@@ -71,34 +71,6 @@ const localStyles = StyleSheet.create({
   tabItem: {
     minHeight: 52,
   },
-  profileHeroCard: {
-    borderRadius: 24,
-    padding: 20,
-    marginBottom: 16,
-  },
-  profileAvatarRow: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    gap: 16,
-  },
-  profileNameWrap: {
-    flex: 1,
-  },
-  editNameRow: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    gap: 8,
-    marginTop: 16,
-  },
-  editNameInput: {
-    flex: 1,
-  },
-  signOutButton: {
-    marginTop: 16,
-  },
-  signOutButtonContent: {
-    height: 48,
-  },
 });
 
 // ── Profile Tab ────────────────────────────────────────────────────────────────
@@ -143,15 +115,15 @@ function ProfileTabContent({ onSignOut, authLoading }: ProfileTabProps) {
   return (
     <ScrollView contentContainerStyle={styles.content}>
       {/* Hero */}
-      <Surface style={[localStyles.profileHeroCard, { backgroundColor: theme.colors.elevation.level2 }]} elevation={2}>
-        <View style={localStyles.profileAvatarRow}>
+      <Surface style={[styles.profileHeroCard, { backgroundColor: theme.colors.elevation.level2 }]} elevation={2}>
+        <View style={styles.profileAvatarRow}>
           <Avatar.Text
             size={72}
             label={user?.displayName ? user.displayName.slice(0, 2).toUpperCase() : '??'}
             style={{ backgroundColor: theme.colors.primary }}
             color={theme.colors.onPrimary}
           />
-          <View style={localStyles.profileNameWrap}>
+          <View style={styles.profileNameWrap}>
             <Text variant="headlineSmall" style={{ color: theme.colors.onSurface, fontWeight: '800' }}>
               {user?.displayName ?? 'Unknown'}
             </Text>
@@ -171,25 +143,25 @@ function ProfileTabContent({ onSignOut, authLoading }: ProfileTabProps) {
         <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
           Update your display name.
         </Text>
-        <View style={localStyles.editNameRow}>
+        <View style={styles.editNameRow}>
           <TextInput
             label="Display name"
             value={editName}
             onChangeText={(value) => { setEditName(value); setNameError(null); }}
             mode="outlined"
-            style={localStyles.editNameInput}
+            style={styles.editNameInput}
             error={!!nameError}
             disabled={savingName}
           />
-          <IconButton
-            icon="content-save-outline"
+          <Button
             mode="contained"
-            iconColor={theme.colors.onPrimary}
-            containerColor={theme.colors.primary}
-            size={24}
+            icon="content-save-outline"
             onPress={handleSaveName}
             disabled={savingName || !isDirty}
-          />
+            style={styles.saveNameButton}
+          >
+            Save changes
+          </Button>
         </View>
         {nameError ? (
           <Text variant="bodySmall" style={{ color: theme.colors.error, marginTop: 4 }}>{nameError}</Text>
@@ -222,10 +194,10 @@ function ProfileTabContent({ onSignOut, authLoading }: ProfileTabProps) {
         icon="logout"
         onPress={onSignOut}
         disabled={authLoading}
-        contentStyle={localStyles.signOutButtonContent}
+        contentStyle={styles.signOutButtonContent}
         buttonColor={theme.colors.secondaryContainer}
         textColor={theme.colors.onSurface}
-        style={localStyles.signOutButton}
+        style={styles.signOutButton}
       >
         Log out
       </Button>
@@ -295,7 +267,7 @@ function TreeManagementTabContent({
             contentStyle={styles.headerButtonContent}
             style={styles.heroActionButton}
           >
-            New tree
+            Create a tree
           </Button>
         </View>
       </Surface>
@@ -309,14 +281,6 @@ function TreeManagementTabContent({
               Your trees
             </Text>
           </View>
-          <Button
-            mode="contained"
-            icon="plus"
-            onPress={onOpenCreateTree}
-            disabled={mutating}
-          >
-            New tree
-          </Button>
         </View>
 
         {loadingTrees ? (

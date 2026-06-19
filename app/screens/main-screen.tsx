@@ -128,7 +128,7 @@ function NoTreeGate({ onCreateTree }: { onCreateTree: () => void }) {
       <Text variant="bodyMedium" style={[localStyles.noTreeGateText, { color: theme.colors.onSurfaceVariant }]}>
         Create your first family tree to start adding people, photos, and relationships.
       </Text>
-      <Button mode="contained" icon="plus" onPress={onCreateTree}>
+      <Button mode="contained" icon="plus" onPress={onCreateTree} contentStyle={homeStyles.headerButtonContent}>
         Create family tree
       </Button>
     </View>

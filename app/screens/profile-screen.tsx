@@ -7,7 +7,6 @@ import { ScrollView, View } from 'react-native';
 import {
   Avatar,
   Button,
-  IconButton,
   SegmentedButtons,
   Surface,
   Text,
@@ -25,41 +24,8 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 // type Props = NativeStackScreenProps<RootStackParamList, 'Profile'>;
 
 import { GlobalStyles } from '../../constants/styles';
-import { StyleSheet } from 'react-native';
-
 const styles = GlobalStyles.treeDetail;
 const homeStyles = GlobalStyles.home;
-
-const localStyles = StyleSheet.create({
-  profileHeroCard: {
-    borderRadius: 24,
-    padding: 20,
-    marginBottom: 16,
-  },
-  profileAvatarRow: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    gap: 16,
-  },
-  profileNameWrap: {
-    flex: 1,
-  },
-  editNameRow: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    gap: 8,
-    marginTop: 16,
-  },
-  editNameInput: {
-    flex: 1,
-  },
-  signOutButtonContent: {
-    height: 48,
-  },
-  signOutButton: {
-    marginTop: 16,
-  },
-});
 
 export type UserProfileTabProps = {
   onSignOut: () => void;
@@ -101,15 +67,15 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
   return (
     <ScrollView contentContainerStyle={styles.content}>
       {/* Hero */}
-      <Surface style={[localStyles.profileHeroCard, { backgroundColor: theme.colors.elevation.level2 }]} elevation={2}>
-        <View style={localStyles.profileAvatarRow}>
+      <Surface style={[homeStyles.profileHeroCard, { backgroundColor: theme.colors.elevation.level2 }]} elevation={2}>
+        <View style={homeStyles.profileAvatarRow}>
           <Avatar.Text
             size={72}
             label={user?.displayName ? user.displayName.slice(0, 2).toUpperCase() : '??'}
             style={{ backgroundColor: theme.colors.primary }}
             color={theme.colors.onPrimary}
           />
-          <View style={localStyles.profileNameWrap}>
+          <View style={homeStyles.profileNameWrap}>
             <Text variant="headlineSmall" style={{ color: theme.colors.onSurface, fontWeight: '800' }}>
               {user?.displayName ?? 'Unknown'}
             </Text>
@@ -129,25 +95,25 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
         <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
           Update your display name.
         </Text>
-        <View style={localStyles.editNameRow}>
+        <View style={homeStyles.editNameRow}>
           <TextInput
             label="Display name"
             value={editName}
             onChangeText={(value) => { setEditName(value); setNameError(null); }}
             mode="outlined"
-            style={localStyles.editNameInput}
+            style={homeStyles.editNameInput}
             error={!!nameError}
             disabled={savingName}
           />
-          <IconButton
-            icon="content-save-outline"
+          <Button
             mode="contained"
-            iconColor={theme.colors.onPrimary}
-            containerColor={theme.colors.primary}
-            size={24}
+            icon="content-save-outline"
             onPress={handleSaveName}
             disabled={savingName || !isDirty}
-          />
+            style={homeStyles.saveNameButton}
+          >
+            Save changes
+          </Button>
         </View>
         {nameError ? (
           <Text variant="bodySmall" style={{ color: theme.colors.error, marginTop: 4 }}>{nameError}</Text>
@@ -180,8 +146,8 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
         icon="logout"
         onPress={onSignOut}
         disabled={authLoading}
-        contentStyle={localStyles.signOutButtonContent}
-        style={localStyles.signOutButton}
+        contentStyle={homeStyles.signOutButtonContent}
+        style={homeStyles.signOutButton}
       >
         Log out
       </Button>

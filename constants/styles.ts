@@ -29,13 +29,13 @@ export class GlobalStyles {
             flex: 1,
         },
         content: {
-            padding: 16,
-            paddingBottom: 40,
+            padding: 20,
+            paddingBottom: 56,
         },
         profileCard: {
-            borderRadius: 24,
-            padding: 20,
-            marginBottom: 16,
+            borderRadius: 28,
+            padding: 22,
+            marginBottom: 18,
         },
         heroTopRow: {
             flexDirection: 'row',
@@ -75,10 +75,12 @@ export class GlobalStyles {
             flexDirection: 'row',
             gap: 12,
             marginTop: 20,
+            flexWrap: 'wrap',
         },
         statCard: {
             flex: 1,
-            borderRadius: 18,
+            minWidth: 92,
+            borderRadius: 20,
             paddingVertical: 16,
             paddingHorizontal: 14,
         },
@@ -92,12 +94,12 @@ export class GlobalStyles {
             flexGrow: 1,
         },
         headerButtonContent: {
-            height: 48,
+            height: 52,
         },
         sectionCard: {
-            borderRadius: 24,
-            padding: 16,
-            marginBottom: 16,
+            borderRadius: 28,
+            padding: 18,
+            marginBottom: 18,
         },
         sectionHeader: {
             flexDirection: 'row',
@@ -137,7 +139,7 @@ export class GlobalStyles {
         },
         treeCard: {
             marginTop: 12,
-            borderRadius: 18,
+            borderRadius: 22,
             borderWidth: 1,
         },
         treeHeader: {
@@ -161,11 +163,12 @@ export class GlobalStyles {
         cardActions: {
             flexDirection: 'row',
             alignItems: 'center',
+            gap: 2,
         },
         tabBar: {
-            height: 64,
-            paddingTop: 6,
-            paddingBottom: 8,
+            height: 68,
+            paddingTop: 8,
+            paddingBottom: 10,
             borderTopWidth: 1,
             elevation: 0,
             shadowOpacity: 0,
@@ -180,9 +183,9 @@ export class GlobalStyles {
         },
         // Profile tab
         profileHeroCard: {
-            borderRadius: 24,
-            padding: 20,
-            marginBottom: 16,
+            borderRadius: 28,
+            padding: 22,
+            marginBottom: 18,
         },
         profileAvatarRow: {
             flexDirection: 'row',
@@ -193,13 +196,15 @@ export class GlobalStyles {
             flex: 1,
         },
         editNameRow: {
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: 8,
+            gap: 12,
             marginTop: 16,
         },
         editNameInput: {
-            flex: 1,
+            width: '100%',
+        },
+        saveNameButton: {
+            alignSelf: 'flex-start',
+            borderRadius: 999,
         },
         signOutButton: {
             marginTop: 16,
@@ -224,9 +229,9 @@ export class GlobalStyles {
             backgroundColor: F.background,
         },
         tabBar: {
-            height: 64,
-            paddingTop: 6,
-            paddingBottom: 8,
+            height: 68,
+            paddingTop: 8,
+            paddingBottom: 10,
             borderTopWidth: 1,
             elevation: 0,
             shadowOpacity: 0,
@@ -240,13 +245,13 @@ export class GlobalStyles {
             minHeight: 52,
         },
         content: {
-            padding: 16,
-            paddingBottom: 40,
+            padding: 20,
+            paddingBottom: 56,
         },
         sectionCard: {
-            borderRadius: 24,
-            padding: 16,
-            marginBottom: 16,
+            borderRadius: 28,
+            padding: 18,
+            marginBottom: 18,
         },
         sectionHeader: {
             flexDirection: 'row',
@@ -366,7 +371,7 @@ export class GlobalStyles {
         },
         selfAssignmentCard: {
             marginTop: 16,
-            borderRadius: 18,
+            borderRadius: 22,
         },
         selfAssignmentHeader: {
             gap: 12,
@@ -391,7 +396,7 @@ export class GlobalStyles {
             gap: 12,
         },
         assignmentSuggestionCard: {
-            borderRadius: 18,
+            borderRadius: 22,
         },
         assignmentSuggestionRow: {
             flexDirection: 'row',
@@ -441,6 +446,7 @@ export class GlobalStyles {
         },
         personCard: {
             marginTop: 16,
+            borderRadius: 22,
         },
         personHeader: {
             flexDirection: 'row',
@@ -505,6 +511,7 @@ export class GlobalStyles {
         },
         quickActionDialog: {
             marginHorizontal: 16,
+            borderRadius: 28,
         },
         quickActionSubtitle: {
             marginBottom: 8,
@@ -1269,9 +1276,9 @@ export class GlobalStyles {
 
     static readonly login = StyleSheet.create({
         flex: {flex: 1},
-        scroll: {flexGrow: 1, justifyContent: 'center', padding: 20},
+        scroll: {flexGrow: 1, justifyContent: 'center', padding: 24},
         heroWrap: {
-            marginBottom: 20,
+            marginBottom: 24,
         },
         heroTitle: {
             marginTop: 14,
@@ -1282,22 +1289,22 @@ export class GlobalStyles {
             lineHeight: 24,
         },
         card: {
-            borderRadius: 24,
+            borderRadius: 28,
             padding: 24,
         },
         title: {marginBottom: 4, fontWeight: '700'},
         subtitle: {marginBottom: 20},
-        input: {marginTop: 4},
+        input: {marginTop: 6},
         button: {marginTop: 24, borderRadius: 999},
         buttonContent: {height: 52},
-        linkButton: {marginTop: 10},
+        linkButton: {marginTop: 12, alignSelf: 'center'},
     });
 
     static readonly signUp = StyleSheet.create({
         flex: {flex: 1},
-        scroll: {flexGrow: 1, justifyContent: 'center', padding: 20},
+        scroll: {flexGrow: 1, justifyContent: 'center', padding: 24},
         heroWrap: {
-            marginBottom: 20,
+            marginBottom: 24,
         },
         heroTitle: {
             marginTop: 14,
@@ -1308,15 +1315,15 @@ export class GlobalStyles {
             lineHeight: 24,
         },
         card: {
-            borderRadius: 24,
+            borderRadius: 28,
             padding: 24,
         },
         title: {marginBottom: 4, fontWeight: '700'},
         subtitle: {marginBottom: 20},
-        input: {marginTop: 4},
+        input: {marginTop: 6},
         button: {marginTop: 24, borderRadius: 999},
         buttonContent: {height: 52},
-        linkButton: {marginTop: 10},
+        linkButton: {marginTop: 12, alignSelf: 'center'},
     });
 }
 
