@@ -56,16 +56,43 @@ function normaliseEmail(email: string) {
   return email.trim().toLowerCase();
 }
 
-async function fetchUserProfile(uid: string, fallbackUser?: FirebaseUser | null): Promise<UserProfile | null> {
-  const snap = await getDoc(doc(db, 'users', uid));
-  if (!snap.exists()) return null;
+function buildUserProfileDocument(user: Pick<FirebaseUser, 'uid' | 'email' | 'displayName'>, createdAt?: string) {
+  const email = user.email ?? '';
+  const displayName = user.displayName ?? '';
+
+  return {
+    id: user.uid,
+    email,
+    normalizedEmail: normaliseEmail(email),
+    displayName,
+    ...(createdAt ? { createdAt } : {}),
+  };
+}
+
+async function ensureUserProfileDocument(fbUser: Pick<FirebaseUser, 'uid' | 'email' | 'displayName'>): Promise<UserProfile> {
+  const userRef = doc(db, 'users', fbUser.uid);
+  const snap = await getDoc(userRef);
+  const fallbackProfile: UserProfile = {
+    ...buildUserProfileDocument(fbUser),
+    createdAt: new Date().toISOString(),
+  };
+
+  if (!snap.exists()) {
+    await setDoc(userRef, {
+      ...buildUserProfileDocument(fbUser),
+      createdAt: serverTimestamp(),
+    }, { merge: true });
+
+    return fallbackProfile;
+  }
+
   const data = snap.data();
-  const email = data.email ?? fallbackUser?.email ?? '';
-  const displayName = data.displayName ?? fallbackUser?.displayName ?? '';
+  const email = data.email ?? fallbackProfile.email;
+  const displayName = data.displayName ?? fallbackProfile.displayName;
   const normalizedEmail = data.normalizedEmail ?? normaliseEmail(email);
 
   if ((data.email == null && email) || (data.displayName == null && displayName) || (data.normalizedEmail == null && normalizedEmail)) {
-    await setDoc(doc(db, 'users', uid), {
+    await setDoc(userRef, {
       email,
       displayName,
       normalizedEmail,
@@ -73,9 +100,31 @@ async function fetchUserProfile(uid: string, fallbackUser?: FirebaseUser | null)
   }
 
   return {
-    id: uid,
+    id: fbUser.uid,
     email,
     normalizedEmail,
+    displayName,
+    defaultTreeId: typeof data.defaultTreeId === 'string' && data.defaultTreeId.trim() ? data.defaultTreeId.trim() : undefined,
+    createdAt: data.createdAt?.toDate?.().toISOString() ?? data.createdAt ?? fallbackProfile.createdAt,
+  };
+}
+
+async function fetchUserProfile(uid: string, fallbackUser?: FirebaseUser | null): Promise<UserProfile | null> {
+  if (fallbackUser && fallbackUser.uid === uid) {
+    return ensureUserProfileDocument(fallbackUser);
+  }
+
+  const snap = await getDoc(doc(db, 'users', uid));
+  if (!snap.exists()) return null;
+
+  const data = snap.data();
+  const email = data.email ?? '';
+  const displayName = data.displayName ?? '';
+
+  return {
+    id: uid,
+    email,
+    normalizedEmail: data.normalizedEmail ?? normaliseEmail(email),
     displayName,
     defaultTreeId: typeof data.defaultTreeId === 'string' && data.defaultTreeId.trim() ? data.defaultTreeId.trim() : undefined,
     createdAt: data.createdAt?.toDate?.().toISOString() ?? data.createdAt,
@@ -120,18 +169,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const { user: fbUser } = await createUserWithEmailAndPassword(auth, email, password);
       await updateProfile(fbUser, { displayName });
-      const normalizedEmail = normaliseEmail(email);
-      const profile: UserProfile = {
-        id: fbUser.uid,
-        email,
-        normalizedEmail,
+      const profile = await ensureUserProfileDocument({
+        uid: fbUser.uid,
         displayName,
-        defaultTreeId: undefined,
-        createdAt: new Date().toISOString(),
-      };
-      await setDoc(doc(db, 'users', fbUser.uid), {
-        ...profile,
-        createdAt: serverTimestamp(),
+        email,
       });
       set({ firebaseUser: fbUser, user: profile, loading: false });
     } catch (err: any) {
