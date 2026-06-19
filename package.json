@@ -1,6 +1,6 @@
 {
   "name": "lineagetree",
-  "version": "1.0.2",
+  "version": "1.0.4",
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
@@ -43,6 +43,7 @@
   },
   "devDependencies": {
     "@types/react": "~19.1.0",
+    "eas-cli": "^20.3.0",
     "typescript": "~5.9.2"
   },
   "private": true
