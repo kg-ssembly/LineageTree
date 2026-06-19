@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { ActivityIndicator, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFonts } from 'expo-font';
@@ -23,7 +24,18 @@ export default function App() {
   }, [hydrateTheme]);
 
   if (!fontsLoaded) {
-    return null;
+    return (
+      <View
+        style={{
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: paperTheme.colors.background,
+        }}
+      >
+        <ActivityIndicator size="large" color={paperTheme.colors.primary} />
+      </View>
+    );
   }
 
   return (
