@@ -20,6 +20,19 @@ const firebaseConfig = {
   appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
 };
 
+// Validate environment variables at initialization (helps catch EAS build or runtime config issues)
+const missingKeys = Object.entries(firebaseConfig)
+  .filter(([_, value]) => !value)
+  .map(([key]) => `EXPO_PUBLIC_FIREBASE_${key.replace(/([A-Z])/g, '_$1').toUpperCase()}`);
+
+if (missingKeys.length > 0) {
+  console.warn(
+    `[Firebase Provider Warning]: The following environment variables are missing! ` +
+    `Ensure they are defined in your .env or EAS build configuration:\n` +
+    missingKeys.join('\n')
+  );
+}
+
 const isNewApp = getApps().length === 0;
 const app = isNewApp ? initializeApp(firebaseConfig) : getApp();
 

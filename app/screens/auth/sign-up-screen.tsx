@@ -21,7 +21,10 @@ function validateEmail(email: string): string | null {
 }
 function validatePassword(password: string): string | null {
   if (!password) return 'Password is required.';
-  if (password.length < 6) return 'Password must be at least 6 characters.';
+  if (password.length < 8) return 'Use at least 8 characters.';
+  if (!/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/\d/.test(password)) {
+    return 'Use uppercase, lowercase, and a number.';
+  }
   return null;
 }
 function validateDisplayName(name: string): string | null {
@@ -124,8 +127,13 @@ export default function SignUpScreen({ navigation }: any) {
             onChangeText={(v) => { setPassword(v); setFieldErrors((e) => ({ ...e, password: null })); }}
             mode="outlined"
             secureTextEntry={!passwordVisible}
+            autoCapitalize="none"
+            autoCorrect={false}
+            spellCheck={false}
             autoComplete="new-password"
             textContentType="newPassword"
+            importantForAutofill="yes"
+            passwordRules="minlength: 8; required: lower; required: upper; required: digit;"
             style={styles.input}
             error={!!fieldErrors.password}
             right={
@@ -135,7 +143,9 @@ export default function SignUpScreen({ navigation }: any) {
               />
             }
           />
-          <HelperText type="error" visible={!!fieldErrors.password}>{fieldErrors.password}</HelperText>
+          <HelperText type={fieldErrors.password ? 'error' : 'info'} visible>
+            {fieldErrors.password ?? 'Use 8+ characters with uppercase, lowercase, and a number.'}
+          </HelperText>
 
           <Button
             mode="contained"

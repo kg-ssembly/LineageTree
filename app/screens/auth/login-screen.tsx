@@ -103,8 +103,12 @@ export default function LoginScreen({ navigation }: any) {
             onChangeText={(v) => { setPassword(v); setFieldErrors((e) => ({ ...e, password: null })); }}
             mode="outlined"
             secureTextEntry={!passwordVisible}
+            autoCapitalize="none"
+            autoCorrect={false}
+            spellCheck={false}
             autoComplete="current-password"
             textContentType="password"
+            importantForAutofill="yes"
             style={styles.input}
             error={!!fieldErrors.password}
             right={
