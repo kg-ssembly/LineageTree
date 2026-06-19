@@ -5,11 +5,13 @@ A React Native + Expo family tree app backed by Firebase Authentication, Firesto
 ## Implemented features
 
 - Multiple family trees per signed-in user
-- Dedicated tree list and tree detail navigation flow
+- Main tabbed workspace for tree, members, settings, and profile
 - Create, rename, delete, and list trees
 - Shared-tree access with owner, editor, and viewer roles
 - Owner-managed collaborator add/remove support by email
 - Owner-only tree deletion enforced in Firestore rules
+- Self-to-person assignment for collaborators
+- Approval requests for person and relationship changes when review is needed
 - Person create, edit, delete with:
   - first name
   - last name
@@ -17,9 +19,10 @@ A React Native + Expo family tree app backed by Firebase Authentication, Firesto
   - gender
   - notes
   - photos from library or camera capture
+  - life events and preferred photo selection
 - Relationship management with:
-  - parent → child links
-  - spouse ↔ spouse links
+  - parent -> child links
+  - spouse <-> spouse links
   - duplicate prevention
   - relationship removal
 - Live UI updates through Firestore subscriptions
@@ -83,8 +86,13 @@ That command will:
 ## Shared tree permissions
 
 - **Owner**: can rename/delete the tree, manage collaborators, and edit people/relationships
-- **Editor**: can edit people and relationships
+- **Editor**: can edit people and relationships, including approval-driven changes
 - **Viewer**: can read the tree but cannot make changes
+
+## Notes
+
+- Tree deletion removes linked people, relationships, photos, and approval requests together.
+- Some legacy screen files remain in the repo for reference, but the active app entry point is the `Main` stack flow.
 
 ## Type-check
 
@@ -97,4 +105,3 @@ npx tsc --noEmit
 ```powershell
 npm run deploy:firebase
 ```
-

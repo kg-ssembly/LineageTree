@@ -23,6 +23,14 @@ const F = {
   photoBg:          '#EBE5D9',
 };
 
+const CARD_CHROME = {
+    shadowColor: '#1F2C1B',
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    shadowOffset: {width: 0, height: 4},
+    elevation: 2,
+} as const;
+
 export class GlobalStyles {
     static readonly home = StyleSheet.create({
         container: {
@@ -33,6 +41,7 @@ export class GlobalStyles {
             paddingBottom: 56,
         },
         profileCard: {
+            ...CARD_CHROME,
             borderRadius: 28,
             padding: 22,
             marginBottom: 18,
@@ -78,6 +87,7 @@ export class GlobalStyles {
             flexWrap: 'wrap',
         },
         statCard: {
+            ...CARD_CHROME,
             flex: 1,
             minWidth: 92,
             borderRadius: 20,
@@ -97,6 +107,7 @@ export class GlobalStyles {
             height: 52,
         },
         sectionCard: {
+            ...CARD_CHROME,
             borderRadius: 28,
             padding: 18,
             marginBottom: 18,
@@ -138,9 +149,9 @@ export class GlobalStyles {
             textAlign: 'center',
         },
         treeCard: {
+            ...CARD_CHROME,
             marginTop: 12,
             borderRadius: 22,
-            borderWidth: 1,
         },
         treeHeader: {
             flexDirection: 'row',
@@ -183,6 +194,7 @@ export class GlobalStyles {
         },
         // Profile tab
         profileHeroCard: {
+            ...CARD_CHROME,
             borderRadius: 28,
             padding: 22,
             marginBottom: 18,
@@ -249,6 +261,7 @@ export class GlobalStyles {
             paddingBottom: 56,
         },
         sectionCard: {
+            ...CARD_CHROME,
             borderRadius: 28,
             padding: 18,
             marginBottom: 18,
@@ -305,6 +318,7 @@ export class GlobalStyles {
             marginTop: 16,
         },
         collaboratorCard: {
+            ...CARD_CHROME,
             marginBottom: 12,
         },
         collaboratorRow: {
@@ -370,8 +384,9 @@ export class GlobalStyles {
             marginTop: 20,
         },
         selfAssignmentCard: {
+            ...CARD_CHROME,
             marginTop: 16,
-            borderRadius: 22,
+            borderRadius: 28,
         },
         selfAssignmentHeader: {
             gap: 12,
@@ -396,7 +411,8 @@ export class GlobalStyles {
             gap: 12,
         },
         assignmentSuggestionCard: {
-            borderRadius: 22,
+            ...CARD_CHROME,
+            borderRadius: 28,
         },
         assignmentSuggestionRow: {
             flexDirection: 'row',
@@ -417,7 +433,9 @@ export class GlobalStyles {
             marginTop: 20,
         },
         metricCard: {
+            ...CARD_CHROME,
             marginBottom: 0,
+            borderRadius: 28,
         },
         centeredState: {
             alignItems: 'center',
@@ -445,8 +463,9 @@ export class GlobalStyles {
             marginTop: 4,
         },
         personCard: {
+            ...CARD_CHROME,
             marginTop: 16,
-            borderRadius: 22,
+            borderRadius: 28,
         },
         personHeader: {
             flexDirection: 'row',
@@ -534,6 +553,7 @@ export class GlobalStyles {
             paddingBottom: 40,
         },
         heroCard: {
+            ...CARD_CHROME,
             borderRadius: 24,
             padding: 20,
             marginBottom: 16,
@@ -588,6 +608,7 @@ export class GlobalStyles {
             color: F.onSurfaceVariant,
         },
         sectionCard: {
+            ...CARD_CHROME,
             borderRadius: 24,
             padding: 16,
             marginBottom: 16,
@@ -645,6 +666,7 @@ export class GlobalStyles {
             marginTop: 16,
         },
         detailCard: {
+            ...CARD_CHROME,
             minWidth: 160,
             flexGrow: 1,
             flexBasis: 160,
@@ -658,6 +680,7 @@ export class GlobalStyles {
             marginTop: 16,
         },
         relationshipCard: {
+            ...CARD_CHROME,
             marginBottom: 12,
             borderRadius: 18,
         },
@@ -717,13 +740,17 @@ export class GlobalStyles {
             paddingRight: 12,
         },
         photoCard: {
+            ...CARD_CHROME,
             marginRight: 12,
             overflow: 'hidden',
             borderRadius: 18,
         },
         photoCardPreferred: {
-            borderColor: F.photoPreferred,
-            borderWidth: 2,
+            shadowColor: F.photoPreferred,
+            shadowOpacity: 0.18,
+            shadowRadius: 14,
+            shadowOffset: {width: 0, height: 6},
+            elevation: 4,
         },
         photo: {
             width: 220,
@@ -737,6 +764,7 @@ export class GlobalStyles {
             marginTop: 16,
         },
         timelineCard: {
+            ...CARD_CHROME,
             marginBottom: 12,
             borderRadius: 18,
         },
@@ -867,16 +895,16 @@ export class GlobalStyles {
             borderTopWidth: StyleSheet.hairlineWidth,
         },
         relationshipTypeCard: {
+            ...CARD_CHROME,
             borderRadius: 18,
-            borderWidth: 1,
             padding: 8,
         },
         section: {
             marginTop: 16,
         },
         sectionCard: {
+            ...CARD_CHROME,
             borderRadius: 18,
-            borderWidth: 1,
             padding: 12,
         },
         searchInput: {
@@ -931,6 +959,8 @@ export class GlobalStyles {
 
     static readonly relationshipInsightCard = StyleSheet.create({
         card: {
+            ...CARD_CHROME,
+            borderRadius: 24,
             marginTop: 16,
         },
         subtitle: {
@@ -1289,6 +1319,7 @@ export class GlobalStyles {
             lineHeight: 24,
         },
         card: {
+            ...CARD_CHROME,
             borderRadius: 28,
             padding: 24,
         },
@@ -1315,6 +1346,7 @@ export class GlobalStyles {
             lineHeight: 24,
         },
         card: {
+            ...CARD_CHROME,
             borderRadius: 28,
             padding: 24,
         },

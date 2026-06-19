@@ -19,8 +19,6 @@ export type RootStackParamList = {
   Main: undefined;
   // Legacy — tree-detail-screen.tsx kept for reference; no longer in the navigator
   TreeDetail: { treeId: string; initialTab?: keyof TreeDetailTabParamList };
-  // Legacy — home-screen.tsx kept for reference; no longer in the navigator
-  Home: { skipAutoOpen?: boolean };
   PersonProfile: {
     treeId: string;
     personId: string;

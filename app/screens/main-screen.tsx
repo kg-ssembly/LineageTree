@@ -52,7 +52,7 @@ import {
   TreeSettingsTabContent,
   VisualisationTabContent,
   type SharedTabProps,
-} from './tree-detail-screen';
+} from './tree-tab-content';
 import { UserProfileTabContent } from './profile-screen';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Main'>;

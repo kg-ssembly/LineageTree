@@ -32,6 +32,7 @@ let unsubscribePeople: (() => void) | null = null;
 let unsubscribeRelationships: (() => void) | null = null;
 let unsubscribeApprovalRequests: (() => void) | null = null;
 let subscribedTreeId: string | null = null;
+const expiryProcessingTreeIds = new Set<string>();
 
 function normaliseError(error: unknown) {
   if (error instanceof Error && error.message) {
@@ -48,6 +49,9 @@ function stopTreeSubscriptions() {
   unsubscribePeople = null;
   unsubscribeRelationships = null;
   unsubscribeApprovalRequests = null;
+  if (subscribedTreeId) {
+    expiryProcessingTreeIds.delete(subscribedTreeId);
+  }
   subscribedTreeId = null;
 }
 
@@ -109,14 +113,21 @@ export const useTreeStore = create<TreeState>((set, get) => {
 
     subscribedTreeId = treeId;
     set({ people: [], relationships: [], approvalRequests: [], loadingTreeData: true });
+    let hasLoadedPeople = false;
+    let hasLoadedRelationships = false;
+
+    const updateInitialLoadState = () => {
+      if (hasLoadedPeople && hasLoadedRelationships) {
+        set({ loadingTreeData: false });
+      }
+    };
 
     unsubscribePeople = subscribeToPeople(
       treeId,
       (people) => {
-        set((state) => ({
-          people,
-          loadingTreeData: state.loadingTreeData && state.relationships.length === 0,
-        }));
+        hasLoadedPeople = true;
+        set({ people });
+        updateInitialLoadState();
       },
       (error) => set({ error: normaliseError(error), loadingTreeData: false }),
     );
@@ -124,7 +135,9 @@ export const useTreeStore = create<TreeState>((set, get) => {
     unsubscribeRelationships = subscribeToRelationships(
       treeId,
       (relationships) => {
-        set({ relationships, loadingTreeData: false });
+        hasLoadedRelationships = true;
+        set({ relationships });
+        updateInitialLoadState();
       },
       (error) => set({ error: normaliseError(error), loadingTreeData: false }),
     );
@@ -134,8 +147,17 @@ export const useTreeStore = create<TreeState>((set, get) => {
       (approvalRequests) => {
         set({ approvalRequests });
         const currentUserId = get().currentUserId;
-        if (currentUserId && approvalRequests.some((request) => request.status === 'pending' && request.expiresAtMillis <= Date.now())) {
-          processExpiredApprovalRequests(currentUserId, treeId).catch((error) => set({ error: normaliseError(error) }));
+        const hasExpiredPendingRequests = approvalRequests.some(
+          (request) => request.status === 'pending' && request.expiresAtMillis <= Date.now(),
+        );
+
+        if (currentUserId && hasExpiredPendingRequests && !expiryProcessingTreeIds.has(treeId)) {
+          expiryProcessingTreeIds.add(treeId);
+          processExpiredApprovalRequests(currentUserId, treeId)
+            .catch((error) => set({ error: normaliseError(error) }))
+            .finally(() => {
+              expiryProcessingTreeIds.delete(treeId);
+            });
         }
       },
       (error) => set({ error: normaliseError(error) }),

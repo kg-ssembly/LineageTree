@@ -50,6 +50,95 @@ service cloud.firestore {
         );
     }
 
+    function isPendingApprovalDecisionUpdate() {
+      return resource.data.status == 'pending'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status',
+          'decisionMode',
+          'decidedAt',
+          'decidedByUserId',
+          'decidedByLabel',
+          'appliedAt',
+          'updatedAt'
+        ]);
+    }
+
+    function isManualApprovalDecision() {
+      return isPendingApprovalDecisionUpdate()
+        && request.auth.uid in resource.data.eligibleApproverIds
+        && request.resource.data.status in ['applied', 'rejected']
+        && request.resource.data.decisionMode == 'manual'
+        && request.resource.data.decidedAt is string
+        && request.resource.data.decidedByUserId == request.auth.uid
+        && request.resource.data.decidedByLabel is string
+        && request.resource.data.updatedAt is string
+        && (
+          (request.resource.data.status == 'applied' && request.resource.data.appliedAt is string)
+          || (
+            request.resource.data.status == 'rejected'
+            && (
+              !('appliedAt' in request.resource.data)
+              || request.resource.data.appliedAt == resource.data.appliedAt
+            )
+          )
+        );
+    }
+
+    function isAutoApprovalDecision() {
+      return isPendingApprovalDecisionUpdate()
+        && resource.data.expiresAtMillis is number
+        && request.time.toMillis() >= resource.data.expiresAtMillis
+        && request.resource.data.status == 'applied'
+        && request.resource.data.decisionMode == 'auto'
+        && request.resource.data.decidedAt is string
+        && request.resource.data.decidedByUserId == ''
+        && request.resource.data.decidedByLabel == 'Automatic approval timer'
+        && request.resource.data.appliedAt is string
+        && request.resource.data.updatedAt is string;
+    }
+
+    function isApprovalRequestBaseCreate() {
+      return request.resource.data.treeId is string
+        && request.resource.data.entityType in ['person', 'relationship']
+        && request.resource.data.operation in [
+          'update-person',
+          'delete-person',
+          'create-relationship',
+          'delete-relationship'
+        ]
+        && request.resource.data.targetId is string
+        && request.resource.data.title is string
+        && request.resource.data.description is string
+        && request.resource.data.requestedByUserId == request.auth.uid
+        && request.resource.data.requestedByLabel is string
+        && request.resource.data.eligibleApproverIds is list
+        && request.resource.data.payload is map
+        && request.resource.data.expiresAt is string
+        && request.resource.data.expiresAtMillis is number
+        && request.resource.data.createdAt is string
+        && request.resource.data.updatedAt is string;
+    }
+
+    function isPendingApprovalRequestCreate() {
+      return isApprovalRequestBaseCreate()
+        && request.resource.data.status == 'pending'
+        && request.resource.data.decisionMode == 'manual'
+        && !('decidedAt' in request.resource.data)
+        && !('decidedByUserId' in request.resource.data)
+        && !('decidedByLabel' in request.resource.data)
+        && !('appliedAt' in request.resource.data);
+    }
+
+    function isImmediateApprovalRequestCreate() {
+      return isApprovalRequestBaseCreate()
+        && request.resource.data.status == 'applied'
+        && request.resource.data.decisionMode == 'immediate'
+        && request.resource.data.decidedAt is string
+        && request.resource.data.decidedByUserId == request.auth.uid
+        && request.resource.data.decidedByLabel is string
+        && request.resource.data.appliedAt is string;
+    }
+
     match /users/{userId} {
       allow read: if signedIn();
       allow create, update, delete: if isOwner(userId);
@@ -79,11 +168,12 @@ service cloud.firestore {
 
     match /approvalRequests/{requestId} {
       allow create: if signedIn()
-        && request.resource.data.treeId is string
+        && isApprovalRequestBaseCreate()
         && isTreeMember(request.resource.data.treeId)
-        && request.resource.data.requestedByUserId == request.auth.uid;
+        && (isPendingApprovalRequestCreate() || isImmediateApprovalRequestCreate());
       allow read: if isTreeMember(resource.data.treeId);
-      allow update: if isTreeMember(resource.data.treeId);
+      allow update: if isTreeMember(resource.data.treeId)
+        && (isManualApprovalDecision() || isAutoApprovalDecision());
       allow delete: if isTreeOwner(resource.data.treeId);
     }
 

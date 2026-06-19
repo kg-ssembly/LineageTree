@@ -1233,6 +1233,7 @@ export async function processExpiredApprovalRequests(actorUserId: string, treeId
 export async function deleteTree(tree: FamilyTree) {
   const peopleSnapshot = await getDocs(query(collection(db, PEOPLE_COLLECTION), where('treeId', '==', tree.id)));
   const relationshipSnapshot = await getDocs(query(collection(db, RELATIONSHIPS_COLLECTION), where('treeId', '==', tree.id)));
+  const approvalRequestsSnapshot = await getDocs(query(collection(db, APPROVAL_REQUESTS_COLLECTION), where('treeId', '==', tree.id)));
 
   const people = peopleSnapshot.docs.map(mapPerson);
   await deletePhotos(people.flatMap((person) => person.photos));
@@ -1240,6 +1241,7 @@ export async function deleteTree(tree: FamilyTree) {
   const refsToDelete = [
     ...peopleSnapshot.docs.map((snapshot) => snapshot.ref),
     ...relationshipSnapshot.docs.map((snapshot) => snapshot.ref),
+    ...approvalRequestsSnapshot.docs.map((snapshot) => snapshot.ref),
     doc(db, TREES_COLLECTION, tree.id),
   ];
 

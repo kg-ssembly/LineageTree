@@ -700,27 +700,27 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
             </View>
 
             <View style={styles.detailGrid}>
-              <Card mode="outlined" style={[styles.detailCard, { backgroundColor: theme.colors.elevation.level1, borderColor: theme.colors.outlineVariant }]}>
+              <Card mode="elevated" style={[styles.detailCard, { backgroundColor: theme.colors.elevation.level1 }]}>
                 <Card.Content>
                   <Text variant="labelMedium" style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>First name</Text>
                   <Text variant="titleMedium">{person.firstName || 'Unknown'}</Text>
                 </Card.Content>
               </Card>
-              <Card mode="outlined" style={[styles.detailCard, { backgroundColor: theme.colors.elevation.level1, borderColor: theme.colors.outlineVariant }]}>
+              <Card mode="elevated" style={[styles.detailCard, { backgroundColor: theme.colors.elevation.level1 }]}>
                 <Card.Content>
                   <Text variant="labelMedium" style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>Last name</Text>
                   <Text variant="titleMedium">{person.lastName || 'Unknown'}</Text>
                 </Card.Content>
               </Card>
               {person.maidenName?.trim() ? (
-                <Card mode="outlined" style={[styles.detailCard, { backgroundColor: theme.colors.elevation.level1, borderColor: theme.colors.outlineVariant }]}>
+                <Card mode="elevated" style={[styles.detailCard, { backgroundColor: theme.colors.elevation.level1 }]}>
                   <Card.Content>
                     <Text variant="labelMedium" style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>Maiden name</Text>
                     <Text variant="titleMedium">{person.maidenName.trim()}</Text>
                   </Card.Content>
                 </Card>
               ) : null}
-              <Card mode="outlined" style={[styles.detailCard, { backgroundColor: theme.colors.elevation.level1, borderColor: theme.colors.outlineVariant }]}>
+              <Card mode="elevated" style={[styles.detailCard, { backgroundColor: theme.colors.elevation.level1 }]}>
                 <Card.Content>
                   <Text variant="labelMedium" style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>Birth date</Text>
                   <Text variant="titleMedium">{person.birthDate ? formatPersonDate(person.birthDate) : 'Unknown'}</Text>
@@ -771,7 +771,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
               <>
                 <View style={styles.relationshipList}>
                   {paginatedRelationships.map((entry) => (
-                    <Card key={entry.relationship.id} mode="outlined" style={[styles.relationshipCard, { backgroundColor: theme.colors.elevation.level1, borderColor: theme.colors.outlineVariant }]}>
+                    <Card key={entry.relationship.id} mode="elevated" style={[styles.relationshipCard, { backgroundColor: theme.colors.elevation.level1 }]}>
                       <Card.Content>
                         <View style={styles.relationshipRow}>
                           <View style={styles.relationshipTextWrap}>
@@ -927,7 +927,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.galleryRow}>
                   {person.photos.map((photo, index) => (
                     <Pressable key={photo.id} onPress={() => setViewerIndex(index)}>
-                      <Card mode="outlined" style={[styles.photoCard, preferredPhoto?.id === photo.id && styles.photoCardPreferred]}>
+                      <Card mode="elevated" style={[styles.photoCard, preferredPhoto?.id === photo.id && styles.photoCardPreferred]}>
                         <Image source={{ uri: photo.url }} style={styles.photo} />
                       </Card>
                     </Pressable>
@@ -959,7 +959,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
                       ? person.lifeEvents.find((event) => event.id === item.id) ?? null
                       : null;
                     return (
-                      <Card key={item.id} mode="outlined" style={[styles.timelineCard, { backgroundColor: theme.colors.elevation.level1, borderColor: theme.colors.outlineVariant }]}>
+                      <Card key={item.id} mode="elevated" style={[styles.timelineCard, { backgroundColor: theme.colors.elevation.level1 }]}>
                         <Card.Content>
                           <View style={styles.timelineRow}>
                             <View style={styles.timelineTextWrap}>
