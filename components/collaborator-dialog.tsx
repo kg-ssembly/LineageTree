@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Dialog, HelperText, Portal, SegmentedButtons, TextInput } from 'react-native-paper';
+import { Button, Dialog, HelperText, Portal, SegmentedButtons, TextInput, useTheme } from 'react-native-paper';
 import type { CollaboratorRole } from './dto/tree';
 import { GlobalStyles } from '../constants/styles';
 
 const styles = GlobalStyles.collaboratorDialog;
+const dialogChrome = GlobalStyles.dialogChrome;
 
 interface CollaboratorDialogProps {
   visible: boolean;
@@ -18,6 +19,7 @@ export default function CollaboratorDialog({
   onDismiss,
   onSubmit,
 }: CollaboratorDialogProps) {
+  const theme = useTheme();
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<CollaboratorRole>('viewer');
   const [error, setError] = useState<string | null>(null);
@@ -49,9 +51,13 @@ export default function CollaboratorDialog({
 
   return (
     <Portal>
-      <Dialog visible={visible} onDismiss={loading ? undefined : onDismiss} style={styles.dialog}>
-        <Dialog.Title>Add collaborator</Dialog.Title>
-        <Dialog.Content>
+      <Dialog
+        visible={visible}
+        onDismiss={loading ? undefined : onDismiss}
+        style={[dialogChrome.dialog, styles.dialog, { backgroundColor: theme.colors.surface }]}
+      >
+        <Dialog.Title style={dialogChrome.dialogTitle}>Add collaborator</Dialog.Title>
+        <Dialog.Content style={dialogChrome.content}>
           <TextInput
             mode="outlined"
             label="Collaborator email"
@@ -81,7 +87,7 @@ export default function CollaboratorDialog({
             ]}
           />
         </Dialog.Content>
-        <Dialog.Actions>
+        <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
           <Button mode="outlined" onPress={onDismiss} disabled={loading}>Cancel</Button>
           <Button mode="contained" onPress={handleSubmit} disabled={loading}>Invite</Button>
         </Dialog.Actions>

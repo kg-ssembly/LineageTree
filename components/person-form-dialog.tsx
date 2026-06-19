@@ -22,6 +22,7 @@ import type { RelationshipRecord } from './dto/relationship';
 import { GlobalStyles } from '../constants/styles';
 
 const styles = GlobalStyles.personFormDialog;
+const dialogChrome = GlobalStyles.dialogChrome;
 
 export type PendingRelationshipMode = 'parent-of' | 'child-of' | 'spouse-of';
 
@@ -413,9 +414,9 @@ export default function PersonFormDialog({
         <Dialog
           visible={visible}
           onDismiss={loading ? undefined : onDismiss}
-          style={[styles.dialog, { backgroundColor: theme.colors.surface }]}
+          style={[dialogChrome.dialog, styles.dialog, { backgroundColor: theme.colors.surface }]}
         >
-          <Dialog.Title style={styles.dialogTitle}>
+          <Dialog.Title style={[dialogChrome.dialogTitle, styles.dialogTitle]}>
             {mode === 'create'
               ? (step === 1 ? 'Add family member' : 'Add relationships')
               : 'Edit family member'}
@@ -430,7 +431,7 @@ export default function PersonFormDialog({
               </Text>
             </View>
           ) : null}
-          <Dialog.ScrollArea style={styles.scrollArea}>
+          <Dialog.ScrollArea style={[dialogChrome.scrollArea, styles.scrollArea]}>
             <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
 
               {/* ── Step 1: core info ──────────────────────────────────────── */}
@@ -826,7 +827,7 @@ export default function PersonFormDialog({
               ) : null}
             </ScrollView>
           </Dialog.ScrollArea>
-          <Dialog.Actions style={[styles.dialogActions, { borderTopColor: theme.colors.outlineVariant, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
+          <Dialog.Actions style={[dialogChrome.dialogActions, styles.dialogActions, { borderTopColor: theme.colors.outlineVariant, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
             {/* Left side: delete button (edit) or step indicator (create step 2) */}
             {mode === 'edit' && onDelete ? (
               <Button

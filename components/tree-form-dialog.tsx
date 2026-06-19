@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Dialog, HelperText, Portal, TextInput } from 'react-native-paper';
+import { Button, Dialog, HelperText, Portal, TextInput, useTheme } from 'react-native-paper';
 import type { FamilyTree } from './dto/tree';
 import { GlobalStyles } from '../constants/styles';
 
 const styles = GlobalStyles.treeFormDialog;
+const dialogChrome = GlobalStyles.dialogChrome;
 
 interface TreeFormDialogProps {
   visible: boolean;
@@ -22,6 +23,7 @@ export default function TreeFormDialog({
   onDismiss,
   onSubmit,
 }: TreeFormDialogProps) {
+  const theme = useTheme();
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
 
@@ -46,9 +48,13 @@ export default function TreeFormDialog({
 
   return (
     <Portal>
-      <Dialog visible={visible} onDismiss={loading ? undefined : onDismiss} style={styles.dialog}>
-        <Dialog.Title>{mode === 'create' ? 'Create family tree' : 'Rename family tree'}</Dialog.Title>
-        <Dialog.Content>
+      <Dialog
+        visible={visible}
+        onDismiss={loading ? undefined : onDismiss}
+        style={[dialogChrome.dialog, styles.dialog, { backgroundColor: theme.colors.surface }]}
+      >
+        <Dialog.Title style={dialogChrome.dialogTitle}>{mode === 'create' ? 'Create family tree' : 'Rename family tree'}</Dialog.Title>
+        <Dialog.Content style={dialogChrome.content}>
           <TextInput
             mode="outlined"
             label="Tree name"
@@ -67,7 +73,7 @@ export default function TreeFormDialog({
             {error}
           </HelperText>
         </Dialog.Content>
-        <Dialog.Actions>
+        <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
           <Button mode="outlined" onPress={onDismiss} disabled={loading}>Cancel</Button>
           <Button mode="contained" onPress={handleSubmit} disabled={loading}>
             {mode === 'create' ? 'Create' : 'Save'}

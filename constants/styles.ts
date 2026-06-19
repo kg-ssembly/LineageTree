@@ -32,6 +32,29 @@ const CARD_CHROME = {
 } as const;
 
 export class GlobalStyles {
+    static readonly dialogChrome = StyleSheet.create({
+        dialog: {
+            marginHorizontal: 12,
+            borderRadius: 24,
+        },
+        dialogTitle: {
+            paddingBottom: 4,
+        },
+        content: {
+            paddingBottom: 12,
+        },
+        scrollArea: {
+            borderBottomWidth: 0,
+            borderTopWidth: 0,
+            paddingHorizontal: 16,
+        },
+        dialogActions: {
+            paddingHorizontal: 8,
+            paddingTop: 8,
+            borderTopWidth: StyleSheet.hairlineWidth,
+        },
+    });
+
     static readonly home = StyleSheet.create({
         container: {
             flex: 1,
@@ -816,19 +839,19 @@ export class GlobalStyles {
 
     static readonly treeFormDialog = StyleSheet.create({
         dialog: {
-            marginHorizontal: 16,
+            maxHeight: '82%',
         },
     });
 
     static readonly confirmDialog = StyleSheet.create({
         dialog: {
-            marginHorizontal: 16,
+            maxHeight: '72%',
         },
     });
 
     static readonly collaboratorDialog = StyleSheet.create({
         dialog: {
-            marginHorizontal: 16,
+            maxHeight: '82%',
         },
         roleButtons: {
             marginTop: 12,
@@ -838,7 +861,6 @@ export class GlobalStyles {
     static readonly lifeEventDialog = StyleSheet.create({
         dialog: {
             maxHeight: '82%',
-            marginHorizontal: 16,
         },
         scrollArea: {
             borderBottomWidth: 0,
@@ -924,7 +946,6 @@ export class GlobalStyles {
     static readonly personRelationshipDialog = StyleSheet.create({
         dialog: {
             maxHeight: '82%',
-            marginHorizontal: 16,
         },
         scrollArea: {
             borderBottomWidth: 0,

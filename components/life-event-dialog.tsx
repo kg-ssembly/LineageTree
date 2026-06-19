@@ -1,12 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ScrollView, View } from 'react-native';
-import { Button, Chip, Dialog, HelperText, Portal, Text, TextInput } from 'react-native-paper';
+import { Button, Chip, Dialog, HelperText, Portal, Text, TextInput, useTheme } from 'react-native-paper';
 import { DatePickerModal } from 'react-native-paper-dates';
 import type { PersonLifeEvent, PersonLifeEventType } from './dto/person';
 import { formatPersonDate, getLifeEventTypeLabel, parsePersonDate } from './dto/person';
 import { GlobalStyles } from '../constants/styles';
 
 const styles = GlobalStyles.lifeEventDialog;
+const dialogChrome = GlobalStyles.dialogChrome;
 
 interface LifeEventDialogProps {
   visible: boolean;
@@ -59,6 +60,7 @@ export default function LifeEventDialog({
   onDismiss,
   onSubmit,
 }: LifeEventDialogProps) {
+  const theme = useTheme();
   const [type, setType] = useState<PersonLifeEventType>('married');
   const [title, setTitle] = useState('Marriage');
   const [date, setDate] = useState('');
@@ -112,9 +114,13 @@ export default function LifeEventDialog({
   return (
     <>
       <Portal>
-        <Dialog visible={visible} onDismiss={loading ? undefined : onDismiss} style={styles.dialog}>
-          <Dialog.Title>{event ? 'Edit life event' : 'Add life event'}</Dialog.Title>
-          <Dialog.ScrollArea style={styles.scrollArea}>
+        <Dialog
+          visible={visible}
+          onDismiss={loading ? undefined : onDismiss}
+          style={[dialogChrome.dialog, styles.dialog, { backgroundColor: theme.colors.surface }]}
+        >
+          <Dialog.Title style={dialogChrome.dialogTitle}>{event ? 'Edit life event' : 'Add life event'}</Dialog.Title>
+          <Dialog.ScrollArea style={[dialogChrome.scrollArea, styles.scrollArea]}>
             <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
               <Text variant="bodyMedium" style={styles.helperText}>
                 Capture milestones like marriage, divorce, moves, or other memorable family moments.
@@ -181,7 +187,7 @@ export default function LifeEventDialog({
               />
             </ScrollView>
           </Dialog.ScrollArea>
-          <Dialog.Actions>
+          <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
             <Button mode="outlined" onPress={onDismiss} disabled={loading}>Cancel</Button>
             <Button mode="contained" onPress={handleSubmit} disabled={loading}>Save</Button>
           </Dialog.Actions>

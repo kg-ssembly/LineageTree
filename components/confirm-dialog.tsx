@@ -1,8 +1,9 @@
 import React from 'react';
-import { Button, Dialog, Portal, Text } from 'react-native-paper';
+import { Button, Dialog, Portal, Text, useTheme } from 'react-native-paper';
 import { GlobalStyles } from '../constants/styles';
 
 const styles = GlobalStyles.confirmDialog;
+const dialogChrome = GlobalStyles.dialogChrome;
 
 interface ConfirmDialogProps {
   visible: boolean;
@@ -25,14 +26,19 @@ export default function ConfirmDialog({
   onDismiss,
   onConfirm,
 }: ConfirmDialogProps) {
+  const theme = useTheme();
   return (
     <Portal>
-      <Dialog visible={visible} onDismiss={loading ? undefined : onDismiss} style={styles.dialog}>
-        <Dialog.Title>{title}</Dialog.Title>
-        <Dialog.Content>
+      <Dialog
+        visible={visible}
+        onDismiss={loading ? undefined : onDismiss}
+        style={[dialogChrome.dialog, styles.dialog, { backgroundColor: theme.colors.surface }]}
+      >
+        <Dialog.Title style={dialogChrome.dialogTitle}>{title}</Dialog.Title>
+        <Dialog.Content style={dialogChrome.content}>
           <Text variant="bodyMedium">{message}</Text>
         </Dialog.Content>
-        <Dialog.Actions>
+        <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
           <Button mode="outlined" onPress={onDismiss} disabled={loading}>
             {cancelLabel}
           </Button>

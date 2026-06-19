@@ -34,6 +34,7 @@ import {
   type FamilyTree,
 } from '../../components/dto/tree';
 import { GlobalStyles } from '../../constants/styles';
+const dialogChrome = GlobalStyles.dialogChrome;
 
 type SelfAssignmentSuggestion = {
   person: PersonRecord;
@@ -495,10 +496,14 @@ export function PeopleRelationshipsTabContent({
       </View>
 
       <Portal>
-        <Dialog visible={filterModalVisible} onDismiss={() => setFilterModalVisible(false)} style={{ maxHeight: '85%' }}>
-          <Dialog.Title>Filter members</Dialog.Title>
-          <Dialog.ScrollArea>
-            <ScrollView keyboardShouldPersistTaps="handled">
+        <Dialog
+          visible={filterModalVisible}
+          onDismiss={() => setFilterModalVisible(false)}
+          style={[dialogChrome.dialog, { maxHeight: '85%', backgroundColor: theme.colors.surface }]}
+        >
+          <Dialog.Title style={dialogChrome.dialogTitle}>Filter members</Dialog.Title>
+          <Dialog.ScrollArea style={dialogChrome.scrollArea}>
+            <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={dialogChrome.content}>
               <Text variant="titleSmall" style={{ marginTop: 8, marginBottom: 4 }}>Gender</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
                 {(['all', 'female', 'male', 'non-binary', 'other', 'unspecified'] as const).map((gender) => (
@@ -566,7 +571,7 @@ export function PeopleRelationshipsTabContent({
               </Button>
             </ScrollView>
           </Dialog.ScrollArea>
-          <Dialog.Actions>
+          <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
             <Button mode="outlined" onPress={() => setFilterModalVisible(false)}>Cancel</Button>
             <Button mode="contained" onPress={applyFilters}>Apply</Button>
           </Dialog.Actions>
@@ -574,14 +579,18 @@ export function PeopleRelationshipsTabContent({
       </Portal>
 
       <Portal>
-        <Dialog visible={helperVisible} onDismiss={() => setHelperVisible(false)}>
-          <Dialog.Title>Family members</Dialog.Title>
-          <Dialog.Content>
+        <Dialog
+          visible={helperVisible}
+          onDismiss={() => setHelperVisible(false)}
+          style={[dialogChrome.dialog, { backgroundColor: theme.colors.surface }]}
+        >
+          <Dialog.Title style={dialogChrome.dialogTitle}>Family members</Dialog.Title>
+          <Dialog.Content style={dialogChrome.content}>
             <Text variant="bodyMedium">
               Each card represents one person in this family tree. Tap a card to open their full profile. Use the search bar and Filters button to narrow by name, gender, presence, birth year, photos, notes, or relationship status. The tri-state filter chips cycle through unset, must have, and must not have.
             </Text>
           </Dialog.Content>
-          <Dialog.Actions>
+          <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
             <Button onPress={() => setHelperVisible(false)}>Close</Button>
           </Dialog.Actions>
         </Dialog>
@@ -1335,14 +1344,18 @@ function ProfileTabContent({
       </View>
 
       <Portal>
-        <Dialog visible={helperVisible} onDismiss={() => setHelperVisible(false)}>
-          <Dialog.Title>Tree management</Dialog.Title>
-          <Dialog.Content>
+        <Dialog
+          visible={helperVisible}
+          onDismiss={() => setHelperVisible(false)}
+          style={[dialogChrome.dialog, { backgroundColor: theme.colors.surface }]}
+        >
+          <Dialog.Title style={dialogChrome.dialogTitle}>Tree management</Dialog.Title>
+          <Dialog.Content style={dialogChrome.content}>
             <Text variant="bodyMedium">
               Overview shows key stats and lets you link your account to a family member profile. Collaborators manages who has access - owners can add, remove, or change roles, and can suggest a person link for any unlinked member. Approvals shows pending edits awaiting another collaborator's review; you can also set the auto-approve window here.
             </Text>
           </Dialog.Content>
-          <Dialog.Actions>
+          <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
             <Button onPress={() => setHelperVisible(false)}>Close</Button>
           </Dialog.Actions>
         </Dialog>

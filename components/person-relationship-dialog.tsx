@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ScrollView, View } from 'react-native';
-import { Button, Chip, Dialog, HelperText, Portal, SegmentedButtons, Text, TextInput } from 'react-native-paper';
+import { Button, Chip, Dialog, HelperText, Portal, SegmentedButtons, Text, TextInput, useTheme } from 'react-native-paper';
 import type { PersonRecord } from './dto/person';
 import type { RelationshipRecord } from './dto/relationship';
 import { GlobalStyles } from '../constants/styles';
 
 const styles = GlobalStyles.personRelationshipDialog;
+const dialogChrome = GlobalStyles.dialogChrome;
 
 export type PersonRelationshipMode = 'parent-of' | 'child-of' | 'spouse-of';
 
@@ -49,6 +50,7 @@ export default function PersonRelationshipDialog({
   onDismiss,
   onSubmit,
 }: PersonRelationshipDialogProps) {
+  const theme = useTheme();
   const [mode, setMode] = useState<PersonRelationshipMode>('parent-of');
   const [relatedPersonId, setRelatedPersonId] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -141,9 +143,13 @@ export default function PersonRelationshipDialog({
 
   return (
     <Portal>
-      <Dialog visible={visible} onDismiss={loading ? undefined : onDismiss} style={styles.dialog}>
-        <Dialog.Title>{editingRelationship ? 'Edit relationship' : 'Add relationship'}</Dialog.Title>
-        <Dialog.ScrollArea style={styles.scrollArea}>
+      <Dialog
+        visible={visible}
+        onDismiss={loading ? undefined : onDismiss}
+        style={[dialogChrome.dialog, styles.dialog, { backgroundColor: theme.colors.surface }]}
+      >
+        <Dialog.Title style={dialogChrome.dialogTitle}>{editingRelationship ? 'Edit relationship' : 'Add relationship'}</Dialog.Title>
+        <Dialog.ScrollArea style={[dialogChrome.scrollArea, styles.scrollArea]}>
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
             <Text variant="bodyMedium" style={styles.helperText}>
               Manage connections directly from {formatPersonName(person)}.
@@ -210,7 +216,7 @@ export default function PersonRelationshipDialog({
             </HelperText>
           </ScrollView>
         </Dialog.ScrollArea>
-        <Dialog.Actions>
+        <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
           <Button mode="outlined" onPress={onDismiss} disabled={loading}>Cancel</Button>
           <Button mode="contained" onPress={handleSubmit} disabled={loading || !person || candidates.length === 0}>Save</Button>
         </Dialog.Actions>

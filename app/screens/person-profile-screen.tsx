@@ -34,6 +34,7 @@ import type { RootStackParamList } from '../../components/dto/navigation';
 import { canEditTreeContent, getAssignedPersonId, getAssignedUserIdForPerson } from '../../components/dto/tree';
 import { formatPersonGender, formatPersonName } from '../../components/person-formatting';
 import { GlobalStyles } from '../../constants/styles';
+const dialogChrome = GlobalStyles.dialogChrome;
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PersonProfile'>;
 
@@ -1091,12 +1092,13 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
         <Dialog
           visible={helperDialog.visible}
           onDismiss={() => setHelperDialog((current) => ({ ...current, visible: false }))}
+          style={[dialogChrome.dialog, { backgroundColor: theme.colors.surface }]}
         >
-          <Dialog.Title>{helperDialogCopy[helperDialog.key].title}</Dialog.Title>
-          <Dialog.Content>
+          <Dialog.Title style={dialogChrome.dialogTitle}>{helperDialogCopy[helperDialog.key].title}</Dialog.Title>
+          <Dialog.Content style={dialogChrome.content}>
             <Text variant="bodyMedium">{helperDialogCopy[helperDialog.key].message}</Text>
           </Dialog.Content>
-          <Dialog.Actions>
+          <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
             <Button onPress={() => setHelperDialog((current) => ({ ...current, visible: false }))}>Close</Button>
           </Dialog.Actions>
         </Dialog>

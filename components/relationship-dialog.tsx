@@ -6,6 +6,7 @@ import type { RelationshipRecord, RelationshipType } from './dto/relationship';
 import { GlobalStyles } from '../constants/styles';
 
 const styles = GlobalStyles.relationshipDialog;
+const dialogChrome = GlobalStyles.dialogChrome;
 
 interface RelationshipDialogProps {
   visible: boolean;
@@ -113,10 +114,10 @@ export default function RelationshipDialog({
       <Dialog
         visible={visible}
         onDismiss={loading ? undefined : onDismiss}
-        style={[styles.dialog, { backgroundColor: theme.colors.surface }]}
+        style={[dialogChrome.dialog, styles.dialog, { backgroundColor: theme.colors.surface }]}
       >
-        <Dialog.Title style={styles.dialogTitle}>Add relationship</Dialog.Title>
-        <Dialog.ScrollArea style={styles.scrollArea}>
+        <Dialog.Title style={[dialogChrome.dialogTitle, styles.dialogTitle]}>Add relationship</Dialog.Title>
+        <Dialog.ScrollArea style={[dialogChrome.scrollArea, styles.scrollArea]}>
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
             <View style={[styles.relationshipTypeCard, { borderColor: theme.colors.outlineVariant }]}>
               <SegmentedButtons
@@ -193,7 +194,7 @@ export default function RelationshipDialog({
             </HelperText>
           </ScrollView>
         </Dialog.ScrollArea>
-        <Dialog.Actions style={[styles.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}> 
+        <Dialog.Actions style={[dialogChrome.dialogActions, styles.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
           <Button mode="outlined" onPress={onDismiss} disabled={loading}>Cancel</Button>
           <Button mode="contained" onPress={handleSubmit} disabled={loading || people.length < 2}>Save</Button>
         </Dialog.Actions>
