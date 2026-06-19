@@ -8,12 +8,28 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "YOUR_DEVELOPMENT_FIREBASE_API_KEY",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "YOUR_DEVELOPMENT_FIREBASE_AUTH_DOMAIN",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "YOUR_DEVELOPMENT_FIREBASE_PROJECT_ID",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "YOUR_DEVELOPMENT_FIREBASE_STORAGE_BUCKET",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "YOUR_DEVELOPMENT_FIREBASE_MESSAGING_SENDER_ID",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "YOUR_DEVELOPMENT_FIREBASE_APP_ID"
       }
     },
     "preview": {
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "YOUR_PREVIEW_FIREBASE_API_KEY",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "YOUR_PREVIEW_FIREBASE_AUTH_DOMAIN",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "YOUR_PREVIEW_FIREBASE_PROJECT_ID",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "YOUR_PREVIEW_FIREBASE_STORAGE_BUCKET",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "YOUR_PREVIEW_FIREBASE_MESSAGING_SENDER_ID",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "YOUR_PREVIEW_FIREBASE_APP_ID"
       }
     },
     "production": {
@@ -21,13 +37,21 @@
       "credentialsSource": "remote",
       "android": {
         "buildType": "app-bundle"
+      },
+      "env": {
+        "EXPO_PUBLIC_FIREBASE_API_KEY": "YOUR_PRODUCTION_FIREBASE_API_KEY",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "YOUR_PRODUCTION_FIREBASE_AUTH_DOMAIN",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "YOUR_PRODUCTION_FIREBASE_PROJECT_ID",
+        "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET": "YOUR_PRODUCTION_FIREBASE_STORAGE_BUCKET",
+        "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID": "YOUR_PRODUCTION_FIREBASE_MESSAGING_SENDER_ID",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "YOUR_PRODUCTION_FIREBASE_APP_ID"
       }
     }
   },
   "submit": {
     "production": {
       "android": {
-        "serviceAccountKeyPath": "./google-play-service-account.json",
+        "serviceAccountKeyPath": "../secrets/lineagetree-a9b091037d99",
         "track": "production"
       }
     }
