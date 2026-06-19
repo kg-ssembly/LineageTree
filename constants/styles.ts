@@ -3,7 +3,7 @@ import {StyleSheet} from 'react-native';
 // ── Forest palette constants (mirrors theme.ts forestPalettes) ────────────────
 const F = {
   background:       '#FFFFFF',
-  surface:          '#FDFAF5',
+  surface:          '#FFFFFF',
   surfaceVariant:   '#EBE5D9',
   outlineVariant:   '#CFCAB8',
   onSurface:        '#1A1C18',
@@ -12,7 +12,7 @@ const F = {
   primaryGreen:     '#2D6A4F',
   canvasBg:         '#F0EBE0',
   canvasBorder:     '#C8D4C0',
-  nodeBg:           '#FFFEFB',
+  nodeBg:           '#FFFFFF',
   nodeBorder:       '#CFCAB8',
   avatarBg:         '#EBE5D9',
   avatarBorder:     '#C8D4C0',

@@ -449,7 +449,7 @@ export function PeopleRelationshipsTabContent({
             onPress={openFilterModal}
             contentStyle={{ flexDirection: 'row-reverse' }}
           >
-            {activeFilterCount > 0 ? `Filters (${activeFilterCount})` : 'Filters'}
+            {activeFilterCount > 0 ? `(${activeFilterCount})` : ''}
           </Button>
         </View>
 
