@@ -466,6 +466,12 @@ export class GlobalStyles {
             marginTop: 16,
             gap: 12,
         },
+        surnameVariantDraftsRow: {
+            marginTop: 12,
+        },
+        surnameGroupButton: {
+            marginTop: 12,
+        },
         assignmentSuggestionCard: {
             ...CARD_CHROME,
             borderRadius: 20,
@@ -734,6 +740,9 @@ export class GlobalStyles {
             borderWidth: StyleSheet.hairlineWidth,
             borderColor: F.outlineVariant,
         },
+        relationshipTabStripCard: {
+            marginTop: 8,
+        },
         tabStripContent: {
             paddingHorizontal: 8,
             paddingVertical: 4,
@@ -841,6 +850,56 @@ export class GlobalStyles {
             marginTop: 8,
             color: F.onSurfaceDeep,
         },
+        memoryDialog: {
+            maxHeight: '88%',
+        },
+        memoryDialogScrollArea: {
+            borderBottomWidth: 0,
+            borderTopWidth: 0,
+            paddingHorizontal: 16,
+        },
+        memoryDialogContent: {
+            paddingBottom: 12,
+        },
+        memoryDialogInput: {
+            minHeight: 140,
+        },
+        memoryDialogPhotoActions: {
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            gap: 8,
+            marginBottom: 12,
+        },
+        memoryDialogPhotoList: {
+            paddingTop: 4,
+            paddingBottom: 4,
+        },
+        memoryDialogPhotoCard: {
+            marginRight: 12,
+            position: 'relative',
+        },
+        memoryDialogPhoto: {
+            width: 120,
+            height: 120,
+            borderRadius: 20,
+            backgroundColor: F.photoBg,
+        },
+        memoryDialogPhotoButton: {
+            position: 'absolute',
+            backgroundColor: 'rgba(255, 255, 255, 0.88)',
+        },
+        memoryDialogPhotoPrimaryButton: {
+            top: 6,
+            left: 6,
+        },
+        memoryDialogPhotoRemoveButton: {
+            top: 6,
+            right: 6,
+        },
+        memoryDialogHint: {
+            color: F.onSurfaceVariant,
+            marginBottom: 12,
+        },
         sectionDivider: {
             marginTop: 20,
             marginBottom: 8,
@@ -892,14 +951,37 @@ export class GlobalStyles {
             zIndex: 2,
             backgroundColor: 'rgba(255, 255, 255, 0.12)',
         },
+        viewerNavButton: {
+            position: 'absolute',
+            top: '50%',
+            marginTop: -24,
+            zIndex: 2,
+            backgroundColor: 'rgba(255, 255, 255, 0.14)',
+        },
+        viewerNavButtonLeft: {
+            left: 12,
+        },
+        viewerNavButtonRight: {
+            right: 12,
+        },
+        viewerCounter: {
+            position: 'absolute',
+            bottom: 28,
+            alignSelf: 'center',
+            paddingHorizontal: 14,
+            paddingVertical: 8,
+            borderRadius: 999,
+            backgroundColor: 'rgba(255, 255, 255, 0.14)',
+        },
         viewerSlide: {
+            height: '100%',
             justifyContent: 'center',
             alignItems: 'center',
             paddingHorizontal: 16,
         },
         viewerImage: {
             width: '100%',
-            height: '78%',
+            height: '100%',
         },
     });
 

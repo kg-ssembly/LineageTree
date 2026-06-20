@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Dimensions, Image, Modal, Pressable, ScrollView, View } from 'react-native';
+import { Alert, Dimensions, Image, Modal, Platform, Pressable, ScrollView, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import {
   ActivityIndicator,
   BottomNavigation,
@@ -15,13 +16,14 @@ import {
   Snackbar,
   Surface,
   Text,
+  TextInput,
   useTheme,
 } from 'react-native-paper';
 import { ConfirmDialog, FamilyTreeCanvas, LifeEventDialog, PersonFormDialog, PersonRelationshipDialog, RelationshipInsightCard } from '../../components';
 import type { PersonRelationshipMode } from '../../components/person-relationship-dialog';
 import { useAuthStore } from '../../stores/auth-store';
 import { useTreeStore } from '../../stores/tree-store';
-import type { PersonLifeEvent, PersonMutationPayload, PersonRecord } from '../../components/dto/person';
+import type { PersonLifeEvent, PersonMutationPayload, PersonPhoto, PersonRecord } from '../../components/dto/person';
 import {
   formatPersonDate,
   getLifeEventTypeLabel,
@@ -70,9 +72,9 @@ const RELATIONSHIP_SECTION_TABS: Array<{ key: RelationshipSectionTabKey; label: 
 ];
 
 const MEMORY_SECTION_TABS: Array<{ key: MemorySectionTabKey; label: string }> = [
-  { key: 'notes', label: 'Notes' },
-  { key: 'photos', label: 'Photos' },
   { key: 'events', label: 'Life Events' },
+  { key: 'photos', label: 'Photos' },
+  { key: 'notes', label: 'Notes' },
 ];
 
 function getRelationshipModeForPerson(personId: string, relationship: RelationshipRecord): PersonRelationshipMode {
@@ -249,7 +251,14 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
   });
   const [relationshipPage, setRelationshipPage] = useState(1);
   const [relationshipSectionTab, setRelationshipSectionTab] = useState<RelationshipSectionTabKey>('insight');
-  const [memorySectionTab, setMemorySectionTab] = useState<MemorySectionTabKey>('notes');
+  const [memorySectionTab, setMemorySectionTab] = useState<MemorySectionTabKey>('events');
+  const [notesDialogVisible, setNotesDialogVisible] = useState(false);
+  const [notesDraft, setNotesDraft] = useState('');
+  const [photosDialogVisible, setPhotosDialogVisible] = useState(false);
+  const [photoEditorExistingPhotos, setPhotoEditorExistingPhotos] = useState<PersonPhoto[]>([]);
+  const [photoEditorRemovedPhotos, setPhotoEditorRemovedPhotos] = useState<PersonPhoto[]>([]);
+  const [photoEditorNewPhotoUris, setPhotoEditorNewPhotoUris] = useState<string[]>([]);
+  const [photoEditorPreferredPhotoRef, setPhotoEditorPreferredPhotoRef] = useState('');
   const relationshipPageSize = 3;
 
   const selectedTree = useMemo(
@@ -264,6 +273,10 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
 
   const canEdit = selectedTree ? canEditTreeContent(selectedTree, user?.id) : false;
   const preferredPhoto = getPreferredPersonPhoto(person);
+  const photoEditorCount = useMemo(
+    () => photoEditorExistingPhotos.length + photoEditorNewPhotoUris.length,
+    [photoEditorExistingPhotos, photoEditorNewPhotoUris],
+  );
 
   const peopleById = useMemo(
     () => new Map(people.map((currentPerson) => [currentPerson.id, currentPerson])),
@@ -308,6 +321,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
     && !currentAssignedPerson
     && (!linkedUserIdForPerson || linkedUserIdForPerson === user.id),
   );
+  const showClaimBox = Boolean(user?.id && (isCurrentUsersPerson || linkedCollaborator || canClaimPerson));
 
   const relationshipEntries = useMemo(() => {
     if (!person) {
@@ -505,6 +519,119 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
     }
   };
 
+  const openNotesDialog = () => {
+    if (!person) {
+      return;
+    }
+
+    setNotesDraft(person.notes ?? '');
+    setNotesDialogVisible(true);
+  };
+
+  const handleSaveNotes = async () => {
+    if (!user?.id || !person) {
+      return;
+    }
+
+    try {
+      await updatePerson(user.id, person, buildPersonMutationPayload(person, { notes: notesDraft }));
+      setNotesDialogVisible(false);
+    } catch {
+      // surfaced by store snackbar
+    }
+  };
+
+  const openPhotosDialog = () => {
+    if (!person) {
+      return;
+    }
+
+    setPhotoEditorExistingPhotos(person.photos);
+    setPhotoEditorRemovedPhotos([]);
+    setPhotoEditorNewPhotoUris([]);
+    setPhotoEditorPreferredPhotoRef(person.preferredPhotoId ?? '');
+    setPhotosDialogVisible(true);
+  };
+
+  const addPhotoFromPickerResult = (result: ImagePicker.ImagePickerResult) => {
+    if (!result.canceled && result.assets.length > 0) {
+      setPhotoEditorNewPhotoUris((current) => [...current, result.assets[0].uri]);
+    }
+  };
+
+  const handleAddPhotoFromLibrary = async () => {
+    if (Platform.OS !== 'web') {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert('Permission needed', 'Please allow access to your photo library to add family photos.');
+        return;
+      }
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.8,
+    });
+
+    addPhotoFromPickerResult(result);
+  };
+
+  const handleCapturePhoto = async () => {
+    if (Platform.OS !== 'web') {
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert('Permission needed', 'Please allow camera access to capture family photos.');
+        return;
+      }
+    }
+
+    try {
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.8,
+      });
+
+      addPhotoFromPickerResult(result);
+    } catch {
+      Alert.alert('Camera unavailable', 'The camera could not be opened on this device.');
+    }
+  };
+
+  const handleRemoveExistingPhoto = (photo: PersonPhoto) => {
+    setPhotoEditorExistingPhotos((current) => current.filter((currentPhoto) => currentPhoto.id !== photo.id));
+    setPhotoEditorRemovedPhotos((current) => [...current, photo]);
+    setPhotoEditorPreferredPhotoRef((current) => (current === photo.id ? '' : current));
+  };
+
+  const handleRemoveNewPhoto = (uri: string) => {
+    setPhotoEditorNewPhotoUris((current) => current.filter((item) => item !== uri));
+    setPhotoEditorPreferredPhotoRef((current) => (current === uri ? '' : current));
+  };
+
+  const handleSavePhotos = async () => {
+    if (!user?.id || !person) {
+      return;
+    }
+
+    try {
+      await updatePerson(
+        user.id,
+        person,
+        buildPersonMutationPayload(person, {
+          existingPhotos: photoEditorExistingPhotos,
+          removedPhotos: photoEditorRemovedPhotos,
+          newPhotoUris: photoEditorNewPhotoUris,
+          preferredPhotoRef: photoEditorPreferredPhotoRef,
+        }),
+      );
+      setPhotosDialogVisible(false);
+    } catch {
+      // surfaced by store snackbar
+    }
+  };
+
   const handleRelationshipSubmit = async ({
     mode,
     relatedPersonId,
@@ -646,6 +773,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
   }
 
   const viewerWidth = Dimensions.get('window').width;
+  const viewerHeight = Dimensions.get('window').height;
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -694,7 +822,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
             ) : null}
           </View>
 
-          {user?.id ? (
+          {showClaimBox ? (
             <View style={[styles.claimBox, { backgroundColor: theme.colors.elevation.level1 }]}>
               {isCurrentUsersPerson ? (
                 <View style={styles.claimRow}>
@@ -812,7 +940,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
               ) : null}
             </View>
 
-            <View style={[styles.tabStripCard, { backgroundColor: theme.colors.surface }]}>
+            <View style={[styles.tabStripCard, styles.relationshipTabStripCard, { backgroundColor: theme.colors.surface }]}>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabStripContent}>
                 {RELATIONSHIP_SECTION_TABS.map((tab) => {
                   const isActive = relationshipSectionTab === tab.key;
@@ -1011,7 +1139,16 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
 
             {memorySectionTab === 'notes' ? (
               <View style={[styles.notesBox, { backgroundColor: theme.colors.surfaceVariant }]}>
-                <Text variant="titleSmall">Notes</Text>
+                <View style={styles.sectionHeader}>
+                  <View style={styles.sectionHeaderText}>
+                    <Text variant="titleSmall">Notes</Text>
+                  </View>
+                  {canEdit ? (
+                    <Button mode="contained-tonal" icon="pencil" onPress={openNotesDialog}>
+                      {person.notes ? 'Edit notes' : 'Add notes'}
+                    </Button>
+                  ) : null}
+                </View>
                 <Text variant="bodyMedium" style={[styles.notesText, { color: theme.colors.onSurfaceVariant }]}>
                   {person.notes || 'No notes added yet.'}
                 </Text>
@@ -1020,7 +1157,16 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
 
             {memorySectionTab === 'photos' ? (
               <View style={styles.gallerySection}>
-                <Text variant="titleSmall">Photo gallery ({person.photos.length})</Text>
+                <View style={styles.sectionHeader}>
+                  <View style={styles.sectionHeaderText}>
+                    <Text variant="titleSmall">Photo gallery ({person.photos.length})</Text>
+                  </View>
+                  {canEdit ? (
+                    <Button mode="contained-tonal" icon="image-plus" onPress={openPhotosDialog}>
+                      {person.photos.length > 0 ? 'Manage photos' : 'Add photos'}
+                    </Button>
+                  ) : null}
+                </View>
                 {person.photos.length > 0 ? (
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.galleryRow}>
                     {person.photos.map((photo, index) => (
@@ -1160,6 +1306,110 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
         onSubmit={handleLifeEventSubmit}
       />
 
+      <Portal>
+        <Dialog
+          visible={notesDialogVisible}
+          onDismiss={mutating ? undefined : () => setNotesDialogVisible(false)}
+          style={[dialogChrome.dialog, styles.memoryDialog, { backgroundColor: theme.colors.surface }]}
+        >
+          <Dialog.Title style={dialogChrome.dialogTitle}>Notes</Dialog.Title>
+          <Dialog.ScrollArea style={styles.memoryDialogScrollArea}>
+            <ScrollView contentContainerStyle={styles.memoryDialogContent} keyboardShouldPersistTaps="handled">
+              <TextInput
+                mode="outlined"
+                label="Family notes"
+                value={notesDraft}
+                onChangeText={setNotesDraft}
+                multiline
+                numberOfLines={6}
+                style={styles.memoryDialogInput}
+                disabled={mutating}
+              />
+            </ScrollView>
+          </Dialog.ScrollArea>
+          <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
+            <Button onPress={() => setNotesDialogVisible(false)} disabled={mutating}>Cancel</Button>
+            <Button mode="contained" onPress={handleSaveNotes} disabled={mutating}>Save notes</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
+
+      <Portal>
+        <Dialog
+          visible={photosDialogVisible}
+          onDismiss={mutating ? undefined : () => setPhotosDialogVisible(false)}
+          style={[dialogChrome.dialog, styles.memoryDialog, { backgroundColor: theme.colors.surface }]}
+        >
+          <Dialog.Title style={dialogChrome.dialogTitle}>Manage photos</Dialog.Title>
+          <Dialog.ScrollArea style={styles.memoryDialogScrollArea}>
+            <ScrollView contentContainerStyle={styles.memoryDialogContent} keyboardShouldPersistTaps="handled">
+              <View style={styles.memoryDialogPhotoActions}>
+                <Button mode="outlined" icon="image-plus" onPress={handleAddPhotoFromLibrary} disabled={mutating}>
+                  Library
+                </Button>
+                <Button mode="outlined" icon="camera" onPress={handleCapturePhoto} disabled={mutating}>
+                  Camera
+                </Button>
+              </View>
+              <Text variant="bodySmall" style={styles.memoryDialogHint}>
+                Add photos from the library or camera, then tap the star on one image to make it the main profile photo.
+              </Text>
+
+              {photoEditorCount > 0 ? (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.memoryDialogPhotoList}>
+                  {photoEditorExistingPhotos.map((photo) => (
+                    <View key={photo.id} style={styles.memoryDialogPhotoCard}>
+                      <Image source={{ uri: photo.url }} style={styles.memoryDialogPhoto} />
+                      <IconButton
+                        icon={photoEditorPreferredPhotoRef === photo.id ? 'star' : 'star-outline'}
+                        size={18}
+                        style={[styles.memoryDialogPhotoButton, styles.memoryDialogPhotoPrimaryButton]}
+                        onPress={() => setPhotoEditorPreferredPhotoRef((current) => current === photo.id ? '' : photo.id)}
+                        disabled={mutating}
+                      />
+                      <IconButton
+                        icon="close"
+                        size={16}
+                        style={[styles.memoryDialogPhotoButton, styles.memoryDialogPhotoRemoveButton]}
+                        onPress={() => handleRemoveExistingPhoto(photo)}
+                        disabled={mutating}
+                      />
+                    </View>
+                  ))}
+                  {photoEditorNewPhotoUris.map((uri) => (
+                    <View key={uri} style={styles.memoryDialogPhotoCard}>
+                      <Image source={{ uri }} style={styles.memoryDialogPhoto} />
+                      <IconButton
+                        icon={photoEditorPreferredPhotoRef === uri ? 'star' : 'star-outline'}
+                        size={18}
+                        style={[styles.memoryDialogPhotoButton, styles.memoryDialogPhotoPrimaryButton]}
+                        onPress={() => setPhotoEditorPreferredPhotoRef((current) => current === uri ? '' : uri)}
+                        disabled={mutating}
+                      />
+                      <IconButton
+                        icon="close"
+                        size={16}
+                        style={[styles.memoryDialogPhotoButton, styles.memoryDialogPhotoRemoveButton]}
+                        onPress={() => handleRemoveNewPhoto(uri)}
+                        disabled={mutating}
+                      />
+                    </View>
+                  ))}
+                </ScrollView>
+              ) : (
+                <Text variant="bodySmall" style={styles.memoryDialogHint}>
+                  No photos added yet.
+                </Text>
+              )}
+            </ScrollView>
+          </Dialog.ScrollArea>
+          <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
+            <Button onPress={() => setPhotosDialogVisible(false)} disabled={mutating}>Cancel</Button>
+            <Button mode="contained" onPress={handleSavePhotos} disabled={mutating}>Save photos</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
+
       <ConfirmDialog
         visible={confirmState.visible}
         title={confirmState.title}
@@ -1178,20 +1428,46 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
       >
         <View style={styles.viewerBackdrop}>
           <IconButton icon="close" iconColor="#FFFFFF" size={28} style={styles.viewerCloseButton} onPress={() => setViewerIndex(null)} />
+          {person.photos.length > 1 && viewerIndex !== null ? (
+            <>
+              <IconButton
+                icon="chevron-left"
+                iconColor="#FFFFFF"
+                size={32}
+                style={[styles.viewerNavButton, styles.viewerNavButtonLeft]}
+                onPress={() => setViewerIndex((current) => current === null ? current : Math.max(0, current - 1))}
+              />
+              <IconButton
+                icon="chevron-right"
+                iconColor="#FFFFFF"
+                size={32}
+                style={[styles.viewerNavButton, styles.viewerNavButtonRight]}
+                onPress={() => setViewerIndex((current) => current === null ? current : Math.min(person.photos.length - 1, current + 1))}
+              />
+            </>
+          ) : null}
           {person.photos.length > 0 ? (
             <ScrollView
               key={viewerIndex ?? 0}
+              style={{ flex: 1 }}
               horizontal
               pagingEnabled
               showsHorizontalScrollIndicator={false}
               contentOffset={{ x: (viewerIndex ?? 0) * viewerWidth, y: 0 }}
             >
               {person.photos.map((photo) => (
-                <View key={`viewer-${photo.id}`} style={[styles.viewerSlide, { width: viewerWidth }]}>
+                <View key={`viewer-${photo.id}`} style={[styles.viewerSlide, { width: viewerWidth, height: viewerHeight }]}>
                   <Image source={{ uri: photo.url }} style={styles.viewerImage} resizeMode="contain" />
                 </View>
               ))}
             </ScrollView>
+          ) : null}
+          {person.photos.length > 1 && viewerIndex !== null ? (
+            <View style={styles.viewerCounter}>
+              <Text variant="labelLarge" style={{ color: '#FFFFFF' }}>
+                {viewerIndex + 1} / {person.photos.length}
+              </Text>
+            </View>
           ) : null}
         </View>
       </Modal>

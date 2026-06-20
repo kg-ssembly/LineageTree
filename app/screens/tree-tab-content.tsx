@@ -745,7 +745,9 @@ function ProfileTabContent({
   const [approvalWindowInput, setApprovalWindowInput] = useState(`${selectedTree.approvalWindowHours}`);
   const [mergeTargetTreeId, setMergeTargetTreeId] = useState('');
   const [surnamePrimary, setSurnamePrimary] = useState('');
-  const [surnameVariantsInput, setSurnameVariantsInput] = useState('');
+  const [surnameVariantDraft, setSurnameVariantDraft] = useState('');
+  const [surnameVariantDrafts, setSurnameVariantDrafts] = useState<string[]>([]);
+  const [surnameVariantDialogVisible, setSurnameVariantDialogVisible] = useState(false);
 
   const unlinkedCollaboratorCount = useMemo(
     () => getUnlinkedCollaborators(selectedTree).filter((collaborator) => collaborator.userId !== userId).length,
@@ -873,17 +875,12 @@ function ProfileTabContent({
       return;
     }
 
-    const variants = surnameVariantsInput
-      .split(',')
-      .map((value) => value.trim())
-      .filter(Boolean);
-
     await onSetSurnameVariantGroups([
       ...selectedTree.surnameVariantGroups,
       {
         id: `${selectedTree.id}-${Date.now()}`,
         primarySurname,
-        variants,
+        variants: surnameVariantDrafts,
         notes: '',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -891,7 +888,28 @@ function ProfileTabContent({
     ]);
 
     setSurnamePrimary('');
-    setSurnameVariantsInput('');
+    setSurnameVariantDraft('');
+    setSurnameVariantDrafts([]);
+    setSurnameVariantDialogVisible(false);
+  };
+
+  const handleAddSurnameVariantDraft = () => {
+    const nextVariant = surnameVariantDraft.trim();
+    if (!nextVariant) {
+      return;
+    }
+
+    if (surnameVariantDrafts.some((variant) => variant.toLowerCase() === nextVariant.toLowerCase())) {
+      setSurnameVariantDraft('');
+      return;
+    }
+
+    setSurnameVariantDrafts((current) => [...current, nextVariant]);
+    setSurnameVariantDraft('');
+  };
+
+  const handleRemoveSurnameVariantDraft = (variantToRemove: string) => {
+    setSurnameVariantDrafts((current) => current.filter((variant) => variant !== variantToRemove));
   };
 
   const pendingMergeRequests = mergeRequests.filter((request) => request.status === 'pending' || request.status === 'changes-requested');
@@ -987,14 +1005,27 @@ function ProfileTabContent({
                       onChangeText={setSurnamePrimary}
                       style={{ marginBottom: 8 }}
                     />
-                    <TextInput
+                    <Button
                       mode="outlined"
-                      label="Variants (comma separated)"
-                      value={surnameVariantsInput}
-                      onChangeText={setSurnameVariantsInput}
+                      icon="shape-outline"
+                      onPress={() => setSurnameVariantDialogVisible(true)}
                       style={{ marginBottom: 8 }}
-                    />
-                    <Button mode="contained-tonal" icon="plus" onPress={handleAddSurnameGroup} disabled={mutating || !surnamePrimary.trim()}>
+                    >
+                      {surnameVariantDrafts.length > 0 ? `Manage variants (${surnameVariantDrafts.length})` : 'Manage variants'}
+                    </Button>
+                    <View style={[styles.collaboratorChipRow, styles.surnameVariantDraftsRow]}>
+                      {surnameVariantDrafts.length > 0 ? surnameVariantDrafts.map((variant) => (
+                        <Chip
+                          key={`draft-${variant}`}
+                          compact
+                          icon="close-circle-outline"
+                          onPress={() => handleRemoveSurnameVariantDraft(variant)}
+                        >
+                          {variant}
+                        </Chip>
+                      )) : <Chip compact icon="information-outline">No variants added yet</Chip>}
+                    </View>
+                    <Button mode="contained-tonal" icon="plus" onPress={handleAddSurnameGroup} disabled={mutating || !surnamePrimary.trim()} style={styles.surnameGroupButton}>
                       Add surname group
                     </Button>
                   </View>
@@ -1709,6 +1740,48 @@ function ProfileTabContent({
       </View>
 
       <Portal>
+        <Dialog
+          visible={surnameVariantDialogVisible}
+          onDismiss={() => setSurnameVariantDialogVisible(false)}
+          style={[dialogChrome.dialog, { backgroundColor: theme.colors.surface }]}
+        >
+          <Dialog.Title style={dialogChrome.dialogTitle}>Manage surname variants</Dialog.Title>
+          <Dialog.Content style={dialogChrome.content}>
+            <TextInput
+              mode="outlined"
+              label="Add variant"
+              value={surnameVariantDraft}
+              onChangeText={setSurnameVariantDraft}
+              onSubmitEditing={handleAddSurnameVariantDraft}
+              style={{ marginBottom: 12 }}
+            />
+            <Button
+              mode="contained-tonal"
+              icon="plus"
+              onPress={handleAddSurnameVariantDraft}
+              disabled={!surnameVariantDraft.trim()}
+              style={{ marginBottom: 12 }}
+            >
+              Add variant
+            </Button>
+            <View style={styles.collaboratorChipRow}>
+              {surnameVariantDrafts.length > 0 ? surnameVariantDrafts.map((variant) => (
+                <Chip
+                  key={`dialog-${variant}`}
+                  compact
+                  icon="close-circle-outline"
+                  onPress={() => handleRemoveSurnameVariantDraft(variant)}
+                >
+                  {variant}
+                </Chip>
+              )) : <Chip compact icon="information-outline">Variants will appear here as chips</Chip>}
+            </View>
+          </Dialog.Content>
+          <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
+            <Button onPress={() => setSurnameVariantDialogVisible(false)}>Done</Button>
+          </Dialog.Actions>
+        </Dialog>
+
         <Dialog
           visible={helperVisible}
           onDismiss={() => setHelperVisible(false)}

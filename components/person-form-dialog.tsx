@@ -1,12 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Image, Platform, ScrollView, View } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
+import { Alert, ScrollView, View } from 'react-native';
 import {
   Button,
   Chip,
   Dialog,
   HelperText,
-  IconButton,
   Menu,
   Portal,
   SegmentedButtons,
@@ -16,7 +14,7 @@ import {
   useTheme,
 } from 'react-native-paper';
 import { DatePickerModal } from 'react-native-paper-dates';
-import type { PersonGender, PersonLifeEvent, PersonMutationPayload, PersonPhoto, PersonRecord } from './dto/person';
+import type { PersonGender, PersonLifeEvent, PersonMutationPayload, PersonRecord } from './dto/person';
 import { formatPersonDate } from './dto/person';
 import type { RelationshipRecord } from './dto/relationship';
 import { GlobalStyles } from '../constants/styles';
@@ -198,11 +196,6 @@ export default function PersonFormDialog({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, mode, person?.id]);
 
-  const allPhotoCount = useMemo(
-    () => existingPhotos.length + newPhotoUris.length,
-    [existingPhotos, newPhotoUris],
-  );
-
   const selectedBirthDate = useMemo(() => parseIsoDate(birthDate), [birthDate]);
   const selectedDeathDate = useMemo(() => parseIsoDate(deathDate), [deathDate]);
   const uniqueLastNames = useMemo(
@@ -306,60 +299,6 @@ export default function PersonFormDialog({
       return;
     }
     setStep(2);
-  };
-
-  const addImageFromResult = (result: ImagePicker.ImagePickerResult) => {
-    if (!result.canceled && result.assets.length > 0) {
-      setNewPhotoUris((current) => [...current, result.assets[0].uri]);
-    }
-  };
-
-  const handleAddPhotoFromLibrary = async () => {
-    if (Platform.OS !== 'web') {
-      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!permission.granted) {
-        Alert.alert('Permission needed', 'Please allow access to your photo library to add family photos.');
-        return;
-      }
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      quality: 0.8,
-    });
-
-    addImageFromResult(result);
-  };
-
-  const handleCapturePhoto = async () => {
-    if (Platform.OS !== 'web') {
-      const permission = await ImagePicker.requestCameraPermissionsAsync();
-      if (!permission.granted) {
-        Alert.alert('Permission needed', 'Please allow camera access to capture family photos.');
-        return;
-      }
-    }
-
-    try {
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        quality: 0.8,
-      });
-
-      addImageFromResult(result);
-    } catch {
-      Alert.alert('Camera unavailable', 'The camera could not be opened on this device.');
-    }
-  };
-
-  const handleRemoveExistingPhoto = (photo: PersonPhoto) => {
-    setExistingPhotos((current) => current.filter((currentPhoto) => currentPhoto.id !== photo.id));
-    setRemovedPhotos((current) => [...current, photo]);
-    if (preferredPhotoRef === photo.id) {
-      setPreferredPhotoRef('');
-    }
   };
 
   const handleSubmit = async () => {
@@ -739,90 +678,6 @@ export default function PersonFormDialog({
                 </View>
               ) : null}
 
-              <TextInput
-                mode="outlined"
-                label="Notes"
-                value={notes}
-                onChangeText={setNotes}
-                multiline
-                numberOfLines={4}
-                disabled={loading}
-                style={styles.sectionSpacing}
-              />
-
-              <View style={styles.sectionSpacing}>
-                <View style={styles.photoHeader}>
-                  <Text variant="titleSmall">Photos ({allPhotoCount})</Text>
-                </View>
-                <View style={styles.photoActionRow}>
-                  <Button mode="outlined" onPress={handleAddPhotoFromLibrary} disabled={loading} icon="image-plus">
-                    Library
-                  </Button>
-                  <Button mode="outlined" onPress={handleCapturePhoto} disabled={loading} icon="camera">
-                    Camera
-                  </Button>
-                </View>
-                <Text variant="bodySmall" style={styles.photoHint}>
-                  Add photos from the library or capture a new one directly from the camera.
-                </Text>
-
-                {(existingPhotos.length > 0 || newPhotoUris.length > 0) ? (
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photoList}>
-                    {existingPhotos.map((photo) => (
-                      <View key={photo.id} style={styles.photoCard}>
-                        <Image source={{ uri: photo.url }} style={styles.photo} />
-                        <IconButton
-                          icon={preferredPhotoRef === photo.id ? 'star' : 'star-outline'}
-                          size={18}
-                          style={styles.photoPrimaryButton}
-                          onPress={() => setPreferredPhotoRef((current) => current === photo.id ? '' : photo.id)}
-                          disabled={loading}
-                        />
-                        <IconButton
-                          icon="close"
-                          size={16}
-                          style={styles.photoRemoveButton}
-                          onPress={() => handleRemoveExistingPhoto(photo)}
-                          disabled={loading}
-                        />
-                      </View>
-                    ))}
-                    {newPhotoUris.map((uri) => (
-                      <View key={uri} style={styles.photoCard}>
-                        <Image source={{ uri }} style={styles.photo} />
-                        <IconButton
-                          icon={preferredPhotoRef === uri ? 'star' : 'star-outline'}
-                          size={18}
-                          style={styles.photoPrimaryButton}
-                          onPress={() => setPreferredPhotoRef((current) => current === uri ? '' : uri)}
-                          disabled={loading}
-                        />
-                        <IconButton
-                          icon="close"
-                          size={16}
-                          style={styles.photoRemoveButton}
-                          onPress={() => {
-                            setNewPhotoUris((current) => current.filter((item) => item !== uri));
-                            if (preferredPhotoRef === uri) {
-                              setPreferredPhotoRef('');
-                            }
-                          }}
-                          disabled={loading}
-                        />
-                      </View>
-                    ))}
-                  </ScrollView>
-                ) : (
-                  <Text variant="bodySmall" style={styles.photoHint}>
-                    No photos added yet.
-                  </Text>
-                )}
-                {(existingPhotos.length > 0 || newPhotoUris.length > 0) ? (
-                  <HelperText type="info" visible>
-                    Tap the star on a photo to use it as the profile picture in the tree view.
-                  </HelperText>
-                ) : null}
-              </View>
               </> /* end step 2 / edit wrapper */
               ) : null}
             </ScrollView>
@@ -909,4 +764,3 @@ export default function PersonFormDialog({
     </>
   );
 }
-
