@@ -917,6 +917,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
               currentUserPersonId={currentAssignedPerson?.id ?? undefined}
               initialFocusPersonId={person.id}
               descendantRootPersonId={person.id}
+              showMaidenFamilyInNodeTitle
             />
           </Surface>
         ) : null}
@@ -949,6 +950,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
               currentUserPersonId={currentAssignedPerson?.id ?? undefined}
               initialFocusPersonId={person.id}
               ascendantRootPersonId={person.id}
+              showMaidenFamilyInNodeTitle
             />
           </Surface>
         ) : null}

@@ -90,6 +90,7 @@ interface FamilyTreeCanvasProps {
   initialFocusPersonId?: string;
   descendantRootPersonId?: string;
   ascendantRootPersonId?: string;
+  showMaidenFamilyInNodeTitle?: boolean;
   allowFullscreen?: boolean;
   floatingControls?: boolean;
   fillAvailableSpace?: boolean;
@@ -109,6 +110,15 @@ interface FamilyTreeCanvasProps {
 
 function formatPersonName(person: PersonRecord) {
   return `${person.firstName} ${person.lastName}`.trim();
+}
+
+function formatPersonNodeTitle(person: PersonRecord, showMaidenFamilyInNodeTitle: boolean) {
+  const name = formatPersonName(person);
+  if (!showMaidenFamilyInNodeTitle || !person.maidenName?.trim()) {
+    return name;
+  }
+
+  return `${name} (${person.maidenName.trim()})`;
 }
 
 // ---------------------------------------------------------------------------
@@ -172,6 +182,7 @@ type PersonNodeProps = {
   person: PersonRecord;
   x: number;
   y: number;
+  showMaidenFamilyInNodeTitle: boolean;
   isCurrentUser: boolean;
   isGhost: boolean;
   isCrossSurnameChild: boolean;
@@ -188,7 +199,7 @@ type PersonNodeProps = {
 };
 const PersonNode = React.memo(function PersonNode(props: PersonNodeProps) {
   const {
-    person, x, y, isCurrentUser, isGhost, isCrossSurnameChild, isMaidenNameMember,
+    person, x, y, showMaidenFamilyInNodeTitle, isCurrentUser, isGhost, isCrossSurnameChild, isMaidenNameMember,
     surfaceColor, outlineColor, primaryColor, tertiaryColor, onTertiaryColor,
     variantSurface, variantOnSurface, onPrimaryColor,
     onPress,
@@ -253,7 +264,9 @@ const PersonNode = React.memo(function PersonNode(props: PersonNodeProps) {
             )}
           </View>
           <View style={styles.nodeTextWrap}>
-            <Text variant="titleSmall" style={styles.nodeTitle} numberOfLines={2}>{`${person.firstName} ${person.lastName}`.trim()}</Text>
+            <Text variant="titleSmall" style={styles.nodeTitle} numberOfLines={2}>
+              {formatPersonNodeTitle(person, showMaidenFamilyInNodeTitle)}
+            </Text>
             <Text variant="bodySmall" style={[styles.nodeMeta, { color: variantOnSurface }]} numberOfLines={1}>{getPersonLifeSpanLabel(person)}</Text>
             <Text variant="bodySmall" style={[styles.nodeMeta, { color: variantOnSurface }]} numberOfLines={1}>{getPersonPresenceLabel(person)}</Text>
           </View>
@@ -273,6 +286,7 @@ function FamilyTreeCanvas({
                             initialFocusPersonId,
                             descendantRootPersonId,
                             ascendantRootPersonId,
+                            showMaidenFamilyInNodeTitle = false,
                             allowFullscreen = true,
                             floatingControls = false,
                             fillAvailableSpace = false,
@@ -771,6 +785,7 @@ function FamilyTreeCanvas({
                     person={person}
                     x={pos.x}
                     y={pos.y}
+                    showMaidenFamilyInNodeTitle={showMaidenFamilyInNodeTitle}
                     isCurrentUser={currentUserPersonId === person.id}
                     isGhost={ghostPersonIds.has(person.id)}
                     isCrossSurnameChild={crossSurnameChildIds.has(person.id)}
