@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { ScrollView, View } from 'react-native';
-import { Button, Card, Chip, Divider, Text, TextInput, useTheme } from 'react-native-paper';
+import { Button, Chip, Divider, Text, TextInput, useTheme } from 'react-native-paper';
 import type { PersonRecord } from './dto/person';
 import type { RelationshipRecord } from './dto/relationship';
 import { computeRelationshipInsight } from '../providers';
@@ -121,8 +121,7 @@ export default function RelationshipInsightCard({
   const canShowInsight = Boolean(fromPersonId && toPersonId);
 
   return (
-    <Card mode="elevated" style={[styles.card, { backgroundColor: theme.colors.surface }]}>
-      <Card.Content>
+    <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
         <Text variant="titleMedium">{title}</Text>
         <Text variant="bodyMedium" style={[styles.subtitle, { color: theme.colors.onSurfaceVariant }]}>
           {effectiveSubtitle}
@@ -284,8 +283,6 @@ export default function RelationshipInsightCard({
             </View>
           )
         )}
-      </Card.Content>
-    </Card>
+    </View>
   );
 }
-

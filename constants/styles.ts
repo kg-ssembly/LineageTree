@@ -430,6 +430,12 @@ export class GlobalStyles {
             marginTop: 16,
             gap: 12,
         },
+        flatPanel: {
+            borderRadius: 18,
+            padding: 16,
+            borderWidth: StyleSheet.hairlineWidth,
+            borderColor: F.outlineVariant,
+        },
         selfAssignmentSectionWrap: {
             marginTop: 20,
         },
@@ -518,22 +524,22 @@ export class GlobalStyles {
             borderRadius: 20,
         },
         memberList: {
-            marginTop: 4,
-            borderTopWidth: StyleSheet.hairlineWidth,
-            borderTopColor: F.outlineVariant,
+            marginTop: 8,
+            gap: 10,
         },
         memberListRow: {
             flexDirection: 'row',
             alignItems: 'center',
-            paddingVertical: 16,
-            paddingHorizontal: 4,
-            borderBottomWidth: StyleSheet.hairlineWidth,
-            borderBottomColor: F.outlineVariant,
+            paddingVertical: 14,
+            paddingHorizontal: 14,
+            borderRadius: 18,
+            borderWidth: StyleSheet.hairlineWidth,
+            borderColor: F.outlineVariant,
         },
         memberListInfo: {
             flex: 1,
             minWidth: 0,
-            marginLeft: 14,
+            marginLeft: 12,
         },
         memberListMeta: {
             flexDirection: 'row',
@@ -555,17 +561,17 @@ export class GlobalStyles {
             marginRight: 4,
         },
         personPhoto: {
-            width: 76,
-            height: 76,
-            borderRadius: 38,
+            width: 56,
+            height: 56,
+            borderRadius: 28,
             borderWidth: 2,
             borderColor: F.avatarBorder,
             backgroundColor: F.avatarBg,
         },
         personPhotoFallback: {
-            width: 76,
-            height: 76,
-            borderRadius: 38,
+            width: 56,
+            height: 56,
+            borderRadius: 28,
             borderWidth: 2,
             borderColor: F.avatarBorder,
             backgroundColor: F.avatarBg,
@@ -725,7 +731,8 @@ export class GlobalStyles {
             borderRadius: 20,
             marginBottom: 16,
             overflow: 'hidden',
-            borderBottomWidth: StyleSheet.hairlineWidth,
+            borderWidth: StyleSheet.hairlineWidth,
+            borderColor: F.outlineVariant,
         },
         tabStripContent: {
             paddingHorizontal: 8,
@@ -768,11 +775,13 @@ export class GlobalStyles {
             marginTop: 16,
         },
         detailCard: {
-            ...CARD_CHROME,
             minWidth: 160,
             flexGrow: 1,
             flexBasis: 160,
-            borderRadius: 20,
+            borderRadius: 18,
+            padding: 16,
+            borderWidth: StyleSheet.hairlineWidth,
+            borderColor: F.outlineVariant,
         },
         detailLabel: {
             marginBottom: 8,
@@ -782,9 +791,11 @@ export class GlobalStyles {
             marginTop: 16,
         },
         relationshipCard: {
-            ...CARD_CHROME,
             marginBottom: 12,
-            borderRadius: 20,
+            borderRadius: 18,
+            padding: 16,
+            borderWidth: StyleSheet.hairlineWidth,
+            borderColor: F.outlineVariant,
         },
         relationshipRow: {
             flexDirection: 'row',
@@ -862,34 +873,10 @@ export class GlobalStyles {
         lifeEventsSection: {
             marginTop: 12,
         },
-        timelineWrap: {
-            marginTop: 16,
-        },
-        timelineCard: {
-            ...CARD_CHROME,
-            marginBottom: 12,
-            borderRadius: 20,
-        },
-        timelineRow: {
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-            alignItems: 'flex-start',
-            gap: 8,
-        },
-        timelineTextWrap: {
-            flex: 1,
-        },
         timelineChipRow: {
             flexDirection: 'row',
             flexWrap: 'wrap',
             gap: 8,
-        },
-        timelineTitle: {
-            marginTop: 10,
-        },
-        timelineDescription: {
-            marginTop: 8,
-            color: F.onSurfaceDeep,
         },
         viewerBackdrop: {
             flex: 1,
@@ -1059,9 +1046,8 @@ export class GlobalStyles {
 
     static readonly relationshipInsightCard = StyleSheet.create({
         card: {
-            ...CARD_CHROME,
-            borderRadius: 20,
             marginTop: 16,
+            paddingTop: 4,
         },
         subtitle: {
             marginTop: 6,

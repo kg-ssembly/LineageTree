@@ -8,7 +8,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   Avatar,
   Button,
-  Card,
+  IconButton,
   SegmentedButtons,
   Surface,
   Text,
@@ -42,6 +42,7 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
   const [editName, setEditName] = useState(user?.displayName ?? '');
   const [savingName, setSavingName] = useState(false);
   const [nameError, setNameError] = useState<string | null>(null);
+  const [activeHelper, setActiveHelper] = useState<'profile' | 'appearance' | null>(null);
 
   const isDirty = editName.trim() !== (user?.displayName ?? '').trim();
 
@@ -98,23 +99,36 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
         </View>
         <View style={homeStyles.heroStatsRow}>
           {profileStats.map((item) => (
-            <Card key={item.label} mode="elevated" style={[homeStyles.statCard, { backgroundColor: theme.colors.surface }]}>
-              <Card.Content>
-                <MaterialCommunityIcons name={item.icon as any} size={20} color={theme.colors.secondary} />
-                <Text variant="titleMedium" style={{ color: theme.colors.onSurface, marginTop: 10 }}>{item.value}</Text>
-                <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>{item.label}</Text>
-              </Card.Content>
-            </Card>
+            <View key={item.label} style={[homeStyles.statCard, {
+              backgroundColor: theme.colors.elevation.level2,
+              borderWidth: 1,
+              borderColor: theme.colors.outlineVariant,
+            }]}>
+              <MaterialCommunityIcons name={item.icon as any} size={20} color={theme.colors.secondary} />
+              <Text variant="titleMedium" style={{ color: theme.colors.onSurface, marginTop: 10 }}>{item.value}</Text>
+              <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>{item.label}</Text>
+            </View>
           ))}
         </View>
       </Surface>
 
       {/* Edit profile */}
       <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
-        <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>Edit profile</Text>
-        <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-          Update your display name.
-        </Text>
+        <View style={homeStyles.titleWithHelperRow}>
+          <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>Edit profile</Text>
+          <IconButton
+            icon="information-outline"
+            size={18}
+            style={homeStyles.helperIconButton}
+            onPress={() => setActiveHelper((current) => current === 'profile' ? null : 'profile')}
+            accessibilityLabel="About editing your profile"
+          />
+        </View>
+        {activeHelper === 'profile' ? (
+          <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
+            Change the display name shown across your family trees.
+          </Text>
+        ) : null}
         <View style={homeStyles.editNameRow}>
           <TextInput
             label="Display name"
@@ -142,10 +156,21 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
 
       {/* Appearance */}
       <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
-        <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>Appearance</Text>
-        <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-          Theme and display preferences.
-        </Text>
+        <View style={homeStyles.titleWithHelperRow}>
+          <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>Appearance</Text>
+          <IconButton
+            icon="information-outline"
+            size={18}
+            style={homeStyles.helperIconButton}
+            onPress={() => setActiveHelper((current) => current === 'appearance' ? null : 'appearance')}
+            accessibilityLabel="About appearance settings"
+          />
+        </View>
+        {activeHelper === 'appearance' ? (
+          <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
+            Switch the app between light and dark viewing modes.
+          </Text>
+        ) : null}
         <SegmentedButtons
           value={preference}
           onValueChange={(value) => setPreference(value as ThemePreference)}

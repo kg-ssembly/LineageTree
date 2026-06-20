@@ -474,8 +474,8 @@ export function PeopleRelationshipsTabContent({
                   key={person.id}
                   onPress={() => openPersonProfile(person)}
                   style={({ pressed }) => [{
-                    backgroundColor: pressed ? theme.colors.surfaceVariant : theme.colors.background,
-                    borderRadius: 16,
+                    backgroundColor: pressed ? theme.colors.surfaceVariant : theme.colors.surface,
+                    borderRadius: 18,
                     opacity: pressed ? 0.92 : 1,
                   }]}
                 >
@@ -494,12 +494,11 @@ export function PeopleRelationshipsTabContent({
                         <Text variant="titleMedium">{formatPersonName(person)}</Text>
                         {isCurrentUsersPerson ? <Chip compact icon="account">You</Chip> : null}
                       </View>
-                      <View style={styles.memberListMeta}>
-                        {person.birthDate ? <Chip compact icon="calendar">{formatPersonDate(person.birthDate)}</Chip> : null}
-                        <Chip compact icon={isPersonDeceased(person) ? 'flower-outline' : 'heart-pulse'}>
-                          {getPersonPresenceLabel(person)}
-                        </Chip>
-                      </View>
+                      <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant, marginTop: 6 }]}>
+                        {[person.birthDate ? formatPersonDate(person.birthDate) : null, getPersonPresenceLabel(person)]
+                          .filter(Boolean)
+                          .join(' • ')}
+                      </Text>
                     </View>
                     <View style={styles.memberListTrailing}>
                       <IconButton icon="chevron-right" onPress={() => openPersonProfile(person)} />
@@ -921,28 +920,30 @@ function ProfileTabContent({
             </View>
 
             <View style={styles.profileMetricsWrap}>
-              <Card mode="elevated" style={[styles.metricCard, { backgroundColor: theme.colors.surface }]}>
-                <Card.Content>
-                  <Text variant="titleSmall">Family members with notes</Text>
-                  <Text variant="headlineSmall">{people.filter((person) => person.notes.trim()).length}</Text>
-                </Card.Content>
-              </Card>
-              <Card mode="elevated" style={[styles.metricCard, { backgroundColor: theme.colors.surface }]}>
-                <Card.Content>
-                  <Text variant="titleSmall">Photos stored</Text>
-                  <Text variant="headlineSmall">{people.reduce((count, person) => count + person.photos.length, 0)}</Text>
-                </Card.Content>
-              </Card>
+              <View style={[styles.flatPanel, { backgroundColor: theme.colors.surface }]}>
+                <Text variant="titleSmall">Family members with notes</Text>
+                <Text variant="headlineSmall">{people.filter((person) => person.notes.trim()).length}</Text>
+              </View>
+              <View style={[styles.flatPanel, { backgroundColor: theme.colors.surface }]}>
+                <Text variant="titleSmall">Photos stored</Text>
+                <Text variant="headlineSmall">{people.reduce((count, person) => count + person.photos.length, 0)}</Text>
+              </View>
             </View>
 
             <Card mode="elevated" style={[styles.selfAssignmentCard, { backgroundColor: theme.colors.surface, marginBottom: 16 }]}>
               <Card.Content>
                 <View style={styles.sectionHeader}>
                   <View style={styles.titleWrap}>
-                    <Text variant="titleLarge">Surname variants</Text>
-                    <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-                      Search, matching, and merge scoring use these lineage spellings together.
-                    </Text>
+                    <View style={styles.titleWithHelperRow}>
+                      <Text variant="titleLarge">Surname variants</Text>
+                      <IconButton
+                        icon="information-outline"
+                        size={18}
+                        style={styles.helperIconButton}
+                        onPress={() => setHelperVisible(true)}
+                        accessibilityLabel="About surname variants"
+                      />
+                    </View>
                   </View>
                 </View>
 
@@ -991,10 +992,16 @@ function ProfileTabContent({
             <View style={styles.selfAssignmentSectionWrap}>
               <View style={styles.sectionHeader}>
                 <View style={styles.titleWrap}>
-                  <Text variant="titleLarge">My place in this tree</Text>
-                  <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-                    Link your account to your family member profile so the tree can recognise you and suggest likely matches.
-                  </Text>
+                  <View style={styles.titleWithHelperRow}>
+                    <Text variant="titleLarge">My place in this tree</Text>
+                    <IconButton
+                      icon="information-outline"
+                      size={18}
+                      style={styles.helperIconButton}
+                      onPress={() => setHelperVisible(true)}
+                      accessibilityLabel="About my place in this tree"
+                    />
+                  </View>
                 </View>
                 {!currentAssignedPerson ? (
                   <Button mode="contained-tonal" icon="account-plus" onPress={onOpenAddSelf} disabled={mutating || !canCreateSelfProfile}>
@@ -1016,7 +1023,7 @@ function ProfileTabContent({
                       <Text variant="titleMedium" style={styles.selfAssignmentTitle}>
                         {currentAssignedPerson ? formatPersonName(currentAssignedPerson) : 'Choose an existing family member or create your own profile'}
                       </Text>
-                      <Text variant="bodyMedium" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>
+                      <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>
                         {currentAssignedPerson
                           ? 'This linked family member represents you in the tree. Unlink first before claiming a different profile.'
                           : 'We will suggest name matches from your sign-in profile and let you link yourself manually if needed.'}
