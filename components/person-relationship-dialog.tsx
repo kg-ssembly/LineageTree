@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { Button, Chip, Dialog, HelperText, Portal, SegmentedButtons, Text, TextInput, useTheme } from 'react-native-paper';
 import type { PersonRecord } from './dto/person';
-import type { RelationshipRecord } from './dto/relationship';
+import type { ParentChildRelationshipKind, RelationshipRecord, SpouseRelationshipStatus } from './dto/relationship';
+import { DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND, DEFAULT_SPOUSE_RELATIONSHIP_STATUS } from './dto/relationship';
 import { validateProposedRelationship } from './family-tree-validation';
 import { GlobalStyles } from '../constants/styles';
 
@@ -19,7 +20,12 @@ interface PersonRelationshipDialogProps {
   loading?: boolean;
   editingRelationship?: RelationshipRecord | null;
   onDismiss: () => void;
-  onSubmit: (payload: { mode: PersonRelationshipMode; relatedPersonId: string }) => void | Promise<void>;
+  onSubmit: (payload: {
+    mode: PersonRelationshipMode;
+    relatedPersonId: string;
+    relationshipStatus?: SpouseRelationshipStatus;
+    parentChildKind?: ParentChildRelationshipKind;
+  }) => void | Promise<void>;
 }
 
 function formatPersonName(person?: PersonRecord | null) {
@@ -28,17 +34,36 @@ function formatPersonName(person?: PersonRecord | null) {
 }
 
 function getDraftFromRelationship(personId: string, relationship?: RelationshipRecord | null) {
-  if (!relationship) return { mode: 'parent-of' as PersonRelationshipMode, relatedPersonId: '' };
+  if (!relationship) {
+    return {
+      mode: 'parent-of' as PersonRelationshipMode,
+      relatedPersonId: '',
+      relationshipStatus: DEFAULT_SPOUSE_RELATIONSHIP_STATUS,
+      parentChildKind: DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND,
+    };
+  }
   if (relationship.type === 'spouse') {
     return {
       mode: 'spouse-of' as PersonRelationshipMode,
       relatedPersonId: relationship.fromPersonId === personId ? relationship.toPersonId : relationship.fromPersonId,
+      relationshipStatus: relationship.relationshipStatus ?? DEFAULT_SPOUSE_RELATIONSHIP_STATUS,
+      parentChildKind: DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND,
     };
   }
   if (relationship.fromPersonId === personId) {
-    return { mode: 'parent-of' as PersonRelationshipMode, relatedPersonId: relationship.toPersonId };
+    return {
+      mode: 'parent-of' as PersonRelationshipMode,
+      relatedPersonId: relationship.toPersonId,
+      relationshipStatus: DEFAULT_SPOUSE_RELATIONSHIP_STATUS,
+      parentChildKind: relationship.parentChildKind ?? DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND,
+    };
   }
-  return { mode: 'child-of' as PersonRelationshipMode, relatedPersonId: relationship.fromPersonId };
+  return {
+    mode: 'child-of' as PersonRelationshipMode,
+    relatedPersonId: relationship.fromPersonId,
+    relationshipStatus: DEFAULT_SPOUSE_RELATIONSHIP_STATUS,
+    parentChildKind: relationship.parentChildKind ?? DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND,
+  };
 }
 
 export default function PersonRelationshipDialog({
@@ -55,6 +80,8 @@ export default function PersonRelationshipDialog({
   const [mode, setMode] = useState<PersonRelationshipMode>('parent-of');
   const [relatedPersonId, setRelatedPersonId] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [relationshipStatus, setRelationshipStatus] = useState<SpouseRelationshipStatus>(DEFAULT_SPOUSE_RELATIONSHIP_STATUS);
+  const [parentChildKind, setParentChildKind] = useState<ParentChildRelationshipKind>(DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -62,6 +89,8 @@ export default function PersonRelationshipDialog({
     const draft = getDraftFromRelationship(person.id, editingRelationship);
     setMode(draft.mode);
     setRelatedPersonId(draft.relatedPersonId);
+    setRelationshipStatus(draft.relationshipStatus);
+    setParentChildKind(draft.parentChildKind);
     setSearchQuery('');
     setError(null);
   }, [editingRelationship, person, visible]);
@@ -127,7 +156,12 @@ export default function PersonRelationshipDialog({
     if (!person) { setError('This family member could not be loaded.'); return; }
     if (!relatedPersonId) { setError('Choose a related family member first.'); return; }
     if (validationMessage) { setError(validationMessage); return; }
-    await onSubmit({ mode, relatedPersonId });
+    await onSubmit({
+      mode,
+      relatedPersonId,
+      relationshipStatus: mode === 'spouse-of' ? relationshipStatus : undefined,
+      parentChildKind: mode === 'spouse-of' ? undefined : parentChildKind,
+    });
   };
 
   const clearSelection = () => {
@@ -161,6 +195,40 @@ export default function PersonRelationshipDialog({
               buttons={modeButtons}
               style={styles.segmentedButtons}
             />
+
+            {mode === 'spouse-of' ? (
+              <View style={styles.section}>
+                <Text variant="titleSmall">Relationship status</Text>
+                <SegmentedButtons
+                  value={relationshipStatus}
+                  onValueChange={(value) => setRelationshipStatus(value as SpouseRelationshipStatus)}
+                  buttons={[
+                    { value: 'partner', label: 'Partner' },
+                    { value: 'married', label: 'Married' },
+                    { value: 'separated', label: 'Separated' },
+                    { value: 'divorced', label: 'Divorced' },
+                    { value: 'widowed', label: 'Widowed' },
+                  ]}
+                  style={styles.segmentedButtons}
+                />
+              </View>
+            ) : (
+              <View style={styles.section}>
+                <Text variant="titleSmall">Child relationship</Text>
+                <SegmentedButtons
+                  value={parentChildKind}
+                  onValueChange={(value) => setParentChildKind(value as ParentChildRelationshipKind)}
+                  buttons={[
+                    { value: 'biological', label: 'Biological' },
+                    { value: 'step', label: 'Step' },
+                    { value: 'adopted', label: 'Adopted' },
+                    { value: 'foster', label: 'Foster' },
+                    { value: 'guardian', label: 'Guardian' },
+                  ]}
+                  style={styles.segmentedButtons}
+                />
+              </View>
+            )}
 
             <View style={styles.section}>
               <Text variant="titleSmall">Select related family member</Text>

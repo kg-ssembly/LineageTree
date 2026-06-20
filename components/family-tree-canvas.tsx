@@ -158,7 +158,14 @@ function buildLayoutCacheKey(people: PersonRecord[], relationships: Relationship
     .join('|');
   const relationshipKey = [...relationships]
     .sort((left, right) => left.id.localeCompare(right.id))
-    .map((relationship) => `${relationship.id}:${relationship.type}:${relationship.fromPersonId}:${relationship.toPersonId}`)
+    .map((relationship) => [
+      relationship.id,
+      relationship.type,
+      relationship.fromPersonId,
+      relationship.toPersonId,
+      relationship.relationshipStatus ?? '',
+      relationship.parentChildKind ?? '',
+    ].join(':'))
     .join('|');
 
   return `${peopleKey}::${relationshipKey}`;
@@ -519,12 +526,18 @@ function FamilyTreeCanvas({
     theme.colors.primary,
     theme.colors.secondary,
     theme.colors.tertiary ?? theme.colors.outline,
+    '#B7791F',
+    '#2E7D6B',
+    theme.colors.outline,
   ].join('::'), [ghostPersonIds, layoutCacheKey, theme.colors.outline, theme.colors.primary, theme.colors.secondary, theme.colors.tertiary]);
   const { spouseConnectors, parentChildConnectors } = useMemo(
       () => getCachedValue(connectorCache, connectorCacheKey, () => buildConnectors(clusterRelationships, layout, C, {
         parentChild: theme.colors.primary,
         spouse: theme.colors.secondary,
         secondaryParent: theme.colors.tertiary ?? theme.colors.outline,
+        stepChild: '#B7791F',
+        adoptedChild: '#2E7D6B',
+        guardianChild: theme.colors.outline,
       }, ghostPersonIds)),
       [clusterRelationships, connectorCacheKey, ghostPersonIds, layout, theme.colors.outline, theme.colors.primary, theme.colors.secondary, theme.colors.tertiary],
   );

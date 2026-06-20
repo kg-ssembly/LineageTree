@@ -31,7 +31,7 @@ import {
   getPreferredPersonPhoto,
   isPersonDeceased,
 } from '../../components/dto/person';
-import type { RelationshipRecord } from '../../components/dto/relationship';
+import type { ParentChildRelationshipKind, RelationshipRecord, SpouseRelationshipStatus } from '../../components/dto/relationship';
 import type { RootStackParamList } from '../../components/dto/navigation';
 import { canEditTreeContent, getAssignedPersonId, getAssignedUserIdForPerson } from '../../components/dto/tree';
 import { formatPersonGender, formatPersonName } from '../../components/person-formatting';
@@ -224,6 +224,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
     removePerson,
     addParentChildRelationship,
     addSpouseRelationship,
+    editRelationship,
     removeRelationship,
     clearError,
     clearNotice,
@@ -507,9 +508,13 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
   const handleRelationshipSubmit = async ({
     mode,
     relatedPersonId,
+    relationshipStatus,
+    parentChildKind,
   }: {
     mode: PersonRelationshipMode;
     relatedPersonId: string;
+    relationshipStatus?: SpouseRelationshipStatus;
+    parentChildKind?: ParentChildRelationshipKind;
   }) => {
     if (!user?.id || !selectedTree || !person) {
       return;
@@ -526,23 +531,37 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
           : currentRelationship.fromPersonId === person.id
             ? currentRelationship.toPersonId
             : currentRelationship.fromPersonId;
+    const currentMetadataMatches = !currentRelationship
+      ? false
+      : currentRelationship.type === 'spouse'
+        ? currentRelationship.relationshipStatus === relationshipStatus
+        : currentRelationship.parentChildKind === parentChildKind;
 
-    if (currentRelationship && currentMode === mode && currentRelatedPersonId === relatedPersonId) {
+    if (currentRelationship && currentMode === mode && currentRelatedPersonId === relatedPersonId && currentMetadataMatches) {
       setRelationshipDialog({ visible: false, relationship: null });
       return;
     }
 
     try {
+      if (currentRelationship && currentMode === mode && currentRelatedPersonId === relatedPersonId) {
+        await editRelationship(user.id, currentRelationship, {
+          relationshipStatus: mode === 'spouse-of' ? relationshipStatus : undefined,
+          parentChildKind: mode === 'spouse-of' ? undefined : parentChildKind,
+        });
+        setRelationshipDialog({ visible: false, relationship: null });
+        return;
+      }
+
       if (currentRelationship) {
         await removeRelationship(user.id, currentRelationship.id);
       }
 
       if (mode === 'spouse-of') {
-        await addSpouseRelationship(user.id, selectedTree.id, person.id, relatedPersonId);
+        await addSpouseRelationship(user.id, selectedTree.id, person.id, relatedPersonId, relationshipStatus);
       } else if (mode === 'parent-of') {
-        await addParentChildRelationship(user.id, selectedTree.id, person.id, relatedPersonId);
+        await addParentChildRelationship(user.id, selectedTree.id, person.id, relatedPersonId, parentChildKind);
       } else {
-        await addParentChildRelationship(user.id, selectedTree.id, relatedPersonId, person.id);
+        await addParentChildRelationship(user.id, selectedTree.id, relatedPersonId, person.id, parentChildKind);
       }
 
       setRelationshipDialog({ visible: false, relationship: null });

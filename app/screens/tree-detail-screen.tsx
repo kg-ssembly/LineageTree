@@ -24,6 +24,7 @@ import type { PendingRelationshipSubmission } from '../../components/person-form
 import { useAuthStore } from '../../stores/auth-store';
 import { useTreeStore } from '../../stores/tree-store';
 import type { PersonRecord } from '../../components/dto/person';
+import type { ParentChildRelationshipKind, SpouseRelationshipStatus } from '../../components/dto/relationship';
 import type { RootStackParamList, TreeDetailTabParamList } from '../../components/dto/navigation';
 import { getUserDisplayLabel, getUserNameParts } from '../../components/dto/user';
 import { formatPersonName } from '../../components/person-formatting';
@@ -371,10 +372,14 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     type,
     fromPersonId,
     toPersonId,
+    relationshipStatus,
+    parentChildKind,
   }: {
     type: 'parent-child' | 'spouse';
     fromPersonId: string;
     toPersonId: string;
+    relationshipStatus?: SpouseRelationshipStatus;
+    parentChildKind?: ParentChildRelationshipKind;
   }) => {
     if (!user?.id || !selectedTree) {
       return;
@@ -382,9 +387,9 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
 
     try {
       if (type === 'spouse') {
-        await addSpouseRelationship(user.id, selectedTree.id, fromPersonId, toPersonId);
+        await addSpouseRelationship(user.id, selectedTree.id, fromPersonId, toPersonId, relationshipStatus);
       } else {
-        await addParentChildRelationship(user.id, selectedTree.id, fromPersonId, toPersonId);
+        await addParentChildRelationship(user.id, selectedTree.id, fromPersonId, toPersonId, parentChildKind);
       }
 
       setRelationshipDialogVisible(false);

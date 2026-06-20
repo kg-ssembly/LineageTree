@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { Button, Chip, Dialog, HelperText, Portal, SegmentedButtons, Text, TextInput, useTheme } from 'react-native-paper';
 import type { PersonRecord } from './dto/person';
-import type { RelationshipRecord, RelationshipType } from './dto/relationship';
+import type { ParentChildRelationshipKind, RelationshipRecord, RelationshipType, SpouseRelationshipStatus } from './dto/relationship';
+import { DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND, DEFAULT_SPOUSE_RELATIONSHIP_STATUS } from './dto/relationship';
 import { validateProposedRelationship } from './family-tree-validation';
 import { GlobalStyles } from '../constants/styles';
 
@@ -15,7 +16,13 @@ interface RelationshipDialogProps {
   relationships: RelationshipRecord[];
   loading?: boolean;
   onDismiss: () => void;
-  onSubmit: (payload: { type: RelationshipType; fromPersonId: string; toPersonId: string }) => void | Promise<void>;
+  onSubmit: (payload: {
+    type: RelationshipType;
+    fromPersonId: string;
+    toPersonId: string;
+    relationshipStatus?: SpouseRelationshipStatus;
+    parentChildKind?: ParentChildRelationshipKind;
+  }) => void | Promise<void>;
 }
 
 function formatPersonName(person: PersonRecord) {
@@ -36,6 +43,8 @@ export default function RelationshipDialog({
   const [toPersonId, setToPersonId] = useState('');
   const [fromSearch, setFromSearch] = useState('');
   const [toSearch, setToSearch] = useState('');
+  const [relationshipStatus, setRelationshipStatus] = useState<SpouseRelationshipStatus>(DEFAULT_SPOUSE_RELATIONSHIP_STATUS);
+  const [parentChildKind, setParentChildKind] = useState<ParentChildRelationshipKind>(DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -48,6 +57,8 @@ export default function RelationshipDialog({
     setToPersonId('');
     setFromSearch('');
     setToSearch('');
+    setRelationshipStatus(DEFAULT_SPOUSE_RELATIONSHIP_STATUS);
+    setParentChildKind(DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND);
     setError(null);
   }, [visible]);
 
@@ -94,7 +105,13 @@ export default function RelationshipDialog({
       return;
     }
 
-    await onSubmit({ type, fromPersonId, toPersonId });
+    await onSubmit({
+      type,
+      fromPersonId,
+      toPersonId,
+      relationshipStatus: type === 'spouse' ? relationshipStatus : undefined,
+      parentChildKind: type === 'parent-child' ? parentChildKind : undefined,
+    });
   };
 
   const firstLabel = type === 'spouse' ? 'Select spouse A' : 'Select parent';
@@ -123,6 +140,40 @@ export default function RelationshipDialog({
                 ]}
               />
             </View>
+
+            {type === 'spouse' ? (
+              <View style={[styles.relationshipTypeCard, { borderColor: theme.colors.outlineVariant }]}>
+                <Text variant="titleSmall">Relationship status</Text>
+                <SegmentedButtons
+                  value={relationshipStatus}
+                  onValueChange={(value) => setRelationshipStatus(value as SpouseRelationshipStatus)}
+                  buttons={[
+                    { value: 'partner', label: 'Partner' },
+                    { value: 'married', label: 'Married' },
+                    { value: 'separated', label: 'Separated' },
+                    { value: 'divorced', label: 'Divorced' },
+                    { value: 'widowed', label: 'Widowed' },
+                  ]}
+                  style={{ marginTop: 10 }}
+                />
+              </View>
+            ) : (
+              <View style={[styles.relationshipTypeCard, { borderColor: theme.colors.outlineVariant }]}>
+                <Text variant="titleSmall">Child relationship</Text>
+                <SegmentedButtons
+                  value={parentChildKind}
+                  onValueChange={(value) => setParentChildKind(value as ParentChildRelationshipKind)}
+                  buttons={[
+                    { value: 'biological', label: 'Biological' },
+                    { value: 'step', label: 'Step' },
+                    { value: 'adopted', label: 'Adopted' },
+                    { value: 'foster', label: 'Foster' },
+                    { value: 'guardian', label: 'Guardian' },
+                  ]}
+                  style={{ marginTop: 10 }}
+                />
+              </View>
+            )}
 
             <View style={[styles.section, styles.sectionCard, { borderColor: theme.colors.outlineVariant }]}>
               <Text variant="titleSmall">{firstLabel}</Text>

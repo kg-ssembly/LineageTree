@@ -4,7 +4,7 @@ import type { RelationshipRecord } from './relationship';
 export type ApprovalRequestStatus = 'pending' | 'approved' | 'rejected' | 'applied';
 export type ApprovalDecisionMode = 'manual' | 'auto' | 'immediate';
 export type ApprovalEntityType = 'person' | 'relationship';
-export type ApprovalOperation = 'update-person' | 'delete-person' | 'create-relationship' | 'delete-relationship';
+export type ApprovalOperation = 'update-person' | 'delete-person' | 'create-relationship' | 'update-relationship' | 'delete-relationship';
 
 export interface ApprovalRequestPayload {
   beforePerson?: PersonRecord | null;
@@ -52,4 +52,3 @@ export function canUserReviewApprovalRequest(request: ApprovalRequest, userId?: 
 export function isApprovalExpired(request: ApprovalRequest, now = Date.now()) {
   return request.status === 'pending' && request.expiresAtMillis <= now;
 }
-

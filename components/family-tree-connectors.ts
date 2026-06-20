@@ -7,6 +7,7 @@
 // This eliminates overlapping connectors entirely.
 
 import type { RelationshipRecord } from './dto/relationship';
+import { DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND, DEFAULT_SPOUSE_RELATIONSHIP_STATUS } from './dto/relationship';
 import {
   Connector,
   LayoutConstants,
@@ -180,11 +181,55 @@ function buildParentChildRoute(
   ]);
 }
 
+function getSpouseConnectorStyle(
+  relationship: RelationshipRecord,
+  colors: { spouse: string; secondaryParent: string },
+  isBridge?: boolean,
+) {
+  const status = relationship.relationshipStatus ?? DEFAULT_SPOUSE_RELATIONSHIP_STATUS;
+  if (isBridge) {
+    return { stroke: colors.secondaryParent, strokeWidth: 2, dashArray: '8,5' };
+  }
+
+  switch (status) {
+    case 'married':
+      return { stroke: colors.spouse, strokeWidth: 3, dashArray: undefined };
+    case 'separated':
+    case 'divorced':
+      return { stroke: colors.secondaryParent, strokeWidth: 2, dashArray: '10,6' };
+    case 'widowed':
+      return { stroke: colors.secondaryParent, strokeWidth: 2.5, dashArray: undefined };
+    case 'partner':
+    default:
+      return { stroke: colors.spouse, strokeWidth: 2.5, dashArray: '2,6' };
+  }
+}
+
+function getParentChildConnectorStyle(
+  relationship: RelationshipRecord,
+  colors: { parentChild: string; secondaryParent: string; stepChild: string; adoptedChild: string; guardianChild: string },
+  isPrimary: boolean,
+) {
+  const kind = relationship.parentChildKind ?? DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND;
+  switch (kind) {
+    case 'step':
+      return { stroke: colors.stepChild, strokeWidth: isPrimary ? 2.2 : 1.5, dashArray: '8,5' };
+    case 'adopted':
+      return { stroke: colors.adoptedChild, strokeWidth: isPrimary ? 2.4 : 1.6, dashArray: undefined };
+    case 'foster':
+    case 'guardian':
+      return { stroke: colors.guardianChild, strokeWidth: isPrimary ? 2 : 1.4, dashArray: '3,5' };
+    case 'biological':
+    default:
+      return { stroke: isPrimary ? colors.parentChild : colors.secondaryParent, strokeWidth: isPrimary ? 2.5 : 1.5, dashArray: undefined };
+  }
+}
+
 export function buildConnectors(
   relationships: RelationshipRecord[],
   layout: LayoutResult,
   C: LayoutConstants,
-  colors: { parentChild: string; spouse: string; secondaryParent: string },
+  colors: { parentChild: string; spouse: string; secondaryParent: string; stepChild: string; adoptedChild: string; guardianChild: string },
   ghostPersonIds?: Set<string>,
 ): { spouseConnectors: Connector[]; parentChildConnectors: Connector[] } {
   const { positionsByPersonId, spouseGroupIdByPersonId, spouseGroupsById, levelBySpouseGroupId, contentWidth } = layout;
@@ -267,14 +312,15 @@ export function buildConnectors(
     const labelPos = pts.length >= 2
       ? { x: (pts[midIdx - 1].x + pts[midIdx].x) / 2, y: (pts[midIdx - 1].y + pts[midIdx].y) / 2 }
       : { x: pts[0].x, y: pts[0].y };
+    const connectorStyle = getSpouseConnectorStyle(pair.rel, colors, isBridge);
 
     spouseConnectors.push({
       key: `spouse-${pair.rel.id}`,
       d: pointsToRoundedPath(pts, 12),
-      stroke: isBridge ? colors.secondaryParent : colors.spouse,
-      strokeWidth: isBridge ? 2 : 3,
+      stroke: connectorStyle.stroke,
+      strokeWidth: connectorStyle.strokeWidth,
       bounds: boundsOf(pts),
-      dashArray: isBridge ? '8,5' : undefined,
+      dashArray: connectorStyle.dashArray,
       label: isBridge ? '⬌ married into family' : undefined,
       labelPosition: isBridge ? labelPos : undefined,
     });
@@ -377,13 +423,15 @@ export function buildConnectors(
       contentWidth,
       C,
     );
+    const connectorStyle = getParentChildConnectorStyle(r, colors, isPrimary);
 
     parentChildConnectors.push({
       key: `pc-${isPrimary ? 'primary' : 'secondary'}-${r.id}`,
       d: pointsToRoundedPath(routePoints, cornerRadius),
-      stroke: isPrimary ? colors.parentChild : colors.secondaryParent,
-      strokeWidth: isPrimary ? 2.5 : 1.5,
+      stroke: connectorStyle.stroke,
+      strokeWidth: connectorStyle.strokeWidth,
       bounds: boundsOf(routePoints),
+      dashArray: connectorStyle.dashArray,
     });
   });
 

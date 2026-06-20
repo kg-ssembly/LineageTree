@@ -30,6 +30,7 @@ import { useAuthStore } from '../../stores/auth-store';
 import { useThemeStore } from '../../stores/theme-store';
 import { useTreeStore } from '../../stores/tree-store';
 import type { PersonRecord } from '../../components/dto/person';
+import type { ParentChildRelationshipKind, SpouseRelationshipStatus } from '../../components/dto/relationship';
 import type { MainTabParamList, RootStackParamList } from '../../components/dto/navigation';
 import { getUserNameParts, getUserDisplayLabel } from '../../components/dto/user';
 import { formatPersonName } from '../../components/person-formatting';
@@ -436,11 +437,23 @@ export default function MainScreen({ navigation }: Props) {
     try { await clearSelfAssignment(selectedTree.id, user.id); } catch { /* snackbar */ }
   }, [clearSelfAssignment, selectedTree, user?.id]);
 
-  const handleRelationshipSubmit = useCallback(async ({ type, fromPersonId, toPersonId }: { type: 'parent-child' | 'spouse'; fromPersonId: string; toPersonId: string }) => {
+  const handleRelationshipSubmit = useCallback(async ({
+    type,
+    fromPersonId,
+    toPersonId,
+    relationshipStatus,
+    parentChildKind,
+  }: {
+    type: 'parent-child' | 'spouse';
+    fromPersonId: string;
+    toPersonId: string;
+    relationshipStatus?: SpouseRelationshipStatus;
+    parentChildKind?: ParentChildRelationshipKind;
+  }) => {
     if (!user?.id || !selectedTree) return;
     try {
-      if (type === 'spouse') await addSpouseRelationship(user.id, selectedTree.id, fromPersonId, toPersonId);
-      else await addParentChildRelationship(user.id, selectedTree.id, fromPersonId, toPersonId);
+      if (type === 'spouse') await addSpouseRelationship(user.id, selectedTree.id, fromPersonId, toPersonId, relationshipStatus);
+      else await addParentChildRelationship(user.id, selectedTree.id, fromPersonId, toPersonId, parentChildKind);
       setRelationshipDialogVisible(false);
     } catch { /* snackbar */ }
   }, [addParentChildRelationship, addSpouseRelationship, selectedTree, user?.id]);

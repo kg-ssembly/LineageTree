@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import type { ApprovalRequest } from '../components/dto/approval';
 import type { MergeHistoryRecord, MergeRequestRecord } from '../components/dto/merge';
 import type { PersonInput, PersonMutationPayload, PersonRecord } from '../components/dto/person';
-import type { RelationshipRecord } from '../components/dto/relationship';
+import type { ParentChildRelationshipKind, RelationshipRecord, SpouseRelationshipStatus } from '../components/dto/relationship';
 import type { CollaboratorRole, FamilyTree, SurnameVariantGroup } from '../components/dto/tree';
 import type { UserProfile } from '../components/dto/user';
 import {
@@ -29,6 +29,7 @@ import {
   subscribeToRelationships,
   subscribeToTrees,
   undoMergeRequest,
+  updateRelationship,
   updatePerson,
   updateSurnameVariantGroups,
   updateTreeApprovalWindow,
@@ -102,8 +103,9 @@ interface TreeState {
   createPerson: (ownerId: string, treeId: string, input: PersonInput, newPhotoUris: string[]) => Promise<PersonRecord>;
   updatePerson: (ownerId: string, person: PersonRecord, input: PersonMutationPayload) => Promise<void>;
   removePerson: (actorUserId: string, person: PersonRecord) => Promise<void>;
-  addParentChildRelationship: (ownerId: string, treeId: string, parentId: string, childId: string) => Promise<void>;
-  addSpouseRelationship: (ownerId: string, treeId: string, personAId: string, personBId: string) => Promise<void>;
+  addParentChildRelationship: (ownerId: string, treeId: string, parentId: string, childId: string, parentChildKind?: ParentChildRelationshipKind) => Promise<void>;
+  addSpouseRelationship: (ownerId: string, treeId: string, personAId: string, personBId: string, relationshipStatus?: SpouseRelationshipStatus) => Promise<void>;
+  editRelationship: (actorUserId: string, relationship: RelationshipRecord, updates: { relationshipStatus?: SpouseRelationshipStatus; parentChildKind?: ParentChildRelationshipKind }) => Promise<void>;
   removeRelationship: (actorUserId: string, relationshipId: string) => Promise<void>;
   approveApprovalRequest: (actorUserId: string, requestId: string) => Promise<void>;
   rejectApprovalRequest: (actorUserId: string, requestId: string) => Promise<void>;
@@ -389,10 +391,10 @@ export const useTreeStore = create<TreeState>((set, get) => {
       }
     },
 
-    addParentChildRelationship: async (ownerId, treeId, parentId, childId) => {
+    addParentChildRelationship: async (ownerId, treeId, parentId, childId, parentChildKind) => {
       set({ mutating: true, error: null });
       try {
-        const result = await createParentChildRelationship(ownerId, treeId, parentId, childId);
+        const result = await createParentChildRelationship(ownerId, treeId, parentId, childId, parentChildKind);
         set({ mutating: false, notice: result.message });
       } catch (error) {
         set({ mutating: false, error: normaliseError(error) });
@@ -400,10 +402,21 @@ export const useTreeStore = create<TreeState>((set, get) => {
       }
     },
 
-    addSpouseRelationship: async (ownerId, treeId, personAId, personBId) => {
+    addSpouseRelationship: async (ownerId, treeId, personAId, personBId, relationshipStatus) => {
       set({ mutating: true, error: null });
       try {
-        const result = await createSpouseRelationship(ownerId, treeId, personAId, personBId);
+        const result = await createSpouseRelationship(ownerId, treeId, personAId, personBId, relationshipStatus);
+        set({ mutating: false, notice: result.message });
+      } catch (error) {
+        set({ mutating: false, error: normaliseError(error) });
+        throw error;
+      }
+    },
+
+    editRelationship: async (actorUserId, relationship, updates) => {
+      set({ mutating: true, error: null });
+      try {
+        const result = await updateRelationship(actorUserId, relationship, updates);
         set({ mutating: false, notice: result.message });
       } catch (error) {
         set({ mutating: false, error: normaliseError(error) });

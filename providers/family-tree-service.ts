@@ -25,7 +25,8 @@ import { db, storage } from './firebase-provider';
 import type { ApprovalRequest, ApprovalRequestPayload, ApprovalSubmissionResult } from '../components/dto/approval';
 import type { MergeApproval, MergeConflictChoice, MergeHistoryRecord, MergePreview, MergeRequestRecord, MergeRequestSnapshot, MergeReviewDecision } from '../components/dto/merge';
 import type { PersonInput, PersonLifeEvent, PersonMutationPayload, PersonPhoto, PersonRecord } from '../components/dto/person';
-import type { RelationshipRecord } from '../components/dto/relationship';
+import type { ParentChildRelationshipKind, RelationshipRecord, SpouseRelationshipStatus } from '../components/dto/relationship';
+import { DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND, DEFAULT_SPOUSE_RELATIONSHIP_STATUS } from '../components/dto/relationship';
 import type { CollaboratorRole, FamilyTree, SurnameVariantGroup, TreeCollaborator, TreeMembershipHistoryEntry, TreeRole } from '../components/dto/tree';
 import type { UserProfile } from '../components/dto/user';
 import { normalizeRelationshipEndpoints, validateProposedRelationship } from '../components/family-tree-validation';
@@ -326,6 +327,12 @@ function mapRelationshipData(id: string, data: DocumentData): RelationshipRecord
     type: data.type,
     fromPersonId: data.fromPersonId,
     toPersonId: data.toPersonId,
+    relationshipStatus: data.type === 'spouse'
+      ? data.relationshipStatus ?? DEFAULT_SPOUSE_RELATIONSHIP_STATUS
+      : undefined,
+    parentChildKind: data.type === 'parent-child'
+      ? data.parentChildKind ?? DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND
+      : undefined,
     createdAt: data.createdAt ?? nowIso(),
   };
 }
@@ -1183,6 +1190,22 @@ async function applyApprovedCreateRelationship(payload: ApprovalRequestPayload) 
   await createRelationshipDirect(relationship);
 }
 
+async function applyApprovedUpdateRelationship(payload: ApprovalRequestPayload) {
+  const relationship = payload.relationship;
+  if (!relationship) {
+    throw new Error('The approved relationship update is missing its target data.');
+  }
+
+  await updateDoc(doc(db, RELATIONSHIPS_COLLECTION, relationship.id), {
+    relationshipStatus: relationship.type === 'spouse'
+      ? relationship.relationshipStatus ?? DEFAULT_SPOUSE_RELATIONSHIP_STATUS
+      : '',
+    parentChildKind: relationship.type === 'parent-child'
+      ? relationship.parentChildKind ?? DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND
+      : '',
+  });
+}
+
 async function applyApprovedDeleteRelationship(payload: ApprovalRequestPayload) {
   const relationship = payload.relationship;
   if (!relationship) {
@@ -1202,6 +1225,9 @@ async function applyApprovedRequest(request: ApprovalRequest) {
       return;
     case 'create-relationship':
       await applyApprovedCreateRelationship(request.payload);
+      return;
+    case 'update-relationship':
+      await applyApprovedUpdateRelationship(request.payload);
       return;
     case 'delete-relationship':
       await applyApprovedDeleteRelationship(request.payload);
@@ -1369,6 +1395,10 @@ export async function submitCreateRelationshipApproval(
   type: RelationshipRecord['type'],
   fromPersonId: string,
   toPersonId: string,
+  options: {
+    relationshipStatus?: SpouseRelationshipStatus;
+    parentChildKind?: ParentChildRelationshipKind;
+  } = {},
 ): Promise<ApprovalSubmissionResult> {
   const tree = await getTreeById(treeId);
   const requesterLabel = getRequesterLabel(tree, actorUserId);
@@ -1401,6 +1431,12 @@ export async function submitCreateRelationshipApproval(
     type,
     fromPersonId: normalizedEndpoints.fromPersonId,
     toPersonId: normalizedEndpoints.toPersonId,
+    relationshipStatus: type === 'spouse'
+      ? options.relationshipStatus ?? DEFAULT_SPOUSE_RELATIONSHIP_STATUS
+      : undefined,
+    parentChildKind: type === 'parent-child'
+      ? options.parentChildKind ?? DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND
+      : undefined,
     createdAt: nowIso(),
   };
   const timestamp = nowIso();
@@ -1458,6 +1494,82 @@ export async function submitCreateRelationshipApproval(
   });
 
   return { status: 'queued', requestId, message: 'The relationship was submitted for approval.' };
+}
+
+export async function submitUpdateRelationshipApproval(
+  actorUserId: string,
+  relationship: RelationshipRecord,
+  updates: {
+    relationshipStatus?: SpouseRelationshipStatus;
+    parentChildKind?: ParentChildRelationshipKind;
+  },
+): Promise<ApprovalSubmissionResult> {
+  const nextRelationship: RelationshipRecord = {
+    ...relationship,
+    relationshipStatus: relationship.type === 'spouse'
+      ? updates.relationshipStatus ?? relationship.relationshipStatus ?? DEFAULT_SPOUSE_RELATIONSHIP_STATUS
+      : undefined,
+    parentChildKind: relationship.type === 'parent-child'
+      ? updates.parentChildKind ?? relationship.parentChildKind ?? DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND
+      : undefined,
+  };
+  const tree = await getTreeById(relationship.treeId);
+  const requesterLabel = getRequesterLabel(tree, actorUserId);
+  const timestamp = nowIso();
+  const payload: ApprovalRequestPayload = { relationship: nextRelationship };
+  const relationLabel = relationship.type === 'spouse' ? 'spouse relationship' : 'parent-child relationship';
+  const { eligibleApproverIds, autoApproveBecauseNoSameSurnameContributor } = await getEligibleApproverIds(tree, actorUserId, payload);
+
+  if (eligibleApproverIds.length === 0 || areApprovalsDisabled(tree) || autoApproveBecauseNoSameSurnameContributor) {
+    await applyApprovedUpdateRelationship(payload);
+    const appliedAt = nowIso();
+    await createApprovalRequest({
+      treeId: tree.id,
+      entityType: 'relationship',
+      operation: 'update-relationship',
+      targetId: relationship.id,
+      title: `Update ${relationLabel}`,
+      description: `${requesterLabel} updated a ${relationLabel} and it was applied immediately because ${autoApproveBecauseNoSameSurnameContributor ? 'no contributor linked to the same surname could review it' : eligibleApproverIds.length === 0 ? 'no other collaborator could review it' : 'approvals are turned off for this tree'}.`,
+      status: 'applied',
+      decisionMode: 'immediate',
+      requestedByUserId: actorUserId,
+      requestedByLabel: requesterLabel,
+      eligibleApproverIds: [],
+      payload,
+      expiresAt: appliedAt,
+      expiresAtMillis: Date.now(),
+      createdAt: timestamp,
+      updatedAt: appliedAt,
+      decidedAt: appliedAt,
+      decidedByUserId: actorUserId,
+      decidedByLabel: requesterLabel,
+      appliedAt,
+    });
+
+    return { status: 'applied', message: 'The relationship was updated immediately.' };
+  }
+
+  const expiry = buildApprovalExpiry(tree);
+  const requestId = await createApprovalRequest({
+    treeId: tree.id,
+    entityType: 'relationship',
+    operation: 'update-relationship',
+    targetId: relationship.id,
+    title: `Update ${relationLabel}`,
+    description: `${requesterLabel} requested updates to a ${relationLabel}.`,
+    status: 'pending',
+    decisionMode: 'manual',
+    requestedByUserId: actorUserId,
+    requestedByLabel: requesterLabel,
+    eligibleApproverIds,
+    payload,
+    expiresAt: expiry.expiresAt,
+    expiresAtMillis: expiry.expiresAtMillis,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  });
+
+  return { status: 'queued', requestId, message: 'The relationship update was submitted for approval.' };
 }
 
 export async function submitDeleteRelationshipApproval(
@@ -2044,6 +2156,12 @@ async function createRelationshipDirect(relationship: RelationshipRecord): Promi
     type: relationship.type,
     fromPersonId: relationship.fromPersonId,
     toPersonId: relationship.toPersonId,
+    relationshipStatus: relationship.type === 'spouse'
+      ? relationship.relationshipStatus ?? DEFAULT_SPOUSE_RELATIONSHIP_STATUS
+      : '',
+    parentChildKind: relationship.type === 'parent-child'
+      ? relationship.parentChildKind ?? DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND
+      : '',
     createdAt: relationship.createdAt,
   });
 
@@ -2069,8 +2187,9 @@ export async function createParentChildRelationship(
   treeId: string,
   parentId: string,
   childId: string,
+  parentChildKind: ParentChildRelationshipKind = DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND,
 ): Promise<ApprovalSubmissionResult> {
-  return submitCreateRelationshipApproval(actorUserId, treeId, 'parent-child', parentId, childId);
+  return submitCreateRelationshipApproval(actorUserId, treeId, 'parent-child', parentId, childId, { parentChildKind });
 }
 
 export async function createSpouseRelationship(
@@ -2078,8 +2197,20 @@ export async function createSpouseRelationship(
   treeId: string,
   personAId: string,
   personBId: string,
+  relationshipStatus: SpouseRelationshipStatus = DEFAULT_SPOUSE_RELATIONSHIP_STATUS,
 ): Promise<ApprovalSubmissionResult> {
-  return submitCreateRelationshipApproval(actorUserId, treeId, 'spouse', personAId, personBId);
+  return submitCreateRelationshipApproval(actorUserId, treeId, 'spouse', personAId, personBId, { relationshipStatus });
+}
+
+export async function updateRelationship(
+  actorUserId: string,
+  relationship: RelationshipRecord,
+  updates: {
+    relationshipStatus?: SpouseRelationshipStatus;
+    parentChildKind?: ParentChildRelationshipKind;
+  },
+): Promise<ApprovalSubmissionResult> {
+  return submitUpdateRelationshipApproval(actorUserId, relationship, updates);
 }
 
 async function deleteRelationshipDirect(relationshipId: string) {
