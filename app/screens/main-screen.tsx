@@ -546,6 +546,7 @@ export default function MainScreen({ navigation }: Props) {
           headerShown: false,
           tabBarActiveTintColor: theme.colors.primary,
           tabBarInactiveTintColor: theme.colors.onSurfaceVariant,
+          tabBarActiveBackgroundColor: theme.colors.elevation.level2,
           tabBarShowIcon: true,
           tabBarStyle: [styles.tabBar, { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.outlineVariant }],
           tabBarLabelStyle: styles.tabLabel,
@@ -747,4 +748,3 @@ export default function MainScreen({ navigation }: Props) {
     </View>
   );
 }
-

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Dimensions, Image, Modal, Pressable, ScrollView, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   ActivityIndicator,
   BottomNavigation,
@@ -626,12 +627,30 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
             </Button>
           </View>
           <View style={styles.heroHeader}>
-            <View style={styles.heroIdentityWrap}>
-              <View style={styles.heroNameRow}>
-                <Text variant="headlineMedium">{formatPersonName(person)}</Text>
-                {isCurrentUsersPerson ? <Chip compact icon="account">You</Chip> : null}
+            <View style={styles.heroAvatarRow}>
+              {preferredPhoto ? (
+                <Image source={{ uri: preferredPhoto.url }} style={styles.heroAvatar} />
+              ) : (
+                <View style={styles.heroAvatarFallback}>
+                  <MaterialCommunityIcons
+                    name={isPersonDeceased(person) ? 'flower-outline' : 'account-heart-outline'}
+                    size={38}
+                    color={theme.colors.primary}
+                  />
+                </View>
+              )}
+              <View style={styles.heroIdentityWrap}>
+                <Text variant="labelLarge" style={{ color: theme.colors.primary }}>
+                  Family profile
+                </Text>
+                <View style={styles.heroNameRow}>
+                  <Text variant="headlineMedium">{formatPersonName(person)}</Text>
+                  {isCurrentUsersPerson ? <Chip compact icon="account">You</Chip> : null}
+                </View>
+                <Text variant="bodyMedium" style={[styles.heroSubtext, { color: theme.colors.onSurfaceVariant }]}>
+                  {getPersonLifeSpanLabel(person)}
+                </Text>
               </View>
-              <Text variant="bodyMedium" style={[styles.heroSubtext, { color: theme.colors.onSurfaceVariant }]}>{getPersonLifeSpanLabel(person)}</Text>
             </View>
             {canEdit ? (
               <Button mode="contained-tonal" icon="pencil" onPress={() => setEditorVisible(true)}>
@@ -1014,6 +1033,15 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
           routes: TAB_ROUTES,
         }}
         onTabPress={({ route }) => setActiveTab(route.key as PersonProfileTabKey)}
+        style={{
+          backgroundColor: theme.colors.surface,
+          borderTopWidth: 1,
+          borderTopColor: theme.colors.outlineVariant,
+          height: 76,
+          paddingTop: 8,
+        }}
+        activeColor={theme.colors.primary}
+        inactiveColor={theme.colors.onSurfaceVariant}
       />
 
       <PersonFormDialog

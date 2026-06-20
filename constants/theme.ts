@@ -1,5 +1,6 @@
 import { DarkTheme as NavigationDarkTheme, DefaultTheme as NavigationLightTheme, type Theme as NavigationTheme } from '@react-navigation/native';
-import { MD3DarkTheme, MD3LightTheme, type MD3Theme } from 'react-native-paper';
+import { Platform } from 'react-native';
+import { MD3DarkTheme, MD3LightTheme, configureFonts, type MD3Theme } from 'react-native-paper';
 
 export type ThemePreference = 'light' | 'dark';
 export type ResolvedTheme = 'light' | 'dark';
@@ -9,206 +10,159 @@ type ThemePalette = {
   primary: string;
   primaryContainer: string;
   secondary: string;
+  secondaryContainer: string;
   tertiary: string;
+  tertiaryContainer: string;
   background: string;
   surface: string;
   surfaceVariant: string;
-  secondaryContainer: string;
-  tertiaryContainer: string;
+  surfaceDisabled: string;
   outline: string;
   outlineVariant: string;
   onPrimary: string;
+  onPrimaryContainer: string;
   onSecondary: string;
+  onSecondaryContainer: string;
+  onTertiary: string;
+  onTertiaryContainer: string;
   onSurface: string;
   onSurfaceVariant: string;
   shadow: string;
   scrim: string;
   error: string;
+  errorContainer: string;
+  onErrorContainer: string;
+  backdrop: string;
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// THEME SELECTION
-// Change ACTIVE_THEME to switch between the three options below:
-//   'forest'   – warm earthy greens & terracotta  (organic, grounded feel)
-//   'ocean'    – deep teal & golden amber          (cool, professional)
-//   'midnight' – rich purples & warm gold          (current-style, refined)
-// ─────────────────────────────────────────────────────────────────────────────
-const ACTIVE_THEME: 'forest' | 'ocean' | 'midnight' = 'forest';
+const fontFamily = Platform.select({
+  ios: 'System',
+  android: 'sans-serif',
+  default: 'System',
+}) ?? 'System';
 
-// ── Option A: Forest Heritage ─────────────────────────────────────────────────
-const forestPalettes: Record<ResolvedTheme, ThemePalette> = {
+const appFonts = configureFonts({
+  config: {
+    displayLarge: { fontFamily, fontWeight: '700', letterSpacing: -0.8, lineHeight: 54, fontSize: 44 },
+    displayMedium: { fontFamily, fontWeight: '700', letterSpacing: -0.6, lineHeight: 48, fontSize: 38 },
+    displaySmall: { fontFamily, fontWeight: '700', letterSpacing: -0.4, lineHeight: 42, fontSize: 32 },
+    headlineLarge: { fontFamily, fontWeight: '700', letterSpacing: -0.4, lineHeight: 40, fontSize: 30 },
+    headlineMedium: { fontFamily, fontWeight: '700', letterSpacing: -0.2, lineHeight: 36, fontSize: 28 },
+    headlineSmall: { fontFamily, fontWeight: '700', letterSpacing: -0.2, lineHeight: 32, fontSize: 24 },
+    titleLarge: { fontFamily, fontWeight: '700', letterSpacing: -0.1, lineHeight: 28, fontSize: 22 },
+    titleMedium: { fontFamily, fontWeight: '600', letterSpacing: 0, lineHeight: 24, fontSize: 17 },
+    titleSmall: { fontFamily, fontWeight: '600', letterSpacing: 0.1, lineHeight: 22, fontSize: 15 },
+    bodyLarge: { fontFamily, fontWeight: '400', letterSpacing: 0, lineHeight: 24, fontSize: 17 },
+    bodyMedium: { fontFamily, fontWeight: '400', letterSpacing: 0, lineHeight: 22, fontSize: 15 },
+    bodySmall: { fontFamily, fontWeight: '400', letterSpacing: 0.1, lineHeight: 20, fontSize: 13 },
+    labelLarge: { fontFamily, fontWeight: '600', letterSpacing: 0.1, lineHeight: 20, fontSize: 14 },
+    labelMedium: { fontFamily, fontWeight: '600', letterSpacing: 0.1, lineHeight: 18, fontSize: 12 },
+    labelSmall: { fontFamily, fontWeight: '600', letterSpacing: 0.1, lineHeight: 16, fontSize: 11 },
+  },
+});
+
+const softPalettes: Record<ResolvedTheme, ThemePalette> = {
   light: {
-    primary: '#2D6A4F',
-    primaryContainer: '#C8E6D2',
-    secondary: '#E07B39',
-    tertiary: '#7B5E2A',
-    background: '#FFFFFF',
-    surface: '#FFFFFF',
-    surfaceVariant: '#EBE5D9',
-    secondaryContainer: '#DFE8DC',
-    tertiaryContainer: '#D8E5D6',
-    outline: '#6E8B65',
-    outlineVariant: '#CFCAB8',
-    onPrimary: '#FFFFFF',
-    onSecondary: '#FFFFFF',
-    onSurface: '#1A1C18',
-    onSurfaceVariant: '#605C4A',
-    shadow: '#0E1209',
-    scrim: '#000000',
-    error: '#BA1A1A',
+    primary: '#7BC6A4',
+    primaryContainer: '#E4F5EC',
+    secondary: '#5BA384',
+    secondaryContainer: '#D4EBE2',
+    tertiary: '#8AA4D6',
+    tertiaryContainer: '#EAF0FB',
+    background: '#F5F5F7',
+    surface: '#FCFCFD',
+    surfaceVariant: '#F0F1F4',
+    surfaceDisabled: '#E7E8EC',
+    outline: '#C9CDD5',
+    outlineVariant: '#E2E4E9',
+    onPrimary: '#11382B',
+    onPrimaryContainer: '#183D30',
+    onSecondary: '#5C201A',
+    onSecondaryContainer: '#642620',
+    onTertiary: '#243556',
+    onTertiaryContainer: '#31446A',
+    onSurface: '#15181E',
+    onSurfaceVariant: '#6A7280',
+    shadow: '#1A1D24',
+    scrim: '#11141A',
+    error: '#C43D37',
+    errorContainer: '#FDE9E7',
+    onErrorContainer: '#742824',
+    backdrop: 'rgba(17, 20, 26, 0.26)',
   },
   dark: {
-    primary: '#52B788',
-    primaryContainer: '#1C4A34',
-    secondary: '#FFB77B',
-    tertiary: '#C9A96E',
-    background: '#131510',
-    surface: '#1B1E16',
-    surfaceVariant: '#252A1E',
-    secondaryContainer: '#5A3518',
-    tertiaryContainer: '#3D3013',
-    outline: '#8E956E',
-    outlineVariant: '#323829',
-    onPrimary: '#092818',
-    onSecondary: '#401E08',
-    onSurface: '#E2E5D6',
-    onSurfaceVariant: '#BAC0A4',
+    primary: '#9EDCC0',
+    primaryContainer: '#234136',
+    secondary: '#96C5AA',
+    secondaryContainer: '#3D6B55',
+    tertiary: '#B8CBF0',
+    tertiaryContainer: '#2E3B57',
+    background: '#111317',
+    surface: '#171A20',
+    surfaceVariant: '#20242C',
+    surfaceDisabled: '#282D36',
+    outline: '#4A5160',
+    outlineVariant: '#313643',
+    onPrimary: '#10261E',
+    onPrimaryContainer: '#DDF4E8',
+    onSecondary: '#3A1613',
+    onSecondaryContainer: '#FFD8D2',
+    onTertiary: '#1C2943',
+    onTertiaryContainer: '#DFE8FA',
+    onSurface: '#F4F6FA',
+    onSurfaceVariant: '#B0B6C3',
     shadow: '#000000',
     scrim: '#000000',
-    error: '#ffb4ab',
+    error: '#FF8A84',
+    errorContainer: '#5C1F1B',
+    onErrorContainer: '#FFDAD6',
+    backdrop: 'rgba(0, 0, 0, 0.36)',
   },
 };
-
-// ── Option B: Ocean Archive ───────────────────────────────────────────────────
-const oceanPalettes: Record<ResolvedTheme, ThemePalette> = {
-  light: {
-    primary: '#0E618F',
-    primaryContainer: '#C5E5F8',
-    secondary: '#C8760A',
-    tertiary: '#2A7D78',
-    background: '#FFFFFF',
-    surface: '#FFFFFF',
-    surfaceVariant: '#E0EEF6',
-    secondaryContainer: '#FFE0B2',
-    tertiaryContainer: '#C8EDE9',
-    outline: '#567B90',
-    outlineVariant: '#BDD1DC',
-    onPrimary: '#FFFFFF',
-    onSecondary: '#FFFFFF',
-    onSurface: '#0D1B24',
-    onSurfaceVariant: '#3F606E',
-    shadow: '#000000',
-    scrim: '#000000',
-    error: '#BA1A1A',
-  },
-  dark: {
-    primary: '#72B7E6',
-    primaryContainer: '#073D5E',
-    secondary: '#FFB74D',
-    tertiary: '#4DB6AC',
-    background: '#0C131A',
-    surface: '#141D25',
-    surfaceVariant: '#1C2A35',
-    secondaryContainer: '#5D3B00',
-    tertiaryContainer: '#0D3D39',
-    outline: '#5D8FA0',
-    outlineVariant: '#243845',
-    onPrimary: '#00293D',
-    onSecondary: '#3D2700',
-    onSurface: '#D8E8F4',
-    onSurfaceVariant: '#94B8C8',
-    shadow: '#000000',
-    scrim: '#000000',
-    error: '#FFB4AB',
-  },
-};
-
-// ── Option C: Midnight Amber (original purple, refined) ───────────────────────
-const midnightPalettes: Record<ResolvedTheme, ThemePalette> = {
-  light: {
-    primary: '#7B61FF',
-    primaryContainer: '#E9E0FF',
-    secondary: '#FF8A5B',
-    tertiary: '#2FAE95',
-    background: '#FFFFFF',
-    surface: '#FFFFFF',
-    surfaceVariant: '#F3EEFF',
-    secondaryContainer: '#FFE5DB',
-    tertiaryContainer: '#DCF6F0',
-    outline: '#8E84B8',
-    outlineVariant: '#DED6F4',
-    onPrimary: '#FFFFFF',
-    onSecondary: '#FFFFFF',
-    onSurface: '#1C1A24',
-    onSurfaceVariant: '#6A647D',
-    shadow: '#140F2C',
-    scrim: '#0F0B1D',
-    error: '#D64545',
-  },
-  dark: {
-    primary: '#A8C7FF',
-    primaryContainer: '#1F355C',
-    secondary: '#FFB38F',
-    tertiary: '#7BE0C6',
-    background: '#0D1320',
-    surface: '#131B2B',
-    surfaceVariant: '#1D2740',
-    secondaryContainer: '#5A3422',
-    tertiaryContainer: '#173E37',
-    outline: '#8A96B3',
-    outlineVariant: '#2E3A57',
-    onPrimary: '#10203A',
-    onSecondary: '#44200F',
-    onSurface: '#ECF1FF',
-    onSurfaceVariant: '#B5C0DB',
-    shadow: '#000000',
-    scrim: '#000000',
-    error: '#FF8E8E',
-  },
-};
-
-const themeMap = {
-  forest: forestPalettes,
-  ocean: oceanPalettes,
-  midnight: midnightPalettes,
-};
-
-const palettes = themeMap[ACTIVE_THEME];
 
 function buildPaperTheme(mode: ResolvedTheme): AppTheme {
   const baseTheme = mode === 'dark' ? MD3DarkTheme : MD3LightTheme;
-  const palette = palettes[mode];
+  const palette = softPalettes[mode];
 
   return {
     ...baseTheme,
-    roundness: 18,
+    roundness: 20,
+    fonts: appFonts,
     colors: {
       ...baseTheme.colors,
       primary: palette.primary,
+      primaryContainer: palette.primaryContainer,
       secondary: palette.secondary,
+      secondaryContainer: palette.secondaryContainer,
       tertiary: palette.tertiary,
+      tertiaryContainer: palette.tertiaryContainer,
       background: palette.background,
       surface: palette.surface,
       surfaceVariant: palette.surfaceVariant,
-      primaryContainer: palette.primaryContainer,
-      secondaryContainer: palette.secondaryContainer,
-      tertiaryContainer: palette.tertiaryContainer,
+      surfaceDisabled: palette.surfaceDisabled,
       outline: palette.outline,
       outlineVariant: palette.outlineVariant,
       onPrimary: palette.onPrimary,
+      onPrimaryContainer: palette.onPrimaryContainer,
       onSecondary: palette.onSecondary,
+      onSecondaryContainer: palette.onSecondaryContainer,
+      onTertiary: palette.onTertiary,
+      onTertiaryContainer: palette.onTertiaryContainer,
       onSurface: palette.onSurface,
       onSurfaceVariant: palette.onSurfaceVariant,
       shadow: palette.shadow,
       scrim: palette.scrim,
       error: palette.error,
+      errorContainer: palette.errorContainer,
+      onErrorContainer: palette.onErrorContainer,
+      backdrop: palette.backdrop,
       elevation: {
         level0: palette.background,
-        level1: mode === 'dark' ? '#1E241A' : '#FCFBF7',
-        level2: mode === 'dark' ? '#252C20' : '#F8F5EE',
-        level3: mode === 'dark' ? '#2C3427' : '#F3EFE5',
-        level4: mode === 'dark' ? '#323B2C' : '#EEE8DC',
-        level5: mode === 'dark' ? '#384333' : '#E9E1D2',
+        level1: mode === 'dark' ? '#1B1F26' : '#F8F8FA',
+        level2: mode === 'dark' ? '#20242D' : '#FDFDFD',
+        level3: mode === 'dark' ? '#252A33' : '#FFFFFF',
+        level4: mode === 'dark' ? '#2A303A' : '#FFFFFF',
+        level5: mode === 'dark' ? '#313844' : '#FFFFFF',
       },
     },
   };
@@ -216,7 +170,7 @@ function buildPaperTheme(mode: ResolvedTheme): AppTheme {
 
 function buildNavigationTheme(mode: ResolvedTheme): NavigationTheme {
   const baseTheme = mode === 'dark' ? NavigationDarkTheme : NavigationLightTheme;
-  const palette = palettes[mode];
+  const palette = softPalettes[mode];
 
   return {
     ...baseTheme,
@@ -227,7 +181,7 @@ function buildNavigationTheme(mode: ResolvedTheme): NavigationTheme {
       card: palette.surface,
       text: palette.onSurface,
       border: palette.outlineVariant,
-      notification: palette.tertiary,
+      notification: palette.secondary,
     },
   };
 }
@@ -235,7 +189,6 @@ function buildNavigationTheme(mode: ResolvedTheme): NavigationTheme {
 export function resolveThemePreference(preference: ThemePreference): ResolvedTheme {
   return preference;
 }
-
 
 export function getAppThemes(preference: ThemePreference) {
   const resolvedTheme = resolveThemePreference(preference);

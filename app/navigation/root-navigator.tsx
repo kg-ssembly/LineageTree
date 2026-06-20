@@ -38,9 +38,10 @@ export default function RootNavigator() {
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }} edges={['top']}>
       <Stack.Navigator
         screenOptions={{
-          headerStyle: { backgroundColor: theme.colors.surface },
+          animation: 'fade_from_bottom',
+          headerStyle: { backgroundColor: theme.colors.background },
           headerTintColor: theme.colors.onSurface,
-          headerTitleStyle: { fontWeight: '700' },
+          headerTitleStyle: { fontWeight: '700', fontSize: 18 },
           headerShadowVisible: false,
           contentStyle: { backgroundColor: theme.colors.background },
         }}

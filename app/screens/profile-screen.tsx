@@ -4,9 +4,11 @@
  */
 import React, { useState } from 'react';
 import { ScrollView, View } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   Avatar,
   Button,
+  Card,
   SegmentedButtons,
   Surface,
   Text,
@@ -64,19 +66,26 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
       ? 'Dark mode is enabled for a cosy, low-light workspace.'
       : 'Light mode is enabled for a bright, airy workspace.';
 
+  const profileStats = [
+    { label: 'Trees', value: 'Family', icon: 'family-tree' },
+    { label: 'Space', value: preference === 'dark' ? 'Night' : 'Light', icon: preference === 'dark' ? 'weather-night' : 'white-balance-sunny' },
+  ];
+
   return (
     <ScrollView contentContainerStyle={styles.content}>
-      {/* Hero */}
       <Surface style={[homeStyles.profileHeroCard, { backgroundColor: theme.colors.elevation.level2 }]} elevation={2}>
         <View style={homeStyles.profileAvatarRow}>
           <Avatar.Text
-            size={72}
+            size={88}
             label={user?.displayName ? user.displayName.slice(0, 2).toUpperCase() : '??'}
-            style={{ backgroundColor: theme.colors.primary }}
-            color={theme.colors.onPrimary}
+            style={{ backgroundColor: theme.colors.primaryContainer }}
+            color={theme.colors.onPrimaryContainer}
           />
           <View style={homeStyles.profileNameWrap}>
-            <Text variant="headlineSmall" style={{ color: theme.colors.onSurface, fontWeight: '800' }}>
+            <Text variant="labelLarge" style={{ color: theme.colors.primary }}>
+              Personal profile
+            </Text>
+            <Text variant="headlineMedium" style={{ color: theme.colors.onSurface, fontWeight: '800' }}>
               {user?.displayName ?? 'Unknown'}
             </Text>
             <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 2 }}>
@@ -86,6 +95,17 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
               Member since {user?.createdAt ? formatDate(new Date(user.createdAt)) : '—'}
             </Text>
           </View>
+        </View>
+        <View style={homeStyles.heroStatsRow}>
+          {profileStats.map((item) => (
+            <Card key={item.label} mode="elevated" style={[homeStyles.statCard, { backgroundColor: theme.colors.surface }]}>
+              <Card.Content>
+                <MaterialCommunityIcons name={item.icon as any} size={20} color={theme.colors.secondary} />
+                <Text variant="titleMedium" style={{ color: theme.colors.onSurface, marginTop: 10 }}>{item.value}</Text>
+                <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>{item.label}</Text>
+              </Card.Content>
+            </Card>
+          ))}
         </View>
       </Surface>
 
@@ -156,4 +176,3 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
 }
 
 // UserProfileTabContent is the only export needed
-

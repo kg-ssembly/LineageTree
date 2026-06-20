@@ -9,6 +9,7 @@ import {
   Dialog,
   IconButton,
   Portal,
+  Searchbar,
   Surface,
   Text,
   TextInput,
@@ -387,20 +388,23 @@ export function PeopleRelationshipsTabContent({
           ) : null}
         </View>
 
-        <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', marginBottom: 4 }}>
-          <TextInput
-            mode="outlined"
-            label="Search family members"
+        <View style={styles.searchRow}>
+          <Searchbar
+            placeholder="Search family members"
             value={searchQuery}
             onChangeText={setSearchQuery}
-            style={[styles.filterInput, { flex: 1, marginBottom: 0 }]}
-            left={<TextInput.Icon icon="magnify" />}
-            right={searchQuery ? <TextInput.Icon icon="close" onPress={() => setSearchQuery('')} /> : undefined}
+            style={styles.searchBar}
+            inputStyle={{ minHeight: 0 }}
+            elevation={0}
+            iconColor={theme.colors.onSurfaceVariant}
+            clearIcon="close"
+            onClearIconPress={() => setSearchQuery('')}
           />
           <Button
             mode={activeFilterCount > 0 ? 'contained' : 'outlined'}
             icon="tune"
             onPress={openFilterModal}
+            style={styles.filterButton}
             contentStyle={{ flexDirection: 'row-reverse' }}
           >
             {activeFilterCount > 0 ? `(${activeFilterCount})` : ''}
@@ -430,9 +434,11 @@ export function PeopleRelationshipsTabContent({
           </View>
         ) : (
           <>
-            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 8 }}>
-              {filteredPeople.length} member{filteredPeople.length !== 1 ? 's' : ''} · page {currentPage} of {totalPages}
-            </Text>
+            <View style={[styles.resultsPill, { backgroundColor: theme.colors.surfaceVariant }]}>
+              <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                {filteredPeople.length} member{filteredPeople.length !== 1 ? 's' : ''} · page {currentPage} of {totalPages}
+              </Text>
+            </View>
             {visiblePeople.map((person) => {
               const preferredPhoto = getPreferredPersonPhoto(person);
               const isCurrentUsersPerson = currentAssignedPerson?.id === person.id;
