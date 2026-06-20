@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { FlatList, Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   ActivityIndicator,
@@ -218,8 +218,6 @@ export function buildSelfAssignmentSuggestions(
     });
 }
 
-const PEOPLE_PAGE_SIZE = 5;
-
 type MemberFilters = {
   gender: 'all' | PersonGender;
   presence: 'all' | 'present' | 'deceased';
@@ -298,7 +296,6 @@ export function PeopleRelationshipsTabContent({
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<MemberFilters>(DEFAULT_FILTERS);
   const [draftFilters, setDraftFilters] = useState<MemberFilters>(DEFAULT_FILTERS);
-  const [currentPage, setCurrentPage] = useState(1);
 
   const activeFilterCount = useMemo(() => countActiveFilters(filters), [filters]);
 
@@ -366,17 +363,6 @@ export function PeopleRelationshipsTabContent({
     [filters, people, searchQuery, personRelStats, selectedTree?.surnameVariantGroups],
   );
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery, filters]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredPeople.length / PEOPLE_PAGE_SIZE));
-  const pageStart = (currentPage - 1) * PEOPLE_PAGE_SIZE;
-  const visiblePeople = useMemo(
-    () => filteredPeople.slice(pageStart, pageStart + PEOPLE_PAGE_SIZE),
-    [filteredPeople, pageStart],
-  );
-
   const openFilterModal = () => {
     setDraftFilters(filters);
     setFilterModalVisible(true);
@@ -387,9 +373,51 @@ export function PeopleRelationshipsTabContent({
     setFilterModalVisible(false);
   };
 
+  const renderMemberItem = ({ item: person }: { item: PersonRecord }) => {
+    const preferredPhoto = getPreferredPersonPhoto(person);
+    const isCurrentUsersPerson = currentAssignedPerson?.id === person.id;
+
+    return (
+      <Pressable
+        onPress={() => openPersonProfile(person)}
+        style={({ pressed }) => [{
+          backgroundColor: pressed ? theme.colors.surfaceVariant : theme.colors.surface,
+          borderRadius: 18,
+          opacity: pressed ? 0.92 : 1,
+        }]}
+      >
+        <View style={styles.memberListRow}>
+          <View style={styles.personPhotoWrap}>
+            {preferredPhoto ? (
+              <Image source={{ uri: preferredPhoto.url }} style={styles.personPhoto} />
+            ) : (
+              <View style={styles.personPhotoFallback}>
+                <MaterialCommunityIcons name={getPersonFallbackAvatarIcon(person)} size={30} color={theme.colors.primary} />
+              </View>
+            )}
+          </View>
+          <View style={styles.memberListInfo}>
+            <View style={styles.personNameRow}>
+              <Text variant="titleMedium">{formatPersonName(person)}</Text>
+              {isCurrentUsersPerson ? <Chip compact icon="account">You</Chip> : null}
+            </View>
+            <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant, marginTop: 6 }]}>
+              {[person.birthDate ? formatPersonDate(person.birthDate) : null, getPersonPresenceLabel(person)]
+                .filter(Boolean)
+                .join(' • ')}
+            </Text>
+          </View>
+          <View style={styles.memberListTrailing}>
+            <IconButton icon="chevron-right" onPress={() => openPersonProfile(person)} />
+          </View>
+        </View>
+      </Pressable>
+    );
+  };
+
   return (
-    <ScrollView contentContainerStyle={styles.content}>
-      <View>
+    <View style={[styles.content, { flex: 1, paddingBottom: 0 }]}>
+      <View style={{ flex: 1 }}>
         <View style={styles.sectionHeader}>
           <View style={styles.titleWrap}>
             <View style={styles.titleWithHelperRow}>
@@ -436,7 +464,8 @@ export function PeopleRelationshipsTabContent({
           </Button>
         </View>
 
-        {loadingTreeData ? (
+        <View style={{ flex: 1 }}>
+          {loadingTreeData ? (
           <View style={styles.centeredState}>
             <ActivityIndicator color={theme.colors.primary} />
             <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
@@ -461,69 +490,25 @@ export function PeopleRelationshipsTabContent({
           <>
             <View style={[styles.resultsPill, { backgroundColor: theme.colors.surfaceVariant }]}>
               <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                {filteredPeople.length} member{filteredPeople.length !== 1 ? 's' : ''} · page {currentPage} of {totalPages}
+                {filteredPeople.length} member{filteredPeople.length !== 1 ? 's' : ''}
               </Text>
             </View>
-            <View style={styles.memberList}>
-              {visiblePeople.map((person) => {
-              const preferredPhoto = getPreferredPersonPhoto(person);
-              const isCurrentUsersPerson = currentAssignedPerson?.id === person.id;
-
-              return (
-                <Pressable
-                  key={person.id}
-                  onPress={() => openPersonProfile(person)}
-                  style={({ pressed }) => [{
-                    backgroundColor: pressed ? theme.colors.surfaceVariant : theme.colors.surface,
-                    borderRadius: 18,
-                    opacity: pressed ? 0.92 : 1,
-                  }]}
-                >
-                  <View style={styles.memberListRow}>
-                    <View style={styles.personPhotoWrap}>
-                      {preferredPhoto ? (
-                        <Image source={{ uri: preferredPhoto.url }} style={styles.personPhoto} />
-                      ) : (
-                        <View style={styles.personPhotoFallback}>
-                          <MaterialCommunityIcons name={getPersonFallbackAvatarIcon(person)} size={30} color={theme.colors.primary} />
-                        </View>
-                      )}
-                    </View>
-                    <View style={styles.memberListInfo}>
-                      <View style={styles.personNameRow}>
-                        <Text variant="titleMedium">{formatPersonName(person)}</Text>
-                        {isCurrentUsersPerson ? <Chip compact icon="account">You</Chip> : null}
-                      </View>
-                      <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant, marginTop: 6 }]}>
-                        {[person.birthDate ? formatPersonDate(person.birthDate) : null, getPersonPresenceLabel(person)]
-                          .filter(Boolean)
-                          .join(' • ')}
-                      </Text>
-                    </View>
-                    <View style={styles.memberListTrailing}>
-                      <IconButton icon="chevron-right" onPress={() => openPersonProfile(person)} />
-                    </View>
-                  </View>
-                </Pressable>
-              );
-              })}
-            </View>
-
-            <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, marginTop: 12 }}>
-              <IconButton
-                icon="chevron-left"
-                onPress={() => setCurrentPage((page) => Math.max(1, page - 1))}
-                disabled={currentPage === 1}
-              />
-              <Text variant="bodyMedium">{currentPage} / {totalPages}</Text>
-              <IconButton
-                icon="chevron-right"
-                onPress={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
-                disabled={currentPage === totalPages}
-              />
-            </View>
+            <FlatList
+              data={filteredPeople}
+              keyExtractor={(person) => person.id}
+              renderItem={renderMemberItem}
+              style={{ flex: 1 }}
+              contentContainerStyle={[styles.memberList, { paddingBottom: 48 }]}
+              initialNumToRender={12}
+              maxToRenderPerBatch={12}
+              windowSize={8}
+              removeClippedSubviews
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            />
           </>
         )}
+        </View>
       </View>
 
       <Portal>
@@ -626,7 +611,7 @@ export function PeopleRelationshipsTabContent({
           </Dialog.Actions>
         </Dialog>
       </Portal>
-    </ScrollView>
+    </View>
   );
 }
 

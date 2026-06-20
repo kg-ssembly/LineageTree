@@ -533,16 +533,16 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
     }
 
     try {
+      if (currentRelationship) {
+        await removeRelationship(user.id, currentRelationship.id);
+      }
+
       if (mode === 'spouse-of') {
         await addSpouseRelationship(user.id, selectedTree.id, person.id, relatedPersonId);
       } else if (mode === 'parent-of') {
         await addParentChildRelationship(user.id, selectedTree.id, person.id, relatedPersonId);
       } else {
         await addParentChildRelationship(user.id, selectedTree.id, relatedPersonId, person.id);
-      }
-
-      if (currentRelationship) {
-        await removeRelationship(user.id, currentRelationship.id);
       }
 
       setRelationshipDialog({ visible: false, relationship: null });

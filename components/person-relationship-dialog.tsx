@@ -3,6 +3,7 @@ import { ScrollView, View } from 'react-native';
 import { Button, Chip, Dialog, HelperText, Portal, SegmentedButtons, Text, TextInput, useTheme } from 'react-native-paper';
 import type { PersonRecord } from './dto/person';
 import type { RelationshipRecord } from './dto/relationship';
+import { validateProposedRelationship } from './family-tree-validation';
 import { GlobalStyles } from '../constants/styles';
 
 const styles = GlobalStyles.personRelationshipDialog;
@@ -107,31 +108,25 @@ export default function PersonRelationshipDialog({
     [candidates, searchQuery],
   );
 
-  const duplicateRelationship = useMemo(() => {
-    if (!person || !relatedPersonId) return false;
-    return relationships.some((relationship) => {
-      if (relationship.id === editingRelationship?.id) return false;
-      if (mode === 'spouse-of') {
-        const [firstId, secondId] = [person.id, relatedPersonId].sort();
-        return relationship.type === 'spouse'
-          && relationship.fromPersonId === firstId
-          && relationship.toPersonId === secondId;
-      }
-      if (mode === 'parent-of') {
-        return relationship.type === 'parent-child'
-          && relationship.fromPersonId === person.id
-          && relationship.toPersonId === relatedPersonId;
-      }
-      return relationship.type === 'parent-child'
-        && relationship.fromPersonId === relatedPersonId
-        && relationship.toPersonId === person.id;
+  const validationMessage = useMemo(() => {
+    if (!person || !relatedPersonId) {
+      return null;
+    }
+
+    return validateProposedRelationship({
+      people,
+      relationships,
+      type: mode === 'spouse-of' ? 'spouse' : 'parent-child',
+      fromPersonId: mode === 'child-of' ? relatedPersonId : person.id,
+      toPersonId: mode === 'child-of' ? person.id : relatedPersonId,
+      ignoreRelationshipId: editingRelationship?.id,
     });
-  }, [editingRelationship?.id, mode, person, relatedPersonId, relationships]);
+  }, [editingRelationship?.id, mode, people, person, relatedPersonId, relationships]);
 
   const handleSubmit = async () => {
     if (!person) { setError('This family member could not be loaded.'); return; }
     if (!relatedPersonId) { setError('Choose a related family member first.'); return; }
-    if (duplicateRelationship) { setError('That relationship already exists.'); return; }
+    if (validationMessage) { setError(validationMessage); return; }
     await onSubmit({ mode, relatedPersonId });
   };
 
@@ -211,14 +206,14 @@ export default function PersonRelationshipDialog({
               )}
             </View>
 
-            <HelperText type="error" visible={!!error || duplicateRelationship}>
-              {error ?? (duplicateRelationship ? 'That relationship already exists.' : ' ')}
+            <HelperText type="error" visible={!!error || !!validationMessage}>
+              {error ?? validationMessage ?? ' '}
             </HelperText>
           </ScrollView>
         </Dialog.ScrollArea>
         <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
           <Button mode="outlined" onPress={onDismiss} disabled={loading}>Cancel</Button>
-          <Button mode="contained" onPress={handleSubmit} disabled={loading || !person || candidates.length === 0}>Save</Button>
+          <Button mode="contained" onPress={handleSubmit} disabled={loading || !person || candidates.length === 0 || !!validationMessage}>Save</Button>
         </Dialog.Actions>
       </Dialog>
     </Portal>

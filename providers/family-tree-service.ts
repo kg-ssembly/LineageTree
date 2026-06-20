@@ -28,6 +28,7 @@ import type { PersonInput, PersonLifeEvent, PersonMutationPayload, PersonPhoto, 
 import type { RelationshipRecord } from '../components/dto/relationship';
 import type { CollaboratorRole, FamilyTree, SurnameVariantGroup, TreeCollaborator, TreeMembershipHistoryEntry, TreeRole } from '../components/dto/tree';
 import type { UserProfile } from '../components/dto/user';
+import { normalizeRelationshipEndpoints, validateProposedRelationship } from '../components/family-tree-validation';
 import { buildMergePreview } from './merge-intelligence';
 
 const TREES_COLLECTION = 'trees';
@@ -462,6 +463,13 @@ function buildSpouseRelationshipId(personAId: string, personBId: string) {
 
 function buildParentChildRelationshipId(parentId: string, childId: string) {
   return `parent_${parentId}_${childId}`;
+}
+
+async function getRelationshipsForTree(treeId: string) {
+  const relationshipSnapshot = await getDocs(
+    query(collection(db, RELATIONSHIPS_COLLECTION), where('treeId', '==', treeId)),
+  );
+  return relationshipSnapshot.docs.map(mapRelationship);
 }
 
 async function uriToBlob(uri: string): Promise<Blob> {
@@ -951,8 +959,124 @@ function getRequesterLabel(tree: FamilyTree, userId: string) {
   return collaborator?.displayName || collaborator?.email || 'A collaborator';
 }
 
-function getEligibleApproverIds(tree: FamilyTree, requesterUserId: string) {
-  return tree.memberIds.filter((memberId) => memberId !== requesterUserId);
+function normaliseSurnameKey(value: string | undefined | null) {
+  return value?.trim().toLowerCase() ?? '';
+}
+
+function buildSurnameCanonicalLookup(tree: FamilyTree) {
+  const lookup = new Map<string, string>();
+
+  tree.surnameVariantGroups.forEach((group) => {
+    const primaryKey = normaliseSurnameKey(group.primarySurname);
+    if (!primaryKey) {
+      return;
+    }
+
+    lookup.set(primaryKey, primaryKey);
+    group.variants.forEach((variant) => {
+      const variantKey = normaliseSurnameKey(variant);
+      if (variantKey) {
+        lookup.set(variantKey, primaryKey);
+      }
+    });
+  });
+
+  return lookup;
+}
+
+function getCanonicalSurnameKeysForPerson(
+  person: Pick<PersonRecord, 'lastName' | 'maidenName'> | null | undefined,
+  surnameLookup: Map<string, string>,
+) {
+  const keys = new Set<string>();
+  [person?.lastName, person?.maidenName].forEach((value) => {
+    const rawKey = normaliseSurnameKey(value);
+    if (!rawKey) {
+      return;
+    }
+    keys.add(surnameLookup.get(rawKey) ?? rawKey);
+  });
+
+  return keys;
+}
+
+function intersectsSurnames(left: Set<string>, right: Set<string>) {
+  for (const value of left) {
+    if (right.has(value)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function getApprovalScopeSurnames(
+  tree: FamilyTree,
+  peopleById: Map<string, PersonRecord>,
+  payload: ApprovalRequestPayload,
+) {
+  const surnameLookup = buildSurnameCanonicalLookup(tree);
+  const scope = new Set<string>();
+  const peopleToInspect = [
+    payload.beforePerson,
+    payload.afterPerson,
+    payload.deletedPerson,
+  ].filter(Boolean) as PersonRecord[];
+
+  if (payload.relationship) {
+    const fromPerson = peopleById.get(payload.relationship.fromPersonId);
+    const toPerson = peopleById.get(payload.relationship.toPersonId);
+    if (fromPerson) {
+      peopleToInspect.push(fromPerson);
+    }
+    if (toPerson) {
+      peopleToInspect.push(toPerson);
+    }
+  }
+
+  peopleToInspect.forEach((person) => {
+    getCanonicalSurnameKeysForPerson(person, surnameLookup).forEach((surname) => scope.add(surname));
+  });
+
+  return { scope, surnameLookup };
+}
+
+async function getEligibleApproverIds(
+  tree: FamilyTree,
+  requesterUserId: string,
+  payload: ApprovalRequestPayload,
+) {
+  const people = await getPeopleByTreeId(tree.id);
+  const peopleById = new Map(people.map((person) => [person.id, person]));
+  const { scope, surnameLookup } = getApprovalScopeSurnames(tree, peopleById, payload);
+
+  const nonContributorApprovers = tree.collaborators
+    .filter((collaborator) => collaborator.userId !== requesterUserId)
+    .filter((collaborator) => collaborator.role === 'owner' || collaborator.role === 'editor')
+    .map((collaborator) => collaborator.userId);
+
+  const contributorApprovers = tree.collaborators
+    .filter((collaborator) => collaborator.userId !== requesterUserId)
+    .filter((collaborator) => collaborator.role === 'contributor');
+
+  const matchingContributorIds = scope.size === 0
+    ? contributorApprovers.map((collaborator) => collaborator.userId)
+    : contributorApprovers
+      .filter((collaborator) => {
+        const assignedPersonId = tree.personAssignments[collaborator.userId];
+        const assignedPerson = assignedPersonId ? peopleById.get(assignedPersonId) ?? null : null;
+        if (!assignedPerson) {
+          return false;
+        }
+
+        const contributorSurnames = getCanonicalSurnameKeysForPerson(assignedPerson, surnameLookup);
+        return intersectsSurnames(scope, contributorSurnames);
+      })
+      .map((collaborator) => collaborator.userId);
+
+  return {
+    eligibleApproverIds: [...new Set([...nonContributorApprovers, ...matchingContributorIds])],
+    autoApproveBecauseNoSameSurnameContributor: scope.size > 0 && matchingContributorIds.length === 0,
+  };
 }
 
 function buildApprovalExpiry(tree: FamilyTree) {
@@ -1108,7 +1232,6 @@ export async function submitPersonUpdateApproval(
 ): Promise<ApprovalSubmissionResult> {
   const tree = await getTreeById(person.treeId);
   const requesterLabel = getRequesterLabel(tree, actorUserId);
-  const eligibleApproverIds = getEligibleApproverIds(tree, actorUserId);
   const { nextPerson, uploadedPhotos, removedPhotos } = await preparePersonUpdatePreview(actorUserId, person, input);
   const timestamp = nowIso();
   const payload: ApprovalRequestPayload = {
@@ -1117,8 +1240,9 @@ export async function submitPersonUpdateApproval(
     removedPhotos,
     uploadedPhotos,
   };
+  const { eligibleApproverIds, autoApproveBecauseNoSameSurnameContributor } = await getEligibleApproverIds(tree, actorUserId, payload);
 
-  if (eligibleApproverIds.length === 0 || areApprovalsDisabled(tree)) {
+  if (eligibleApproverIds.length === 0 || areApprovalsDisabled(tree) || autoApproveBecauseNoSameSurnameContributor) {
     await applyApprovedPersonUpdate(payload);
     const appliedAt = nowIso();
     await createApprovalRequest({
@@ -1127,7 +1251,7 @@ export async function submitPersonUpdateApproval(
       operation: 'update-person',
       targetId: person.id,
       title: `Updated ${formatPersonName(person)}`,
-      description: `${requesterLabel} updated this family member profile and it was applied immediately because ${eligibleApproverIds.length === 0 ? 'no other collaborator could review it' : 'approvals are turned off for this tree'}.`,
+      description: `${requesterLabel} updated this family member profile and it was applied immediately because ${autoApproveBecauseNoSameSurnameContributor ? 'no contributor linked to the same surname could review it' : eligibleApproverIds.length === 0 ? 'no other collaborator could review it' : 'approvals are turned off for this tree'}.`,
       status: 'applied',
       decisionMode: 'immediate',
       requestedByUserId: actorUserId,
@@ -1183,11 +1307,11 @@ export async function submitDeletePersonApproval(
 ): Promise<ApprovalSubmissionResult> {
   const tree = await getTreeById(person.treeId);
   const requesterLabel = getRequesterLabel(tree, actorUserId);
-  const eligibleApproverIds = getEligibleApproverIds(tree, actorUserId);
   const timestamp = nowIso();
   const payload: ApprovalRequestPayload = { deletedPerson: person };
+  const { eligibleApproverIds, autoApproveBecauseNoSameSurnameContributor } = await getEligibleApproverIds(tree, actorUserId, payload);
 
-  if (eligibleApproverIds.length === 0 || areApprovalsDisabled(tree)) {
+  if (eligibleApproverIds.length === 0 || areApprovalsDisabled(tree) || autoApproveBecauseNoSameSurnameContributor) {
     await applyApprovedDeletePerson(payload);
     const appliedAt = nowIso();
     await createApprovalRequest({
@@ -1196,7 +1320,7 @@ export async function submitDeletePersonApproval(
       operation: 'delete-person',
       targetId: person.id,
       title: `Delete ${formatPersonName(person)}`,
-      description: `${requesterLabel} deleted this family member and it was applied immediately because ${eligibleApproverIds.length === 0 ? 'no other collaborator could review it' : 'approvals are turned off for this tree'}.`,
+      description: `${requesterLabel} deleted this family member and it was applied immediately because ${autoApproveBecauseNoSameSurnameContributor ? 'no contributor linked to the same surname could review it' : eligibleApproverIds.length === 0 ? 'no other collaborator could review it' : 'approvals are turned off for this tree'}.`,
       status: 'applied',
       decisionMode: 'immediate',
       requestedByUserId: actorUserId,
@@ -1246,22 +1370,24 @@ export async function submitCreateRelationshipApproval(
   fromPersonId: string,
   toPersonId: string,
 ): Promise<ApprovalSubmissionResult> {
-  if (type === 'parent-child' && fromPersonId === toPersonId) {
-    throw new Error('A family member cannot be their own parent or child.');
-  }
-
-  if (type === 'spouse' && fromPersonId === toPersonId) {
-    throw new Error('A family member cannot be their own spouse.');
-  }
-
   const tree = await getTreeById(treeId);
   const requesterLabel = getRequesterLabel(tree, actorUserId);
-  const eligibleApproverIds = getEligibleApproverIds(tree, actorUserId);
   await ensurePeopleBelongToTree(treeId, [fromPersonId, toPersonId]);
+  const existingRelationships = await getRelationshipsForTree(treeId);
+  const validationMessage = validateProposedRelationship({
+    relationships: existingRelationships,
+    type,
+    fromPersonId,
+    toPersonId,
+  });
+  if (validationMessage) {
+    throw new Error(validationMessage);
+  }
 
+  const normalizedEndpoints = normalizeRelationshipEndpoints(type, fromPersonId, toPersonId);
   const relationshipId = type === 'spouse'
-    ? buildSpouseRelationshipId(fromPersonId, toPersonId)
-    : buildParentChildRelationshipId(fromPersonId, toPersonId);
+    ? buildSpouseRelationshipId(normalizedEndpoints.fromPersonId, normalizedEndpoints.toPersonId)
+    : buildParentChildRelationshipId(normalizedEndpoints.fromPersonId, normalizedEndpoints.toPersonId);
   const relationshipRef = doc(db, RELATIONSHIPS_COLLECTION, relationshipId);
   const existingRelationship = await getDoc(relationshipRef);
   if (existingRelationship.exists()) {
@@ -1273,15 +1399,16 @@ export async function submitCreateRelationshipApproval(
     treeId,
     ownerId: actorUserId,
     type,
-    fromPersonId: type === 'spouse' ? [fromPersonId, toPersonId].sort()[0] : fromPersonId,
-    toPersonId: type === 'spouse' ? [fromPersonId, toPersonId].sort()[1] : toPersonId,
+    fromPersonId: normalizedEndpoints.fromPersonId,
+    toPersonId: normalizedEndpoints.toPersonId,
     createdAt: nowIso(),
   };
   const timestamp = nowIso();
   const payload: ApprovalRequestPayload = { relationship };
   const relationLabel = type === 'spouse' ? 'spouse relationship' : 'parent-child relationship';
+  const { eligibleApproverIds, autoApproveBecauseNoSameSurnameContributor } = await getEligibleApproverIds(tree, actorUserId, payload);
 
-  if (eligibleApproverIds.length === 0 || areApprovalsDisabled(tree)) {
+  if (eligibleApproverIds.length === 0 || areApprovalsDisabled(tree) || autoApproveBecauseNoSameSurnameContributor) {
     await applyApprovedCreateRelationship(payload);
     const appliedAt = nowIso();
     await createApprovalRequest({
@@ -1290,7 +1417,7 @@ export async function submitCreateRelationshipApproval(
       operation: 'create-relationship',
       targetId: relationship.id,
       title: `Create ${relationLabel}`,
-      description: `${requesterLabel} added a ${relationLabel} and it was applied immediately because ${eligibleApproverIds.length === 0 ? 'no other collaborator could review it' : 'approvals are turned off for this tree'}.`,
+      description: `${requesterLabel} added a ${relationLabel} and it was applied immediately because ${autoApproveBecauseNoSameSurnameContributor ? 'no contributor linked to the same surname could review it' : eligibleApproverIds.length === 0 ? 'no other collaborator could review it' : 'approvals are turned off for this tree'}.`,
       status: 'applied',
       decisionMode: 'immediate',
       requestedByUserId: actorUserId,
@@ -1346,12 +1473,12 @@ export async function submitDeleteRelationshipApproval(
   const relationship = mapRelationshipData(relationshipSnapshot.id, relationshipSnapshot.data());
   const tree = await getTreeById(relationship.treeId);
   const requesterLabel = getRequesterLabel(tree, actorUserId);
-  const eligibleApproverIds = getEligibleApproverIds(tree, actorUserId);
   const timestamp = nowIso();
   const payload: ApprovalRequestPayload = { relationship };
   const relationLabel = relationship.type === 'spouse' ? 'spouse relationship' : 'parent-child relationship';
+  const { eligibleApproverIds, autoApproveBecauseNoSameSurnameContributor } = await getEligibleApproverIds(tree, actorUserId, payload);
 
-  if (eligibleApproverIds.length === 0 || areApprovalsDisabled(tree)) {
+  if (eligibleApproverIds.length === 0 || areApprovalsDisabled(tree) || autoApproveBecauseNoSameSurnameContributor) {
     await applyApprovedDeleteRelationship(payload);
     const appliedAt = nowIso();
     await createApprovalRequest({
@@ -1360,7 +1487,7 @@ export async function submitDeleteRelationshipApproval(
       operation: 'delete-relationship',
       targetId: relationship.id,
       title: `Delete ${relationLabel}`,
-      description: `${requesterLabel} removed a ${relationLabel} and it was applied immediately because ${eligibleApproverIds.length === 0 ? 'no other collaborator could review it' : 'approvals are turned off for this tree'}.`,
+      description: `${requesterLabel} removed a ${relationLabel} and it was applied immediately because ${autoApproveBecauseNoSameSurnameContributor ? 'no contributor linked to the same surname could review it' : eligibleApproverIds.length === 0 ? 'no other collaborator could review it' : 'approvals are turned off for this tree'}.`,
       status: 'applied',
       decisionMode: 'immediate',
       requestedByUserId: actorUserId,

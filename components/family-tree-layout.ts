@@ -44,53 +44,54 @@ function sortNodesById(nodes: GroupNode[]) {
   return [...nodes].sort((a, b) => a.id.localeCompare(b.id));
 }
 
-function unionFind(personIds: string[], spousePairs: [string, string][]) {
-  const parent = new Map<string, string>();
-  personIds.forEach((id) => parent.set(id, id));
-
-  const find = (id: string): string => {
-    let root = id;
-    while (parent.get(root)! !== root) root = parent.get(root)!;
-    let cur = id;
-    while (parent.get(cur)! !== root) {
-      const next = parent.get(cur)!;
-      parent.set(cur, root);
-      cur = next;
-    }
-    return root;
-  };
-
-  spousePairs.forEach(([a, b]) => {
-    const ra = find(a);
-    const rb = find(b);
-    if (ra !== rb) {
-      const [keep, drop] = [ra, rb].sort();
-      parent.set(drop, keep);
-    }
-  });
-
-  return { find };
-}
-
 function buildSpouseGroups(
   people: PersonRecord[],
   relationships: RelationshipRecord[],
 ): { groups: Map<string, SpouseGroup>; groupIdByPerson: Map<string, string> } {
-  const personIds = people.map((p) => p.id);
-  const spousePairs: [string, string][] = relationships
-    .filter((r) => r.type === 'spouse')
-    .map((r) => [r.fromPersonId, r.toPersonId]);
-
-  const { find } = unionFind(personIds, spousePairs);
+  const spouseIdsByPerson = new Map<string, Set<string>>();
+  people.forEach((person) => spouseIdsByPerson.set(person.id, new Set()));
+  relationships.forEach((relationship) => {
+    if (relationship.type !== 'spouse') {
+      return;
+    }
+    spouseIdsByPerson.get(relationship.fromPersonId)?.add(relationship.toPersonId);
+    spouseIdsByPerson.get(relationship.toPersonId)?.add(relationship.fromPersonId);
+  });
 
   const groupMembers = new Map<string, string[]>();
   const groupIdByPerson = new Map<string, string>();
+  const groupedPersonIds = new Set<string>();
 
-  people.forEach((p) => {
-    const gid = find(p.id);
-    groupIdByPerson.set(p.id, gid);
-    if (!groupMembers.has(gid)) groupMembers.set(gid, []);
-    groupMembers.get(gid)!.push(p.id);
+  relationships
+    .filter((relationship) => relationship.type === 'spouse')
+    .forEach((relationship) => {
+      const leftSpouses = spouseIdsByPerson.get(relationship.fromPersonId) ?? new Set<string>();
+      const rightSpouses = spouseIdsByPerson.get(relationship.toPersonId) ?? new Set<string>();
+      const isExclusivePair = leftSpouses.size === 1
+        && rightSpouses.size === 1
+        && leftSpouses.has(relationship.toPersonId)
+        && rightSpouses.has(relationship.fromPersonId);
+
+      if (!isExclusivePair || groupedPersonIds.has(relationship.fromPersonId) || groupedPersonIds.has(relationship.toPersonId)) {
+        return;
+      }
+
+      const members = [relationship.fromPersonId, relationship.toPersonId].sort();
+      const groupId = `pair:${members.join('|')}`;
+      groupMembers.set(groupId, members);
+      members.forEach((memberId) => {
+        groupIdByPerson.set(memberId, groupId);
+        groupedPersonIds.add(memberId);
+      });
+    });
+
+  people.forEach((person) => {
+    if (groupedPersonIds.has(person.id)) {
+      return;
+    }
+    const groupId = `solo:${person.id}`;
+    groupMembers.set(groupId, [person.id]);
+    groupIdByPerson.set(person.id, groupId);
   });
 
   // Stable ordering inside a group (alpha by name id for determinism).

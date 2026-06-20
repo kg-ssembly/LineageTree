@@ -3,6 +3,7 @@ import { ScrollView, View } from 'react-native';
 import { Button, Chip, Dialog, HelperText, Portal, SegmentedButtons, Text, TextInput, useTheme } from 'react-native-paper';
 import type { PersonRecord } from './dto/person';
 import type { RelationshipRecord, RelationshipType } from './dto/relationship';
+import { validateProposedRelationship } from './family-tree-validation';
 import { GlobalStyles } from '../constants/styles';
 
 const styles = GlobalStyles.relationshipDialog;
@@ -50,26 +51,16 @@ export default function RelationshipDialog({
     setError(null);
   }, [visible]);
 
-  const duplicateRelationship = useMemo(() => {
-    if (!fromPersonId || !toPersonId) {
-      return false;
-    }
-
-    if (type === 'spouse') {
-      const [firstId, secondId] = [fromPersonId, toPersonId].sort();
-      return relationships.some(
-        (relationship) => relationship.type === 'spouse'
-          && relationship.fromPersonId === firstId
-          && relationship.toPersonId === secondId,
-      );
-    }
-
-    return relationships.some(
-      (relationship) => relationship.type === 'parent-child'
-        && relationship.fromPersonId === fromPersonId
-        && relationship.toPersonId === toPersonId,
-    );
-  }, [fromPersonId, relationships, toPersonId, type]);
+  const validationMessage = useMemo(
+    () => validateProposedRelationship({
+      people,
+      relationships,
+      type,
+      fromPersonId,
+      toPersonId,
+    }),
+    [fromPersonId, people, relationships, toPersonId, type],
+  );
 
   const filteredFromPeople = useMemo(
     () => people.filter((person) => formatPersonName(person).toLowerCase().includes(fromSearch.trim().toLowerCase())),
@@ -98,8 +89,8 @@ export default function RelationshipDialog({
       return;
     }
 
-    if (duplicateRelationship) {
-      setError('That relationship already exists.');
+    if (validationMessage) {
+      setError(validationMessage);
       return;
     }
 
@@ -189,17 +180,16 @@ export default function RelationshipDialog({
               </View>
             </View>
 
-            <HelperText type="error" visible={!!error || duplicateRelationship}>
-              {error ?? (duplicateRelationship ? 'That relationship already exists.' : ' ')}
+            <HelperText type="error" visible={!!error || !!validationMessage}>
+              {error ?? validationMessage ?? ' '}
             </HelperText>
           </ScrollView>
         </Dialog.ScrollArea>
         <Dialog.Actions style={[dialogChrome.dialogActions, styles.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
           <Button mode="outlined" onPress={onDismiss} disabled={loading}>Cancel</Button>
-          <Button mode="contained" onPress={handleSubmit} disabled={loading || people.length < 2}>Save</Button>
+          <Button mode="contained" onPress={handleSubmit} disabled={loading || people.length < 2 || !!validationMessage}>Save</Button>
         </Dialog.Actions>
       </Dialog>
     </Portal>
   );
 }
-
