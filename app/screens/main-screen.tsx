@@ -1,20 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
-  Avatar,
   Button,
   Dialog,
-  IconButton,
   List,
   Portal,
-  SegmentedButtons,
   Snackbar,
-  Surface,
   Text,
-  TextInput,
   useTheme,
 } from 'react-native-paper';
 import {
@@ -27,7 +22,6 @@ import {
 import type { PersonFormSubmission } from '../../components/person-form-dialog';
 import type { PendingRelationshipSubmission } from '../../components/person-form-dialog';
 import { useAuthStore } from '../../stores/auth-store';
-import { useThemeStore } from '../../stores/theme-store';
 import { useTreeStore } from '../../stores/tree-store';
 import type { PersonRecord } from '../../components/dto/person';
 import type { ParentChildRelationshipKind, SpouseRelationshipStatus } from '../../components/dto/relationship';
@@ -46,7 +40,6 @@ import {
   type CollaboratorRole,
   type FamilyTree,
 } from '../../components/dto/tree';
-import type { ThemePreference } from '../../constants/theme';
 import { GlobalStyles } from '../../constants/styles';
 const dialogChrome = GlobalStyles.dialogChrome;
 import {
@@ -397,7 +390,7 @@ export default function MainScreen({ navigation }: Props) {
   const createPersonFromPayload = useCallback(async (payload: PersonFormSubmission) => {
     if (!user?.id || !selectedTree) return null;
     const created = await createPerson(user.id, selectedTree.id, {
-      firstName: payload.firstName, lastName: payload.lastName, birthDate: payload.birthDate,
+      firstName: payload.firstName, middleNames: payload.middleNames, lastName: payload.lastName, birthDate: payload.birthDate,
       deathDate: payload.deathDate, gender: payload.gender, notes: payload.notes,
       lifeEvents: payload.lifeEvents, preferredPhotoRef: payload.preferredPhotoRef,
     }, payload.newPhotoUris);

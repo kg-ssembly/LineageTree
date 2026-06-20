@@ -1,11 +1,18 @@
 import type { PersonGender, PersonRecord } from './dto/person';
 
+function joinPersonNameParts(parts: Array<string | undefined>) {
+  return parts
+    .map((part) => part?.trim() ?? '')
+    .filter(Boolean)
+    .join(' ');
+}
+
 export function formatPersonName(person?: PersonRecord | null) {
   if (!person) {
     return 'Unknown family member';
   }
 
-  const name = `${person.firstName} ${person.lastName}`.trim();
+  const name = joinPersonNameParts([person.firstName, person.middleNames, person.lastName]);
   if (person.maidenName?.trim()) {
     return `${name} (${person.maidenName.trim()})`;
   }
@@ -14,7 +21,7 @@ export function formatPersonName(person?: PersonRecord | null) {
 
 export function formatPersonNameShort(person?: PersonRecord | null) {
   if (!person) return 'Unknown family member';
-  return `${person.firstName} ${person.lastName}`.trim();
+  return joinPersonNameParts([person.firstName, person.middleNames, person.lastName]);
 }
 
 export function formatPersonGender(gender: PersonGender) {
@@ -24,4 +31,3 @@ export function formatPersonGender(gender: PersonGender) {
 
   return gender.charAt(0).toUpperCase() + gender.slice(1);
 }
-

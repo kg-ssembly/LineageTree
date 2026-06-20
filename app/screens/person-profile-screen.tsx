@@ -10,7 +10,6 @@ import {
   Card,
   Chip,
   Dialog,
-  Divider,
   IconButton,
   Portal,
   Snackbar,
@@ -91,6 +90,7 @@ function buildPersonMutationPayload(
 ): PersonMutationPayload {
   return {
     firstName: person.firstName,
+    middleNames: person.middleNames ?? '',
     lastName: person.lastName,
     maidenName: person.maidenName ?? '',
     birthDate: person.birthDate,
@@ -889,6 +889,12 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
                 <Text variant="labelMedium" style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>First name</Text>
                 <Text variant="titleMedium">{person.firstName || 'Unknown'}</Text>
               </View>
+              {person.middleNames?.trim() ? (
+                <View style={[styles.detailCard, { backgroundColor: theme.colors.elevation.level1 }]}>
+                  <Text variant="labelMedium" style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>Second / middle names</Text>
+                  <Text variant="titleMedium">{person.middleNames.trim()}</Text>
+                </View>
+              ) : null}
               <View style={[styles.detailCard, { backgroundColor: theme.colors.elevation.level1 }]}>
                 <Text variant="labelMedium" style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>Last name</Text>
                 <Text variant="titleMedium">{person.lastName || 'Unknown'}</Text>

@@ -23,7 +23,6 @@ import React, {
   useState,
 } from 'react';
 import {
-  Alert,
   Animated,
   GestureResponderEvent,
   Image,
@@ -112,7 +111,7 @@ interface FamilyTreeCanvasProps {
 }
 
 function formatPersonName(person: PersonRecord) {
-  return `${person.firstName} ${person.lastName}`.trim();
+  return [person.firstName, person.middleNames ?? '', person.lastName].join(' ').replace(/\s+/g, ' ').trim();
 }
 
 function formatPersonNodeTitle(person: PersonRecord, showMaidenFamilyInNodeTitle: boolean) {
@@ -464,8 +463,6 @@ function FamilyTreeCanvas({
     filteredPeople: clusterPeople,
     filteredRelationships: clusterRelationships,
     ghostPersonIds,
-    activeBridges: clusterActiveBridges,
-    externalBridges: clusterExternalBridges,
   } = useMemo(() => {
     if (!clusteringActive || activeSurnames.length === 0) {
       return {

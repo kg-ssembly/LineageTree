@@ -1,15 +1,22 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import {
-  initializeAuth,
-  getAuth,
-  browserLocalPersistence,
-  // @ts-ignore – getReactNativePersistence is in the RN bundle; Metro resolves it correctly at runtime
-  getReactNativePersistence,
-} from 'firebase/auth';
+import * as FirebaseAuth from 'firebase/auth';
+import type { Persistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const {
+  initializeAuth,
+  getAuth,
+  browserLocalPersistence,
+} = FirebaseAuth;
+
+const getReactNativePersistence = (
+  FirebaseAuth as typeof FirebaseAuth & {
+    getReactNativePersistence: (storage: typeof AsyncStorage) => Persistence;
+  }
+).getReactNativePersistence;
 
 const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
@@ -56,4 +63,3 @@ export const db = getFirestore(app);
 export const storage = getStorage(app);
 export { auth };
 export default app;
-

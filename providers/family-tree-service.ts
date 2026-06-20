@@ -223,8 +223,8 @@ function mapPerson(snapshot: QueryDocumentSnapshot): PersonRecord {
   };
 }
 
-function formatPersonName(person: Pick<PersonRecord, 'firstName' | 'lastName'>) {
-  return `${person.firstName} ${person.lastName}`.trim() || 'A child';
+function formatPersonName(person: Pick<PersonRecord, 'firstName' | 'middleNames' | 'lastName'>) {
+  return [person.firstName, person.middleNames ?? '', person.lastName].join(' ').replace(/\s+/g, ' ').trim() || 'A child';
 }
 
 function normaliseLifeEvents(lifeEvents: PersonLifeEvent[]) {
@@ -1117,6 +1117,7 @@ async function preparePersonUpdatePreview(
   const nextPerson: PersonRecord = {
     ...person,
     firstName: input.firstName.trim(),
+    middleNames: input.middleNames?.trim() ?? person.middleNames ?? '',
     lastName: input.lastName.trim(),
     maidenName: input.maidenName?.trim() ?? person.maidenName ?? '',
     birthDate: input.birthDate.trim(),
@@ -1144,6 +1145,7 @@ async function applyApprovedPersonUpdate(payload: ApprovalRequestPayload) {
 
   await updateDoc(doc(db, PEOPLE_COLLECTION, nextPerson.id), {
     firstName: nextPerson.firstName,
+    middleNames: nextPerson.middleNames ?? '',
     lastName: nextPerson.lastName,
     maidenName: nextPerson.maidenName ?? '',
     birthDate: nextPerson.birthDate,
@@ -2082,7 +2084,7 @@ export async function createPerson(
     treeMemberships: [{ treeId, role: 'subject', joinedAt: timestamp, addedByUserId: actorUserId, source: 'manual' }],
     ownerId: actorUserId,
     firstName: input.firstName.trim(),
-    middleNames: '',
+    middleNames: input.middleNames?.trim() ?? '',
     lastName: input.lastName.trim(),
     maidenName: input.maidenName?.trim() ?? '',
     nicknames: [],

@@ -31,7 +31,7 @@ interface PersonRelationshipDialogProps {
 
 function formatPersonName(person?: PersonRecord | null) {
   if (!person) return 'Unknown family member';
-  return `${person.firstName} ${person.lastName}`.trim();
+  return [person.firstName, person.middleNames ?? '', person.lastName].join(' ').replace(/\s+/g, ' ').trim();
 }
 
 function formatPersonMeta(person: PersonRecord) {

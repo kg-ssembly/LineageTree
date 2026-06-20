@@ -147,7 +147,6 @@ function buildParentChildRoute(
   endLevel: number,
   occupiedIntervalsByLevel: Map<number, HorizontalInterval[]>,
   contentWidth: number,
-  C: LayoutConstants,
 ) {
   const totalGap = endY - startY;
   const laneInset = Math.max(16, Math.min(32, totalGap / 4));
@@ -421,7 +420,6 @@ export function buildConnectors(
       childLevel,
       occupiedIntervalsByLevel,
       contentWidth,
-      C,
     );
     const connectorStyle = getParentChildConnectorStyle(r, colors, isPrimary);
 
@@ -437,4 +435,3 @@ export function buildConnectors(
 
   return { spouseConnectors, parentChildConnectors };
 }
-

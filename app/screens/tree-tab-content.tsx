@@ -32,7 +32,6 @@ import type { RelationshipRecord } from '../../components/dto/relationship';
 import { getUserNameParts, type UserProfile } from '../../components/dto/user';
 import { formatPersonGender, formatPersonName } from '../../components/person-formatting';
 import {
-  getAssignedPersonId,
   getTreeApprovalWindowHours,
   getTreeRole,
   getUnlinkedCollaborators,

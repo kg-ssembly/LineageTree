@@ -286,6 +286,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
       selectedTree.id,
       {
         firstName: payload.firstName,
+        middleNames: payload.middleNames,
         lastName: payload.lastName,
         birthDate: payload.birthDate,
         deathDate: payload.deathDate,

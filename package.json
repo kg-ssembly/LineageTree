@@ -1,6 +1,6 @@
 {
   "name": "lineagetree",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "main": "index.ts",
   "scripts": {
     "start": "expo start",
@@ -38,7 +38,6 @@
     "react-native-screens": "~4.16.0",
     "react-native-svg": "15.12.1",
     "react-native-tab-view": "^4.3.0",
-    "react-native-vector-icons": "^10.3.0",
     "react-native-web": "^0.21.0",
     "zustand": "^5.0.12"
   },

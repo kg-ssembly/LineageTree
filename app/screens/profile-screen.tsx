@@ -4,7 +4,6 @@
  */
 import React, { useState } from 'react';
 import { ScrollView, View } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   Avatar,
   Button,
@@ -19,11 +18,6 @@ import { useAuthStore } from '../../stores/auth-store';
 import { useThemeStore } from '../../stores/theme-store';
 import type { ThemePreference } from '../../constants/theme';
 import { formatDate } from '../../components/dto/person';
-import type { RootStackParamList } from '../../components/dto/navigation';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-
-// No props needed for the content component directly unless passed by the navigator
-// type Props = NativeStackScreenProps<RootStackParamList, 'Profile'>;
 
 import { GlobalStyles } from '../../constants/styles';
 const styles = GlobalStyles.treeDetail;
@@ -66,11 +60,6 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
     preference === 'dark'
       ? 'Dark mode is enabled for a cosy, low-light workspace.'
       : 'Light mode is enabled for a bright, airy workspace.';
-
-  const profileStats = [
-    { label: 'Trees', value: 'Family', icon: 'family-tree' },
-    { label: 'Space', value: preference === 'dark' ? 'Night' : 'Light', icon: preference === 'dark' ? 'weather-night' : 'white-balance-sunny' },
-  ];
 
   return (
     <ScrollView contentContainerStyle={styles.content}>

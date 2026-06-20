@@ -105,7 +105,6 @@ function buildSpouseGroups(
 }
 
 function buildGroupGraph(
-  people: PersonRecord[],
   relationships: RelationshipRecord[],
   groups: Map<string, SpouseGroup>,
   groupIdByPerson: Map<string, string>,
@@ -238,7 +237,7 @@ function nextRight(v: GroupNode): GroupNode | null {
   return v.children.length > 0 ? v.children[v.children.length - 1] : v.thread ?? null;
 }
 
-function moveSubtree(wm: GroupNode, wp: GroupNode, shift: number, parent: GroupNode) {
+function moveSubtree(wm: GroupNode, wp: GroupNode, shift: number) {
   const subtrees = wp.number - wm.number;
   if (subtrees === 0) return;
   wp.change -= shift / subtrees;
@@ -260,7 +259,7 @@ function executeShifts(v: GroupNode) {
   }
 }
 
-function ancestorOf(vim: GroupNode, v: GroupNode, parent: GroupNode, defaultAncestor: GroupNode) {
+function ancestorOf(vim: GroupNode, parent: GroupNode, defaultAncestor: GroupNode) {
   return parent.children.includes(vim.ancestor) ? vim.ancestor : defaultAncestor;
 }
 
@@ -286,7 +285,7 @@ function apportion(v: GroupNode, defaultAncestor: GroupNode, parent: GroupNode, 
     vop.ancestor = v;
     const shift = vim.prelim + sim - (vip.prelim + sip) + distance(vim, vip, C);
     if (shift > 0) {
-      moveSubtree(ancestorOf(vim, v, parent, defaultAncestor), v, shift, parent);
+      moveSubtree(ancestorOf(vim, parent, defaultAncestor), v, shift);
       sip += shift;
       sop += shift;
     }
@@ -350,7 +349,7 @@ export function layoutFamilyTree(
 ): LayoutResult {
   const C = constants;
   const { groups, groupIdByPerson } = buildSpouseGroups(people, relationships);
-  const { nodesById, roots } = buildGroupGraph(people, relationships, groups, groupIdByPerson, C);
+  const { nodesById, roots } = buildGroupGraph(relationships, groups, groupIdByPerson, C);
 
   // Lay out each root tree side-by-side with HORIZONTAL_GAP between them.
   let cursorX = 0;

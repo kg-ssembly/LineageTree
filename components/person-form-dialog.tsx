@@ -85,7 +85,7 @@ function formatDateButtonLabel(value: string) {
 }
 
 function formatPersonName(person: PersonRecord) {
-  return `${person.firstName} ${person.lastName}`.trim();
+  return [person.firstName, person.middleNames ?? '', person.lastName].join(' ').replace(/\s+/g, ' ').trim();
 }
 
 function createPendingRelationshipDraft(): PendingRelationshipDraft {
@@ -126,6 +126,7 @@ export default function PersonFormDialog({
   const [step, setStep] = useState<1 | 2>(1);
   const [isPresent, setIsPresent] = useState(true);
   const [firstName, setFirstName] = useState('');
+  const [middleNames, setMiddleNames] = useState('');
   const [lastName, setLastName] = useState('');
   const [maidenName, setMaidenName] = useState('');
   const [birthDate, setBirthDate] = useState('');
@@ -171,6 +172,7 @@ export default function PersonFormDialog({
     const initialDeathDate = person?.deathDate ?? initialValues?.deathDate ?? '';
     setIsPresent(!initialDeathDate);
     setFirstName(person?.firstName ?? initialValues?.firstName ?? '');
+    setMiddleNames(person?.middleNames ?? initialValues?.middleNames ?? '');
     setLastName(person?.lastName ?? initialValues?.lastName ?? '');
     setMaidenName(person?.maidenName ?? '');
     setBirthDate(person?.birthDate ?? initialValues?.birthDate ?? '');
@@ -333,6 +335,7 @@ export default function PersonFormDialog({
 
     await onSubmit({
       firstName,
+      middleNames,
       lastName,
       maidenName,
       birthDate,
@@ -393,6 +396,14 @@ export default function PersonFormDialog({
               <HelperText type="error" visible={!!firstNameError}>
                 {firstNameError}
               </HelperText>
+
+              <TextInput
+                mode="outlined"
+                label="Second / middle names"
+                value={middleNames}
+                onChangeText={setMiddleNames}
+                disabled={loading}
+              />
 
               <View style={styles.sectionSpacing}>
                 <Text variant="titleSmall">Last name</Text>

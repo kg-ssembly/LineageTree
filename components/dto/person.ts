@@ -57,6 +57,7 @@ export interface PersonRecord {
 
 export interface PersonInput {
   firstName: string;
+  middleNames?: string;
   lastName: string;
   /** Maiden name (birth surname before marriage). Optional. */
   maidenName?: string;
