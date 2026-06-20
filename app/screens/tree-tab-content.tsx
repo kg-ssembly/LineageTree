@@ -943,17 +943,6 @@ function ProfileTabContent({
               {unlinkedCollaboratorCount > 0 ? <Chip icon="account-clock">{unlinkedCollaboratorCount} awaiting link</Chip> : null}
             </View>
 
-            <View style={styles.profileMetricsWrap}>
-              <View style={[styles.flatPanel, { backgroundColor: theme.colors.surface }]}>
-                <Text variant="titleSmall">Family members with notes</Text>
-                <Text variant="headlineSmall">{people.filter((person) => person.notes.trim()).length}</Text>
-              </View>
-              <View style={[styles.flatPanel, { backgroundColor: theme.colors.surface }]}>
-                <Text variant="titleSmall">Photos stored</Text>
-                <Text variant="headlineSmall">{people.reduce((count, person) => count + person.photos.length, 0)}</Text>
-              </View>
-            </View>
-
             <Card mode="elevated" style={[styles.selfAssignmentCard, { backgroundColor: theme.colors.surface, marginBottom: 16 }]}>
               <Card.Content>
                 <View style={styles.sectionHeader}>

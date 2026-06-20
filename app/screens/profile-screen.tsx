@@ -97,19 +97,7 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
             </Text>
           </View>
         </View>
-        <View style={homeStyles.heroStatsRow}>
-          {profileStats.map((item) => (
-            <View key={item.label} style={[homeStyles.statCard, {
-              backgroundColor: theme.colors.elevation.level2,
-              borderWidth: 1,
-              borderColor: theme.colors.outlineVariant,
-            }]}>
-              <MaterialCommunityIcons name={item.icon as any} size={20} color={theme.colors.secondary} />
-              <Text variant="titleMedium" style={{ color: theme.colors.onSurface, marginTop: 10 }}>{item.value}</Text>
-              <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>{item.label}</Text>
-            </View>
-          ))}
-        </View>
+
       </Surface>
 
       {/* Edit profile */}
