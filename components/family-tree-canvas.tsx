@@ -72,11 +72,11 @@ const styles = GlobalStyles.familyTreeCanvas;
 
 // ---- Tunables ----
 const C: LayoutConstants = DEFAULT_LAYOUT_CONSTANTS;
-const MIN_SCALE = 0.15;
-const MAX_SCALE = 4.0;
+const MIN_SCALE = 0.7;
+const MAX_SCALE = 1.0;
 const AUTO_FIT_MAX_SCALE = 0.8; // default zoom cap on initial fit
-const AUTO_FIT_MIN_SCALE_INLINE = 0.32;
-const AUTO_FIT_MIN_SCALE_FULLSCREEN = 0.22;
+const AUTO_FIT_MIN_SCALE_INLINE = 0.7;
+const AUTO_FIT_MIN_SCALE_FULLSCREEN = 0.7;
 const DRAG_ACTIVATION_DISTANCE = 6; // screen px — independent of zoom
 const VIEWPORT_PADDING = 24;
 const CULL_PADDING = 200; // px around viewport in canvas-space
