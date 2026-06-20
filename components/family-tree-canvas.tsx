@@ -121,6 +121,13 @@ function formatPersonNodeTitle(person: PersonRecord, showMaidenFamilyInNodeTitle
   return `${name} (${person.maidenName.trim()})`;
 }
 
+type PositionedPerson = {
+  person: PersonRecord;
+  x: number;
+  y: number;
+  bounds: { x: number; y: number; w: number; h: number };
+};
+
 // ---------------------------------------------------------------------------
 // Subtree filtering (descendant / ascendant lineage) — preserved from original
 // ---------------------------------------------------------------------------
@@ -334,21 +341,31 @@ function FamilyTreeCanvas({
 
   // Determine the "seed" person for initial surname selection (doesn't depend on layout).
   const seedFocusPersonId = initialFocusPersonId ?? ascendantRootPersonId ?? descendantRootPersonId ?? renderedPeople[0]?.id;
+  const renderedPeopleById = useMemo(
+    () => new Map(renderedPeople.map((person) => [person.id, person])),
+    [renderedPeople],
+  );
 
   // Auto-select initial surnames when data changes.
   useEffect(() => {
     if (sortedSurnames.length === 0) return;
-    // Default to the largest surname. If the focused person has a surname, start there.
-    let startSurname = sortedSurnames[0];
-    if (seedFocusPersonId) {
-      const focusPerson = renderedPeople.find((p) => p.id === seedFocusPersonId);
-      if (focusPerson) {
-        const fs = extractSurname(focusPerson);
-        if (surnameClusters.has(fs)) startSurname = fs;
+    setActiveSurnames((current) => {
+      if (current.length > 0 && current.every((surname) => surnameClusters.has(surname))) {
+        return current;
       }
-    }
-    setActiveSurnames([startSurname]);
-  }, [sortedSurnames, seedFocusPersonId, renderedPeople, surnameClusters]);
+
+      // Default to the largest surname. If the focused person has a surname, start there.
+      let startSurname = sortedSurnames[0];
+      if (seedFocusPersonId) {
+        const focusPerson = renderedPeopleById.get(seedFocusPersonId);
+        if (focusPerson) {
+          const fs = extractSurname(focusPerson);
+          if (surnameClusters.has(fs)) startSurname = fs;
+        }
+      }
+      return [startSurname];
+    });
+  }, [sortedSurnames, seedFocusPersonId, renderedPeopleById, surnameClusters]);
 
   // Determine if clustering is active (more than 1 surname in the data → show one family at a time).
   const clusteringActive = sortedSurnames.length >= 2;
@@ -405,9 +422,24 @@ function FamilyTreeCanvas({
       [clusterPeople, clusterRelationships],
   );
   const { positionsByPersonId, contentWidth, contentHeight } = layout;
+  const positionedPeople = useMemo<PositionedPerson[]>(
+    () => clusterPeople.flatMap((person) => {
+      const pos = positionsByPersonId.get(person.id);
+      if (!pos) {
+        return [];
+      }
+      return [{
+        person,
+        x: pos.x,
+        y: pos.y,
+        bounds: { x: pos.x, y: pos.y, w: C.NODE_WIDTH, h: C.NODE_HEIGHT },
+      }];
+    }),
+    [clusterPeople, positionsByPersonId],
+  );
 
   const contentBounds = useMemo(() => {
-    if (positionsByPersonId.size === 0) {
+    if (positionedPeople.length === 0) {
       return {
         minX: 0,
         minY: 0,
@@ -423,7 +455,7 @@ function FamilyTreeCanvas({
     let maxX = -Infinity;
     let maxY = -Infinity;
 
-    positionsByPersonId.forEach(({ x, y }) => {
+    positionedPeople.forEach(({ x, y }) => {
       minX = Math.min(minX, x);
       minY = Math.min(minY, y);
       maxX = Math.max(maxX, x + C.NODE_WIDTH);
@@ -436,9 +468,9 @@ function FamilyTreeCanvas({
       maxX,
       maxY,
       width: Math.max(maxX - minX, C.NODE_WIDTH),
-      height: Math.max(maxY - minY, C.NODE_HEIGHT),
-    };
-  }, [positionsByPersonId, contentWidth, contentHeight]);
+        height: Math.max(maxY - minY, C.NODE_HEIGHT),
+      };
+  }, [positionedPeople, contentWidth, contentHeight]);
 
   // ---- Connectors (lane-allocated) ----
   const { spouseConnectors, parentChildConnectors } = useMemo(
@@ -473,8 +505,8 @@ function FamilyTreeCanvas({
     if (initialFocusPersonId && positionsByPersonId.has(initialFocusPersonId)) return initialFocusPersonId;
     if (ascendantRootPersonId && positionsByPersonId.has(ascendantRootPersonId)) return ascendantRootPersonId;
     if (descendantRootPersonId && positionsByPersonId.has(descendantRootPersonId)) return descendantRootPersonId;
-    return renderedPeople[0]?.id;
-  }, [initialFocusPersonId, ascendantRootPersonId, descendantRootPersonId, positionsByPersonId, renderedPeople]);
+    return clusterPeople[0]?.id ?? renderedPeople[0]?.id;
+  }, [initialFocusPersonId, ascendantRootPersonId, descendantRootPersonId, positionsByPersonId, clusterPeople, renderedPeople]);
 
   const fitTo = useCallback((vw: number, vh: number, focusPersonId?: string, mode: 'inline' | 'fullscreen' = 'inline') => {
     if (vw <= 0 || vh <= 0) return;
@@ -661,11 +693,10 @@ function FamilyTreeCanvas({
       b.y <= viewportRect.y + viewportRect.h
   );
 
-  const visiblePeople = useMemo(() => clusterPeople.filter((p) => {
-    const pos = positionsByPersonId.get(p.id);
-    if (!pos) return false;
-    return intersects({ x: pos.x, y: pos.y, w: C.NODE_WIDTH, h: C.NODE_HEIGHT });
-  }), [clusterPeople, positionsByPersonId, viewportRect]);
+  const visiblePeople = useMemo(
+    () => positionedPeople.filter(({ bounds }) => intersects(bounds)),
+    [positionedPeople, viewportRect],
+  );
 
   const visibleConnectors = useMemo(
       () => allConnectors.filter((c: Connector) => intersects(c.bounds)),
@@ -776,15 +807,13 @@ function FamilyTreeCanvas({
             ))}
           </Svg>
 
-          {visiblePeople.map((person) => {
-            const pos = positionsByPersonId.get(person.id);
-            if (!pos) return null;
+          {visiblePeople.map(({ person, x, y }) => {
             return (
                 <PersonNode
                     key={person.id}
                     person={person}
-                    x={pos.x}
-                    y={pos.y}
+                    x={x}
+                    y={y}
                     showMaidenFamilyInNodeTitle={showMaidenFamilyInNodeTitle}
                     isCurrentUser={currentUserPersonId === person.id}
                     isGhost={ghostPersonIds.has(person.id)}

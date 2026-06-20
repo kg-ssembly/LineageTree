@@ -40,6 +40,10 @@ type GroupNode = {
   y: number;
 };
 
+function sortNodesById(nodes: GroupNode[]) {
+  return [...nodes].sort((a, b) => a.id.localeCompare(b.id));
+}
+
 function unionFind(personIds: string[], spousePairs: [string, string][]) {
   const parent = new Map<string, string>();
   personIds.forEach((id) => parent.set(id, id));
@@ -160,11 +164,51 @@ function buildGroupGraph(
     });
   });
 
-  // Roots: nodes with no parent at all.
-  const roots = [...nodesById.values()].filter((n) => n.parents.length === 0);
-  // Stable sort of roots & children so layout is deterministic.
-  roots.sort((a, b) => a.id.localeCompare(b.id));
-  nodesById.forEach((n) => n.children.sort((a, b) => a.id.localeCompare(b.id)));
+  nodesById.forEach((node) => {
+    const uniqueParents = new Map(node.parents.map((parent) => [parent.id, parent]));
+    node.parents = sortNodesById([...uniqueParents.values()]);
+
+    const uniqueChildren = new Map(node.children.map((child) => [child.id, child]));
+    node.children = sortNodesById([...uniqueChildren.values()]);
+  });
+
+  // Malformed relationship loops can make the tidy-tree traversal recurse
+  // forever. Trim primary-parent back-edges so we always keep a DAG.
+  const visited = new Set<string>();
+  const visiting = new Set<string>();
+  const stripPrimaryCycles = (node: GroupNode) => {
+    if (visited.has(node.id) || visiting.has(node.id)) {
+      return;
+    }
+
+    visiting.add(node.id);
+    const nextChildren: GroupNode[] = [];
+    node.children.forEach((child) => {
+      if (child.id === node.id || visiting.has(child.id)) {
+        return;
+      }
+      nextChildren.push(child);
+      stripPrimaryCycles(child);
+    });
+    node.children = sortNodesById(nextChildren);
+    visiting.delete(node.id);
+    visited.add(node.id);
+  };
+
+  sortNodesById([...nodesById.values()]).forEach(stripPrimaryCycles);
+
+  const primaryParentIds = new Set<string>();
+  nodesById.forEach((node) => {
+    node.children.forEach((child) => primaryParentIds.add(child.id));
+  });
+
+  let roots = sortNodesById(
+    [...nodesById.values()].filter((node) => !primaryParentIds.has(node.id)),
+  );
+
+  if (roots.length === 0 && nodesById.size > 0) {
+    roots = [sortNodesById([...nodesById.values()])[0]];
+  }
 
   return { nodesById, roots };
 }
@@ -310,6 +354,7 @@ export function layoutFamilyTree(
   // Lay out each root tree side-by-side with HORIZONTAL_GAP between them.
   let cursorX = 0;
   let maxLevel = 0;
+  const laidOutNodeIds = new Set<string>();
 
   roots.forEach((root) => {
     firstWalk(root, null, C);
@@ -321,6 +366,8 @@ export function layoutFamilyTree(
     const stack = [root];
     while (stack.length) {
       const n = stack.pop()!;
+      if (laidOutNodeIds.has(n.id)) continue;
+      laidOutNodeIds.add(n.id);
       const left = n.x - n.width / 2;
       const right = n.x + n.width / 2;
       if (left < minX) minX = left;
@@ -331,13 +378,50 @@ export function layoutFamilyTree(
 
     const offset = cursorX - minX;
     const stack2 = [root];
+    const shiftedIds = new Set<string>();
     while (stack2.length) {
       const n = stack2.pop()!;
+      if (shiftedIds.has(n.id)) continue;
+      shiftedIds.add(n.id);
       n.x += offset;
       n.children.forEach((c) => stack2.push(c));
     }
     cursorX += (maxX - minX) + C.HORIZONTAL_GAP;
   });
+
+  sortNodesById([...nodesById.values()])
+    .filter((node) => !laidOutNodeIds.has(node.id))
+    .forEach((root) => {
+      firstWalk(root, null, C);
+      secondWalk(root, 0, 0, C);
+
+      let minX = Infinity;
+      let maxX = -Infinity;
+      const stack = [root];
+      while (stack.length) {
+        const n = stack.pop()!;
+        if (laidOutNodeIds.has(n.id)) continue;
+        laidOutNodeIds.add(n.id);
+        const left = n.x - n.width / 2;
+        const right = n.x + n.width / 2;
+        if (left < minX) minX = left;
+        if (right > maxX) maxX = right;
+        if (n.level > maxLevel) maxLevel = n.level;
+        n.children.forEach((c) => stack.push(c));
+      }
+
+      const offset = cursorX - minX;
+      const stack2 = [root];
+      const shiftedIds = new Set<string>();
+      while (stack2.length) {
+        const n = stack2.pop()!;
+        if (shiftedIds.has(n.id)) continue;
+        shiftedIds.add(n.id);
+        n.x += offset;
+        n.children.forEach((c) => stack2.push(c));
+      }
+      cursorX += (maxX - minX) + C.HORIZONTAL_GAP;
+    });
 
   // ── Level correction ────────────────────────────────────────────────────────
   // Walker only uses primary-parent edges for level assignment.
@@ -379,15 +463,22 @@ export function layoutFamilyTree(
 
   // Propagate corrections downward through each primary subtree so that
   // descendants of a raised node are also raised.
-  const propagateLevels = (node: GroupNode) => {
+  const propagateLevels = (node: GroupNode, seen = new Set<string>()) => {
+    if (seen.has(node.id)) {
+      return;
+    }
+    seen.add(node.id);
     node.children.forEach((child) => {
       if (child.level <= node.level) {
         child.level = node.level + 1;
-        propagateLevels(child);
       }
+      propagateLevels(child, seen);
     });
   };
-  roots.forEach(propagateLevels);
+  roots.forEach((root) => propagateLevels(root));
+  sortNodesById([...nodesById.values()])
+    .filter((node) => !roots.some((root) => root.id === node.id))
+    .forEach((node) => propagateLevels(node));
 
   // Re-derive Y coordinates from the (potentially corrected) levels.
   nodesById.forEach((n) => {
@@ -432,4 +523,3 @@ export function layoutFamilyTree(
     contentHeight,
   };
 }
-
