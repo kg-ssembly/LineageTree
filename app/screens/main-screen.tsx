@@ -148,6 +148,9 @@ export default function MainScreen({ navigation }: Props) {
     people,
     relationships,
     approvalRequests,
+    mergeRequests,
+    mergeHistory,
+    mergePreview,
     loadingTrees,
     loadingTreeData,
     mutating,
@@ -169,6 +172,13 @@ export default function MainScreen({ navigation }: Props) {
     approveApprovalRequest,
     rejectApprovalRequest,
     setApprovalWindowHours,
+    setSurnameVariantGroups,
+    createMergeRequest,
+    loadMergePreview,
+    approveMergeRequest,
+    rejectMergeRequest,
+    requestMergeChanges,
+    undoMerge,
     clearError,
     clearNotice,
   } = useTreeStore();
@@ -461,6 +471,34 @@ export default function MainScreen({ navigation }: Props) {
     if (!user?.id) return;
     await rejectApprovalRequest(user.id, id);
   }, [rejectApprovalRequest, user?.id]);
+  const onSetSurnameVariantGroups = useCallback(async (groups: SharedTabProps['selectedTree']['surnameVariantGroups']) => {
+    if (!selectedTree) return;
+    await setSurnameVariantGroups(selectedTree.id, groups);
+  }, [selectedTree, setSurnameVariantGroups]);
+  const onCreateMergeRequest = useCallback(async (targetTreeId: string) => {
+    if (!user?.id || !selectedTree) return;
+    await createMergeRequest(user.id, selectedTree.id, targetTreeId);
+  }, [createMergeRequest, selectedTree, user?.id]);
+  const onLoadTreeMergePreview = useCallback(async (targetTreeId: string) => {
+    if (!selectedTree) return;
+    await loadMergePreview(selectedTree.id, targetTreeId);
+  }, [loadMergePreview, selectedTree]);
+  const onApproveMergeRequest = useCallback(async (requestId: string, comment?: string) => {
+    if (!user?.id) return;
+    await approveMergeRequest(user.id, requestId, comment);
+  }, [approveMergeRequest, user?.id]);
+  const onRejectMergeRequest = useCallback(async (requestId: string, comment?: string) => {
+    if (!user?.id) return;
+    await rejectMergeRequest(user.id, requestId, comment);
+  }, [rejectMergeRequest, user?.id]);
+  const onRequestMergeChanges = useCallback(async (requestId: string, comment?: string) => {
+    if (!user?.id) return;
+    await requestMergeChanges(user.id, requestId, comment);
+  }, [requestMergeChanges, user?.id]);
+  const onUndoMerge = useCallback(async (requestId: string) => {
+    if (!user?.id) return;
+    await undoMerge(user.id, requestId);
+  }, [undoMerge, user?.id]);
 
   const personDialogRelationshipCandidates = useMemo(
     () => people.filter((p) => p.id !== personDialog.person?.id),
@@ -481,6 +519,9 @@ export default function MainScreen({ navigation }: Props) {
       people,
       relationships,
       approvalRequests,
+      mergeRequests,
+      mergeHistory,
+      mergePreview,
       peopleById,
       canEdit,
       isOwner,
@@ -510,6 +551,13 @@ export default function MainScreen({ navigation }: Props) {
       onApproveApprovalRequest,
       onRejectApprovalRequest,
       onSetApprovalWindowHours,
+      onSetSurnameVariantGroups,
+      onCreateMergeRequest,
+      onLoadMergePreview: onLoadTreeMergePreview,
+      onApproveMergeRequest,
+      onRejectMergeRequest,
+      onRequestMergeChanges,
+      onUndoMerge,
       // Tree management
       trees,
       defaultTreeId: user?.defaultTreeId,
@@ -523,13 +571,15 @@ export default function MainScreen({ navigation }: Props) {
       activeFamilyRef: canvasActiveFamilyRef,
     };
   }, [
-    selectedTree, people, relationships, approvalRequests, peopleById, canEdit, isOwner, role,
+    selectedTree, people, relationships, approvalRequests, mergeRequests, mergeHistory, mergePreview, peopleById, canEdit, isOwner, role,
     user?.id, user?.defaultTreeId, currentUserLabel, currentAssignedPerson, currentSelfAssignmentSuggestions,
     availableSelfLinkPeople, assignedPersonByUserId, assignedUserIdByPersonId, mutating, loadingTreeData,
     openConfirm, openPersonProfile, onOpenAddPerson, onOpenRelationshipDialog, onOpenPersonQuickActions,
     onOpenCollaboratorDialog, onOpenAddSelf, onEditPerson, onDeletePerson, onRemoveCollaborator,
     handleAssignPersonToUser, handleClearSelfAssignment, onApproveApprovalRequest, onRejectApprovalRequest,
-    onSetApprovalWindowHours, trees, loadingTrees, handleConfirmDeleteTree, handleToggleDefaultTree, handleSwitchTree,
+    onSetApprovalWindowHours, onSetSurnameVariantGroups, onCreateMergeRequest, onLoadTreeMergePreview,
+    onApproveMergeRequest, onRejectMergeRequest, onRequestMergeChanges, onUndoMerge,
+    trees, loadingTrees, handleConfirmDeleteTree, handleToggleDefaultTree, handleSwitchTree,
   ]);
 
   // ── Render ──────────────────────────────────────────────────────────────────

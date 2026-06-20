@@ -23,15 +23,19 @@ import {
 } from 'firebase/storage';
 import { db, storage } from './firebase-provider';
 import type { ApprovalRequest, ApprovalRequestPayload, ApprovalSubmissionResult } from '../components/dto/approval';
+import type { MergeApproval, MergeConflictChoice, MergeHistoryRecord, MergePreview, MergeRequestRecord, MergeRequestSnapshot, MergeReviewDecision } from '../components/dto/merge';
 import type { PersonInput, PersonLifeEvent, PersonMutationPayload, PersonPhoto, PersonRecord } from '../components/dto/person';
 import type { RelationshipRecord } from '../components/dto/relationship';
-import type { CollaboratorRole, FamilyTree, TreeCollaborator, TreeRole } from '../components/dto/tree';
+import type { CollaboratorRole, FamilyTree, SurnameVariantGroup, TreeCollaborator, TreeMembershipHistoryEntry, TreeRole } from '../components/dto/tree';
 import type { UserProfile } from '../components/dto/user';
+import { buildMergePreview } from './merge-intelligence';
 
 const TREES_COLLECTION = 'trees';
 const PEOPLE_COLLECTION = 'persons';
 const RELATIONSHIPS_COLLECTION = 'relationships';
 const APPROVAL_REQUESTS_COLLECTION = 'approvalRequests';
+const MERGE_REQUESTS_COLLECTION = 'mergeRequests';
+const MERGE_HISTORY_COLLECTION = 'mergeHistory';
 const USERS_COLLECTION = 'users';
 
 function nowIso() {
@@ -56,7 +60,7 @@ function clampApprovalWindowHours(value: unknown) {
 }
 
 function isTreeRole(value: unknown): value is TreeRole {
-  return value === 'owner' || value === 'editor' || value === 'viewer';
+  return value === 'owner' || value === 'editor' || value === 'contributor' || value === 'viewer';
 }
 
 function buildOwnerCollaborator(user: Pick<UserProfile, 'id' | 'email' | 'displayName'>): TreeCollaborator {
@@ -127,6 +131,23 @@ function mapTreeData(id: string, data: DocumentData): FamilyTree {
     : [ownerCollaborator, ...collaborators];
   const memberIds = Array.isArray(data.memberIds) ? data.memberIds : [data.ownerId];
   const editorIds = Array.isArray(data.editorIds) ? data.editorIds : [data.ownerId];
+  const membershipHistory = Array.isArray(data.membershipHistory)
+    ? data.membershipHistory
+      .filter((entry) => entry?.id && entry?.userId && entry?.role && entry?.action && entry?.createdAt)
+      .map((entry) => entry as TreeMembershipHistoryEntry)
+    : [];
+  const surnameVariantGroups = Array.isArray(data.surnameVariantGroups)
+    ? data.surnameVariantGroups
+      .filter((entry) => entry?.id && entry?.primarySurname)
+      .map((entry) => ({
+        id: entry.id,
+        primarySurname: entry.primarySurname,
+        variants: Array.isArray(entry.variants) ? entry.variants.filter((value: unknown): value is string => typeof value === 'string') : [],
+        notes: entry.notes ?? '',
+        createdAt: entry.createdAt ?? nowIso(),
+        updatedAt: entry.updatedAt ?? entry.createdAt ?? nowIso(),
+      } satisfies SurnameVariantGroup))
+    : [];
 
   return {
     id,
@@ -137,6 +158,9 @@ function mapTreeData(id: string, data: DocumentData): FamilyTree {
     collaborators: sortCollaborators(normalizedCollaborators),
     personAssignments: mapPersonAssignments(data.personAssignments),
     approvalWindowHours: clampApprovalWindowHours(data.approvalWindowHours),
+    surnameVariantGroups,
+    connectedTreeIds: Array.isArray(data.connectedTreeIds) ? data.connectedTreeIds.filter((value) => typeof value === 'string') : [],
+    membershipHistory,
     createdAt: data.createdAt ?? nowIso(),
     updatedAt: data.updatedAt ?? data.createdAt ?? nowIso(),
   };
@@ -170,10 +194,21 @@ function mapPerson(snapshot: QueryDocumentSnapshot): PersonRecord {
   return {
     id: snapshot.id,
     treeId: data.treeId,
+    treeMembershipIds: Array.isArray(data.treeMembershipIds) ? data.treeMembershipIds.filter((value) => typeof value === 'string') : [data.treeId].filter(Boolean),
+    treeMemberships: Array.isArray(data.treeMemberships) ? data.treeMemberships : [],
     ownerId: data.ownerId,
     firstName: data.firstName ?? '',
+    middleNames: data.middleNames ?? '',
     lastName: data.lastName ?? '',
     maidenName: data.maidenName ?? '',
+    nicknames: Array.isArray(data.nicknames) ? data.nicknames.filter((value) => typeof value === 'string') : [],
+    clanName: data.clanName ?? '',
+    familyBranch: data.familyBranch ?? '',
+    hometown: data.hometown ?? '',
+    birthPlace: data.birthPlace ?? '',
+    surnameVariantHints: Array.isArray(data.surnameVariantHints) ? data.surnameVariantHints.filter((value) => typeof value === 'string') : [],
+    canonicalPersonId: data.canonicalPersonId ?? '',
+    duplicatePersonIds: Array.isArray(data.duplicatePersonIds) ? data.duplicatePersonIds.filter((value) => typeof value === 'string') : [],
     birthDate: data.birthDate ?? '',
     deathDate: data.deathDate ?? '',
     gender: data.gender ?? 'unspecified',
@@ -330,12 +365,94 @@ function mapApprovalRequest(snapshot: QueryDocumentSnapshot): ApprovalRequest {
   return mapApprovalRequestData(snapshot.id, snapshot.data());
 }
 
+function mapMergePreview(data: any): MergePreview {
+  return {
+    sourceTree: data?.sourceTree,
+    targetTree: data?.targetTree,
+    matches: Array.isArray(data?.matches) ? data.matches : [],
+    duplicateCount: Number(data?.duplicateCount ?? 0),
+    connectedRelationshipCount: Number(data?.connectedRelationshipCount ?? 0),
+    newBranchCount: Number(data?.newBranchCount ?? 0),
+    conflicts: Array.isArray(data?.conflicts) ? data.conflicts : [],
+    combinedAssetCount: Number(data?.combinedAssetCount ?? 0),
+  };
+}
+
+function mapMergeApproval(rawApproval: any): MergeApproval | null {
+  if (!rawApproval?.treeId || !rawApproval?.editorUserId || !rawApproval?.editorLabel || !rawApproval?.decision || !rawApproval?.decidedAt) {
+    return null;
+  }
+
+  return {
+    treeId: rawApproval.treeId,
+    editorUserId: rawApproval.editorUserId,
+    editorLabel: rawApproval.editorLabel,
+    decision: rawApproval.decision,
+    comment: rawApproval.comment ?? '',
+    decidedAt: rawApproval.decidedAt,
+  };
+}
+
+function mapMergeSnapshot(rawSnapshot: any): MergeRequestSnapshot | undefined {
+  if (!rawSnapshot?.trees || !rawSnapshot?.people || !rawSnapshot?.relationships) {
+    return undefined;
+  }
+
+  return {
+    trees: Array.isArray(rawSnapshot.trees) ? rawSnapshot.trees : [],
+    people: Array.isArray(rawSnapshot.people) ? rawSnapshot.people : [],
+    relationships: Array.isArray(rawSnapshot.relationships) ? rawSnapshot.relationships : [],
+  };
+}
+
+function mapMergeRequest(snapshot: QueryDocumentSnapshot): MergeRequestRecord {
+  const data = snapshot.data();
+  return {
+    id: snapshot.id,
+    sourceTreeId: data.sourceTreeId ?? '',
+    targetTreeId: data.targetTreeId ?? '',
+    involvedTreeIds: Array.isArray(data.involvedTreeIds) ? data.involvedTreeIds.filter((value) => typeof value === 'string') : [],
+    suggestedByUserId: data.suggestedByUserId ?? '',
+    suggestedByLabel: data.suggestedByLabel ?? '',
+    status: data.status ?? 'pending',
+    preview: mapMergePreview(data.preview ?? {}),
+    approvals: Array.isArray(data.approvals) ? data.approvals.map(mapMergeApproval).filter(Boolean) as MergeApproval[] : [],
+    reviewerComments: Array.isArray(data.reviewerComments) ? data.reviewerComments.filter((value) => typeof value === 'string') : [],
+    conflictChoices: Array.isArray(data.conflictChoices) ? data.conflictChoices as MergeConflictChoice[] : [],
+    snapshotBeforeMerge: mapMergeSnapshot(data.snapshotBeforeMerge),
+    appliedAt: data.appliedAt ?? undefined,
+    undoneAt: data.undoneAt ?? undefined,
+    createdAt: data.createdAt ?? nowIso(),
+    updatedAt: data.updatedAt ?? data.createdAt ?? nowIso(),
+  };
+}
+
+function mapMergeHistory(snapshot: QueryDocumentSnapshot): MergeHistoryRecord {
+  const data = snapshot.data();
+  return {
+    id: snapshot.id,
+    mergeRequestId: data.mergeRequestId ?? '',
+    involvedTreeIds: Array.isArray(data.involvedTreeIds) ? data.involvedTreeIds.filter((value) => typeof value === 'string') : [],
+    summary: data.summary ?? '',
+    status: data.status ?? 'pending',
+    preview: mapMergePreview(data.preview ?? {}),
+    changedPersonIds: Array.isArray(data.changedPersonIds) ? data.changedPersonIds.filter((value) => typeof value === 'string') : [],
+    approvals: Array.isArray(data.approvals) ? data.approvals.map(mapMergeApproval).filter(Boolean) as MergeApproval[] : [],
+    createdAt: data.createdAt ?? nowIso(),
+    updatedAt: data.updatedAt ?? data.createdAt ?? nowIso(),
+  };
+}
+
 function sortByNewest<T extends { updatedAt?: string; createdAt?: string }>(items: T[]) {
   return [...items].sort((left, right) => {
     const leftValue = left.updatedAt ?? left.createdAt ?? '';
     const rightValue = right.updatedAt ?? right.createdAt ?? '';
     return rightValue.localeCompare(leftValue);
   });
+}
+
+function mergeUniqueById<T extends { id: string }>(items: T[]) {
+  return [...new Map(items.map((item) => [item.id, item])).values()];
 }
 
 function buildSpouseRelationshipId(personAId: string, personBId: string) {
@@ -405,7 +522,10 @@ async function ensurePeopleBelongToTree(treeId: string, personIds: string[]) {
       throw new Error('One of the selected family members no longer exists.');
     }
 
-    if (snapshot.data().treeId !== treeId) {
+    const membershipIds = Array.isArray(snapshot.data().treeMembershipIds)
+      ? snapshot.data().treeMembershipIds
+      : [snapshot.data().treeId].filter(Boolean);
+    if (!membershipIds.includes(treeId)) {
       throw new Error('Family members must belong to the selected tree.');
     }
   });
@@ -465,12 +585,35 @@ export function subscribeToPeople(
   onChange: (people: PersonRecord[]) => void,
   onError?: (error: Error) => void,
 ) {
-  const peopleQuery = query(collection(db, PEOPLE_COLLECTION), where('treeId', '==', treeId));
-  return onSnapshot(
-    peopleQuery,
-    (snapshot) => onChange(sortByNewest(snapshot.docs.map(mapPerson))),
+  let membershipPeople: PersonRecord[] = [];
+  let legacyPeople: PersonRecord[] = [];
+
+  const emit = () => {
+    onChange(sortByNewest(mergeUniqueById([...membershipPeople, ...legacyPeople])));
+  };
+
+  const unsubscribeMembership = onSnapshot(
+    query(collection(db, PEOPLE_COLLECTION), where('treeMembershipIds', 'array-contains', treeId)),
+    (snapshot) => {
+      membershipPeople = snapshot.docs.map(mapPerson);
+      emit();
+    },
     onError,
   );
+
+  const unsubscribeLegacy = onSnapshot(
+    query(collection(db, PEOPLE_COLLECTION), where('treeId', '==', treeId)),
+    (snapshot) => {
+      legacyPeople = snapshot.docs.map(mapPerson);
+      emit();
+    },
+    onError,
+  );
+
+  return () => {
+    unsubscribeMembership();
+    unsubscribeLegacy();
+  };
 }
 
 export function subscribeToRelationships(
@@ -507,6 +650,32 @@ export function subscribeToApprovalRequests(
   );
 }
 
+export function subscribeToMergeRequests(
+  treeId: string,
+  onChange: (requests: MergeRequestRecord[]) => void,
+  onError?: (error: Error) => void,
+) {
+  const mergeRequestsQuery = query(collection(db, MERGE_REQUESTS_COLLECTION), where('involvedTreeIds', 'array-contains', treeId));
+  return onSnapshot(
+    mergeRequestsQuery,
+    (snapshot) => onChange(snapshot.docs.map(mapMergeRequest).sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))),
+    onError,
+  );
+}
+
+export function subscribeToMergeHistory(
+  treeId: string,
+  onChange: (history: MergeHistoryRecord[]) => void,
+  onError?: (error: Error) => void,
+) {
+  const mergeHistoryQuery = query(collection(db, MERGE_HISTORY_COLLECTION), where('involvedTreeIds', 'array-contains', treeId));
+  return onSnapshot(
+    mergeHistoryQuery,
+    (snapshot) => onChange(snapshot.docs.map(mapMergeHistory).sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))),
+    onError,
+  );
+}
+
 export async function createTree(
   owner: Pick<UserProfile, 'id' | 'email' | 'displayName'>,
   name: string,
@@ -526,6 +695,15 @@ export async function createTree(
     collaborators: [ownerCollaborator],
     personAssignments: {},
     approvalWindowHours: 24,
+    surnameVariantGroups: [],
+    connectedTreeIds: [],
+    membershipHistory: [{
+      id: `${treeRef.id}-owner-joined`,
+      userId: owner.id,
+      role: 'owner',
+      action: 'joined',
+      createdAt: timestamp,
+    }],
     createdAt: timestamp,
     updatedAt: timestamp,
   };
@@ -581,6 +759,17 @@ export async function addCollaboratorToTree(treeId: string, email: string, role:
       collaborators,
       memberIds: [...tree.memberIds, collaboratorUser.id],
       editorIds: role === 'editor' ? [...tree.editorIds, collaboratorUser.id] : tree.editorIds,
+      membershipHistory: [
+        ...tree.membershipHistory,
+        {
+          id: `${treeId}-${collaboratorUser.id}-${Date.now()}`,
+          userId: collaboratorUser.id,
+          role,
+          action: 'invited',
+          note: `Added as ${role}`,
+          createdAt: nowIso(),
+        },
+      ],
       updatedAt: nowIso(),
     });
   });
@@ -613,6 +802,16 @@ export async function removeCollaboratorFromTree(treeId: string, collaboratorUse
       memberIds: tree.memberIds.filter((memberId) => memberId !== collaboratorUserId),
       editorIds: tree.editorIds.filter((editorId) => editorId !== collaboratorUserId),
       personAssignments: nextPersonAssignments,
+      membershipHistory: [
+        ...tree.membershipHistory,
+        {
+          id: `${treeId}-${collaboratorUserId}-${Date.now()}`,
+          userId: collaboratorUserId,
+          role: 'viewer',
+          action: 'left',
+          createdAt: nowIso(),
+        },
+      ],
       updatedAt: nowIso(),
     });
   });
@@ -649,7 +848,10 @@ export async function assignTreePersonToUser(actorUserId: string, treeId: string
       throw new Error('That family member no longer exists.');
     }
 
-    if (personSnapshot.data().treeId !== treeId) {
+    const personMembershipIds = Array.isArray(personSnapshot.data().treeMembershipIds)
+      ? personSnapshot.data().treeMembershipIds
+      : [personSnapshot.data().treeId].filter(Boolean);
+    if (!personMembershipIds.includes(treeId)) {
       throw new Error('That family member belongs to a different family tree.');
     }
 
@@ -715,6 +917,33 @@ async function getTreeById(treeId: string) {
   }
 
   return mapTreeData(treeSnapshot.id, treeSnapshot.data());
+}
+
+async function getPeopleByTreeId(treeId: string) {
+  const [membershipSnapshot, legacySnapshot] = await Promise.all([
+    getDocs(query(collection(db, PEOPLE_COLLECTION), where('treeMembershipIds', 'array-contains', treeId))),
+    getDocs(query(collection(db, PEOPLE_COLLECTION), where('treeId', '==', treeId))),
+  ]);
+
+  return mergeUniqueById([
+    ...membershipSnapshot.docs.map(mapPerson),
+    ...legacySnapshot.docs.map(mapPerson),
+  ]);
+}
+
+async function getRelationshipsByTreeId(treeId: string) {
+  const relationshipSnapshot = await getDocs(query(collection(db, RELATIONSHIPS_COLLECTION), where('treeId', '==', treeId)));
+  return relationshipSnapshot.docs.map(mapRelationship);
+}
+
+export async function getTreeBundle(treeId: string) {
+  const [tree, people, relationships] = await Promise.all([
+    getTreeById(treeId),
+    getPeopleByTreeId(treeId),
+    getRelationshipsByTreeId(treeId),
+  ]);
+
+  return { tree, people, relationships };
 }
 
 function getRequesterLabel(tree: FamilyTree, userId: string) {
@@ -1234,18 +1463,364 @@ export async function processExpiredApprovalRequests(actorUserId: string, treeId
   }
 }
 
+export async function updateSurnameVariantGroups(treeId: string, surnameVariantGroups: SurnameVariantGroup[]) {
+  await updateDoc(doc(db, TREES_COLLECTION, treeId), {
+    surnameVariantGroups: surnameVariantGroups.map((group) => ({
+      id: group.id,
+      primarySurname: group.primarySurname.trim(),
+      variants: [...new Set(group.variants.map((value) => value.trim()).filter(Boolean))],
+      notes: group.notes?.trim() ?? '',
+      createdAt: group.createdAt,
+      updatedAt: nowIso(),
+    })),
+    updatedAt: nowIso(),
+  });
+}
+
+export async function getMergePreview(sourceTreeId: string, targetTreeId: string) {
+  const [source, target] = await Promise.all([getTreeBundle(sourceTreeId), getTreeBundle(targetTreeId)]);
+  return buildMergePreview(source, target);
+}
+
+function buildMergeApprovalLabel(tree: FamilyTree, userId: string) {
+  const collaborator = tree.collaborators.find((entry) => entry.userId === userId);
+  return collaborator?.displayName || collaborator?.email || 'An editor';
+}
+
+function canApproveMergeForTree(tree: FamilyTree, userId: string) {
+  return tree.editorIds.includes(userId);
+}
+
+async function captureMergeSnapshot(sourceTreeId: string, targetTreeId: string, matches: MergePreview['matches']): Promise<MergeRequestSnapshot> {
+  const personIds = [...new Set(matches.flatMap((match) => [match.sourcePersonId, match.targetPersonId]))];
+  const relationshipIdsByTree = new Map<string, string[]>();
+
+  const [sourceRelationships, targetRelationships] = await Promise.all([
+    getRelationshipsByTreeId(sourceTreeId),
+    getRelationshipsByTreeId(targetTreeId),
+  ]);
+
+  relationshipIdsByTree.set(sourceTreeId, sourceRelationships.filter((relationship) => personIds.includes(relationship.fromPersonId) || personIds.includes(relationship.toPersonId)).map((relationship) => relationship.id));
+  relationshipIdsByTree.set(targetTreeId, targetRelationships.filter((relationship) => personIds.includes(relationship.fromPersonId) || personIds.includes(relationship.toPersonId)).map((relationship) => relationship.id));
+
+  const [treeSnapshots, personSnapshots, sourceTreeRelationshipSnapshots, targetTreeRelationshipSnapshots] = await Promise.all([
+    Promise.all([getDoc(doc(db, TREES_COLLECTION, sourceTreeId)), getDoc(doc(db, TREES_COLLECTION, targetTreeId))]),
+    Promise.all(personIds.map((personId) => getDoc(doc(db, PEOPLE_COLLECTION, personId)))),
+    Promise.all((relationshipIdsByTree.get(sourceTreeId) ?? []).map((relationshipId) => getDoc(doc(db, RELATIONSHIPS_COLLECTION, relationshipId)))),
+    Promise.all((relationshipIdsByTree.get(targetTreeId) ?? []).map((relationshipId) => getDoc(doc(db, RELATIONSHIPS_COLLECTION, relationshipId)))),
+  ]);
+
+  return {
+    trees: treeSnapshots.filter((snapshot) => snapshot.exists()).map((snapshot) => ({ id: snapshot.id, data: snapshot.data() })),
+    people: personSnapshots.filter((snapshot) => snapshot.exists()).map((snapshot) => ({ id: snapshot.id, data: snapshot.data() })),
+    relationships: [...sourceTreeRelationshipSnapshots, ...targetTreeRelationshipSnapshots]
+      .filter((snapshot) => snapshot.exists())
+      .map((snapshot) => ({ id: snapshot.id, data: snapshot.data() })),
+  };
+}
+
+async function applyMergeRequest(mergeRequestId: string, request: MergeRequestRecord) {
+  const timestamp = nowIso();
+  const snapshotBeforeMerge = await captureMergeSnapshot(request.sourceTreeId, request.targetTreeId, request.preview.matches);
+  const batch = writeBatch(db);
+  const changedPersonIds = new Set<string>();
+  const sourceRelationships = await getRelationshipsByTreeId(request.sourceTreeId);
+  const targetRelationships = await getRelationshipsByTreeId(request.targetTreeId);
+  const relationships = [...sourceRelationships, ...targetRelationships];
+
+  request.preview.matches
+    .filter((match) => match.confidenceScore >= 65)
+    .forEach((match) => {
+      const sourcePersonRef = doc(db, PEOPLE_COLLECTION, match.sourcePersonId);
+      const targetPersonRef = doc(db, PEOPLE_COLLECTION, match.targetPersonId);
+      const sourceSnapshot = snapshotBeforeMerge.people.find((entry) => entry.id === match.sourcePersonId)?.data ?? {};
+      const targetSnapshot = snapshotBeforeMerge.people.find((entry) => entry.id === match.targetPersonId)?.data ?? {};
+      const sourceTreeMembershipIds = Array.isArray(sourceSnapshot.treeMembershipIds) ? sourceSnapshot.treeMembershipIds : [sourceSnapshot.treeId].filter(Boolean);
+      const targetTreeMembershipIds = Array.isArray(targetSnapshot.treeMembershipIds) ? targetSnapshot.treeMembershipIds : [targetSnapshot.treeId].filter(Boolean);
+      const targetDuplicatePersonIds = Array.isArray(targetSnapshot.duplicatePersonIds) ? targetSnapshot.duplicatePersonIds : [];
+      const sourceTreeMemberships = Array.isArray(sourceSnapshot.treeMemberships) ? sourceSnapshot.treeMemberships : [];
+      const targetTreeMemberships = Array.isArray(targetSnapshot.treeMemberships) ? targetSnapshot.treeMemberships : [];
+      const mergedMembershipsByTreeId = new Map<string, any>();
+      [...sourceTreeMemberships, ...targetTreeMemberships].forEach((membership) => {
+        if (membership?.treeId) {
+          mergedMembershipsByTreeId.set(membership.treeId, membership);
+        }
+      });
+      [request.sourceTreeId, request.targetTreeId].forEach((treeId) => {
+        if (!mergedMembershipsByTreeId.has(treeId)) {
+          mergedMembershipsByTreeId.set(treeId, {
+            treeId,
+            role: treeId === request.targetTreeId ? 'canonical' : 'subject',
+            joinedAt: timestamp,
+            source: 'merge',
+          });
+        }
+      });
+      changedPersonIds.add(match.sourcePersonId);
+      changedPersonIds.add(match.targetPersonId);
+
+      batch.update(sourcePersonRef, {
+        canonicalPersonId: match.targetPersonId,
+        updatedAt: timestamp,
+      });
+      batch.update(targetPersonRef, {
+        treeMembershipIds: [...new Set([...sourceTreeMembershipIds, ...targetTreeMembershipIds, request.sourceTreeId, request.targetTreeId])],
+        treeMemberships: [...mergedMembershipsByTreeId.values()],
+        duplicatePersonIds: [...new Set([...targetDuplicatePersonIds, match.sourcePersonId])],
+        updatedAt: timestamp,
+      });
+
+      relationships
+        .filter((relationship) => relationship.fromPersonId === match.sourcePersonId || relationship.toPersonId === match.sourcePersonId)
+        .forEach((relationship) => {
+          batch.update(doc(db, RELATIONSHIPS_COLLECTION, relationship.id), {
+            fromPersonId: relationship.fromPersonId === match.sourcePersonId ? match.targetPersonId : relationship.fromPersonId,
+            toPersonId: relationship.toPersonId === match.sourcePersonId ? match.targetPersonId : relationship.toPersonId,
+          });
+        });
+    });
+
+  const sourceTreeSnapshot = snapshotBeforeMerge.trees.find((entry) => entry.id === request.sourceTreeId)?.data ?? {};
+  const targetTreeSnapshot = snapshotBeforeMerge.trees.find((entry) => entry.id === request.targetTreeId)?.data ?? {};
+  const sourceConnectedTreeIds = Array.isArray(sourceTreeSnapshot.connectedTreeIds) ? sourceTreeSnapshot.connectedTreeIds : [];
+  const targetConnectedTreeIds = Array.isArray(targetTreeSnapshot.connectedTreeIds) ? targetTreeSnapshot.connectedTreeIds : [];
+
+  batch.update(doc(db, TREES_COLLECTION, request.sourceTreeId), {
+    connectedTreeIds: [...new Set([...sourceConnectedTreeIds, request.targetTreeId])],
+    updatedAt: timestamp,
+  });
+  batch.update(doc(db, TREES_COLLECTION, request.targetTreeId), {
+    connectedTreeIds: [...new Set([...targetConnectedTreeIds, request.sourceTreeId])],
+    updatedAt: timestamp,
+  });
+  batch.update(doc(db, MERGE_REQUESTS_COLLECTION, mergeRequestId), {
+    status: 'applied',
+    snapshotBeforeMerge,
+    appliedAt: timestamp,
+    updatedAt: timestamp,
+  });
+
+  const historyRef = doc(collection(db, MERGE_HISTORY_COLLECTION));
+  batch.set(historyRef, {
+    mergeRequestId,
+    involvedTreeIds: request.involvedTreeIds,
+    summary: `${request.preview.duplicateCount} duplicate relatives merged between ${request.preview.sourceTree.treeName} and ${request.preview.targetTree.treeName}.`,
+    status: 'applied',
+    preview: request.preview,
+    changedPersonIds: [...changedPersonIds],
+    approvals: request.approvals,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  });
+
+  await batch.commit();
+}
+
+export async function createMergeRequest(
+  actorUserId: string,
+  sourceTreeId: string,
+  targetTreeId: string,
+) {
+  const [source, target] = await Promise.all([getTreeBundle(sourceTreeId), getTreeBundle(targetTreeId)]);
+  const preview = buildMergePreview(source, target);
+  if (preview.matches.length === 0) {
+    throw new Error('No likely person matches were found between these trees yet.');
+  }
+
+  const mergeRequestRef = doc(collection(db, MERGE_REQUESTS_COLLECTION));
+  const timestamp = nowIso();
+  const suggestedByLabel = buildMergeApprovalLabel(source.tree, actorUserId);
+
+  await setDoc(mergeRequestRef, {
+    sourceTreeId,
+    targetTreeId,
+    involvedTreeIds: [sourceTreeId, targetTreeId],
+    suggestedByUserId: actorUserId,
+    suggestedByLabel,
+    status: 'pending',
+    preview,
+    approvals: [],
+    reviewerComments: [],
+    conflictChoices: [],
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  });
+
+  return { id: mergeRequestRef.id, preview };
+}
+
+export async function reviewMergeRequest(
+  actorUserId: string,
+  requestId: string,
+  decision: MergeReviewDecision,
+  comment = '',
+  conflictChoices: MergeConflictChoice[] = [],
+) {
+  const requestRef = doc(db, MERGE_REQUESTS_COLLECTION, requestId);
+  const requestSnapshot = await getDoc(requestRef);
+  if (!requestSnapshot.exists()) {
+    throw new Error('That merge request no longer exists.');
+  }
+
+  const request = mapMergeRequest(requestSnapshot as QueryDocumentSnapshot);
+  const [sourceTree, targetTree] = await Promise.all([getTreeById(request.sourceTreeId), getTreeById(request.targetTreeId)]);
+  const approvableTrees = [sourceTree, targetTree].filter((tree) => canApproveMergeForTree(tree, actorUserId));
+  if (approvableTrees.length === 0) {
+    throw new Error('Only an editor from an affected tree can review this merge.');
+  }
+
+  const nextApprovals = decision === 'approve'
+    ? approvableTrees.map<MergeApproval>((tree) => ({
+      treeId: tree.id,
+      editorUserId: actorUserId,
+      editorLabel: buildMergeApprovalLabel(tree, actorUserId),
+      decision,
+      comment,
+      decidedAt: nowIso(),
+    }))
+    : [{
+      treeId: approvableTrees[0].id,
+      editorUserId: actorUserId,
+      editorLabel: buildMergeApprovalLabel(approvableTrees[0], actorUserId),
+      decision,
+      comment,
+      decidedAt: nowIso(),
+    } satisfies MergeApproval];
+
+  const approvals = [
+    ...request.approvals.filter((entry) => !nextApprovals.some((approval) => approval.treeId === entry.treeId && approval.editorUserId === entry.editorUserId)),
+    ...nextApprovals,
+  ];
+  const reviewerComments = comment.trim() ? [...request.reviewerComments, comment.trim()] : request.reviewerComments;
+
+  let status: MergeRequestRecord['status'] = request.status;
+  if (decision === 'reject') {
+    status = 'rejected';
+  } else if (decision === 'request-changes') {
+    status = 'changes-requested';
+  } else {
+    const approvedTreeIds = new Set(approvals.filter((entry) => entry.decision === 'approve').map((entry) => entry.treeId));
+    status = approvedTreeIds.has(sourceTree.id) && approvedTreeIds.has(targetTree.id) ? 'approved' : 'pending';
+  }
+
+  await updateDoc(requestRef, {
+    approvals,
+    reviewerComments,
+    conflictChoices,
+    status,
+    updatedAt: nowIso(),
+  });
+
+  if (status === 'approved') {
+    await applyMergeRequest(requestId, { ...request, approvals, reviewerComments, conflictChoices, status });
+  }
+}
+
+export async function undoMergeRequest(actorUserId: string, requestId: string) {
+  const requestRef = doc(db, MERGE_REQUESTS_COLLECTION, requestId);
+  const requestSnapshot = await getDoc(requestRef);
+  if (!requestSnapshot.exists()) {
+    throw new Error('That merge request no longer exists.');
+  }
+
+  const request = mapMergeRequest(requestSnapshot as QueryDocumentSnapshot);
+  if (request.status !== 'applied' || !request.snapshotBeforeMerge) {
+    throw new Error('Only applied merges with snapshots can be undone.');
+  }
+
+  const [sourceTree, targetTree] = await Promise.all([getTreeById(request.sourceTreeId), getTreeById(request.targetTreeId)]);
+  if (!canApproveMergeForTree(sourceTree, actorUserId) && !canApproveMergeForTree(targetTree, actorUserId)) {
+    throw new Error('Only an editor from an affected tree can undo this merge.');
+  }
+
+  const batch = writeBatch(db);
+  request.snapshotBeforeMerge.trees.forEach((entry) => batch.set(doc(db, TREES_COLLECTION, entry.id), entry.data));
+  request.snapshotBeforeMerge.people.forEach((entry) => batch.set(doc(db, PEOPLE_COLLECTION, entry.id), entry.data));
+  request.snapshotBeforeMerge.relationships.forEach((entry) => batch.set(doc(db, RELATIONSHIPS_COLLECTION, entry.id), entry.data));
+  batch.update(requestRef, {
+    status: 'undone',
+    undoneAt: nowIso(),
+    updatedAt: nowIso(),
+  });
+  await batch.commit();
+}
+
 export async function deleteTree(tree: FamilyTree) {
-  const peopleSnapshot = await getDocs(query(collection(db, PEOPLE_COLLECTION), where('treeId', '==', tree.id)));
+  const people = await getPeopleByTreeId(tree.id);
   const relationshipSnapshot = await getDocs(query(collection(db, RELATIONSHIPS_COLLECTION), where('treeId', '==', tree.id)));
   const approvalRequestsSnapshot = await getDocs(query(collection(db, APPROVAL_REQUESTS_COLLECTION), where('treeId', '==', tree.id)));
+  const mergeRequestsSnapshot = await getDocs(query(collection(db, MERGE_REQUESTS_COLLECTION), where('involvedTreeIds', 'array-contains', tree.id)));
+  const mergeHistorySnapshot = await getDocs(query(collection(db, MERGE_HISTORY_COLLECTION), where('involvedTreeIds', 'array-contains', tree.id)));
 
-  const people = peopleSnapshot.docs.map(mapPerson);
-  await deletePhotos(people.flatMap((person) => person.photos));
+  const peopleToDelete = people.filter((person) => person.treeMembershipIds.length <= 1);
+  await deletePhotos(peopleToDelete.flatMap((person) => person.photos));
+
+  await Promise.all(
+    people
+      .filter((person) => person.treeMembershipIds.length > 1)
+      .map((person) => updateDoc(doc(db, PEOPLE_COLLECTION, person.id), {
+        treeMembershipIds: person.treeMembershipIds.filter((membershipTreeId) => membershipTreeId !== tree.id),
+        treeMemberships: person.treeMemberships.filter((membership) => membership.treeId !== tree.id),
+        updatedAt: nowIso(),
+      })),
+  );
+
+  const treeDeletionTimestamp = nowIso();
+  await Promise.all(
+    mergeRequestsSnapshot.docs.map(async (snapshot) => {
+      const request = mapMergeRequest(snapshot as QueryDocumentSnapshot);
+      const remainingTreeIds = request.involvedTreeIds.filter((treeId) => treeId !== tree.id);
+
+      if (remainingTreeIds.length === 0) {
+        return;
+      }
+
+      await updateDoc(snapshot.ref, {
+        involvedTreeIds: remainingTreeIds,
+        status: request.status === 'pending' || request.status === 'changes-requested' || request.status === 'approved'
+          ? 'rejected'
+          : request.status,
+        reviewerComments: [
+          ...request.reviewerComments,
+          `${tree.name} was deleted on ${treeDeletionTimestamp}.`,
+        ],
+        updatedAt: treeDeletionTimestamp,
+      });
+    }),
+  );
+
+  await Promise.all(
+    mergeHistorySnapshot.docs.map(async (snapshot) => {
+      const history = mapMergeHistory(snapshot as QueryDocumentSnapshot);
+      const remainingTreeIds = history.involvedTreeIds.filter((treeId) => treeId !== tree.id);
+
+      if (remainingTreeIds.length === 0) {
+        return;
+      }
+
+      await updateDoc(snapshot.ref, {
+        involvedTreeIds: remainingTreeIds,
+        updatedAt: treeDeletionTimestamp,
+      });
+    }),
+  );
 
   const refsToDelete = [
-    ...peopleSnapshot.docs.map((snapshot) => snapshot.ref),
+    ...peopleToDelete.map((person) => doc(db, PEOPLE_COLLECTION, person.id)),
     ...relationshipSnapshot.docs.map((snapshot) => snapshot.ref),
     ...approvalRequestsSnapshot.docs.map((snapshot) => snapshot.ref),
+    ...mergeRequestsSnapshot.docs
+      .filter((snapshot) => {
+        const request = mapMergeRequest(snapshot as QueryDocumentSnapshot);
+        return request.involvedTreeIds.filter((treeId) => treeId !== tree.id).length === 0;
+      })
+      .map((snapshot) => snapshot.ref),
+    ...mergeHistorySnapshot.docs
+      .filter((snapshot) => {
+        const history = mapMergeHistory(snapshot as QueryDocumentSnapshot);
+        return history.involvedTreeIds.filter((treeId) => treeId !== tree.id).length === 0;
+      })
+      .map((snapshot) => snapshot.ref),
     doc(db, TREES_COLLECTION, tree.id),
   ];
 
@@ -1264,10 +1839,21 @@ export async function createPerson(
 
   const person: Omit<PersonRecord, 'id'> = {
     treeId,
+    treeMembershipIds: [treeId],
+    treeMemberships: [{ treeId, role: 'subject', joinedAt: timestamp, addedByUserId: actorUserId, source: 'manual' }],
     ownerId: actorUserId,
     firstName: input.firstName.trim(),
+    middleNames: '',
     lastName: input.lastName.trim(),
     maidenName: input.maidenName?.trim() ?? '',
+    nicknames: [],
+    clanName: '',
+    familyBranch: '',
+    hometown: '',
+    birthPlace: '',
+    surnameVariantHints: [],
+    canonicalPersonId: '',
+    duplicatePersonIds: [],
     birthDate: input.birthDate.trim(),
     deathDate: input.deathDate.trim(),
     gender: input.gender,

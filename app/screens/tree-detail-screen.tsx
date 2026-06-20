@@ -72,6 +72,9 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     people,
     relationships,
     approvalRequests,
+    mergeRequests,
+    mergeHistory,
+    mergePreview,
     loadingTrees,
     loadingTreeData,
     mutating,
@@ -90,6 +93,13 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     approveApprovalRequest,
     rejectApprovalRequest,
     setApprovalWindowHours,
+    setSurnameVariantGroups,
+    createMergeRequest,
+    loadMergePreview,
+    approveMergeRequest,
+    rejectMergeRequest,
+    requestMergeChanges,
+    undoMerge,
     clearError,
     clearNotice,
   } = useTreeStore();
@@ -418,6 +428,34 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     if (!user?.id) return;
     await rejectApprovalRequest(user.id, requestId);
   }, [rejectApprovalRequest, user?.id]);
+  const onSetSurnameVariantGroups = useCallback(async (groups: SharedTabProps['selectedTree']['surnameVariantGroups']) => {
+    if (!selectedTree) return;
+    await setSurnameVariantGroups(selectedTree.id, groups);
+  }, [selectedTree, setSurnameVariantGroups]);
+  const onCreateMergeRequest = useCallback(async (targetTreeId: string) => {
+    if (!user?.id || !selectedTree) return;
+    await createMergeRequest(user.id, selectedTree.id, targetTreeId);
+  }, [createMergeRequest, selectedTree, user?.id]);
+  const onLoadTreeMergePreview = useCallback(async (targetTreeId: string) => {
+    if (!selectedTree) return;
+    await loadMergePreview(selectedTree.id, targetTreeId);
+  }, [loadMergePreview, selectedTree]);
+  const onApproveMergeRequest = useCallback(async (requestId: string, comment?: string) => {
+    if (!user?.id) return;
+    await approveMergeRequest(user.id, requestId, comment);
+  }, [approveMergeRequest, user?.id]);
+  const onRejectMergeRequest = useCallback(async (requestId: string, comment?: string) => {
+    if (!user?.id) return;
+    await rejectMergeRequest(user.id, requestId, comment);
+  }, [rejectMergeRequest, user?.id]);
+  const onRequestMergeChanges = useCallback(async (requestId: string, comment?: string) => {
+    if (!user?.id) return;
+    await requestMergeChanges(user.id, requestId, comment);
+  }, [requestMergeChanges, user?.id]);
+  const onUndoMerge = useCallback(async (requestId: string) => {
+    if (!user?.id) return;
+    await undoMerge(user.id, requestId);
+  }, [undoMerge, user?.id]);
 
   const sharedTabProps: SharedTabProps | null = useMemo(() => {
     if (!selectedTree) return null;
@@ -426,6 +464,9 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
       people,
       relationships,
       approvalRequests,
+      mergeRequests,
+      mergeHistory,
+      mergePreview,
       peopleById,
       canEdit,
       isOwner,
@@ -455,15 +496,23 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
       onApproveApprovalRequest,
       onRejectApprovalRequest,
       onSetApprovalWindowHours,
+      onSetSurnameVariantGroups,
+      onCreateMergeRequest,
+      onLoadMergePreview: onLoadTreeMergePreview,
+      onApproveMergeRequest,
+      onRejectMergeRequest,
+      onRequestMergeChanges,
+      onUndoMerge,
     };
   }, [
-    selectedTree, people, relationships, approvalRequests, peopleById, canEdit, isOwner, role,
+    selectedTree, people, relationships, approvalRequests, mergeRequests, mergeHistory, mergePreview, peopleById, canEdit, isOwner, role,
     user?.id, currentUserLabel, currentAssignedPerson, currentSelfAssignmentSuggestions,
     availableSelfLinkPeople, assignedPersonByUserId, assignedUserIdByPersonId, mutating, loadingTreeData,
     openConfirm, openPersonProfile, onOpenAddPerson, onOpenRelationshipDialog, onOpenPersonQuickActions,
     onOpenCollaboratorDialog, onOpenAddSelf, onEditPerson, onDeletePerson, onRemoveCollaborator,
     handleAssignPersonToUser, handleClearSelfAssignment, onApproveApprovalRequest, onRejectApprovalRequest,
-    onSetApprovalWindowHours,
+    onSetApprovalWindowHours, onSetSurnameVariantGroups, onCreateMergeRequest, onLoadTreeMergePreview,
+    onApproveMergeRequest, onRejectMergeRequest, onRequestMergeChanges, onUndoMerge,
   ]);
 
   if (!selectedTree || !sharedTabProps) {

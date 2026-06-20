@@ -27,6 +27,7 @@ import {
   getLifeEventTypeLabel,
   getPersonLifeSpanLabel,
   getPersonPresenceLabel,
+  getPersonTreeMembershipIds,
   getPreferredPersonPhoto,
   isPersonDeceased,
 } from '../../components/dto/person';
@@ -715,8 +716,10 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
               {person.gender !== 'unspecified' ? <Chip compact>{formatPersonGender(person.gender)}</Chip> : null}
               <Chip compact icon={isPersonDeceased(person) ? 'flower-outline' : 'heart-pulse'}>{getPersonPresenceLabel(person)}</Chip>
               <Chip compact icon="image-multiple">{person.photos.length} photos</Chip>
+              <Chip compact icon="source-branch">{getPersonTreeMembershipIds(person).length} tree memberships</Chip>
               {preferredPhoto ? <Chip compact icon="star">Preferred photo selected</Chip> : null}
               {linkedCollaborator && !isCurrentUsersPerson ? <Chip compact icon="link-variant">Linked</Chip> : null}
+              {person.canonicalPersonId?.trim() ? <Chip compact icon="merge">Merged canonical profile</Chip> : null}
             </View>
 
             <View style={styles.detailGrid}>
@@ -744,6 +747,12 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
                 <Card.Content>
                   <Text variant="labelMedium" style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>Birth date</Text>
                   <Text variant="titleMedium">{person.birthDate ? formatPersonDate(person.birthDate) : 'Unknown'}</Text>
+                </Card.Content>
+              </Card>
+              <Card mode="elevated" style={[styles.detailCard, { backgroundColor: theme.colors.elevation.level1 }]}>
+                <Card.Content>
+                  <Text variant="labelMedium" style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>Tree memberships</Text>
+                  <Text variant="titleMedium">{getPersonTreeMembershipIds(person).join(', ') || 'Current tree only'}</Text>
                 </Card.Content>
               </Card>
             </View>

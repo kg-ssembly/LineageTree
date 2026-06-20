@@ -83,6 +83,7 @@ export default function CollaboratorDialog({
             style={styles.roleButtons}
             buttons={[
               { value: 'viewer', label: 'Viewer' },
+              { value: 'contributor', label: 'Contributor' },
               { value: 'editor', label: 'Editor' },
             ]}
           />
@@ -95,5 +96,4 @@ export default function CollaboratorDialog({
     </Portal>
   );
 }
-
 

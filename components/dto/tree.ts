@@ -1,5 +1,23 @@
-export type TreeRole = 'owner' | 'editor' | 'viewer';
+export type TreeRole = 'owner' | 'editor' | 'contributor' | 'viewer';
 export type CollaboratorRole = Exclude<TreeRole, 'owner'>;
+
+export interface TreeMembershipHistoryEntry {
+  id: string;
+  userId: string;
+  role: TreeRole;
+  action: 'invited' | 'joined' | 'role-changed' | 'left' | 'linked-person' | 'merge-added' | 'merge-removed';
+  note?: string;
+  createdAt: string;
+}
+
+export interface SurnameVariantGroup {
+  id: string;
+  primarySurname: string;
+  variants: string[];
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export interface TreeCollaborator {
   userId: string;
@@ -17,6 +35,9 @@ export interface FamilyTree {
   collaborators: TreeCollaborator[];
   personAssignments: Record<string, string>;
   approvalWindowHours: number;
+  surnameVariantGroups: SurnameVariantGroup[];
+  connectedTreeIds: string[];
+  membershipHistory: TreeMembershipHistoryEntry[];
   createdAt: string;
   updatedAt: string;
 }

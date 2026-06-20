@@ -5,9 +5,11 @@ import {
   ActivityIndicator,
   Button,
   Card,
+  Divider,
   Chip,
   Dialog,
   IconButton,
+  ProgressBar,
   Portal,
   Searchbar,
   Surface,
@@ -16,6 +18,7 @@ import {
   useTheme,
 } from 'react-native-paper';
 import { canUserReviewApprovalRequest, isApprovalExpired, type ApprovalRequest } from '../../components/dto/approval';
+import type { MergeHistoryRecord, MergeRequestRecord } from '../../components/dto/merge';
 import { FamilyTreeCanvas } from '../../components';
 import type { PersonGender, PersonRecord } from '../../components/dto/person';
 import {
@@ -34,6 +37,7 @@ import {
   getTreeRole,
   getUnlinkedCollaborators,
   type FamilyTree,
+  type SurnameVariantGroup,
 } from '../../components/dto/tree';
 import { GlobalStyles } from '../../constants/styles';
 const dialogChrome = GlobalStyles.dialogChrome;
@@ -44,12 +48,13 @@ type SelfAssignmentSuggestion = {
   reason: string;
 };
 
-type TreeManagementTabKey = 'overview' | 'collaborators' | 'approvals' | 'trees';
+type TreeManagementTabKey = 'overview' | 'collaborators' | 'approvals' | 'merges' | 'trees';
 
 const TREE_MANAGEMENT_TABS: Array<{ key: TreeManagementTabKey; label: string }> = [
   { key: 'overview', label: 'Overview' },
   { key: 'collaborators', label: 'Collaborators' },
   { key: 'approvals', label: 'Approvals' },
+  { key: 'merges', label: 'Merges' },
   { key: 'trees', label: 'My Trees' },
 ];
 
@@ -81,6 +86,9 @@ export interface SharedTabProps {
   people: PersonRecord[];
   relationships: RelationshipRecord[];
   approvalRequests: ApprovalRequest[];
+  mergeRequests: MergeRequestRecord[];
+  mergeHistory: MergeHistoryRecord[];
+  mergePreview: MergeRequestRecord['preview'] | null;
   peopleById: Map<string, PersonRecord>;
   canEdit: boolean;
   isOwner: boolean;
@@ -110,6 +118,13 @@ export interface SharedTabProps {
   onApproveApprovalRequest: (requestId: string) => Promise<void>;
   onRejectApprovalRequest: (requestId: string) => Promise<void>;
   onSetApprovalWindowHours: (hours: number) => Promise<void>;
+  onSetSurnameVariantGroups: (groups: SurnameVariantGroup[]) => Promise<void>;
+  onCreateMergeRequest: (targetTreeId: string) => Promise<void>;
+  onLoadMergePreview: (targetTreeId: string) => Promise<void>;
+  onApproveMergeRequest: (requestId: string, comment?: string) => Promise<void>;
+  onRejectMergeRequest: (requestId: string, comment?: string) => Promise<void>;
+  onRequestMergeChanges: (requestId: string, comment?: string) => Promise<void>;
+  onUndoMerge: (requestId: string) => Promise<void>;
   trees?: FamilyTree[];
   defaultTreeId?: string | null;
   loadingTrees?: boolean;
@@ -267,6 +282,7 @@ function TriToggleChip({ label, value, onChange, disabled }: {
 }
 
 export function PeopleRelationshipsTabContent({
+  selectedTree,
   people,
   relationships,
   currentAssignedPerson,
@@ -308,6 +324,14 @@ export function PeopleRelationshipsTabContent({
       if (normalizedQuery) {
         const searchableText = [
           formatPersonName(person),
+          person.middleNames ?? '',
+          person.nicknames?.join(' ') ?? '',
+          person.birthPlace ?? '',
+          person.hometown ?? '',
+          person.familyBranch ?? '',
+          person.clanName ?? '',
+          person.surnameVariantHints?.join(' ') ?? '',
+          ...(selectedTree?.surnameVariantGroups.flatMap((group) => [group.primarySurname, ...group.variants]) ?? []),
           person.birthDate,
           person.deathDate,
           person.notes,
@@ -339,7 +363,7 @@ export function PeopleRelationshipsTabContent({
 
       return true;
     }),
-    [filters, people, searchQuery, personRelStats],
+    [filters, people, searchQuery, personRelStats, selectedTree?.surnameVariantGroups],
   );
 
   useEffect(() => {
@@ -648,6 +672,9 @@ function ProfileTabContent({
   people,
   relationships,
   approvalRequests,
+  mergeRequests,
+  mergeHistory,
+  mergePreview,
   role,
   isOwner,
   userId,
@@ -669,6 +696,13 @@ function ProfileTabContent({
   onApproveApprovalRequest,
   onRejectApprovalRequest,
   onSetApprovalWindowHours,
+  onSetSurnameVariantGroups,
+  onCreateMergeRequest,
+  onLoadMergePreview,
+  onApproveMergeRequest,
+  onRejectMergeRequest,
+  onRequestMergeChanges,
+  onUndoMerge,
   trees,
   defaultTreeId,
   loadingTrees,
@@ -686,6 +720,9 @@ function ProfileTabContent({
   const [ownerLinkTargetUserId, setOwnerLinkTargetUserId] = useState<string | null>(null);
   const [ownerLinkSearchQuery, setOwnerLinkSearchQuery] = useState('');
   const [approvalWindowInput, setApprovalWindowInput] = useState(`${selectedTree.approvalWindowHours}`);
+  const [mergeTargetTreeId, setMergeTargetTreeId] = useState('');
+  const [surnamePrimary, setSurnamePrimary] = useState('');
+  const [surnameVariantsInput, setSurnameVariantsInput] = useState('');
 
   const unlinkedCollaboratorCount = useMemo(
     () => getUnlinkedCollaborators(selectedTree).filter((collaborator) => collaborator.userId !== userId).length,
@@ -747,6 +784,11 @@ function ProfileTabContent({
     [approvalRequests],
   );
 
+  const availableMergeTargetTrees = useMemo(
+    () => (trees ?? []).filter((tree) => tree.id !== selectedTree.id),
+    [selectedTree.id, trees],
+  );
+
   const approvalWindowHours = useMemo(
     () => getTreeApprovalWindowHours(selectedTree),
     [selectedTree],
@@ -801,6 +843,35 @@ function ProfileTabContent({
     setOwnerLinkTargetUserId((current) => (current === targetUserId ? null : targetUserId));
     setOwnerLinkSearchQuery('');
   };
+
+  const handleAddSurnameGroup = async () => {
+    const primarySurname = surnamePrimary.trim();
+    if (!primarySurname) {
+      return;
+    }
+
+    const variants = surnameVariantsInput
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean);
+
+    await onSetSurnameVariantGroups([
+      ...selectedTree.surnameVariantGroups,
+      {
+        id: `${selectedTree.id}-${Date.now()}`,
+        primarySurname,
+        variants,
+        notes: '',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    ]);
+
+    setSurnamePrimary('');
+    setSurnameVariantsInput('');
+  };
+
+  const pendingMergeRequests = mergeRequests.filter((request) => request.status === 'pending' || request.status === 'changes-requested');
 
   return (
     <ScrollView contentContainerStyle={styles.content}>
@@ -863,6 +934,59 @@ function ProfileTabContent({
                 </Card.Content>
               </Card>
             </View>
+
+            <Card mode="elevated" style={[styles.selfAssignmentCard, { backgroundColor: theme.colors.surface, marginBottom: 16 }]}>
+              <Card.Content>
+                <View style={styles.sectionHeader}>
+                  <View style={styles.titleWrap}>
+                    <Text variant="titleLarge">Surname variants</Text>
+                    <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
+                      Search, matching, and merge scoring use these lineage spellings together.
+                    </Text>
+                  </View>
+                </View>
+
+                {selectedTree.surnameVariantGroups.length > 0 ? (
+                  <View style={styles.assignmentSuggestionList}>
+                    {selectedTree.surnameVariantGroups.map((group) => (
+                      <View key={group.id} style={{ marginBottom: 12 }}>
+                        <Text variant="titleMedium">{group.primarySurname}</Text>
+                        <View style={styles.collaboratorChipRow}>
+                          {group.variants.map((variant) => <Chip key={`${group.id}-${variant}`} compact>{variant}</Chip>)}
+                          {group.variants.length === 0 ? <Chip compact icon="information-outline">No variants yet</Chip> : null}
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                ) : (
+                  <Text variant="bodySmall" style={[styles.assignmentHelperText, { color: theme.colors.onSurfaceVariant }]}>
+                    No surname families have been defined yet. Add them below so searches and merge suggestions can recognize related spellings.
+                  </Text>
+                )}
+
+                {isOwner || role === 'editor' ? (
+                  <View style={{ marginTop: 8 }}>
+                    <TextInput
+                      mode="outlined"
+                      label="Primary surname"
+                      value={surnamePrimary}
+                      onChangeText={setSurnamePrimary}
+                      style={{ marginBottom: 8 }}
+                    />
+                    <TextInput
+                      mode="outlined"
+                      label="Variants (comma separated)"
+                      value={surnameVariantsInput}
+                      onChangeText={setSurnameVariantsInput}
+                      style={{ marginBottom: 8 }}
+                    />
+                    <Button mode="contained-tonal" icon="plus" onPress={handleAddSurnameGroup} disabled={mutating || !surnamePrimary.trim()}>
+                      Add surname group
+                    </Button>
+                  </View>
+                ) : null}
+              </Card.Content>
+            </Card>
 
             <View style={styles.selfAssignmentSectionWrap}>
               <View style={styles.sectionHeader}>
@@ -1287,6 +1411,177 @@ function ProfileTabContent({
                 </View>
               )}
             </View>
+          </View>
+        ) : null}
+
+        {activeManagementTab === 'merges' ? (
+          <View style={styles.collaboratorSectionWrap}>
+            <View style={styles.sectionHeader}>
+              <View style={styles.titleWrap}>
+                <Text variant="titleLarge">Collaborative merges</Text>
+                <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
+                  Suggest a merge only when likely relatives exist, then collect editor approvals from both trees before anything is applied.
+                </Text>
+              </View>
+            </View>
+
+            <Card mode="elevated" style={[styles.selfAssignmentCard, { backgroundColor: theme.colors.surface, marginBottom: 16 }]}>
+              <Card.Content>
+                <Text variant="titleMedium" style={{ marginBottom: 8 }}>Start a merge review</Text>
+                <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
+                  Enter another tree ID, preview likely person matches, then submit the merge suggestion for joint review.
+                </Text>
+                <TextInput
+                  mode="outlined"
+                  label="Target tree ID"
+                  value={mergeTargetTreeId}
+                  onChangeText={setMergeTargetTreeId}
+                  style={{ marginTop: 8 }}
+                />
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                  <Button mode="outlined" onPress={() => onLoadMergePreview(mergeTargetTreeId)} disabled={mutating || !mergeTargetTreeId.trim()}>
+                    Preview
+                  </Button>
+                  <Button mode="contained" onPress={() => onCreateMergeRequest(mergeTargetTreeId)} disabled={mutating || !mergeTargetTreeId.trim()}>
+                    Submit merge
+                  </Button>
+                </View>
+
+                {availableMergeTargetTrees.length > 0 ? (
+                  <View style={[styles.collaboratorChipRow, { marginTop: 12 }]}>
+                    {availableMergeTargetTrees.slice(0, 6).map((tree) => (
+                      <Chip key={tree.id} compact onPress={() => setMergeTargetTreeId(tree.id)}>
+                        {tree.name}
+                      </Chip>
+                    ))}
+                  </View>
+                ) : null}
+              </Card.Content>
+            </Card>
+
+            {mergePreview ? (
+              <Card mode="elevated" style={[styles.collaboratorCard, { backgroundColor: theme.colors.surface, marginBottom: 16 }]}>
+                <Card.Content>
+                  <Text variant="titleMedium">Merge preview</Text>
+                  <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>
+                    {mergePreview.sourceTree.treeName} ({mergePreview.sourceTree.personCount}) to {mergePreview.targetTree.treeName} ({mergePreview.targetTree.personCount})
+                  </Text>
+                  <View style={styles.summaryChipRow}>
+                    <Chip compact icon="account-switch">{mergePreview.matches.length} possible matches</Chip>
+                    <Chip compact icon="source-branch-plus">{mergePreview.newBranchCount} new branches</Chip>
+                    <Chip compact icon="alert-circle-outline">{mergePreview.conflicts.length} conflicts</Chip>
+                  </View>
+                  {mergePreview.matches.slice(0, 6).map((match) => (
+                    <View key={match.id} style={{ marginTop: 12 }}>
+                      <View style={styles.collaboratorChipRow}>
+                        <Chip compact icon="gauge">{match.confidenceScore}%</Chip>
+                        <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>{match.confidenceLabel}</Text>
+                      </View>
+                      <ProgressBar progress={match.confidenceScore / 100} style={{ marginTop: 6, height: 8, borderRadius: 999 }} />
+                      <Text variant="bodySmall" style={{ marginTop: 6 }}>
+                        {match.guidedQuestions[0]?.prompt}
+                      </Text>
+                      {match.conflicts.length > 0 ? (
+                        <Text variant="bodySmall" style={{ color: theme.colors.error, marginTop: 4 }}>
+                          Conflicts: {match.conflicts.map((conflict) => conflict.field).join(', ')}
+                        </Text>
+                      ) : null}
+                    </View>
+                  ))}
+                </Card.Content>
+              </Card>
+            ) : null}
+
+            <View style={styles.sectionHeader}>
+              <View style={styles.titleWrap}>
+                <Text variant="titleLarge">Pending merge approvals</Text>
+                <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
+                  Each merge needs at least one editor approval from each affected tree.
+                </Text>
+              </View>
+            </View>
+
+            {pendingMergeRequests.length > 0 ? (
+              <View style={styles.collaboratorList}>
+                {pendingMergeRequests.map((request) => (
+                  <Card key={request.id} mode="elevated" style={[styles.collaboratorCard, { backgroundColor: theme.colors.surface }]}>
+                    <Card.Content>
+                      <Text variant="titleMedium">{request.preview.sourceTree.treeName} ↔ {request.preview.targetTree.treeName}</Text>
+                      <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>
+                        Suggested by {request.suggestedByLabel}. {request.preview.duplicateCount} strong duplicate candidates, {request.preview.conflicts.length} conflicts.
+                      </Text>
+                      <View style={[styles.collaboratorChipRow, { marginTop: 8 }]}>
+                        {request.approvals.map((approval) => (
+                          <Chip key={`${request.id}-${approval.treeId}-${approval.editorUserId}`} compact icon={approval.decision === 'approve' ? 'check-circle-outline' : approval.decision === 'reject' ? 'close-circle-outline' : 'message-text-outline'}>
+                            {approval.editorLabel}
+                          </Chip>
+                        ))}
+                      </View>
+                      <View style={{ marginTop: 8 }}>
+                        {request.preview.matches.slice(0, 3).map((match) => (
+                          <View key={`${request.id}-${match.id}`} style={{ marginBottom: 8 }}>
+                            <Text variant="bodySmall">{match.confidenceScore}% · {match.confidenceLabel}</Text>
+                            <ProgressBar progress={match.confidenceScore / 100} style={{ marginTop: 4, height: 8, borderRadius: 999 }} />
+                          </View>
+                        ))}
+                      </View>
+                      <View style={{ flexDirection: 'row', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+                        <Button mode="contained" onPress={() => onApproveMergeRequest(request.id)} disabled={mutating}>Approve</Button>
+                        <Button mode="outlined" onPress={() => onRequestMergeChanges(request.id, 'Please review the highlighted conflicts before merging.')} disabled={mutating}>Request changes</Button>
+                        <Button mode="text" textColor={theme.colors.error} onPress={() => onRejectMergeRequest(request.id)} disabled={mutating}>Reject</Button>
+                      </View>
+                    </Card.Content>
+                  </Card>
+                ))}
+              </View>
+            ) : (
+              <View style={styles.emptyState}>
+                <Text variant="titleMedium">No pending merge reviews</Text>
+                <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
+                  Merge suggestions with likely relative matches will appear here for joint editor approval.
+                </Text>
+              </View>
+            )}
+
+            <Divider style={{ marginVertical: 16 }} />
+
+            <View style={styles.sectionHeader}>
+              <View style={styles.titleWrap}>
+                <Text variant="titleLarge">Merge history and undo</Text>
+                <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
+                  Undo preserves the audit trail and restores the pre-merge snapshot where possible.
+                </Text>
+              </View>
+            </View>
+
+            {mergeHistory.length > 0 ? (
+              <View style={styles.collaboratorList}>
+                {mergeHistory.map((entry) => (
+                  <Card key={entry.id} mode="elevated" style={[styles.collaboratorCard, { backgroundColor: theme.colors.surface }]}>
+                    <Card.Content>
+                      <Text variant="titleMedium">{entry.summary}</Text>
+                      <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>
+                        {entry.preview.matches.length} reviewed matches · {entry.approvals.length} approval actions · {entry.changedPersonIds.length} people changed
+                      </Text>
+                      <View style={[styles.collaboratorChipRow, { marginTop: 8 }]}>
+                        <Chip compact icon="history">{entry.status}</Chip>
+                        <Chip compact icon="calendar-clock">{entry.createdAt.slice(0, 16).replace('T', ' ')}</Chip>
+                      </View>
+                      <Button mode="outlined" icon="undo" onPress={() => onUndoMerge(entry.mergeRequestId)} disabled={mutating || entry.status !== 'applied'} style={{ marginTop: 8 }}>
+                        Preview and undo merge
+                      </Button>
+                    </Card.Content>
+                  </Card>
+                ))}
+              </View>
+            ) : (
+              <View style={styles.emptyState}>
+                <Text variant="titleMedium">No merge history yet</Text>
+                <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
+                  Applied or rejected merge activity, approval history, confidence scores, and undoable snapshots will appear here.
+                </Text>
+              </View>
+            )}
           </View>
         ) : null}
 

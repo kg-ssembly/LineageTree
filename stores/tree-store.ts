@@ -1,13 +1,15 @@
 import { create } from 'zustand';
 import type { ApprovalRequest } from '../components/dto/approval';
+import type { MergeHistoryRecord, MergeRequestRecord } from '../components/dto/merge';
 import type { PersonInput, PersonMutationPayload, PersonRecord } from '../components/dto/person';
 import type { RelationshipRecord } from '../components/dto/relationship';
-import type { CollaboratorRole, FamilyTree } from '../components/dto/tree';
+import type { CollaboratorRole, FamilyTree, SurnameVariantGroup } from '../components/dto/tree';
 import type { UserProfile } from '../components/dto/user';
 import {
   addCollaboratorToTree,
   assignTreePersonToUser,
   clearTreePersonAssignment,
+  createMergeRequest,
   createParentChildRelationship,
   createPerson,
   createSpouseRelationship,
@@ -16,13 +18,19 @@ import {
   deletePerson,
   deleteRelationship,
   deleteTree,
+  getMergePreview,
   processExpiredApprovalRequests,
   removeCollaboratorFromTree,
+  reviewMergeRequest,
   subscribeToApprovalRequests,
+  subscribeToMergeHistory,
+  subscribeToMergeRequests,
   subscribeToPeople,
   subscribeToRelationships,
   subscribeToTrees,
+  undoMergeRequest,
   updatePerson,
+  updateSurnameVariantGroups,
   updateTreeApprovalWindow,
   updateTreeName,
 } from '../providers/family-tree-service';
@@ -31,6 +39,8 @@ let unsubscribeTrees: (() => void) | null = null;
 let unsubscribePeople: (() => void) | null = null;
 let unsubscribeRelationships: (() => void) | null = null;
 let unsubscribeApprovalRequests: (() => void) | null = null;
+let unsubscribeMergeRequests: (() => void) | null = null;
+let unsubscribeMergeHistory: (() => void) | null = null;
 let subscribedTreeId: string | null = null;
 const expiryProcessingTreeIds = new Set<string>();
 
@@ -46,9 +56,13 @@ function stopTreeSubscriptions() {
   unsubscribePeople?.();
   unsubscribeRelationships?.();
   unsubscribeApprovalRequests?.();
+  unsubscribeMergeRequests?.();
+  unsubscribeMergeHistory?.();
   unsubscribePeople = null;
   unsubscribeRelationships = null;
   unsubscribeApprovalRequests = null;
+  unsubscribeMergeRequests = null;
+  unsubscribeMergeHistory = null;
   if (subscribedTreeId) {
     expiryProcessingTreeIds.delete(subscribedTreeId);
   }
@@ -68,6 +82,9 @@ interface TreeState {
   people: PersonRecord[];
   relationships: RelationshipRecord[];
   approvalRequests: ApprovalRequest[];
+  mergeRequests: MergeRequestRecord[];
+  mergeHistory: MergeHistoryRecord[];
+  mergePreview: Awaited<ReturnType<typeof getMergePreview>> | null;
   loadingTrees: boolean;
   loadingTreeData: boolean;
   mutating: boolean;
@@ -78,6 +95,7 @@ interface TreeState {
   createTree: (owner: Pick<UserProfile, 'id' | 'email' | 'displayName'>, name: string) => Promise<FamilyTree>;
   renameTree: (treeId: string, name: string) => Promise<void>;
   setApprovalWindowHours: (treeId: string, hours: number) => Promise<void>;
+  setSurnameVariantGroups: (treeId: string, groups: SurnameVariantGroup[]) => Promise<void>;
   addCollaborator: (treeId: string, email: string, role: CollaboratorRole) => Promise<void>;
   removeCollaborator: (treeId: string, collaboratorUserId: string) => Promise<void>;
   removeTree: (tree: FamilyTree) => Promise<void>;
@@ -89,6 +107,12 @@ interface TreeState {
   removeRelationship: (actorUserId: string, relationshipId: string) => Promise<void>;
   approveApprovalRequest: (actorUserId: string, requestId: string) => Promise<void>;
   rejectApprovalRequest: (actorUserId: string, requestId: string) => Promise<void>;
+  createMergeRequest: (actorUserId: string, sourceTreeId: string, targetTreeId: string) => Promise<void>;
+  loadMergePreview: (sourceTreeId: string, targetTreeId: string) => Promise<void>;
+  approveMergeRequest: (actorUserId: string, requestId: string, comment?: string) => Promise<void>;
+  rejectMergeRequest: (actorUserId: string, requestId: string, comment?: string) => Promise<void>;
+  requestMergeChanges: (actorUserId: string, requestId: string, comment?: string) => Promise<void>;
+  undoMerge: (actorUserId: string, requestId: string) => Promise<void>;
   assignPersonToUser: (actorUserId: string, treeId: string, targetUserId: string, personId: string) => Promise<void>;
   assignSelfToPerson: (treeId: string, userId: string, personId: string) => Promise<void>;
   clearSelfAssignment: (treeId: string, userId: string) => Promise<void>;
@@ -107,12 +131,12 @@ export const useTreeStore = create<TreeState>((set, get) => {
     stopTreeSubscriptions();
 
     if (!treeId) {
-      set({ people: [], relationships: [], approvalRequests: [], loadingTreeData: false });
+      set({ people: [], relationships: [], approvalRequests: [], mergeRequests: [], mergeHistory: [], mergePreview: null, loadingTreeData: false });
       return;
     }
 
     subscribedTreeId = treeId;
-    set({ people: [], relationships: [], approvalRequests: [], loadingTreeData: true });
+    set({ people: [], relationships: [], approvalRequests: [], mergeRequests: [], mergeHistory: [], mergePreview: null, loadingTreeData: true });
     let hasLoadedPeople = false;
     let hasLoadedRelationships = false;
 
@@ -162,6 +186,18 @@ export const useTreeStore = create<TreeState>((set, get) => {
       },
       (error) => set({ error: normaliseError(error) }),
     );
+
+    unsubscribeMergeRequests = subscribeToMergeRequests(
+      treeId,
+      (mergeRequests) => set({ mergeRequests }),
+      (error) => set({ error: normaliseError(error) }),
+    );
+
+    unsubscribeMergeHistory = subscribeToMergeHistory(
+      treeId,
+      (mergeHistory) => set({ mergeHistory }),
+      (error) => set({ error: normaliseError(error) }),
+    );
   };
 
   return {
@@ -171,6 +207,9 @@ export const useTreeStore = create<TreeState>((set, get) => {
     people: [],
     relationships: [],
     approvalRequests: [],
+    mergeRequests: [],
+    mergeHistory: [],
+    mergePreview: null,
     loadingTrees: true,
     loadingTreeData: false,
     mutating: false,
@@ -188,6 +227,9 @@ export const useTreeStore = create<TreeState>((set, get) => {
           people: [],
           relationships: [],
           approvalRequests: [],
+          mergeRequests: [],
+          mergeHistory: [],
+          mergePreview: null,
           loadingTrees: false,
           loadingTreeData: false,
           mutating: false,
@@ -259,6 +301,17 @@ export const useTreeStore = create<TreeState>((set, get) => {
       try {
         await updateTreeApprovalWindow(treeId, hours);
         set({ mutating: false, notice: 'Approval window updated.' });
+      } catch (error) {
+        set({ mutating: false, error: normaliseError(error) });
+        throw error;
+      }
+    },
+
+    setSurnameVariantGroups: async (treeId, groups) => {
+      set({ mutating: true, error: null });
+      try {
+        await updateSurnameVariantGroups(treeId, groups);
+        set({ mutating: false, notice: 'Surname variants updated.' });
       } catch (error) {
         set({ mutating: false, error: normaliseError(error) });
         throw error;
@@ -391,6 +444,72 @@ export const useTreeStore = create<TreeState>((set, get) => {
       }
     },
 
+    createMergeRequest: async (actorUserId, sourceTreeId, targetTreeId) => {
+      set({ mutating: true, error: null });
+      try {
+        await createMergeRequest(actorUserId, sourceTreeId, targetTreeId);
+        set({ mutating: false, notice: 'Merge request submitted for review.' });
+      } catch (error) {
+        set({ mutating: false, error: normaliseError(error) });
+        throw error;
+      }
+    },
+
+    loadMergePreview: async (sourceTreeId, targetTreeId) => {
+      set({ mutating: true, error: null });
+      try {
+        const preview = await getMergePreview(sourceTreeId, targetTreeId);
+        set({ mutating: false, mergePreview: preview });
+      } catch (error) {
+        set({ mutating: false, error: normaliseError(error) });
+        throw error;
+      }
+    },
+
+    approveMergeRequest: async (actorUserId, requestId, comment) => {
+      set({ mutating: true, error: null });
+      try {
+        await reviewMergeRequest(actorUserId, requestId, 'approve', comment);
+        set({ mutating: false, notice: 'Merge request approved.' });
+      } catch (error) {
+        set({ mutating: false, error: normaliseError(error) });
+        throw error;
+      }
+    },
+
+    rejectMergeRequest: async (actorUserId, requestId, comment) => {
+      set({ mutating: true, error: null });
+      try {
+        await reviewMergeRequest(actorUserId, requestId, 'reject', comment);
+        set({ mutating: false, notice: 'Merge request rejected.' });
+      } catch (error) {
+        set({ mutating: false, error: normaliseError(error) });
+        throw error;
+      }
+    },
+
+    requestMergeChanges: async (actorUserId, requestId, comment) => {
+      set({ mutating: true, error: null });
+      try {
+        await reviewMergeRequest(actorUserId, requestId, 'request-changes', comment);
+        set({ mutating: false, notice: 'Changes requested for merge.' });
+      } catch (error) {
+        set({ mutating: false, error: normaliseError(error) });
+        throw error;
+      }
+    },
+
+    undoMerge: async (actorUserId, requestId) => {
+      set({ mutating: true, error: null });
+      try {
+        await undoMergeRequest(actorUserId, requestId);
+        set({ mutating: false, notice: 'Merge undo applied.' });
+      } catch (error) {
+        set({ mutating: false, error: normaliseError(error) });
+        throw error;
+      }
+    },
+
     assignPersonToUser: async (actorUserId, treeId, targetUserId, personId) => {
       set({ mutating: true, error: null });
       try {
@@ -430,6 +549,9 @@ export const useTreeStore = create<TreeState>((set, get) => {
         people: [],
         relationships: [],
         approvalRequests: [],
+        mergeRequests: [],
+        mergeHistory: [],
+        mergePreview: null,
         loadingTrees: false,
         loadingTreeData: false,
         mutating: false,
@@ -439,4 +561,3 @@ export const useTreeStore = create<TreeState>((set, get) => {
     },
   };
 });
-

@@ -17,14 +17,33 @@ export interface PersonPhoto {
   createdAt: string;
 }
 
+export interface PersonTreeMembership {
+  treeId: string;
+  role: 'member' | 'subject' | 'branch-member' | 'canonical';
+  joinedAt: string;
+  addedByUserId?: string;
+  source?: 'manual' | 'merge' | 'invite';
+}
+
 export interface PersonRecord {
   id: string;
   treeId: string;
+  treeMembershipIds: string[];
+  treeMemberships: PersonTreeMembership[];
   ownerId: string;
   firstName: string;
+  middleNames?: string;
   lastName: string;
   /** Maiden name (birth surname before marriage). Optional. */
   maidenName?: string;
+  nicknames?: string[];
+  clanName?: string;
+  familyBranch?: string;
+  hometown?: string;
+  birthPlace?: string;
+  surnameVariantHints?: string[];
+  canonicalPersonId?: string;
+  duplicatePersonIds?: string[];
   birthDate: string;
   deathDate: string;
   gender: PersonGender;
@@ -61,6 +80,18 @@ export function getPreferredPersonPhoto(person?: PersonRecord | null) {
   }
 
   return person.photos.find((photo) => photo.id === person.preferredPhotoId) ?? null;
+}
+
+export function getPersonTreeMembershipIds(person?: PersonRecord | null) {
+  if (!person) {
+    return [];
+  }
+
+  if (Array.isArray(person.treeMembershipIds) && person.treeMembershipIds.length > 0) {
+    return [...new Set(person.treeMembershipIds)];
+  }
+
+  return person.treeId ? [person.treeId] : [];
 }
 
 export function getDisplayPersonPhoto(person?: PersonRecord | null) {
