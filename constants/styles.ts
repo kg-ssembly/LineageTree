@@ -1077,17 +1077,67 @@ export class GlobalStyles {
             borderRadius: 18,
             padding: 12,
         },
+        sectionHeaderRow: {
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: 8,
+        },
         searchInput: {
             marginTop: 8,
         },
-        peopleWrap: {
+        helperCopy: {
+            marginTop: 8,
+            color: F.onSurfaceVariant,
+        },
+        choiceWrap: {
             flexDirection: 'row',
             flexWrap: 'wrap',
-            marginTop: 8,
+            gap: 8,
+            marginTop: 10,
         },
-        personChip: {
+        choiceChip: {
             marginRight: 8,
             marginBottom: 8,
+        },
+        selectedChipRow: {
+            marginTop: 12,
+        },
+        resultsList: {
+            marginTop: 12,
+            borderRadius: 16,
+            overflow: 'hidden',
+            borderWidth: StyleSheet.hairlineWidth,
+            borderColor: F.outlineVariant,
+        },
+        resultRow: {
+            paddingHorizontal: 14,
+            paddingVertical: 12,
+            backgroundColor: F.surface,
+        },
+        resultRowSelected: {
+            backgroundColor: '#EAF5EF',
+        },
+        resultRowDivider: {
+            borderTopWidth: StyleSheet.hairlineWidth,
+            borderTopColor: F.outlineVariant,
+        },
+        resultRowTitle: {
+            fontWeight: '700',
+        },
+        resultRowMeta: {
+            marginTop: 4,
+            color: F.onSurfaceVariant,
+        },
+        emptyState: {
+            marginTop: 12,
+            padding: 14,
+            borderRadius: 16,
+            backgroundColor: F.hintBg,
+        },
+        resultsFooterText: {
+            marginTop: 8,
+            color: F.onSurfaceVariant,
         },
     });
 
@@ -1115,14 +1165,54 @@ export class GlobalStyles {
         searchInput: {
             marginTop: 8,
         },
-        peopleWrap: {
+        choiceWrap: {
             flexDirection: 'row',
             flexWrap: 'wrap',
+            gap: 8,
             marginTop: 12,
         },
-        personChip: {
+        choiceChip: {
             marginRight: 8,
             marginBottom: 8,
+        },
+        selectedChipRow: {
+            marginTop: 12,
+        },
+        resultsList: {
+            marginTop: 12,
+            borderRadius: 16,
+            overflow: 'hidden',
+            borderWidth: StyleSheet.hairlineWidth,
+            borderColor: F.outlineVariant,
+        },
+        resultRow: {
+            paddingHorizontal: 14,
+            paddingVertical: 12,
+            backgroundColor: F.surface,
+        },
+        resultRowSelected: {
+            backgroundColor: '#EAF5EF',
+        },
+        resultRowDivider: {
+            borderTopWidth: StyleSheet.hairlineWidth,
+            borderTopColor: F.outlineVariant,
+        },
+        resultRowTitle: {
+            fontWeight: '700',
+        },
+        resultRowMeta: {
+            marginTop: 4,
+            color: F.onSurfaceVariant,
+        },
+        emptyState: {
+            marginTop: 12,
+            padding: 14,
+            borderRadius: 16,
+            backgroundColor: F.hintBg,
+        },
+        resultsFooterText: {
+            marginTop: 8,
+            color: F.onSurfaceVariant,
         },
     });
 
@@ -1145,6 +1235,47 @@ export class GlobalStyles {
         chip: {
             marginRight: 8,
         },
+        selectedPairRow: {
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            gap: 8,
+            marginTop: 12,
+        },
+        searchInput: {
+            marginTop: 12,
+        },
+        resultsList: {
+            marginTop: 12,
+            borderRadius: 16,
+            overflow: 'hidden',
+            borderWidth: StyleSheet.hairlineWidth,
+            borderColor: F.outlineVariant,
+        },
+        resultRow: {
+            paddingHorizontal: 14,
+            paddingVertical: 12,
+            backgroundColor: F.surface,
+        },
+        resultRowSelected: {
+            backgroundColor: '#EAF5EF',
+        },
+        resultRowDivider: {
+            borderTopWidth: StyleSheet.hairlineWidth,
+            borderTopColor: F.outlineVariant,
+        },
+        resultRowTitle: {
+            fontWeight: '700',
+        },
+        resultRowMeta: {
+            marginTop: 4,
+            color: F.onSurfaceVariant,
+        },
+        emptyState: {
+            marginTop: 12,
+            padding: 14,
+            borderRadius: 16,
+            backgroundColor: F.hintBg,
+        },
         actionsRow: {
             flexDirection: 'row',
             justifyContent: 'flex-end',
@@ -1162,6 +1293,22 @@ export class GlobalStyles {
         pathText: {
             marginTop: 8,
             color: F.onSurfaceDeep,
+        },
+        summaryRow: {
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            gap: 8,
+            marginTop: 12,
+        },
+        pathStepCard: {
+            padding: 12,
+            borderRadius: 14,
+            backgroundColor: F.surface,
+            marginBottom: 10,
+        },
+        stepMeta: {
+            marginTop: 4,
+            color: F.onSurfaceVariant,
         },
     });
 

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 import { Button, Chip, Dialog, HelperText, Portal, SegmentedButtons, Text, TextInput, useTheme } from 'react-native-paper';
-import type { PersonRecord } from './dto/person';
+import { getPersonLifeSpanLabel, type PersonRecord } from './dto/person';
 import type { ParentChildRelationshipKind, RelationshipRecord, SpouseRelationshipStatus } from './dto/relationship';
 import { DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND, DEFAULT_SPOUSE_RELATIONSHIP_STATUS } from './dto/relationship';
 import { validateProposedRelationship } from './family-tree-validation';
@@ -9,6 +9,7 @@ import { GlobalStyles } from '../constants/styles';
 
 const styles = GlobalStyles.personRelationshipDialog;
 const dialogChrome = GlobalStyles.dialogChrome;
+const MAX_VISIBLE_RESULTS = 3;
 
 export type PersonRelationshipMode = 'parent-of' | 'child-of' | 'spouse-of';
 
@@ -31,6 +32,11 @@ interface PersonRelationshipDialogProps {
 function formatPersonName(person?: PersonRecord | null) {
   if (!person) return 'Unknown family member';
   return `${person.firstName} ${person.lastName}`.trim();
+}
+
+function formatPersonMeta(person: PersonRecord) {
+  const lifespan = getPersonLifeSpanLabel(person);
+  return lifespan === 'Unknown lifespan' ? 'No dates recorded yet' : lifespan;
 }
 
 function getDraftFromRelationship(personId: string, relationship?: RelationshipRecord | null) {
@@ -133,7 +139,14 @@ export default function PersonRelationshipDialog({
   );
 
   const filteredCandidates = useMemo(
-    () => candidates.filter((c) => formatPersonName(c).toLowerCase().includes(searchQuery.trim().toLowerCase())),
+    () => candidates
+      .filter((c) => formatPersonName(c).toLowerCase().includes(searchQuery.trim().toLowerCase()))
+      .slice(0, MAX_VISIBLE_RESULTS),
+    [candidates, searchQuery],
+  );
+
+  const totalCandidateMatches = useMemo(
+    () => candidates.filter((c) => formatPersonName(c).toLowerCase().includes(searchQuery.trim().toLowerCase())).length,
     [candidates, searchQuery],
   );
 
@@ -199,41 +212,55 @@ export default function PersonRelationshipDialog({
             {mode === 'spouse-of' ? (
               <View style={styles.section}>
                 <Text variant="titleSmall">Relationship status</Text>
-                <SegmentedButtons
-                  value={relationshipStatus}
-                  onValueChange={(value) => setRelationshipStatus(value as SpouseRelationshipStatus)}
-                  buttons={[
+                <View style={styles.choiceWrap}>
+                  {[
                     { value: 'partner', label: 'Partner' },
                     { value: 'married', label: 'Married' },
                     { value: 'separated', label: 'Separated' },
                     { value: 'divorced', label: 'Divorced' },
                     { value: 'widowed', label: 'Widowed' },
-                  ]}
-                  style={styles.segmentedButtons}
-                />
+                  ].map((option) => (
+                    <Chip
+                      key={option.value}
+                      selected={relationshipStatus === option.value}
+                      onPress={() => setRelationshipStatus(option.value as SpouseRelationshipStatus)}
+                      style={styles.choiceChip}
+                      disabled={loading}
+                    >
+                      {option.label}
+                    </Chip>
+                  ))}
+                </View>
               </View>
             ) : (
               <View style={styles.section}>
                 <Text variant="titleSmall">Child relationship</Text>
-                <SegmentedButtons
-                  value={parentChildKind}
-                  onValueChange={(value) => setParentChildKind(value as ParentChildRelationshipKind)}
-                  buttons={[
+                <View style={styles.choiceWrap}>
+                  {[
                     { value: 'biological', label: 'Biological' },
                     { value: 'step', label: 'Step' },
                     { value: 'adopted', label: 'Adopted' },
                     { value: 'foster', label: 'Foster' },
                     { value: 'guardian', label: 'Guardian' },
-                  ]}
-                  style={styles.segmentedButtons}
-                />
+                  ].map((option) => (
+                    <Chip
+                      key={option.value}
+                      selected={parentChildKind === option.value}
+                      onPress={() => setParentChildKind(option.value as ParentChildRelationshipKind)}
+                      style={styles.choiceChip}
+                      disabled={loading}
+                    >
+                      {option.label}
+                    </Chip>
+                  ))}
+                </View>
               </View>
             )}
 
             <View style={styles.section}>
               <Text variant="titleSmall">Select related family member</Text>
               {selectedPerson ? (
-                <View style={{ marginTop: 12 }}>
+                <View style={styles.selectedChipRow}>
                   <Chip
                     selected
                     closeIcon="close"
@@ -253,23 +280,40 @@ export default function PersonRelationshipDialog({
                     onChangeText={setSearchQuery}
                     style={styles.searchInput}
                     disabled={loading}
+                    left={<TextInput.Icon icon="magnify" />}
                   />
-                  <View style={styles.peopleWrap}>
-                    {filteredCandidates.map((candidate) => (
-                      <Chip
-                        key={candidate.id}
-                        onPress={() => {
-                          setRelatedPersonId(candidate.id);
+                  {filteredCandidates.length > 0 ? (
+                    <View style={styles.resultsList}>
+                      {filteredCandidates.map((candidate, index) => (
+                        <Pressable
+                          key={candidate.id}
+                          onPress={() => {
+                            setRelatedPersonId(candidate.id);
                           setSearchQuery('');
                           setError(null);
-                        }}
-                        disabled={loading}
-                        style={styles.personChip}
-                      >
-                        {formatPersonName(candidate)}
-                      </Chip>
-                    ))}
-                  </View>
+                          }}
+                          disabled={loading}
+                          style={[
+                            styles.resultRow,
+                            relatedPersonId === candidate.id ? styles.resultRowSelected : null,
+                            index > 0 ? styles.resultRowDivider : null,
+                          ]}
+                        >
+                          <Text variant="titleSmall" style={styles.resultRowTitle}>{formatPersonName(candidate)}</Text>
+                          <Text variant="bodySmall" style={styles.resultRowMeta}>{formatPersonMeta(candidate)}</Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  ) : (
+                    <View style={styles.emptyState}>
+                      <Text variant="bodyMedium">No matching family members are available for this relationship type.</Text>
+                    </View>
+                  )}
+                  {totalCandidateMatches > MAX_VISIBLE_RESULTS ? (
+                    <Text variant="bodySmall" style={styles.resultsFooterText}>
+                      Showing the first 3 matches. Add more search text to narrow the list.
+                    </Text>
+                  ) : null}
                 </>
               )}
             </View>

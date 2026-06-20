@@ -91,6 +91,65 @@ function buildsCircularAncestry(
   return false;
 }
 
+function buildParentChildIndex(relationships: RelationshipRecord[], ignoreRelationshipId?: string | null) {
+  const childrenByParentId = new Map<string, Set<string>>();
+  const parentIdsByChildId = new Map<string, Set<string>>();
+
+  relationships.forEach((relationship) => {
+    if (relationship.id === ignoreRelationshipId || relationship.type !== 'parent-child') {
+      return;
+    }
+
+    if (!childrenByParentId.has(relationship.fromPersonId)) {
+      childrenByParentId.set(relationship.fromPersonId, new Set());
+    }
+    childrenByParentId.get(relationship.fromPersonId)!.add(relationship.toPersonId);
+
+    if (!parentIdsByChildId.has(relationship.toPersonId)) {
+      parentIdsByChildId.set(relationship.toPersonId, new Set());
+    }
+    parentIdsByChildId.get(relationship.toPersonId)!.add(relationship.fromPersonId);
+  });
+
+  return { childrenByParentId, parentIdsByChildId };
+}
+
+function isAncestorOf(
+  childrenByParentId: Map<string, Set<string>>,
+  ancestorId: string,
+  descendantId: string,
+) {
+  const stack = [...(childrenByParentId.get(ancestorId) ?? new Set<string>())];
+  const visited = new Set<string>();
+
+  while (stack.length > 0) {
+    const currentId = stack.pop()!;
+    if (currentId === descendantId) {
+      return true;
+    }
+    if (visited.has(currentId)) {
+      continue;
+    }
+    visited.add(currentId);
+    (childrenByParentId.get(currentId) ?? new Set()).forEach((nextId) => {
+      if (!visited.has(nextId)) {
+        stack.push(nextId);
+      }
+    });
+  }
+
+  return false;
+}
+
+function sharesParent(
+  parentIdsByChildId: Map<string, Set<string>>,
+  personAId: string,
+  personBId: string,
+) {
+  const personAParents = parentIdsByChildId.get(personAId) ?? new Set<string>();
+  return [...(parentIdsByChildId.get(personBId) ?? new Set<string>())].some((parentId) => personAParents.has(parentId));
+}
+
 export function validateProposedRelationship({
   people,
   relationships,
@@ -118,6 +177,32 @@ export function validateProposedRelationship({
 
   if (findDuplicateRelationship(relationships, type, fromPersonId, toPersonId, ignoreRelationshipId)) {
     return 'That relationship already exists.';
+  }
+
+  const { childrenByParentId, parentIdsByChildId } = buildParentChildIndex(relationships, ignoreRelationshipId);
+
+  if (type === 'spouse') {
+    if (isAncestorOf(childrenByParentId, fromPersonId, toPersonId) || isAncestorOf(childrenByParentId, toPersonId, fromPersonId)) {
+      return 'A spouse relationship cannot be added between an ancestor and descendant.';
+    }
+
+    if (sharesParent(parentIdsByChildId, fromPersonId, toPersonId)) {
+      return 'A spouse relationship cannot be added between siblings.';
+    }
+  }
+
+  if (type === 'parent-child') {
+    if (findDuplicateRelationship(relationships, 'spouse', fromPersonId, toPersonId, ignoreRelationshipId)) {
+      return 'A parent-child relationship cannot also be a spouse relationship.';
+    }
+
+    if (isAncestorOf(childrenByParentId, fromPersonId, toPersonId)) {
+      return 'That family member is already an ancestor of this person.';
+    }
+
+    if (sharesParent(parentIdsByChildId, fromPersonId, toPersonId)) {
+      return 'Siblings cannot be linked as a parent and child.';
+    }
   }
 
   if (type === 'parent-child' && buildsCircularAncestry(relationships, fromPersonId, toPersonId, ignoreRelationshipId)) {

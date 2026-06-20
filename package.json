@@ -7,6 +7,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
+    "test:relationships": "tsc -p tsconfig.test.json && node --test .test-dist/tests/relationship-engine.test.js",
     "export:web": "expo export --platform web",
     "deploy:web": "expo export --platform web && node -e \"require('fs').cpSync('web-public','dist',{recursive:true,force:true})\" && npx firebase-tools deploy --only hosting",
     "deploy:firebase": "npx firebase-tools deploy --only firestore:rules,storage",

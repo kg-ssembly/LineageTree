@@ -1,12 +1,13 @@
 import React, { useMemo, useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { Button, Chip, Divider, Text, TextInput, useTheme } from 'react-native-paper';
-import type { PersonRecord } from './dto/person';
+import { getPersonLifeSpanLabel, type PersonRecord } from './dto/person';
 import type { RelationshipRecord } from './dto/relationship';
 import { computeRelationshipInsight } from '../providers';
 import { GlobalStyles } from '../constants/styles';
 
 const styles = GlobalStyles.relationshipInsightCard;
+const MAX_VISIBLE_RESULTS = 3;
 
 interface RelationshipInsightCardProps {
   people: PersonRecord[];
@@ -22,6 +23,11 @@ function formatPersonName(person?: PersonRecord | null) {
   }
 
   return `${person.firstName} ${person.lastName}`.trim();
+}
+
+function formatPersonMeta(person: PersonRecord) {
+  const lifespan = getPersonLifeSpanLabel(person);
+  return lifespan === 'Unknown lifespan' ? 'No dates recorded yet' : lifespan;
 }
 
 function getPathRelationLabel(relation: 'parent' | 'child' | 'spouse') {
@@ -74,7 +80,7 @@ export default function RelationshipInsightCard({
       ? fromCandidates.filter((person) => formatPersonName(person).toLowerCase().includes(query))
       : fromCandidates;
 
-    return candidates.slice(0, query ? 12 : 8);
+    return candidates.slice(0, MAX_VISIBLE_RESULTS);
   }, [fromCandidates, fromSearchQuery]);
 
   const filteredToCandidates = useMemo(() => {
@@ -83,7 +89,21 @@ export default function RelationshipInsightCard({
       ? toCandidates.filter((person) => formatPersonName(person).toLowerCase().includes(query))
       : toCandidates;
 
-    return candidates.slice(0, query ? 12 : 8);
+    return candidates.slice(0, MAX_VISIBLE_RESULTS);
+  }, [toCandidates, toSearchQuery]);
+
+  const totalFromMatches = useMemo(() => {
+    const query = fromSearchQuery.trim().toLowerCase();
+    return (query
+      ? fromCandidates.filter((person) => formatPersonName(person).toLowerCase().includes(query))
+      : fromCandidates).length;
+  }, [fromCandidates, fromSearchQuery]);
+
+  const totalToMatches = useMemo(() => {
+    const query = toSearchQuery.trim().toLowerCase();
+    return (query
+      ? toCandidates.filter((person) => formatPersonName(person).toLowerCase().includes(query))
+      : toCandidates).length;
   }, [toCandidates, toSearchQuery]);
 
   React.useEffect(() => {
@@ -115,6 +135,9 @@ export default function RelationshipInsightCard({
       .map((personId) => formatPersonName(peopleById.get(personId)))
       .join(' → ')
     : null;
+  const pathRelationLabel = insight
+    ? insight.pathRelations.map((relation) => getPathRelationLabel(relation)).join(' → ')
+    : null;
 
   const fromPerson = peopleById.get(fromPersonId) ?? null;
   const toPerson = peopleById.get(toPersonId) ?? null;
@@ -135,24 +158,39 @@ export default function RelationshipInsightCard({
               label="Search first family member"
               value={fromSearchQuery}
               onChangeText={setFromSearchQuery}
-              style={{ marginTop: 12 }}
+              style={styles.searchInput}
               left={<TextInput.Icon icon="magnify" />}
             />
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.chipRow, { paddingTop: 12 }]}>
-              {filteredFromCandidates.map((person) => (
-                <Chip
-                  key={`from-${person.id}`}
-                  selected={fromPersonId === person.id}
-                  onPress={() => {
-                    setFromPersonId(person.id);
-                    setFromSearchQuery('');
-                  }}
-                  style={styles.chip}
-                >
-                  {formatPersonName(person)}
-                </Chip>
-              ))}
-            </ScrollView>
+            {filteredFromCandidates.length > 0 ? (
+              <View style={styles.resultsList}>
+                {filteredFromCandidates.map((person, index) => (
+                  <Pressable
+                    key={`from-${person.id}`}
+                    onPress={() => {
+                      setFromPersonId(person.id);
+                      setFromSearchQuery('');
+                    }}
+                    style={[
+                      styles.resultRow,
+                      fromPersonId === person.id ? styles.resultRowSelected : null,
+                      index > 0 ? styles.resultRowDivider : null,
+                    ]}
+                  >
+                    <Text variant="titleSmall" style={styles.resultRowTitle}>{formatPersonName(person)}</Text>
+                    <Text variant="bodySmall" style={styles.resultRowMeta}>{formatPersonMeta(person)}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : (
+              <View style={styles.emptyState}>
+                <Text variant="bodyMedium">No matching family members found.</Text>
+              </View>
+            )}
+            {totalFromMatches > MAX_VISIBLE_RESULTS ? (
+              <Text variant="bodySmall" style={styles.pathText}>
+                Showing the first 3 matches. Add more letters to narrow the results.
+              </Text>
+            ) : null}
             {!fromPersonId ? (
               <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 8 }}>
                 Start by choosing one person.
@@ -175,26 +213,41 @@ export default function RelationshipInsightCard({
             label="Search second family member"
             value={toSearchQuery}
             onChangeText={setToSearchQuery}
-            style={{ marginTop: 12 }}
+            style={styles.searchInput}
             left={<TextInput.Icon icon="magnify" />}
             disabled={!fromPersonId}
           />
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.chipRow, { paddingTop: 12 }]}>
-            {filteredToCandidates.map((person) => (
-              <Chip
-                key={`to-${person.id}`}
-                selected={toPersonId === person.id}
-                onPress={() => {
-                  setToPersonId(person.id);
-                  setToSearchQuery('');
-                }}
-                style={styles.chip}
-                disabled={!fromPersonId}
-              >
-                {formatPersonName(person)}
-              </Chip>
-            ))}
-          </ScrollView>
+          {filteredToCandidates.length > 0 ? (
+            <View style={styles.resultsList}>
+              {filteredToCandidates.map((person, index) => (
+                <Pressable
+                  key={`to-${person.id}`}
+                  onPress={() => {
+                    setToPersonId(person.id);
+                    setToSearchQuery('');
+                  }}
+                  style={[
+                    styles.resultRow,
+                    toPersonId === person.id ? styles.resultRowSelected : null,
+                    index > 0 ? styles.resultRowDivider : null,
+                  ]}
+                  disabled={!fromPersonId}
+                >
+                  <Text variant="titleSmall" style={styles.resultRowTitle}>{formatPersonName(person)}</Text>
+                  <Text variant="bodySmall" style={styles.resultRowMeta}>{formatPersonMeta(person)}</Text>
+                </Pressable>
+              ))}
+            </View>
+          ) : (
+            <View style={styles.emptyState}>
+              <Text variant="bodyMedium">No matching family members found.</Text>
+            </View>
+          )}
+          {totalToMatches > MAX_VISIBLE_RESULTS ? (
+            <Text variant="bodySmall" style={styles.pathText}>
+              Showing the first 3 matches. Add more letters to narrow the results.
+            </Text>
+          ) : null}
           {fromPersonId && !toPersonId ? (
             <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 8 }}>
               Pick the second person and we’ll explain the relationship in plain language.
@@ -241,12 +294,13 @@ export default function RelationshipInsightCard({
             <View style={[styles.resultBox, { backgroundColor: theme.colors.surfaceVariant }]}>
               <Text variant="titleMedium">{formatPersonName(toPerson)} is {formatPersonName(fromPerson)}’s {insight.relationship.toLowerCase()}</Text>
               <Text variant="bodyMedium" style={[styles.pathText, { color: theme.colors.onSurfaceVariant }]}>
-                We found a family connection between these two people.
+                We found a family connection and can show both the plain-language answer and the exact path through the tree.
               </Text>
-              <View style={{ marginTop: 12, flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+              <View style={styles.summaryRow}>
                 <Chip compact icon="account">{formatPersonName(fromPerson)}</Chip>
                 <Chip compact icon="arrow-right">{insight.relationship}</Chip>
                 <Chip compact icon="account">{formatPersonName(toPerson)}</Chip>
+                <Chip compact icon="source-branch">{Math.max(insight.pathPersonIds.length - 1, 0)} steps</Chip>
               </View>
               <Button mode="text" onPress={() => setShowPathDetails((current) => !current)} style={{ alignSelf: 'flex-start', marginTop: 8 }}>
                 {showPathDetails ? 'Hide connection steps' : 'Show connection steps'}
@@ -258,10 +312,10 @@ export default function RelationshipInsightCard({
                     const currentPerson = peopleById.get(personId);
                     const relation = insight.pathRelations[index];
                     return (
-                      <View key={`${personId}-${index}`} style={{ marginBottom: 10 }}>
+                      <View key={`${personId}-${index}`} style={styles.pathStepCard}>
                         <Text variant="titleSmall">{index + 1}. {formatPersonName(currentPerson)}</Text>
                         {relation ? (
-                          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 2 }}>
+                          <Text variant="bodySmall" style={styles.stepMeta}>
                             Next step goes through a {getPathRelationLabel(relation)} relationship.
                           </Text>
                         ) : null}
@@ -271,6 +325,11 @@ export default function RelationshipInsightCard({
                   <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
                     Full path: {pathLabel}
                   </Text>
+                  {pathRelationLabel ? (
+                    <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
+                      Path types: {pathRelationLabel}
+                    </Text>
+                  ) : null}
                 </View>
               ) : null}
             </View>

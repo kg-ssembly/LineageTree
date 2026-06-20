@@ -222,25 +222,25 @@ export function computeRelationshipInsight(
     return { relationship: genderedLabel(toPerson.gender, 'Husband', 'Wife', 'Spouse'), ...path };
   }
 
-  // ── Direct line: ancestor ────────────────────────────────────────────────
+  // ── Direct line: descendant of fromPerson ────────────────────────────────
   const ancestorDistance = findAncestorDistance(index, fromPersonId, toPersonId);
   if (ancestorDistance) {
     const label = ancestorDistance === 1
-      ? genderedLabel(fromPerson.gender, 'Father', 'Mother', 'Parent')
+      ? genderedLabel(toPerson.gender, 'Son', 'Daughter', 'Child')
       : ancestorDistance === 2
-        ? genderedLabel(fromPerson.gender, 'Grandfather', 'Grandmother', 'Grandparent')
-        : `${'Great-'.repeat(ancestorDistance - 2)}${genderedLabel(fromPerson.gender, 'Grandfather', 'Grandmother', 'Grandparent')}`;
+        ? genderedLabel(toPerson.gender, 'Grandson', 'Granddaughter', 'Grandchild')
+        : `${'Great-'.repeat(ancestorDistance - 2)}${genderedLabel(toPerson.gender, 'Grandson', 'Granddaughter', 'Grandchild')}`;
     return { relationship: label, ...path };
   }
 
-  // ── Direct line: descendant ───────────────────────────────────────────────
+  // ── Direct line: ancestor of fromPerson ───────────────────────────────────
   const descendantDistance = findAncestorDistance(index, toPersonId, fromPersonId);
   if (descendantDistance) {
     const label = descendantDistance === 1
-      ? genderedLabel(fromPerson.gender, 'Son', 'Daughter', 'Child')
+      ? genderedLabel(toPerson.gender, 'Father', 'Mother', 'Parent')
       : descendantDistance === 2
-        ? genderedLabel(fromPerson.gender, 'Grandson', 'Granddaughter', 'Grandchild')
-        : `${'Great-'.repeat(descendantDistance - 2)}${genderedLabel(fromPerson.gender, 'Grandson', 'Granddaughter', 'Grandchild')}`;
+        ? genderedLabel(toPerson.gender, 'Grandfather', 'Grandmother', 'Grandparent')
+        : `${'Great-'.repeat(descendantDistance - 2)}${genderedLabel(toPerson.gender, 'Grandfather', 'Grandmother', 'Grandparent')}`;
     return { relationship: label, ...path };
   }
 
@@ -253,77 +253,77 @@ export function computeRelationshipInsight(
     const isHalf = sharedParentIds.length < Math.max(fromParentIds.size, toParentIds.size);
     const prefix = isHalf ? 'Half-' : '';
     return {
-      relationship: `${prefix}${genderedLabel(fromPerson.gender, 'brother', 'sister', 'sibling')}`,
+      relationship: `${prefix}${genderedLabel(toPerson.gender, 'brother', 'sister', 'sibling')}`,
       ...path,
     };
   }
 
   // ── In-laws ───────────────────────────────────────────────────────────────
-  // fromPerson is parent-in-law (their child is married to toPerson)
+  // toPerson is child-in-law (they are married to fromPerson's child)
   if (getChildren(index, fromPersonId).some((cId) => getSpouses(index, cId).includes(toPersonId))) {
     return {
-      relationship: genderedLabel(fromPerson.gender, 'Father-in-law', 'Mother-in-law', 'Parent-in-law'),
+      relationship: genderedLabel(toPerson.gender, 'Son-in-law', 'Daughter-in-law', 'Child-in-law'),
       ...path,
     };
   }
 
-  // fromPerson is child-in-law (they are married to toPerson's child)
+  // toPerson is parent-in-law (they are the parent of fromPerson's spouse)
   if (getChildren(index, toPersonId).some((cId) => getSpouses(index, cId).includes(fromPersonId))) {
     return {
-      relationship: genderedLabel(fromPerson.gender, 'Son-in-law', 'Daughter-in-law', 'Child-in-law'),
+      relationship: genderedLabel(toPerson.gender, 'Father-in-law', 'Mother-in-law', 'Parent-in-law'),
       ...path,
     };
   }
 
-  // fromPerson is sibling-in-law (their sibling is married to toPerson)
+  // toPerson is sibling-in-law (they are married to fromPerson's sibling)
   if (getSiblings(index, fromPersonId).some((sib) => getSpouses(index, sib).includes(toPersonId))) {
     return {
-      relationship: genderedLabel(fromPerson.gender, 'Brother-in-law', 'Sister-in-law', 'Sibling-in-law'),
+      relationship: genderedLabel(toPerson.gender, 'Brother-in-law', 'Sister-in-law', 'Sibling-in-law'),
       ...path,
     };
   }
 
-  // fromPerson is sibling-in-law (they are married to toPerson's sibling)
+  // toPerson is sibling-in-law (they are the sibling of fromPerson's spouse)
   if (getSpouses(index, fromPersonId).some((sp) => getSiblings(index, toPersonId).includes(sp))) {
     return {
-      relationship: genderedLabel(fromPerson.gender, 'Brother-in-law', 'Sister-in-law', 'Sibling-in-law'),
+      relationship: genderedLabel(toPerson.gender, 'Brother-in-law', 'Sister-in-law', 'Sibling-in-law'),
       ...path,
     };
   }
 
   // ── Step-relationships ────────────────────────────────────────────────────
-  // fromPerson is step-parent of toPerson (spouse of toPerson's biological parent, but not biological parent)
+  // toPerson is step-child of fromPerson
   const toParentsArr = getParents(index, toPersonId);
   if (
     toParentsArr.some((p) => getSpouses(index, p).includes(fromPersonId))
     && !toParentsArr.includes(fromPersonId)
   ) {
     return {
-      relationship: genderedLabel(fromPerson.gender, 'Stepfather', 'Stepmother', 'Step-parent'),
+      relationship: genderedLabel(toPerson.gender, 'Stepson', 'Stepdaughter', 'Stepchild'),
       ...path,
     };
   }
 
-  // fromPerson is step-child of toPerson
+  // toPerson is step-parent of fromPerson
   const fromParentsArr = getParents(index, fromPersonId);
   if (
     fromParentsArr.some((p) => getSpouses(index, p).includes(toPersonId))
     && !fromParentsArr.includes(toPersonId)
   ) {
     return {
-      relationship: genderedLabel(fromPerson.gender, 'Stepson', 'Stepdaughter', 'Stepchild'),
+      relationship: genderedLabel(toPerson.gender, 'Stepfather', 'Stepmother', 'Step-parent'),
       ...path,
     };
   }
 
-  // fromPerson is step-sibling of toPerson (share a step-parent but no biological parent)
+  // toPerson is step-sibling of fromPerson (share a step-parent but no biological parent)
   const isStepSibling = fromParentsArr.some((p) =>
     getSpouses(index, p).some((sp) => getChildren(index, sp).includes(toPersonId)),
   ) && !shareAnyParent(index, fromPersonId, toPersonId);
 
   if (isStepSibling) {
     return {
-      relationship: genderedLabel(fromPerson.gender, 'Step-brother', 'Step-sister', 'Step-sibling'),
+      relationship: genderedLabel(toPerson.gender, 'Step-brother', 'Step-sister', 'Step-sibling'),
       ...path,
     };
   }
@@ -358,19 +358,19 @@ export function computeRelationshipInsight(
       // removal tells us how many "Great-" prefixes
       const greats = removal > 1 ? 'Great-'.repeat(removal - 1) : '';
       if (fromIsShorter) {
-        // fromPerson is CLOSER → they are the older-generation relative
+        // toPerson is the younger-generation relative.
         return {
           relationship: removal === 1
-            ? genderedLabel(fromPerson.gender, 'Uncle', 'Aunt', 'Aunt/Uncle')
-            : `${greats}${genderedLabel(fromPerson.gender, 'uncle', 'aunt', 'aunt/uncle')}`,
+            ? genderedLabel(toPerson.gender, 'Nephew', 'Niece', 'Niece/Nephew')
+            : `${greats}${genderedLabel(toPerson.gender, 'nephew', 'niece', 'nephew/niece')}`,
           ...path,
         };
       }
 
       return {
         relationship: removal === 1
-          ? genderedLabel(fromPerson.gender, 'Nephew', 'Niece', 'Niece/Nephew')
-          : `${greats}${genderedLabel(fromPerson.gender, 'nephew', 'niece', 'nephew/niece')}`,
+          ? genderedLabel(toPerson.gender, 'Uncle', 'Aunt', 'Aunt/Uncle')
+          : `${greats}${genderedLabel(toPerson.gender, 'uncle', 'aunt', 'aunt/uncle')}`,
         ...path,
       };
     }
