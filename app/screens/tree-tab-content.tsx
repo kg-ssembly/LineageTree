@@ -30,7 +30,7 @@ import {
 } from '../../components/dto/person';
 import type { RelationshipRecord } from '../../components/dto/relationship';
 import { getUserNameParts, type UserProfile } from '../../components/dto/user';
-import { formatPersonName } from '../../components/person-formatting';
+import { formatPersonGender, formatPersonName } from '../../components/person-formatting';
 import {
   getAssignedPersonId,
   getTreeApprovalWindowHours,
@@ -153,6 +153,167 @@ function normaliseComparableName(value: string) {
     .toLowerCase()
     .replace(/[.'’_-]+/g, ' ')
     .replace(/\s+/g, ' ');
+}
+
+type ApprovalPreviewField = {
+  label: string;
+  before?: string | null;
+  after?: string | null;
+};
+
+function formatApprovalValue(value?: string | null, emptyLabel = 'Not provided') {
+  if (!value?.trim()) {
+    return emptyLabel;
+  }
+
+  return value.trim();
+}
+
+function formatApprovalList(values?: string[] | null, emptyLabel = 'None') {
+  if (!values?.length) {
+    return emptyLabel;
+  }
+
+  return values.join(', ');
+}
+
+function formatApprovalLifeEvents(person?: PersonRecord | null) {
+  if (!person?.lifeEvents?.length) {
+    return 'None';
+  }
+
+  return `${person.lifeEvents.length} recorded`;
+}
+
+function formatApprovalPhotos(person?: PersonRecord | null) {
+  if (!person?.photos?.length) {
+    return 'None';
+  }
+
+  return `${person.photos.length} photo${person.photos.length === 1 ? '' : 's'}`;
+}
+
+function buildPersonApprovalPreviewFields(beforePerson?: PersonRecord | null, afterPerson?: PersonRecord | null): ApprovalPreviewField[] {
+  if (!beforePerson && !afterPerson) {
+    return [];
+  }
+
+  const fields: ApprovalPreviewField[] = [
+    { label: 'Name', before: beforePerson ? formatPersonName(beforePerson) : null, after: afterPerson ? formatPersonName(afterPerson) : null },
+    { label: 'Middle names', before: formatApprovalValue(beforePerson?.middleNames), after: formatApprovalValue(afterPerson?.middleNames) },
+    { label: 'Maiden name', before: formatApprovalValue(beforePerson?.maidenName), after: formatApprovalValue(afterPerson?.maidenName) },
+    { label: 'Nicknames', before: formatApprovalList(beforePerson?.nicknames), after: formatApprovalList(afterPerson?.nicknames) },
+    { label: 'Gender', before: beforePerson ? formatPersonGender(beforePerson.gender) : null, after: afterPerson ? formatPersonGender(afterPerson.gender) : null },
+    { label: 'Birth date', before: beforePerson?.birthDate ? formatPersonDate(beforePerson.birthDate) : 'Unknown', after: afterPerson?.birthDate ? formatPersonDate(afterPerson.birthDate) : 'Unknown' },
+    { label: 'Death date', before: beforePerson?.deathDate ? formatPersonDate(beforePerson.deathDate) : 'Present', after: afterPerson?.deathDate ? formatPersonDate(afterPerson.deathDate) : 'Present' },
+    { label: 'Birth place', before: formatApprovalValue(beforePerson?.birthPlace), after: formatApprovalValue(afterPerson?.birthPlace) },
+    { label: 'Hometown', before: formatApprovalValue(beforePerson?.hometown), after: formatApprovalValue(afterPerson?.hometown) },
+    { label: 'Clan name', before: formatApprovalValue(beforePerson?.clanName), after: formatApprovalValue(afterPerson?.clanName) },
+    { label: 'Family branch', before: formatApprovalValue(beforePerson?.familyBranch), after: formatApprovalValue(afterPerson?.familyBranch) },
+    { label: 'Life events', before: formatApprovalLifeEvents(beforePerson), after: formatApprovalLifeEvents(afterPerson) },
+    { label: 'Photos', before: formatApprovalPhotos(beforePerson), after: formatApprovalPhotos(afterPerson) },
+    { label: 'Notes', before: formatApprovalValue(beforePerson?.notes, 'No notes'), after: formatApprovalValue(afterPerson?.notes, 'No notes') },
+  ];
+
+  if (!beforePerson || !afterPerson) {
+    return fields;
+  }
+
+  return fields.filter((field) => field.before !== field.after);
+}
+
+function formatRelationshipType(type: RelationshipRecord['type']) {
+  return type === 'spouse' ? 'Spouse' : 'Parent-child';
+}
+
+function formatRelationshipStatus(value?: RelationshipRecord['relationshipStatus']) {
+  if (!value) {
+    return 'Not set';
+  }
+
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function formatParentChildKind(value?: RelationshipRecord['parentChildKind']) {
+  if (!value) {
+    return 'Not set';
+  }
+
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function formatRelationshipPeople(
+  relationship: RelationshipRecord | null | undefined,
+  peopleById: Map<string, PersonRecord>,
+) {
+  if (!relationship) {
+    return 'Unknown people';
+  }
+
+  const fromPerson = peopleById.get(relationship.fromPersonId);
+  const toPerson = peopleById.get(relationship.toPersonId);
+
+  if (relationship.type === 'spouse') {
+    return `${formatPersonName(fromPerson)} and ${formatPersonName(toPerson)}`;
+  }
+
+  return `${formatPersonName(fromPerson)} -> ${formatPersonName(toPerson)}`;
+}
+
+function buildRelationshipApprovalPreviewFields(
+  beforeRelationship: RelationshipRecord | null | undefined,
+  afterRelationship: RelationshipRecord | null | undefined,
+  peopleById: Map<string, PersonRecord>,
+): ApprovalPreviewField[] {
+  if (!beforeRelationship && !afterRelationship) {
+    return [];
+  }
+
+  const fields: ApprovalPreviewField[] = [
+    {
+      label: 'Relationship type',
+      before: beforeRelationship ? formatRelationshipType(beforeRelationship.type) : null,
+      after: afterRelationship ? formatRelationshipType(afterRelationship.type) : null,
+    },
+    {
+      label: beforeRelationship?.type === 'spouse' || afterRelationship?.type === 'spouse' ? 'People' : 'Parent -> child',
+      before: formatRelationshipPeople(beforeRelationship, peopleById),
+      after: formatRelationshipPeople(afterRelationship, peopleById),
+    },
+    {
+      label: 'Spouse status',
+      before: formatRelationshipStatus(beforeRelationship?.relationshipStatus),
+      after: formatRelationshipStatus(afterRelationship?.relationshipStatus),
+    },
+    {
+      label: 'Parent-child kind',
+      before: formatParentChildKind(beforeRelationship?.parentChildKind),
+      after: formatParentChildKind(afterRelationship?.parentChildKind),
+    },
+  ];
+
+  if (!beforeRelationship || !afterRelationship) {
+    return fields;
+  }
+
+  return fields.filter((field) => field.before !== field.after);
+}
+
+function getApprovalOperationLabel(operation: ApprovalRequest['operation']) {
+  switch (operation) {
+    case 'update-person':
+      return 'Update profile';
+    case 'delete-person':
+      return 'Delete profile';
+    case 'create-relationship':
+      return 'Create relationship';
+    case 'update-relationship':
+      return 'Update relationship';
+    case 'delete-relationship':
+      return 'Delete relationship';
+    default:
+      return operation;
+  }
 }
 
 export function buildSelfAssignmentSuggestions(
@@ -698,6 +859,7 @@ function ProfileTabContent({
   mergeRequests,
   mergeHistory,
   mergePreview,
+  peopleById,
   role,
   isOwner,
   userId,
@@ -748,6 +910,7 @@ function ProfileTabContent({
   const [surnameVariantDraft, setSurnameVariantDraft] = useState('');
   const [surnameVariantDrafts, setSurnameVariantDrafts] = useState<string[]>([]);
   const [surnameVariantDialogVisible, setSurnameVariantDialogVisible] = useState(false);
+  const [previewApprovalRequest, setPreviewApprovalRequest] = useState<ApprovalRequest | null>(null);
 
   const unlinkedCollaboratorCount = useMemo(
     () => getUnlinkedCollaborators(selectedTree).filter((collaborator) => collaborator.userId !== userId).length,
@@ -913,6 +1076,22 @@ function ProfileTabContent({
   };
 
   const pendingMergeRequests = mergeRequests.filter((request) => request.status === 'pending' || request.status === 'changes-requested');
+  const previewRelationshipBefore = previewApprovalRequest
+    ? relationships.find((relationship) => relationship.id === previewApprovalRequest.targetId) ?? null
+    : null;
+  const previewPersonFields = previewApprovalRequest?.entityType === 'person'
+    ? buildPersonApprovalPreviewFields(
+      previewApprovalRequest.payload.beforePerson ?? previewApprovalRequest.payload.deletedPerson ?? null,
+      previewApprovalRequest.payload.afterPerson ?? null,
+    )
+    : [];
+  const previewRelationshipFields = previewApprovalRequest?.entityType === 'relationship'
+    ? buildRelationshipApprovalPreviewFields(
+      previewApprovalRequest.operation === 'create-relationship' ? null : previewRelationshipBefore,
+      previewApprovalRequest.operation === 'delete-relationship' ? null : previewApprovalRequest.payload.relationship ?? null,
+      peopleById,
+    )
+    : [];
 
   return (
     <ScrollView contentContainerStyle={styles.content}>
@@ -1437,16 +1616,21 @@ function ProfileTabContent({
                               <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>{request.description}</Text>
                               <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>Requested by {request.requestedByLabel}</Text>
                             </View>
-                            {canReview ? (
-                              <View style={styles.approvalRequestActions}>
-                                <Button mode="contained" onPress={() => onApproveApprovalRequest(request.id)} disabled={mutating}>
-                                  Approve
-                                </Button>
-                                <Button mode="outlined" textColor={theme.colors.error} onPress={() => onRejectApprovalRequest(request.id)} disabled={mutating}>
-                                  Reject
-                                </Button>
-                              </View>
-                            ) : null}
+                            <View style={styles.approvalRequestActions}>
+                              <Button mode="outlined" icon="eye-outline" onPress={() => setPreviewApprovalRequest(request)}>
+                                Preview change
+                              </Button>
+                              {canReview ? (
+                                <>
+                                  <Button mode="contained" onPress={() => onApproveApprovalRequest(request.id)} disabled={mutating}>
+                                    Approve
+                                  </Button>
+                                  <Button mode="outlined" textColor={theme.colors.error} onPress={() => onRejectApprovalRequest(request.id)} disabled={mutating}>
+                                    Reject
+                                  </Button>
+                                </>
+                              ) : null}
+                            </View>
                           </View>
                         </Card.Content>
                       </Card>
@@ -1795,6 +1979,76 @@ function ProfileTabContent({
           </Dialog.Content>
           <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
             <Button onPress={() => setHelperVisible(false)}>Close</Button>
+          </Dialog.Actions>
+        </Dialog>
+
+        <Dialog
+          visible={!!previewApprovalRequest}
+          onDismiss={() => setPreviewApprovalRequest(null)}
+          style={[dialogChrome.dialog, { backgroundColor: theme.colors.surface }]}
+        >
+          <Dialog.Title style={dialogChrome.dialogTitle}>
+            {previewApprovalRequest?.title ?? 'Approval preview'}
+          </Dialog.Title>
+          <Dialog.ScrollArea style={dialogChrome.scrollArea}>
+            <ScrollView contentContainerStyle={{ paddingBottom: 8 }} keyboardShouldPersistTaps="handled">
+              {previewApprovalRequest ? (
+                <View>
+                  <View style={styles.collaboratorChipRow}>
+                    <Chip compact icon="swap-horizontal">{getApprovalOperationLabel(previewApprovalRequest.operation)}</Chip>
+                    <Chip compact icon="account">{previewApprovalRequest.requestedByLabel}</Chip>
+                  </View>
+                  <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant, marginTop: 12 }]}>
+                    {previewApprovalRequest.description}
+                  </Text>
+
+                  {previewApprovalRequest.entityType === 'person' ? (
+                    <View style={{ marginTop: 16, gap: 12 }}>
+                      {previewPersonFields.length > 0 ? previewPersonFields.map((field) => (
+                        <View key={`${previewApprovalRequest.id}-${field.label}`}>
+                          <Text variant="labelLarge">{field.label}</Text>
+                          {field.before !== undefined && field.before !== null ? (
+                            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
+                              Before: {field.before}
+                            </Text>
+                          ) : null}
+                          {field.after !== undefined && field.after !== null ? (
+                            <Text variant="bodySmall" style={{ marginTop: 2 }}>
+                              After: {field.after}
+                            </Text>
+                          ) : null}
+                        </View>
+                      )) : (
+                        <Text variant="bodyMedium">No field-level preview is available for this request.</Text>
+                      )}
+                    </View>
+                  ) : (
+                    <View style={{ marginTop: 16, gap: 12 }}>
+                      {previewRelationshipFields.length > 0 ? previewRelationshipFields.map((field) => (
+                        <View key={`${previewApprovalRequest.id}-${field.label}`}>
+                          <Text variant="labelLarge">{field.label}</Text>
+                          {field.before !== undefined && field.before !== null ? (
+                            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
+                              Before: {field.before}
+                            </Text>
+                          ) : null}
+                          {field.after !== undefined && field.after !== null ? (
+                            <Text variant="bodySmall" style={{ marginTop: 2 }}>
+                              After: {field.after}
+                            </Text>
+                          ) : null}
+                        </View>
+                      )) : (
+                        <Text variant="bodyMedium">No field-level preview is available for this request.</Text>
+                      )}
+                    </View>
+                  )}
+                </View>
+              ) : null}
+            </ScrollView>
+          </Dialog.ScrollArea>
+          <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
+            <Button onPress={() => setPreviewApprovalRequest(null)}>Close</Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>
