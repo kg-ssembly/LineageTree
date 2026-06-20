@@ -16,6 +16,7 @@
 
 import React, {
   useCallback,
+  useDeferredValue,
   useEffect,
   useMemo,
   useRef,
@@ -79,7 +80,8 @@ const AUTO_FIT_MIN_SCALE_INLINE = 0.7;
 const AUTO_FIT_MIN_SCALE_FULLSCREEN = 0.7;
 const DRAG_ACTIVATION_DISTANCE = 6; // screen px — independent of zoom
 const VIEWPORT_PADDING = 24;
-const CULL_PADDING = 200; // px around viewport in canvas-space
+const CULL_PADDING = 320; // px around viewport in canvas-space
+const VIEWPORT_COMMIT_INTERVAL_MS = 48;
 // ------------------
 
 interface FamilyTreeCanvasProps {
@@ -359,6 +361,49 @@ function FamilyTreeCanvas({
   const panRef = useRef(pan);
   scaleRef.current = scale;
   panRef.current = pan;
+  const scaleAnim = useRef(new Animated.Value(scale)).current;
+  const panXAnim = useRef(new Animated.Value(pan.x)).current;
+  const panYAnim = useRef(new Animated.Value(pan.y)).current;
+  const pendingViewportRef = useRef<{ scale: number; pan: { x: number; y: number } } | null>(null);
+  const viewportCommitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const commitViewportState = useCallback(() => {
+    viewportCommitTimerRef.current = null;
+    const pendingViewport = pendingViewportRef.current;
+    if (!pendingViewport) return;
+    pendingViewportRef.current = null;
+    setScale((currentScale) => (currentScale === pendingViewport.scale ? currentScale : pendingViewport.scale));
+    setPan((currentPan) => (
+      currentPan.x === pendingViewport.pan.x && currentPan.y === pendingViewport.pan.y
+        ? currentPan
+        : pendingViewport.pan
+    ));
+  }, []);
+
+  const scheduleViewportState = useCallback((nextPan: { x: number; y: number }, nextScale: number) => {
+    panRef.current = nextPan;
+    scaleRef.current = nextScale;
+    panXAnim.setValue(nextPan.x * nextScale);
+    panYAnim.setValue(nextPan.y * nextScale);
+    scaleAnim.setValue(nextScale);
+    pendingViewportRef.current = { pan: nextPan, scale: nextScale };
+    if (viewportCommitTimerRef.current !== null) return;
+    viewportCommitTimerRef.current = setTimeout(commitViewportState, VIEWPORT_COMMIT_INTERVAL_MS);
+  }, [commitViewportState, panXAnim, panYAnim, scaleAnim]);
+
+  const flushViewportState = useCallback(() => {
+    if (viewportCommitTimerRef.current !== null) {
+      clearTimeout(viewportCommitTimerRef.current);
+      viewportCommitTimerRef.current = null;
+    }
+    commitViewportState();
+  }, [commitViewportState]);
+
+  useEffect(() => () => {
+    if (viewportCommitTimerRef.current !== null) {
+      clearTimeout(viewportCommitTimerRef.current);
+    }
+  }, []);
 
   // ---- Lineage filter ----
   const lineageMode = ascendantRootPersonId ? 'ascendant' : descendantRootPersonId ? 'descendant' : 'full';
@@ -592,9 +637,8 @@ function FamilyTreeCanvas({
       x: vw / 2 / nextScale - targetCx,
       y: vh / 2 / nextScale - targetCy,
     };
-    setScale(nextScale);
-    setPan(nextPan);
-  }, [contentBounds, positionsByPersonId]);
+    scheduleViewportState(nextPan, nextScale);
+  }, [contentBounds, positionsByPersonId, scheduleViewportState]);
 
   useEffect(() => {
     if (activeViewportSize.width <= 0 || activeViewportSize.height <= 0) return;
@@ -616,9 +660,8 @@ function FamilyTreeCanvas({
     const cy = focalY / s0 - p0.y;
     // Solve so the same canvas point lands at the same focal after scale change:
     const np = { x: focalX / ns - cx, y: focalY / ns - cy };
-    setScale(ns);
-    setPan(np);
-  }, []);
+    scheduleViewportState(np, ns);
+  }, [scheduleViewportState]);
 
   const zoomBy = useCallback((delta: number) => {
     const vw = (isFullscreen ? fullscreenViewportSize : inlineViewportSize).width;
@@ -644,8 +687,14 @@ function FamilyTreeCanvas({
       zoomAt(focalX, focalY, scaleRef.current * (dy < 0 ? 1.12 : 1 / 1.12));
       return;
     }
-    setPan((cur) => ({ x: cur.x - dx / scaleRef.current, y: cur.y - dy / scaleRef.current }));
-  }, [activeViewportSize.width, activeViewportSize.height, zoomAt]);
+    scheduleViewportState(
+      {
+        x: panRef.current.x - dx / scaleRef.current,
+        y: panRef.current.y - dy / scaleRef.current,
+      },
+      scaleRef.current,
+    );
+  }, [activeViewportSize.width, activeViewportSize.height, scheduleViewportState, zoomAt]);
 
   // ---- Pan + pinch via PanResponder (mobile + web touch) ----
   const gestureMovedRef = useRef(false);
@@ -720,31 +769,39 @@ function FamilyTreeCanvas({
 
           // Single-finger drag → pan in canvas space.
           pinchStateRef.current = null;
-          setPan({
+          scheduleViewportState({
             x: dragStartPanRef.current.x + g.dx / scaleRef.current,
             y: dragStartPanRef.current.y + g.dy / scaleRef.current,
-          });
+          }, scaleRef.current);
         },
-        onPanResponderRelease: () => { pinchStateRef.current = null; },
-        onPanResponderTerminate: () => { pinchStateRef.current = null; },
+        onPanResponderRelease: () => {
+          pinchStateRef.current = null;
+          flushViewportState();
+        },
+        onPanResponderTerminate: () => {
+          pinchStateRef.current = null;
+          flushViewportState();
+        },
         onPanResponderTerminationRequest: () => false,
       }),
-      [zoomAt],
+      [flushViewportState, scheduleViewportState, zoomAt],
   );
 
   // ---- Viewport culling ----
   // Compute the visible canvas-space rect to skip off-screen nodes/connectors.
+  const deferredPan = useDeferredValue(pan);
+  const deferredScale = useDeferredValue(scale);
   const viewportRect = useMemo(() => {
     if (activeViewportSize.width <= 0 || activeViewportSize.height <= 0) {
       return { x: -Infinity, y: -Infinity, w: Infinity, h: Infinity };
     }
     return {
-      x: -pan.x - CULL_PADDING / scale,
-      y: -pan.y - CULL_PADDING / scale,
-      w: activeViewportSize.width / scale + (2 * CULL_PADDING) / scale,
-      h: activeViewportSize.height / scale + (2 * CULL_PADDING) / scale,
+      x: -deferredPan.x - CULL_PADDING / deferredScale,
+      y: -deferredPan.y - CULL_PADDING / deferredScale,
+      w: activeViewportSize.width / deferredScale + (2 * CULL_PADDING) / deferredScale,
+      h: activeViewportSize.height / deferredScale + (2 * CULL_PADDING) / deferredScale,
     };
-  }, [pan.x, pan.y, scale, activeViewportSize.width, activeViewportSize.height]);
+  }, [deferredPan.x, deferredPan.y, deferredScale, activeViewportSize.width, activeViewportSize.height]);
 
   const intersects = (b: { x: number; y: number; w: number; h: number }) => (
       b.x + b.w >= viewportRect.x &&
@@ -783,9 +840,14 @@ function FamilyTreeCanvas({
       : lineageMode === 'descendant' ? 'Full-screen descendant tree' : 'Full-screen family tree';
 
   // ---- Render helpers ----
-  const transformStyle = Platform.OS === 'web'
-      ? ({ transform: `translate3d(${pan.x * scale}px, ${pan.y * scale}px, 0) scale(${scale})`, transformOrigin: '0 0' } as any)
-      : { transform: [{ translateX: pan.x * scale }, { translateY: pan.y * scale }, { scale }], };
+  const transformStyle = {
+    transform: [
+      { translateX: panXAnim },
+      { translateY: panYAnim },
+      { scale: scaleAnim },
+    ],
+    ...(Platform.OS === 'web' ? ({ transformOrigin: '0 0' } as any) : null),
+  };
 
   const renderFloatingControls = (mode: 'inline' | 'fullscreen') => (
       <View pointerEvents="box-none" style={styles.viewportOverlay}>
@@ -833,6 +895,8 @@ function FamilyTreeCanvas({
               transformStyle,
             ]}
             pointerEvents="box-none"
+            renderToHardwareTextureAndroid
+            shouldRasterizeIOS
         >
           <Svg
               width={contentWidth}
