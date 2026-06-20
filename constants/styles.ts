@@ -331,6 +331,11 @@ export class GlobalStyles {
             minWidth: 120,
             flexBasis: 120,
         },
+        approvalPreviewCard: {
+            marginTop: 12,
+            borderRadius: 20,
+            padding: 16,
+        },
         summaryChipRow: {
             flexDirection: 'row',
             flexWrap: 'wrap',
@@ -511,6 +516,34 @@ export class GlobalStyles {
             ...CARD_CHROME,
             marginTop: 16,
             borderRadius: 20,
+        },
+        memberList: {
+            marginTop: 4,
+            borderTopWidth: StyleSheet.hairlineWidth,
+            borderTopColor: F.outlineVariant,
+        },
+        memberListRow: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingVertical: 16,
+            paddingHorizontal: 4,
+            borderBottomWidth: StyleSheet.hairlineWidth,
+            borderBottomColor: F.outlineVariant,
+        },
+        memberListInfo: {
+            flex: 1,
+            minWidth: 0,
+            marginLeft: 14,
+        },
+        memberListMeta: {
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            gap: 8,
+            marginTop: 8,
+        },
+        memberListTrailing: {
+            marginLeft: 8,
         },
         personHeader: {
             flexDirection: 'row',
@@ -1349,6 +1382,7 @@ export class GlobalStyles {
         },
         nodeTextWrap: {
             flex: 1,
+            minWidth: 0,
         },
         nodeBadge: {
             position: 'absolute',
@@ -1364,6 +1398,7 @@ export class GlobalStyles {
         },
         nodeTitle: {
             fontWeight: '700',
+            paddingRight: 12,
         },
         nodeMeta: {
             color: F.onSurfaceVariant,

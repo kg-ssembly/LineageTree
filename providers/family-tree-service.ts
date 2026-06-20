@@ -52,7 +52,7 @@ function clampApprovalWindowHours(value: unknown) {
     return 24;
   }
 
-  return Math.max(1, Math.min(168, Math.round(parsed)));
+  return Math.max(0, Math.min(168, Math.round(parsed)));
 }
 
 function isTreeRole(value: unknown): value is TreeRole {
@@ -735,6 +735,10 @@ function buildApprovalExpiry(tree: FamilyTree) {
   };
 }
 
+function areApprovalsDisabled(tree: FamilyTree) {
+  return clampApprovalWindowHours(tree.approvalWindowHours) === 0;
+}
+
 async function preparePersonUpdatePreview(
   actorUserId: string,
   person: PersonRecord,
@@ -885,7 +889,7 @@ export async function submitPersonUpdateApproval(
     uploadedPhotos,
   };
 
-  if (eligibleApproverIds.length === 0) {
+  if (eligibleApproverIds.length === 0 || areApprovalsDisabled(tree)) {
     await applyApprovedPersonUpdate(payload);
     const appliedAt = nowIso();
     await createApprovalRequest({
@@ -894,7 +898,7 @@ export async function submitPersonUpdateApproval(
       operation: 'update-person',
       targetId: person.id,
       title: `Updated ${formatPersonName(person)}`,
-      description: `${requesterLabel} updated this family member profile and it was applied immediately because no other collaborator could review it.`,
+      description: `${requesterLabel} updated this family member profile and it was applied immediately because ${eligibleApproverIds.length === 0 ? 'no other collaborator could review it' : 'approvals are turned off for this tree'}.`,
       status: 'applied',
       decisionMode: 'immediate',
       requestedByUserId: actorUserId,
@@ -954,7 +958,7 @@ export async function submitDeletePersonApproval(
   const timestamp = nowIso();
   const payload: ApprovalRequestPayload = { deletedPerson: person };
 
-  if (eligibleApproverIds.length === 0) {
+  if (eligibleApproverIds.length === 0 || areApprovalsDisabled(tree)) {
     await applyApprovedDeletePerson(payload);
     const appliedAt = nowIso();
     await createApprovalRequest({
@@ -963,7 +967,7 @@ export async function submitDeletePersonApproval(
       operation: 'delete-person',
       targetId: person.id,
       title: `Delete ${formatPersonName(person)}`,
-      description: `${requesterLabel} deleted this family member and it was applied immediately because no other collaborator could review it.`,
+      description: `${requesterLabel} deleted this family member and it was applied immediately because ${eligibleApproverIds.length === 0 ? 'no other collaborator could review it' : 'approvals are turned off for this tree'}.`,
       status: 'applied',
       decisionMode: 'immediate',
       requestedByUserId: actorUserId,
@@ -1048,7 +1052,7 @@ export async function submitCreateRelationshipApproval(
   const payload: ApprovalRequestPayload = { relationship };
   const relationLabel = type === 'spouse' ? 'spouse relationship' : 'parent-child relationship';
 
-  if (eligibleApproverIds.length === 0) {
+  if (eligibleApproverIds.length === 0 || areApprovalsDisabled(tree)) {
     await applyApprovedCreateRelationship(payload);
     const appliedAt = nowIso();
     await createApprovalRequest({
@@ -1057,7 +1061,7 @@ export async function submitCreateRelationshipApproval(
       operation: 'create-relationship',
       targetId: relationship.id,
       title: `Create ${relationLabel}`,
-      description: `${requesterLabel} added a ${relationLabel} and it was applied immediately because no other collaborator could review it.`,
+      description: `${requesterLabel} added a ${relationLabel} and it was applied immediately because ${eligibleApproverIds.length === 0 ? 'no other collaborator could review it' : 'approvals are turned off for this tree'}.`,
       status: 'applied',
       decisionMode: 'immediate',
       requestedByUserId: actorUserId,
@@ -1118,7 +1122,7 @@ export async function submitDeleteRelationshipApproval(
   const payload: ApprovalRequestPayload = { relationship };
   const relationLabel = relationship.type === 'spouse' ? 'spouse relationship' : 'parent-child relationship';
 
-  if (eligibleApproverIds.length === 0) {
+  if (eligibleApproverIds.length === 0 || areApprovalsDisabled(tree)) {
     await applyApprovedDeleteRelationship(payload);
     const appliedAt = nowIso();
     await createApprovalRequest({
@@ -1127,7 +1131,7 @@ export async function submitDeleteRelationshipApproval(
       operation: 'delete-relationship',
       targetId: relationship.id,
       title: `Delete ${relationLabel}`,
-      description: `${requesterLabel} removed a ${relationLabel} and it was applied immediately because no other collaborator could review it.`,
+      description: `${requesterLabel} removed a ${relationLabel} and it was applied immediately because ${eligibleApproverIds.length === 0 ? 'no other collaborator could review it' : 'approvals are turned off for this tree'}.`,
       status: 'applied',
       decisionMode: 'immediate',
       requestedByUserId: actorUserId,
@@ -1392,4 +1396,3 @@ async function deleteRelationshipDirect(relationshipId: string) {
 export async function deleteRelationship(actorUserId: string, relationshipId: string): Promise<ApprovalSubmissionResult> {
   return submitDeleteRelationshipApproval(actorUserId, relationshipId);
 }
-

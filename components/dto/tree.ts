@@ -76,6 +76,5 @@ export function getTreeApprovalWindowHours(tree?: Pick<FamilyTree, 'approvalWind
     return 24;
   }
 
-  return Math.max(1, Math.min(168, Math.round(nextValue)));
+  return Math.max(0, Math.min(168, Math.round(nextValue)));
 }
-

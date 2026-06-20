@@ -30,6 +30,7 @@ import { getUserNameParts, type UserProfile } from '../../components/dto/user';
 import { formatPersonName } from '../../components/person-formatting';
 import {
   getAssignedPersonId,
+  getTreeApprovalWindowHours,
   getTreeRole,
   getUnlinkedCollaborators,
   type FamilyTree,
@@ -439,50 +440,51 @@ export function PeopleRelationshipsTabContent({
                 {filteredPeople.length} member{filteredPeople.length !== 1 ? 's' : ''} · page {currentPage} of {totalPages}
               </Text>
             </View>
-            {visiblePeople.map((person) => {
+            <View style={styles.memberList}>
+              {visiblePeople.map((person) => {
               const preferredPhoto = getPreferredPersonPhoto(person);
               const isCurrentUsersPerson = currentAssignedPerson?.id === person.id;
 
               return (
-                <Card
+                <Pressable
                   key={person.id}
-                  style={[styles.personCard, { backgroundColor: theme.colors.surface }]}
-                  mode="elevated"
                   onPress={() => openPersonProfile(person)}
+                  style={({ pressed }) => [{
+                    backgroundColor: pressed ? theme.colors.surfaceVariant : theme.colors.background,
+                    borderRadius: 16,
+                    opacity: pressed ? 0.92 : 1,
+                  }]}
                 >
-                  <Card.Content>
-                    <View style={styles.personHeader}>
-                      <View style={styles.personPhotoWrap}>
-                        {preferredPhoto ? (
-                          <Image source={{ uri: preferredPhoto.url }} style={styles.personPhoto} />
-                        ) : (
-                          <View style={styles.personPhotoFallback}>
-                            <MaterialCommunityIcons name={getPersonFallbackAvatarIcon(person)} size={30} color={theme.colors.primary} />
-                          </View>
-                        )}
-                      </View>
-                      <View style={styles.personHeaderText}>
-                        <View style={styles.personNameRow}>
-                          <Text variant="titleLarge">{formatPersonName(person)}</Text>
-                          {isCurrentUsersPerson ? <Chip compact icon="account">You</Chip> : null}
+                  <View style={styles.memberListRow}>
+                    <View style={styles.personPhotoWrap}>
+                      {preferredPhoto ? (
+                        <Image source={{ uri: preferredPhoto.url }} style={styles.personPhoto} />
+                      ) : (
+                        <View style={styles.personPhotoFallback}>
+                          <MaterialCommunityIcons name={getPersonFallbackAvatarIcon(person)} size={30} color={theme.colors.primary} />
                         </View>
-                        <View style={styles.metadataRow}>
-                          {person.birthDate ? <Chip compact icon="calendar">{formatPersonDate(person.birthDate)}</Chip> : null}
-                          <MaterialCommunityIcons
-                            name={isPersonDeceased(person) ? 'flower-outline' : 'heart-pulse'}
-                            size={18}
-                            color={theme.colors.onSurfaceVariant}
-                          />
-                        </View>
+                      )}
+                    </View>
+                    <View style={styles.memberListInfo}>
+                      <View style={styles.personNameRow}>
+                        <Text variant="titleMedium">{formatPersonName(person)}</Text>
+                        {isCurrentUsersPerson ? <Chip compact icon="account">You</Chip> : null}
                       </View>
-                      <View style={styles.cardActions}>
-                        <IconButton icon="open-in-new" onPress={() => openPersonProfile(person)} />
+                      <View style={styles.memberListMeta}>
+                        {person.birthDate ? <Chip compact icon="calendar">{formatPersonDate(person.birthDate)}</Chip> : null}
+                        <Chip compact icon={isPersonDeceased(person) ? 'flower-outline' : 'heart-pulse'}>
+                          {getPersonPresenceLabel(person)}
+                        </Chip>
                       </View>
                     </View>
-                  </Card.Content>
-                </Card>
+                    <View style={styles.memberListTrailing}>
+                      <IconButton icon="chevron-right" onPress={() => openPersonProfile(person)} />
+                    </View>
+                  </View>
+                </Pressable>
               );
-            })}
+              })}
+            </View>
 
             <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, marginTop: 12 }}>
               <IconButton
@@ -744,6 +746,36 @@ function ProfileTabContent({
     () => approvalRequests.filter((request) => request.status === 'pending'),
     [approvalRequests],
   );
+
+  const approvalWindowHours = useMemo(
+    () => getTreeApprovalWindowHours(selectedTree),
+    [selectedTree],
+  );
+
+  const approvalWindowDraft = useMemo(() => {
+    const trimmed = approvalWindowInput.trim().toLowerCase();
+    if (!trimmed) {
+      return approvalWindowHours;
+    }
+
+    if (trimmed === 'off' || trimmed === '0') {
+      return 0;
+    }
+
+    const parsed = Number(trimmed);
+    if (!Number.isFinite(parsed)) {
+      return approvalWindowHours;
+    }
+
+    return Math.max(0, Math.min(168, Math.round(parsed)));
+  }, [approvalWindowHours, approvalWindowInput]);
+
+  const approvalsDisabled = approvalWindowHours === 0;
+  const approvalDraftDisabled = approvalWindowDraft === 0;
+  const approvalSettingDirty = approvalWindowDraft !== approvalWindowHours;
+  const approvalPreviewText = approvalDraftDisabled
+    ? 'Preview: collaborator profile and relationship changes will apply immediately. No approval queue will be created.'
+    : `Preview: collaborator changes will wait for review and auto-approve after ${approvalWindowDraft} hour${approvalWindowDraft === 1 ? '' : 's'} if nobody acts first.`;
 
   useEffect(() => {
     setApprovalWindowInput(`${selectedTree.approvalWindowHours}`);
@@ -1157,12 +1189,17 @@ function ProfileTabContent({
             <View style={styles.treeSettingsWrap}>
               <Text variant="titleSmall">Approval settings</Text>
               <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-                Family member profile edits and relationship changes auto-approve after the set number of hours. Single-collaborator trees approve immediately.
+                Owners can require review for collaborator changes, or turn approvals off so updates apply immediately. Single-collaborator trees still apply immediately.
               </Text>
+              <View style={styles.summaryChipRow}>
+                <Chip compact icon={approvalsDisabled ? 'flash-outline' : 'timer-outline'}>
+                  {approvalsDisabled ? 'Approvals off' : `Current window: ${approvalWindowHours}h`}
+                </Chip>
+              </View>
               <View style={styles.approvalWindowRow}>
                 <TextInput
                   mode="outlined"
-                  label="Hours"
+                  label="Hours or 0 for off"
                   value={approvalWindowInput}
                   onChangeText={setApprovalWindowInput}
                   keyboardType="number-pad"
@@ -1172,12 +1209,17 @@ function ProfileTabContent({
                 {isOwner ? (
                   <Button
                     mode="contained-tonal"
-                    onPress={() => onSetApprovalWindowHours(Number(approvalWindowInput) || selectedTree.approvalWindowHours)}
-                    disabled={mutating}
+                    onPress={() => onSetApprovalWindowHours(approvalWindowDraft)}
+                    disabled={mutating || !approvalSettingDirty}
                   >
-                    Save window
+                    Save setting
                   </Button>
                 ) : null}
+              </View>
+              <View style={[styles.approvalPreviewCard, { backgroundColor: theme.colors.surfaceVariant }]}>
+                <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+                  {approvalPreviewText}
+                </Text>
               </View>
             </View>
 
@@ -1186,7 +1228,9 @@ function ProfileTabContent({
                 <View style={styles.titleWrap}>
                   <Text variant="titleLarge">Pending approvals</Text>
                   <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-                    Collaborator edits awaiting review - they auto-approve if nobody acts before the deadline.
+                    {approvalsDisabled
+                      ? 'Approvals are currently off. Any requests listed here were created before that change and can still be reviewed.'
+                      : 'Collaborator edits awaiting review - they auto-approve if nobody acts before the deadline.'}
                   </Text>
                 </View>
               </View>
