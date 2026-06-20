@@ -75,6 +75,8 @@ const C: LayoutConstants = DEFAULT_LAYOUT_CONSTANTS;
 const MIN_SCALE = 0.15;
 const MAX_SCALE = 4.0;
 const AUTO_FIT_MAX_SCALE = 0.8; // default zoom cap on initial fit
+const AUTO_FIT_MIN_SCALE_INLINE = 0.32;
+const AUTO_FIT_MIN_SCALE_FULLSCREEN = 0.22;
 const DRAG_ACTIVATION_DISTANCE = 6; // screen px — independent of zoom
 const VIEWPORT_PADDING = 24;
 const CULL_PADDING = 200; // px around viewport in canvas-space
@@ -390,6 +392,40 @@ function FamilyTreeCanvas({
   );
   const { positionsByPersonId, contentWidth, contentHeight } = layout;
 
+  const contentBounds = useMemo(() => {
+    if (positionsByPersonId.size === 0) {
+      return {
+        minX: 0,
+        minY: 0,
+        maxX: contentWidth,
+        maxY: contentHeight,
+        width: Math.max(contentWidth, C.NODE_WIDTH),
+        height: Math.max(contentHeight, C.NODE_HEIGHT),
+      };
+    }
+
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+
+    positionsByPersonId.forEach(({ x, y }) => {
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x + C.NODE_WIDTH);
+      maxY = Math.max(maxY, y + C.NODE_HEIGHT);
+    });
+
+    return {
+      minX,
+      minY,
+      maxX,
+      maxY,
+      width: Math.max(maxX - minX, C.NODE_WIDTH),
+      height: Math.max(maxY - minY, C.NODE_HEIGHT),
+    };
+  }, [positionsByPersonId, contentWidth, contentHeight]);
+
   // ---- Connectors (lane-allocated) ----
   const { spouseConnectors, parentChildConnectors } = useMemo(
       () => buildConnectors(clusterRelationships, layout, C, {
@@ -426,14 +462,19 @@ function FamilyTreeCanvas({
     return renderedPeople[0]?.id;
   }, [initialFocusPersonId, ascendantRootPersonId, descendantRootPersonId, positionsByPersonId, renderedPeople]);
 
-  const fitTo = useCallback((vw: number, vh: number, focusPersonId?: string) => {
+  const fitTo = useCallback((vw: number, vh: number, focusPersonId?: string, mode: 'inline' | 'fullscreen' = 'inline') => {
     if (vw <= 0 || vh <= 0) return;
     const padW = Math.max(120, vw - VIEWPORT_PADDING * 2);
     const padH = Math.max(120, vh - VIEWPORT_PADDING * 2);
-    const nextScale = Math.min(AUTO_FIT_MAX_SCALE, Math.max(MIN_SCALE, Math.min(padW / contentWidth, padH / contentHeight)));
+    const fitScale = Math.min(padW / contentBounds.width, padH / contentBounds.height);
+    const minOpeningScale = mode === 'fullscreen' ? AUTO_FIT_MIN_SCALE_FULLSCREEN : AUTO_FIT_MIN_SCALE_INLINE;
+    const nextScale = Math.min(
+      AUTO_FIT_MAX_SCALE,
+      Math.max(focusPersonId ? minOpeningScale : MIN_SCALE, fitScale),
+    );
 
-    let targetCx = contentWidth / 2;
-    let targetCy = contentHeight / 2;
+    let targetCx = contentBounds.minX + contentBounds.width / 2;
+    let targetCy = contentBounds.minY + contentBounds.height / 2;
     if (focusPersonId) {
       const fp = positionsByPersonId.get(focusPersonId);
       if (fp) {
@@ -447,13 +488,13 @@ function FamilyTreeCanvas({
     };
     setScale(nextScale);
     setPan(nextPan);
-  }, [contentWidth, contentHeight, positionsByPersonId]);
+  }, [contentBounds, positionsByPersonId]);
 
   useEffect(() => {
     if (activeViewportSize.width <= 0 || activeViewportSize.height <= 0) return;
     const key = `${isFullscreen}:${activeViewportSize.width}x${activeViewportSize.height}:${contentWidth}x${contentHeight}:${effectiveFocusId ?? ''}`;
     if (lastAutoFitKey.current === key) return;
-    fitTo(activeViewportSize.width, activeViewportSize.height, effectiveFocusId);
+    fitTo(activeViewportSize.width, activeViewportSize.height, effectiveFocusId, isFullscreen ? 'fullscreen' : 'inline');
     lastAutoFitKey.current = key;
   }, [activeViewportSize.width, activeViewportSize.height, contentWidth, contentHeight, effectiveFocusId, isFullscreen, fitTo]);
 
@@ -480,8 +521,8 @@ function FamilyTreeCanvas({
   }, [zoomAt, isFullscreen, fullscreenViewportSize, inlineViewportSize]);
 
   const resetView = useCallback(() => {
-    fitTo(activeViewportSize.width, activeViewportSize.height, effectiveFocusId);
-  }, [fitTo, activeViewportSize, effectiveFocusId]);
+    fitTo(activeViewportSize.width, activeViewportSize.height, effectiveFocusId, isFullscreen ? 'fullscreen' : 'inline');
+  }, [fitTo, activeViewportSize, effectiveFocusId, isFullscreen]);
 
   // ---- Web wheel: scroll = pan, ctrl/⌘+wheel = zoom ----
   const handleWheel = useCallback((e: any) => {
@@ -845,4 +886,3 @@ function FamilyTreeCanvas({
 }
 
 export default React.memo(FamilyTreeCanvas);
-
