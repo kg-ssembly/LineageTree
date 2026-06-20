@@ -240,6 +240,8 @@ const DEFAULT_FILTERS: MemberFilters = {
   birthYearTo: '',
 };
 
+const MEMBERS_PER_PAGE = 5;
+
 function countActiveFilters(filters: MemberFilters): number {
   let count = 0;
   if (filters.gender !== 'all') count += 1;
@@ -296,6 +298,7 @@ export function PeopleRelationshipsTabContent({
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState<MemberFilters>(DEFAULT_FILTERS);
   const [draftFilters, setDraftFilters] = useState<MemberFilters>(DEFAULT_FILTERS);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const activeFilterCount = useMemo(() => countActiveFilters(filters), [filters]);
 
@@ -362,6 +365,21 @@ export function PeopleRelationshipsTabContent({
     }),
     [filters, people, searchQuery, personRelStats, selectedTree?.surnameVariantGroups],
   );
+
+  const totalPages = Math.max(1, Math.ceil(filteredPeople.length / MEMBERS_PER_PAGE));
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, filters, people, selectedTree.id]);
+
+  useEffect(() => {
+    setCurrentPage((page) => Math.min(page, totalPages));
+  }, [totalPages]);
+
+  const paginatedPeople = useMemo(() => {
+    const startIndex = (currentPage - 1) * MEMBERS_PER_PAGE;
+    return filteredPeople.slice(startIndex, startIndex + MEMBERS_PER_PAGE);
+  }, [currentPage, filteredPeople]);
 
   const openFilterModal = () => {
     setDraftFilters(filters);
@@ -494,7 +512,7 @@ export function PeopleRelationshipsTabContent({
               </Text>
             </View>
             <FlatList
-              data={filteredPeople}
+              data={paginatedPeople}
               keyExtractor={(person) => person.id}
               renderItem={renderMemberItem}
               style={{ flex: 1 }}
@@ -505,6 +523,27 @@ export function PeopleRelationshipsTabContent({
               removeClippedSubviews
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
+              ListFooterComponent={totalPages > 1 ? (
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingTop: 8 }}>
+                  <Button
+                    mode="outlined"
+                    onPress={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    Previous
+                  </Button>
+                  <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+                    Page {currentPage} of {totalPages}
+                  </Text>
+                  <Button
+                    mode="outlined"
+                    onPress={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                    disabled={currentPage === totalPages}
+                  >
+                    Next
+                  </Button>
+                </View>
+              ) : null}
             />
           </>
         )}
