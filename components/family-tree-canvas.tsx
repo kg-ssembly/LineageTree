@@ -607,6 +607,7 @@ function FamilyTreeCanvas({
     nextScale: number,
     viewportWidth: number,
     viewportHeight: number,
+    boundaryPadding: number = 0,
   ) => {
     if (viewportWidth <= 0 || viewportHeight <= 0 || nextScale <= 0) {
       return nextPan;
@@ -615,10 +616,10 @@ function FamilyTreeCanvas({
     const viewportWidthInCanvas = viewportWidth / nextScale;
     const viewportHeightInCanvas = viewportHeight / nextScale;
 
-    const minPanX = viewportWidthInCanvas - contentBounds.maxX - CONTENT_BOUNDARY_PADDING;
-    const maxPanX = -contentBounds.minX + CONTENT_BOUNDARY_PADDING;
-    const minPanY = viewportHeightInCanvas - contentBounds.maxY - CONTENT_BOUNDARY_PADDING;
-    const maxPanY = -contentBounds.minY + CONTENT_BOUNDARY_PADDING;
+    const minPanX = viewportWidthInCanvas - contentBounds.maxX - boundaryPadding;
+    const maxPanX = -contentBounds.minX + boundaryPadding;
+    const minPanY = viewportHeightInCanvas - contentBounds.maxY - boundaryPadding;
+    const maxPanY = -contentBounds.minY + boundaryPadding;
 
     const clampedX = minPanX > maxPanX
       ? (viewportWidthInCanvas - (contentBounds.minX + contentBounds.maxX)) / 2
@@ -718,7 +719,7 @@ function FamilyTreeCanvas({
       clampPanToViewport({
         x: panRef.current.x - dx / scaleRef.current,
         y: panRef.current.y - dy / scaleRef.current,
-      }, scaleRef.current, activeViewportSize.width, activeViewportSize.height),
+      }, scaleRef.current, activeViewportSize.width, activeViewportSize.height, CONTENT_BOUNDARY_PADDING),
       scaleRef.current,
     );
   }, [activeViewportSize.width, activeViewportSize.height, clampPanToViewport, scheduleViewportState, zoomAt]);
@@ -799,7 +800,7 @@ function FamilyTreeCanvas({
           scheduleViewportState(clampPanToViewport({
             x: dragStartPanRef.current.x + g.dx / scaleRef.current,
             y: dragStartPanRef.current.y + g.dy / scaleRef.current,
-          }, scaleRef.current, activeViewportSize.width, activeViewportSize.height), scaleRef.current);
+          }, scaleRef.current, activeViewportSize.width, activeViewportSize.height, CONTENT_BOUNDARY_PADDING), scaleRef.current);
         },
         onPanResponderRelease: () => {
           pinchStateRef.current = null;
