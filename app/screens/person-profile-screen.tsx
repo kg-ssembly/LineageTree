@@ -1297,7 +1297,8 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
           onDismiss={mutating ? undefined : () => setNotesDialogVisible(false)}
           style={[dialogChrome.dialog, styles.memoryDialog, { backgroundColor: theme.colors.surface }]}
         >
-          <Dialog.Title style={dialogChrome.dialogTitle}>{t('Notes')}</Dialog.Title>
+          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{t('Notes')}</Dialog.Title>
+          <IconButton icon="close" onPress={() => setNotesDialogVisible(false)} disabled={mutating} accessibilityLabel={t('Cancel')} style={dialogChrome.closeButton} />
           <Dialog.ScrollArea style={styles.memoryDialogScrollArea}>
             <ScrollView contentContainerStyle={styles.memoryDialogContent} keyboardShouldPersistTaps="handled">
               <TextInput
@@ -1313,7 +1314,6 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
             </ScrollView>
           </Dialog.ScrollArea>
           <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
-            <Button onPress={() => setNotesDialogVisible(false)} disabled={mutating}>{t('Cancel')}</Button>
             <Button mode="contained" onPress={handleSaveNotes} disabled={mutating}>{t('Save notes')}</Button>
           </Dialog.Actions>
         </Dialog>
@@ -1325,7 +1325,8 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
           onDismiss={mutating ? undefined : () => setPhotosDialogVisible(false)}
           style={[dialogChrome.dialog, styles.memoryDialog, { backgroundColor: theme.colors.surface }]}
         >
-          <Dialog.Title style={dialogChrome.dialogTitle}>{t('Manage photos')}</Dialog.Title>
+          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{t('Manage photos')}</Dialog.Title>
+          <IconButton icon="close" onPress={() => setPhotosDialogVisible(false)} disabled={mutating} accessibilityLabel={t('Cancel')} style={dialogChrome.closeButton} />
           <Dialog.ScrollArea style={styles.memoryDialogScrollArea}>
             <ScrollView contentContainerStyle={styles.memoryDialogContent} keyboardShouldPersistTaps="handled">
               <View style={styles.memoryDialogPhotoActions}>
@@ -1389,7 +1390,6 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
             </ScrollView>
           </Dialog.ScrollArea>
           <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
-            <Button onPress={() => setPhotosDialogVisible(false)} disabled={mutating}>{t('Cancel')}</Button>
             <Button mode="contained" onPress={handleSavePhotos} disabled={mutating}>{t('Save photos')}</Button>
           </Dialog.Actions>
         </Dialog>
@@ -1463,13 +1463,17 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
           onDismiss={() => setHelperDialog((current) => ({ ...current, visible: false }))}
           style={[dialogChrome.dialog, { backgroundColor: theme.colors.surface }]}
         >
-          <Dialog.Title style={dialogChrome.dialogTitle}>{helperDialogCopy[helperDialog.key].title}</Dialog.Title>
+          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{helperDialogCopy[helperDialog.key].title}</Dialog.Title>
+          <IconButton
+            icon="close"
+            size={20}
+            onPress={() => setHelperDialog((current) => ({ ...current, visible: false }))}
+            style={dialogChrome.closeButton}
+            accessibilityLabel={t('Close')}
+          />
           <Dialog.Content style={dialogChrome.content}>
             <Text variant="bodyMedium">{helperDialogCopy[helperDialog.key].message}</Text>
           </Dialog.Content>
-          <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
-            <Button onPress={() => setHelperDialog((current) => ({ ...current, visible: false }))}>Close</Button>
-          </Dialog.Actions>
         </Dialog>
       </Portal>
 

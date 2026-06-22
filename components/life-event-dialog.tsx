@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ScrollView, View } from 'react-native';
-import { Button, Chip, Dialog, HelperText, Portal, Text, TextInput, useTheme } from 'react-native-paper';
+import { Button, Chip, Dialog, HelperText, IconButton, Portal, Text, TextInput, useTheme } from 'react-native-paper';
 import { DatePickerModal } from 'react-native-paper-dates';
 import type { PersonLifeEvent, PersonLifeEventType } from './dto/person';
 import { formatPersonDate, getLifeEventTypeLabel, parsePersonDate } from './dto/person';
@@ -123,7 +123,8 @@ export default function LifeEventDialog({
           onDismiss={loading ? undefined : onDismiss}
           style={[dialogChrome.dialog, styles.dialog, { backgroundColor: theme.colors.surface }]}
         >
-          <Dialog.Title style={dialogChrome.dialogTitle}>{event ? t('Edit life event') : t('Add life event')}</Dialog.Title>
+          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{event ? t('Edit life event') : t('Add life event')}</Dialog.Title>
+          <IconButton icon="close" onPress={onDismiss} disabled={loading} accessibilityLabel={t('Cancel')} style={dialogChrome.closeButton} />
           <Dialog.ScrollArea style={[dialogChrome.scrollArea, styles.scrollArea]}>
             <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
               <Text variant="bodyMedium" style={styles.helperText}>
@@ -193,11 +194,8 @@ export default function LifeEventDialog({
           </Dialog.ScrollArea>
           <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
             {event && onDelete ? (
-              <Button onPress={onDelete} textColor={theme.colors.error} disabled={loading}>
-                {t('Delete')}
-              </Button>
+              <IconButton icon="trash-can-outline" iconColor={theme.colors.error} onPress={onDelete} disabled={loading} accessibilityLabel={t('Delete')} />
             ) : null}
-            <Button mode="outlined" onPress={onDismiss} disabled={loading}>{t('Cancel')}</Button>
             <Button mode="contained" onPress={handleSubmit} disabled={loading}>{t('Save')}</Button>
           </Dialog.Actions>
         </Dialog>

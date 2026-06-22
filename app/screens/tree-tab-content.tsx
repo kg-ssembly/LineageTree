@@ -669,7 +669,8 @@ export function PeopleRelationshipsTabContent({
             icon="tune"
             onPress={openFilterModal}
             style={styles.filterButton}
-            contentStyle={{ flexDirection: 'row-reverse' }}
+            contentStyle={styles.filterButtonContent}
+            labelStyle={styles.filterButtonLabel}
           >
             {activeFilterCount > 0 ? `(${activeFilterCount})` : ''}
           </Button>
@@ -718,23 +719,21 @@ export function PeopleRelationshipsTabContent({
               showsVerticalScrollIndicator={false}
               ListFooterComponent={totalPages > 1 ? (
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingTop: 8 }}>
-                  <Button
-                    mode="outlined"
+                  <IconButton
+                    icon="chevron-left"
                     onPress={() => setCurrentPage((page) => Math.max(1, page - 1))}
                     disabled={currentPage === 1}
-                  >
-                    Previous
-                  </Button>
+                    accessibilityLabel="Previous page"
+                  />
                   <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
                     Page {currentPage} of {totalPages}
                   </Text>
-                  <Button
-                    mode="outlined"
+                  <IconButton
+                    icon="chevron-right"
                     onPress={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
                     disabled={currentPage === totalPages}
-                  >
-                    Next
-                  </Button>
+                    accessibilityLabel="Next page"
+                  />
                 </View>
               ) : null}
             />
@@ -872,15 +871,19 @@ export function PeopleRelationshipsTabContent({
           onDismiss={() => setHelperVisible(false)}
           style={[dialogChrome.dialog, { backgroundColor: theme.colors.surface }]}
         >
-          <Dialog.Title style={dialogChrome.dialogTitle}>Family members</Dialog.Title>
+          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>Family members</Dialog.Title>
+          <IconButton
+            icon="close"
+            size={20}
+            onPress={() => setHelperVisible(false)}
+            style={dialogChrome.closeButton}
+            accessibilityLabel="Close"
+          />
           <Dialog.Content style={dialogChrome.content}>
             <Text variant="bodyMedium">
               Each card represents one person in this family tree. Tap a card to open their full profile. Use the search bar and Filters button to narrow by name, gender, presence, birth date, photos, notes, or relationship status. The tri-state filter chips cycle through unset, must have, and must not have.
             </Text>
           </Dialog.Content>
-          <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
-            <Button onPress={() => setHelperVisible(false)}>Close</Button>
-          </Dialog.Actions>
         </Dialog>
       </Portal>
     </View>
@@ -2040,13 +2043,17 @@ function ProfileTabContent({
           onDismiss={() => setHelperDialog((current) => ({ ...current, visible: false }))}
           style={[dialogChrome.dialog, { backgroundColor: theme.colors.surface }]}
         >
-          <Dialog.Title style={dialogChrome.dialogTitle}>{TREE_HELPER_COPY[helperDialog.key].title}</Dialog.Title>
+          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{TREE_HELPER_COPY[helperDialog.key].title}</Dialog.Title>
+          <IconButton
+            icon="close"
+            size={20}
+            onPress={() => setHelperDialog((current) => ({ ...current, visible: false }))}
+            style={dialogChrome.closeButton}
+            accessibilityLabel="Close"
+          />
           <Dialog.Content style={dialogChrome.content}>
             <Text variant="bodyMedium">{TREE_HELPER_COPY[helperDialog.key].message}</Text>
           </Dialog.Content>
-          <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
-            <Button onPress={() => setHelperDialog((current) => ({ ...current, visible: false }))}>Close</Button>
-          </Dialog.Actions>
         </Dialog>
 
         <Dialog
@@ -2054,9 +2061,16 @@ function ProfileTabContent({
           onDismiss={() => setPreviewApprovalRequest(null)}
           style={[dialogChrome.dialog, { backgroundColor: theme.colors.surface }]}
         >
-          <Dialog.Title style={dialogChrome.dialogTitle}>
+          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>
             {previewApprovalRequest?.title ?? 'Approval preview'}
           </Dialog.Title>
+          <IconButton
+            icon="close"
+            size={20}
+            onPress={() => setPreviewApprovalRequest(null)}
+            style={dialogChrome.closeButton}
+            accessibilityLabel="Close"
+          />
           <Dialog.ScrollArea style={dialogChrome.scrollArea}>
             <ScrollView contentContainerStyle={{ paddingBottom: 8 }} keyboardShouldPersistTaps="handled">
               {previewApprovalRequest ? (
@@ -2114,9 +2128,6 @@ function ProfileTabContent({
               ) : null}
             </ScrollView>
           </Dialog.ScrollArea>
-          <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
-            <Button onPress={() => setPreviewApprovalRequest(null)}>Close</Button>
-          </Dialog.Actions>
         </Dialog>
       </Portal>
     </ScrollView>

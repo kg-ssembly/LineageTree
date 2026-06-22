@@ -1,5 +1,5 @@
 import React from 'react';
-import { Button, Dialog, Portal, Text, useTheme } from 'react-native-paper';
+import { Button, Dialog, IconButton, Portal, Text, useTheme } from 'react-native-paper';
 import { useI18n } from '../hooks/use-i18n';
 import { GlobalStyles } from '../constants/styles';
 
@@ -36,14 +36,12 @@ export default function ConfirmDialog({
         onDismiss={loading ? undefined : onDismiss}
         style={[dialogChrome.dialog, styles.dialog, { backgroundColor: theme.colors.surface }]}
       >
-        <Dialog.Title style={dialogChrome.dialogTitle}>{title}</Dialog.Title>
+        <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{title}</Dialog.Title>
+        <IconButton icon="close" onPress={onDismiss} disabled={loading} accessibilityLabel={t(cancelLabel)} style={dialogChrome.closeButton} />
         <Dialog.Content style={dialogChrome.content}>
           <Text variant="bodyMedium">{message}</Text>
         </Dialog.Content>
         <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
-          <Button mode="outlined" onPress={onDismiss} disabled={loading}>
-            {t(cancelLabel)}
-          </Button>
           <Button mode="contained" onPress={onConfirm} disabled={loading}>
             {t(confirmLabel)}
           </Button>
@@ -52,4 +50,3 @@ export default function ConfirmDialog({
     </Portal>
   );
 }
-

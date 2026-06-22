@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
-import { Button, Chip, Dialog, HelperText, Portal, SegmentedButtons, Text, TextInput, useTheme } from 'react-native-paper';
+import { Button, Chip, Dialog, HelperText, IconButton, Portal, SegmentedButtons, Text, TextInput, useTheme } from 'react-native-paper';
 import { getPersonLifeSpanLabel, type PersonRecord } from './dto/person';
 import type { ParentChildRelationshipKind, RelationshipRecord, SpouseRelationshipStatus } from './dto/relationship';
 import { DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND, DEFAULT_SPOUSE_RELATIONSHIP_STATUS } from './dto/relationship';
@@ -194,7 +194,8 @@ export default function PersonRelationshipDialog({
         onDismiss={loading ? undefined : onDismiss}
         style={[dialogChrome.dialog, styles.dialog, { backgroundColor: theme.colors.surface }]}
       >
-        <Dialog.Title style={dialogChrome.dialogTitle}>{editingRelationship ? t('Edit relationship') : t('Add relationship')}</Dialog.Title>
+        <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{editingRelationship ? t('Edit relationship') : t('Add relationship')}</Dialog.Title>
+        <IconButton icon="close" onPress={onDismiss} disabled={loading} accessibilityLabel={t('Cancel')} style={dialogChrome.closeButton} />
         <Dialog.ScrollArea style={[dialogChrome.scrollArea, styles.scrollArea]}>
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
             <Text variant="bodyMedium" style={styles.helperText}>
@@ -329,11 +330,8 @@ export default function PersonRelationshipDialog({
         </Dialog.ScrollArea>
         <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
           {editingRelationship && onDelete ? (
-            <Button onPress={onDelete} textColor={theme.colors.error} disabled={loading}>
-              {t('Delete')}
-            </Button>
+            <IconButton icon="trash-can-outline" iconColor={theme.colors.error} onPress={onDelete} disabled={loading} accessibilityLabel={t('Delete')} />
           ) : null}
-          <Button mode="outlined" onPress={onDismiss} disabled={loading}>{t('Cancel')}</Button>
           <Button mode="contained" onPress={handleSubmit} disabled={loading || !person || candidates.length === 0 || !!validationMessage}>{t('Save')}</Button>
         </Dialog.Actions>
       </Dialog>

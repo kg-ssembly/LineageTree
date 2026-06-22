@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
-import { Button, Chip, Dialog, Divider, Portal, Text, TextInput, useTheme } from 'react-native-paper';
+import { Button, Chip, Dialog, Divider, IconButton, Portal, Text, TextInput, useTheme } from 'react-native-paper';
 import { getPersonLifeSpanLabel, type PersonRecord } from './dto/person';
 import type { RelationshipRecord } from './dto/relationship';
 import { useI18n } from '../hooks/use-i18n';
@@ -140,6 +140,7 @@ export default function RelationshipInsightCard({
   const fromPerson = peopleById.get(fromPersonId) ?? null;
   const toPerson = peopleById.get(toPersonId) ?? null;
   const canShowInsight = Boolean(fromPersonId && toPersonId);
+  const canResetSelection = Boolean(toPersonId || (!lockedFromPersonId && fromPersonId));
 
   const openPicker = (mode: 'from' | 'to') => {
     setPickerMode(mode);
@@ -197,7 +198,9 @@ export default function RelationshipInsightCard({
 
         <View style={styles.actionsRow}>
           {!lockedFromPersonId ? (
-            <Button
+            <IconButton
+              icon="swap-horizontal"
+              mode="contained-tonal"
               onPress={() => {
                 const nextFrom = toPersonId;
                 const nextTo = fromPersonId;
@@ -205,19 +208,23 @@ export default function RelationshipInsightCard({
                 setToPersonId(nextTo);
               }}
               disabled={!fromPersonId || !toPersonId}
-            >
-              {t('Swap')}
-            </Button>
+              accessibilityLabel={t('Swap')}
+            />
           ) : null}
-          <Button onPress={() => {
-            if (!lockedFromPersonId) {
-              setFromPersonId('');
-            }
-            setToPersonId('');
-            setShowPathDetails(false);
-          }}>
-            {t('Clear')}
-          </Button>
+          {canResetSelection ? (
+            <IconButton
+              icon="restart"
+              mode="contained-tonal"
+              onPress={() => {
+                if (!lockedFromPersonId) {
+                  setFromPersonId('');
+                }
+                setToPersonId('');
+                setShowPathDetails(false);
+              }}
+              accessibilityLabel={t('Reset')}
+            />
+          ) : null}
         </View>
 
         {!canShowInsight ? (
@@ -286,7 +293,16 @@ export default function RelationshipInsightCard({
           onDismiss={closePicker}
           style={[dialogChrome.dialog, styles.pickerDialog, { backgroundColor: theme.colors.surface }]}
         >
-          <Dialog.Title style={dialogChrome.dialogTitle}>{t('Select family member')}</Dialog.Title>
+          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose, styles.pickerDialogTitle]}>
+            {t('Select family member')}
+          </Dialog.Title>
+          <IconButton
+            icon="close"
+            size={20}
+            onPress={closePicker}
+            style={[dialogChrome.closeButton, styles.pickerCloseButton]}
+            accessibilityLabel={t('Close')}
+          />
           <Dialog.ScrollArea style={dialogChrome.scrollArea}>
             <View>
             <TextInput
@@ -321,22 +337,25 @@ export default function RelationshipInsightCard({
 
             {filteredPickerCandidates.length > 0 ? (
               <View style={styles.paginationRow}>
-                <Button onPress={() => setPickerPage((page) => Math.max(1, page - 1))} disabled={pickerPage === 1}>
-                  {t('Previous')}
-                </Button>
+                <IconButton
+                  icon="chevron-left"
+                  onPress={() => setPickerPage((page) => Math.max(1, page - 1))}
+                  disabled={pickerPage === 1}
+                  accessibilityLabel={t('Previous')}
+                />
                 <Text variant="bodySmall" style={styles.paginationLabel}>
                   {pickerPage} / {totalPickerPages}
                 </Text>
-                <Button onPress={() => setPickerPage((page) => Math.min(totalPickerPages, page + 1))} disabled={pickerPage === totalPickerPages}>
-                  {t('Next')}
-                </Button>
+                <IconButton
+                  icon="chevron-right"
+                  onPress={() => setPickerPage((page) => Math.min(totalPickerPages, page + 1))}
+                  disabled={pickerPage === totalPickerPages}
+                  accessibilityLabel={t('Next')}
+                />
               </View>
             ) : null}
             </View>
           </Dialog.ScrollArea>
-          <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
-            <Button onPress={closePicker}>{t('Close')}</Button>
-          </Dialog.Actions>
         </Dialog>
       </Portal>
     </>

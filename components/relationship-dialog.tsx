@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
-import { Button, Chip, Dialog, HelperText, Portal, SegmentedButtons, Text, TextInput, useTheme } from 'react-native-paper';
+import { Button, Chip, Dialog, HelperText, IconButton, Portal, SegmentedButtons, Text, TextInput, useTheme } from 'react-native-paper';
 import { getPersonLifeSpanLabel, type PersonRecord } from './dto/person';
 import type { ParentChildRelationshipKind, RelationshipRecord, RelationshipType, SpouseRelationshipStatus } from './dto/relationship';
 import { DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND, DEFAULT_SPOUSE_RELATIONSHIP_STATUS } from './dto/relationship';
@@ -154,7 +154,8 @@ export default function RelationshipDialog({
         onDismiss={loading ? undefined : onDismiss}
         style={[dialogChrome.dialog, styles.dialog, { backgroundColor: theme.colors.surface }]}
       >
-        <Dialog.Title style={[dialogChrome.dialogTitle, styles.dialogTitle]}>{t('Add relationship')}</Dialog.Title>
+        <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose, styles.dialogTitle]}>{t('Add relationship')}</Dialog.Title>
+        <IconButton icon="close" onPress={onDismiss} disabled={loading} accessibilityLabel={t('Cancel')} style={dialogChrome.closeButton} />
         <Dialog.ScrollArea style={[dialogChrome.scrollArea, styles.scrollArea]}>
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
             <View style={[styles.relationshipTypeCard, { borderColor: theme.colors.outlineVariant }]}>
@@ -347,7 +348,6 @@ export default function RelationshipDialog({
           </ScrollView>
         </Dialog.ScrollArea>
         <Dialog.Actions style={[dialogChrome.dialogActions, styles.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
-          <Button mode="outlined" onPress={onDismiss} disabled={loading}>{t('Cancel')}</Button>
           <Button mode="contained" onPress={handleSubmit} disabled={loading || people.length < 2 || !!validationMessage}>{t('Save')}</Button>
         </Dialog.Actions>
       </Dialog>

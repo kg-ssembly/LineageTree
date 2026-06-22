@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   Button,
   Dialog,
+  IconButton,
   List,
   Portal,
   Snackbar,
@@ -648,7 +649,14 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
           onDismiss={closeNodeQuickActions}
           style={[dialogChrome.dialog, styles.quickActionDialog, { backgroundColor: theme.colors.surface }]}
         >
-          <Dialog.Title style={dialogChrome.dialogTitle}>{nodeQuickActionState.person ? formatPersonName(nodeQuickActionState.person) : 'Quick actions'}</Dialog.Title>
+          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{nodeQuickActionState.person ? formatPersonName(nodeQuickActionState.person) : 'Quick actions'}</Dialog.Title>
+          <IconButton
+            icon="close"
+            size={20}
+            onPress={closeNodeQuickActions}
+            style={dialogChrome.closeButton}
+            accessibilityLabel="Close"
+          />
           <Dialog.Content style={dialogChrome.content}>
             <Text variant="bodyMedium" style={[styles.quickActionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
               Choose what you want to do with this family member in the tree.
@@ -711,9 +719,6 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
               </>
             ) : null}
           </Dialog.Content>
-          <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
-            <Button onPress={closeNodeQuickActions}>Close</Button>
-          </Dialog.Actions>
         </Dialog>
       </Portal>
 

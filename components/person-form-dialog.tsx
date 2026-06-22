@@ -359,11 +359,12 @@ export default function PersonFormDialog({
           onDismiss={loading ? undefined : onDismiss}
           style={[dialogChrome.dialog, styles.dialog, { backgroundColor: theme.colors.surface }]}
         >
-          <Dialog.Title style={[dialogChrome.dialogTitle, styles.dialogTitle]}>
+          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose, styles.dialogTitle]}>
             {mode === 'create'
               ? (step === 1 ? 'Add family member' : 'Add relationships')
               : 'Edit family member'}
           </Dialog.Title>
+          <IconButton icon="close" onPress={onDismiss} disabled={loading} accessibilityLabel="Cancel" style={dialogChrome.closeButton} />
           {mode === 'create' ? (
             <View style={[styles.stepProgressRow, { borderBottomColor: theme.colors.outlineVariant }]}>
               <View style={[styles.stepDot, step >= 1 && { backgroundColor: theme.colors.primary }]} />
@@ -697,9 +698,9 @@ export default function PersonFormDialog({
           <Dialog.Actions style={[dialogChrome.dialogActions, styles.dialogActions, { borderTopColor: theme.colors.outlineVariant, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
             {/* Left side: delete button (edit) or step indicator (create step 2) */}
             {mode === 'edit' && onDelete ? (
-              <Button
-                mode="text"
-                textColor={theme.colors.error}
+              <IconButton
+                icon="trash-can-outline"
+                iconColor={theme.colors.error}
                 disabled={loading}
                 onPress={() => {
                   Alert.alert(
@@ -711,24 +712,21 @@ export default function PersonFormDialog({
                     ],
                   );
                 }}
-              >
-                Delete member
-              </Button>
+                accessibilityLabel="Delete member"
+              />
             ) : mode === 'create' && step === 2 ? (
               <Button mode="outlined" onPress={() => setStep(1)} disabled={loading}>Back</Button>
             ) : (
               <View />
             )}
             {/* Right side: step-1 next or final submit */}
-            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
               {mode === 'create' && step === 1 ? (
                 <>
-                  <Button mode="outlined" onPress={onDismiss} disabled={loading}>Cancel</Button>
                   <Button mode="contained" onPress={handleNextStep} disabled={loading}>Next</Button>
                 </>
               ) : (
                 <>
-                  <Button mode="outlined" onPress={mode === 'edit' ? onDismiss : onDismiss} disabled={loading}>Cancel</Button>
                   <Button mode="contained" onPress={handleSubmit} disabled={loading}>
                     {mode === 'create' ? 'Create' : 'Save'}
                   </Button>

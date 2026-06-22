@@ -922,7 +922,7 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
 
   return (
     <View style={[personProfileStyles.container, { backgroundColor: theme.colors.background }]}>
-      <ScrollView contentContainerStyle={personProfileStyles.content}>
+      <ScrollView contentContainerStyle={personProfileStyles.compactContent}>
         {shouldShowLinkedProfileTabs ? (
           <Surface style={[personProfileStyles.heroCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
             {canEditLinkedProfile ? (
@@ -1380,7 +1380,8 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
           onDismiss={mutating ? undefined : () => setNotesDialogVisible(false)}
           style={[dialogChrome.dialog, personProfileStyles.memoryDialog, { backgroundColor: theme.colors.surface }]}
         >
-          <Dialog.Title style={dialogChrome.dialogTitle}>Notes</Dialog.Title>
+          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>Notes</Dialog.Title>
+          <IconButton icon="close" onPress={() => setNotesDialogVisible(false)} disabled={mutating} accessibilityLabel="Cancel" style={dialogChrome.closeButton} />
           <Dialog.ScrollArea style={personProfileStyles.memoryDialogScrollArea}>
             <ScrollView contentContainerStyle={personProfileStyles.memoryDialogContent} keyboardShouldPersistTaps="handled">
               <TextInput
@@ -1396,7 +1397,6 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
             </ScrollView>
           </Dialog.ScrollArea>
           <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
-            <Button onPress={() => setNotesDialogVisible(false)} disabled={mutating}>Cancel</Button>
             <Button mode="contained" onPress={handleSaveNotes} disabled={mutating}>Save notes</Button>
           </Dialog.Actions>
         </Dialog>
@@ -1408,7 +1408,8 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
           onDismiss={mutating ? undefined : () => setPhotosDialogVisible(false)}
           style={[dialogChrome.dialog, personProfileStyles.memoryDialog, { backgroundColor: theme.colors.surface }]}
         >
-          <Dialog.Title style={dialogChrome.dialogTitle}>Manage photos</Dialog.Title>
+          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>Manage photos</Dialog.Title>
+          <IconButton icon="close" onPress={() => setPhotosDialogVisible(false)} disabled={mutating} accessibilityLabel="Cancel" style={dialogChrome.closeButton} />
           <Dialog.ScrollArea style={personProfileStyles.memoryDialogScrollArea}>
             <ScrollView contentContainerStyle={personProfileStyles.memoryDialogContent} keyboardShouldPersistTaps="handled">
               <View style={personProfileStyles.memoryDialogPhotoActions}>
@@ -1472,7 +1473,6 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
             </ScrollView>
           </Dialog.ScrollArea>
           <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
-            <Button onPress={() => setPhotosDialogVisible(false)} disabled={mutating}>Cancel</Button>
             <Button mode="contained" onPress={handleSavePhotos} disabled={mutating}>Save photos</Button>
           </Dialog.Actions>
         </Dialog>

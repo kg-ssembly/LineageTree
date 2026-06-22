@@ -40,6 +40,9 @@ export class GlobalStyles {
         dialogTitle: {
             paddingBottom: 4,
         },
+        dialogTitleWithClose: {
+            paddingRight: 44,
+        },
         content: {
             paddingBottom: 12,
         },
@@ -52,6 +55,12 @@ export class GlobalStyles {
             paddingHorizontal: 8,
             paddingTop: 8,
             borderTopWidth: StyleSheet.hairlineWidth,
+        },
+        closeButton: {
+            position: 'absolute',
+            top: 12,
+            right: 8,
+            margin: 0,
         },
     });
 
@@ -413,6 +422,14 @@ export class GlobalStyles {
         filterButton: {
             borderRadius: 20,
         },
+        filterButtonContent: {
+            paddingLeft: 0,
+            paddingRight: 0,
+        },
+        filterButtonLabel: {
+            marginLeft: 0,
+            marginRight: 0,
+        },
         resultsPill: {
             alignSelf: 'flex-start',
             paddingHorizontal: 12,
@@ -641,7 +658,12 @@ export class GlobalStyles {
         content: {
             padding: 16,
             paddingBottom: 40,
-            paddingTop: 84,
+            paddingTop: 72,
+        },
+        compactContent: {
+            paddingHorizontal: 16,
+            paddingTop: 8,
+            paddingBottom: 40,
         },
         stickyActionBar: {
             position: 'absolute',
@@ -650,7 +672,7 @@ export class GlobalStyles {
             right: 0,
             zIndex: 3,
             elevation: 6,
-            height: 72,
+            height: 64,
         },
         heroCard: {
             ...CARD_CHROME,
@@ -1297,10 +1319,21 @@ export class GlobalStyles {
             flexDirection: 'row',
             justifyContent: 'flex-end',
             marginTop: 8,
+            alignItems: 'center',
+            gap: 4,
         },
         pickerDialog: {
             borderRadius: 20,
             marginHorizontal: 16,
+        },
+        pickerDialogTitle: {
+            paddingRight: 44,
+        },
+        pickerCloseButton: {
+            position: 'absolute',
+            top: 12,
+            right: 8,
+            margin: 0,
         },
         paginationRow: {
             flexDirection: 'row',

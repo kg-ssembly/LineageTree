@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Dialog, HelperText, Portal, TextInput, useTheme } from 'react-native-paper';
+import { Button, Dialog, HelperText, IconButton, Portal, TextInput, useTheme } from 'react-native-paper';
 import type { FamilyTree } from './dto/tree';
 import { useI18n } from '../hooks/use-i18n';
 import { GlobalStyles } from '../constants/styles';
@@ -55,7 +55,8 @@ export default function TreeFormDialog({
         onDismiss={loading ? undefined : onDismiss}
         style={[dialogChrome.dialog, styles.dialog, { backgroundColor: theme.colors.surface }]}
       >
-        <Dialog.Title style={dialogChrome.dialogTitle}>{mode === 'create' ? t('Create family tree') : t('Rename family tree')}</Dialog.Title>
+        <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{mode === 'create' ? t('Create family tree') : t('Rename family tree')}</Dialog.Title>
+        <IconButton icon="close" onPress={onDismiss} disabled={loading} accessibilityLabel={t('Cancel')} style={dialogChrome.closeButton} />
         <Dialog.Content style={dialogChrome.content}>
           <TextInput
             mode="outlined"
@@ -76,7 +77,6 @@ export default function TreeFormDialog({
           </HelperText>
         </Dialog.Content>
         <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
-          <Button mode="outlined" onPress={onDismiss} disabled={loading}>{t('Cancel')}</Button>
           <Button mode="contained" onPress={handleSubmit} disabled={loading}>
             {mode === 'create' ? t('Create') : t('Save')}
           </Button>
@@ -85,4 +85,3 @@ export default function TreeFormDialog({
     </Portal>
   );
 }
-
