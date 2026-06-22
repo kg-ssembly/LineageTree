@@ -12,6 +12,7 @@ import {
   ProgressBar,
   Portal,
   Searchbar,
+  SegmentedButtons,
   Surface,
   Text,
   TextInput,
@@ -51,7 +52,7 @@ type SelfAssignmentSuggestion = {
 };
 
 type TreeManagementTabKey = 'overview' | 'collaborators' | 'approvals' | 'merges' | 'trees';
-type TreeHelperDialogKey = 'tree-management' | 'surname-variants' | 'my-place';
+type TreeHelperDialogKey = 'tree-management' | 'surname-variants' | 'my-place' | 'approval-settings';
 
 const TREE_MANAGEMENT_TABS: Array<{ key: TreeManagementTabKey; label: string }> = [
   { key: 'overview', label: 'Overview' },
@@ -73,6 +74,10 @@ const TREE_HELPER_COPY: Record<TreeHelperDialogKey, { title: string; message: st
   'my-place': {
     title: 'My place in this tree',
     message: 'Link your account to the family member profile that represents you in this tree. Once linked, you can open that profile quickly and the app can show you where you appear in the family network.',
+  },
+  'approval-settings': {
+    title: 'Approval settings',
+    message: 'Choose how collaborator profile and relationship edits are handled in this tree. Off applies changes immediately. 12, 24, and 48 hours create an approval window, and pending edits auto-approve if nobody reviews them before the deadline. Single-collaborator trees still apply changes immediately.',
   },
 };
 
@@ -672,7 +677,7 @@ export function PeopleRelationshipsTabContent({
             contentStyle={styles.filterButtonContent}
             labelStyle={styles.filterButtonLabel}
           >
-            {activeFilterCount > 0 ? `(${activeFilterCount})` : ''}
+            {activeFilterCount > 0 ? `(${activeFilterCount})` : null}
           </Button>
         </View>
 
@@ -982,7 +987,6 @@ function ProfileTabContent({
   const [linkSearchQuery, setLinkSearchQuery] = useState('');
   const [ownerLinkTargetUserId, setOwnerLinkTargetUserId] = useState<string | null>(null);
   const [ownerLinkSearchQuery, setOwnerLinkSearchQuery] = useState('');
-  const [approvalWindowInput, setApprovalWindowInput] = useState(`${selectedTree.approvalWindowHours}`);
   const [mergeTargetTreeId, setMergeTargetTreeId] = useState('');
   const [surnameVariantDraft, setSurnameVariantDraft] = useState('');
   const [surnameVariantDrafts, setSurnameVariantDrafts] = useState<string[]>([]);
@@ -1064,34 +1068,19 @@ function ProfileTabContent({
     [selectedTree],
   );
 
-  const approvalWindowDraft = useMemo(() => {
-    const trimmed = approvalWindowInput.trim().toLowerCase();
-    if (!trimmed) {
-      return approvalWindowHours;
-    }
-
-    if (trimmed === 'off' || trimmed === '0') {
-      return 0;
-    }
-
-    const parsed = Number(trimmed);
-    if (!Number.isFinite(parsed)) {
-      return approvalWindowHours;
-    }
-
-    return Math.max(0, Math.min(168, Math.round(parsed)));
-  }, [approvalWindowHours, approvalWindowInput]);
-
   const approvalsDisabled = approvalWindowHours === 0;
-  const approvalDraftDisabled = approvalWindowDraft === 0;
-  const approvalSettingDirty = approvalWindowDraft !== approvalWindowHours;
-  const approvalPreviewText = approvalDraftDisabled
-    ? 'Preview: collaborator profile and relationship changes will apply immediately. No approval queue will be created.'
-    : `Preview: collaborator changes will wait for review and auto-approve after ${approvalWindowDraft} hour${approvalWindowDraft === 1 ? '' : 's'} if nobody acts first.`;
-
-  useEffect(() => {
-    setApprovalWindowInput(`${selectedTree.approvalWindowHours}`);
-  }, [selectedTree.approvalWindowHours]);
+  const approvalWindowValue = useMemo(() => {
+    if (approvalWindowHours <= 0) {
+      return '0';
+    }
+    if (approvalWindowHours <= 12) {
+      return '12';
+    }
+    if (approvalWindowHours <= 24) {
+      return '24';
+    }
+    return '48';
+  }, [approvalWindowHours]);
 
   useEffect(() => {
     setSurnameVariantDrafts(treeSurnameVariants);
@@ -1597,40 +1586,38 @@ function ProfileTabContent({
         {activeManagementTab === 'approvals' ? (
           <View style={styles.collaboratorSectionWrap}>
             <View style={styles.treeSettingsWrap}>
-              <Text variant="titleSmall">Approval settings</Text>
-              <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-                Owners can require review for collaborator changes, or turn approvals off so updates apply immediately. Single-collaborator trees still apply immediately.
-              </Text>
+              <View style={styles.titleWithHelperRow}>
+                <Text variant="titleSmall">Approval settings</Text>
+                <IconButton
+                  icon="information-outline"
+                  size={18}
+                  style={styles.helperIconButton}
+                  onPress={() => setHelperDialog({ visible: true, key: 'approval-settings' })}
+                  accessibilityLabel="About approval settings"
+                />
+              </View>
               <View style={styles.summaryChipRow}>
                 <Chip compact icon={approvalsDisabled ? 'flash-outline' : 'timer-outline'}>
                   {approvalsDisabled ? 'Approvals off' : `Current window: ${approvalWindowHours}h`}
                 </Chip>
               </View>
-              <View style={styles.approvalWindowRow}>
-                <TextInput
-                  mode="outlined"
-                  label="Hours or 0 for off"
-                  value={approvalWindowInput}
-                  onChangeText={setApprovalWindowInput}
-                  keyboardType="number-pad"
-                  style={styles.approvalWindowInput}
-                  disabled={mutating || !isOwner}
-                />
-                {isOwner ? (
-                  <Button
-                    mode="contained-tonal"
-                    onPress={() => onSetApprovalWindowHours(approvalWindowDraft)}
-                    disabled={mutating || !approvalSettingDirty}
-                  >
-                    Save setting
-                  </Button>
-                ) : null}
-              </View>
-              <View style={[styles.approvalPreviewCard, { backgroundColor: theme.colors.surfaceVariant }]}>
-                <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-                  {approvalPreviewText}
-                </Text>
-              </View>
+              <SegmentedButtons
+                value={approvalWindowValue}
+                onValueChange={(value) => {
+                  if (!isOwner || mutating) {
+                    return;
+                  }
+                  void onSetApprovalWindowHours(Number(value));
+                }}
+                buttons={[
+                  { value: '0', label: 'Off', disabled: !isOwner || mutating },
+                  { value: '12', label: '12h', disabled: !isOwner || mutating },
+                  { value: '24', label: '24h', disabled: !isOwner || mutating },
+                  { value: '48', label: '48h', disabled: !isOwner || mutating },
+                ]}
+                style={styles.managementSegmentedButtons}
+                density="small"
+              />
             </View>
 
             <View style={styles.collaboratorSectionWrap}>
@@ -2079,9 +2066,6 @@ function ProfileTabContent({
                     <Chip compact icon="swap-horizontal">{getApprovalOperationLabel(previewApprovalRequest.operation)}</Chip>
                     <Chip compact icon="account">{previewApprovalRequest.requestedByLabel}</Chip>
                   </View>
-                  <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant, marginTop: 12 }]}>
-                    {previewApprovalRequest.description}
-                  </Text>
 
                   {previewApprovalRequest.entityType === 'person' ? (
                     <View style={{ marginTop: 16, gap: 12 }}>

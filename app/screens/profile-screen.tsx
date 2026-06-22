@@ -33,7 +33,6 @@ import type { PersonRelationshipMode } from '../../components/person-relationshi
 import type { RootStackParamList } from '../../components/dto/navigation';
 import type { PersonLifeEvent, PersonMutationPayload, PersonPhoto, PersonRecord } from '../../components/dto/person';
 import {
-  formatDate,
   formatPersonDate,
   getLifeEventTypeLabel,
   getPersonLifeSpanLabel,
@@ -235,31 +234,6 @@ function AppSettingsSection({ onSignOut, authLoading }: UserProfileTabProps) {
 
   return (
     <>
-      <Surface style={[homeStyles.profileHeroCard, { backgroundColor: theme.colors.elevation.level2 }]} elevation={2}>
-        <View style={homeStyles.profileAvatarRow}>
-          <Avatar.Text
-            size={88}
-            label={user?.displayName ? user.displayName.slice(0, 2).toUpperCase() : '??'}
-            style={{ backgroundColor: theme.colors.primaryContainer }}
-            color={theme.colors.onPrimaryContainer}
-          />
-          <View style={homeStyles.profileNameWrap}>
-            <Text variant="labelLarge" style={{ color: theme.colors.primary }}>
-              {t('Personal profile')}
-            </Text>
-            <Text variant="headlineMedium" style={{ color: theme.colors.onSurface, fontWeight: '800' }}>
-              {user?.displayName ?? t('Unknown')}
-            </Text>
-            <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 2 }}>
-              {user?.email}
-            </Text>
-            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
-              {t('Member since {date}', { date: user?.createdAt ? formatDate(new Date(user.createdAt)) : '-' })}
-            </Text>
-          </View>
-        </View>
-      </Surface>
-
       <Surface style={[treeDetailStyles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
         <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>{t('Edit profile')}</Text>
         <Text variant="bodySmall" style={[treeDetailStyles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
@@ -296,6 +270,7 @@ function AppSettingsSection({ onSignOut, authLoading }: UserProfileTabProps) {
           {t('Switch the app between light and dark viewing modes.')}
         </Text>
         <SegmentedButtons
+          key={`appearance-${theme.dark ? 'dark' : 'light'}-${preference}`}
           value={preference}
           onValueChange={(value) => setPreference(value as ThemePreference)}
           buttons={[

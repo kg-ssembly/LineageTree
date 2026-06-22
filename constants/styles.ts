@@ -1631,8 +1631,13 @@ export class GlobalStyles {
         },
         nodeInnerRow: {
             flexDirection: 'row',
-            alignItems: 'center',
+            alignItems: 'flex-start',
             gap: 10,
+        },
+        nodeAvatarColumn: {
+            alignItems: 'center',
+            width: 64,
+            flexShrink: 0,
         },
         nodeAvatarWrap: {
             flexShrink: 0,
@@ -1659,14 +1664,12 @@ export class GlobalStyles {
             flex: 1,
             minWidth: 0,
         },
-        nodeBadge: {
-            position: 'absolute',
-            top: 8,
-            right: 8,
+        nodeBadgeInline: {
             borderRadius: 20,
             paddingHorizontal: 8,
             paddingVertical: 2,
-            zIndex: 1,
+            marginTop: 6,
+            maxWidth: 64,
         },
         nodeBadgeText: {
             fontWeight: '700',

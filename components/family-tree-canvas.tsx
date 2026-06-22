@@ -297,17 +297,9 @@ const PersonNode = React.memo(function PersonNode(props: PersonNodeProps) {
             },
           ]}
       >
-        {isCurrentUser ? (
-            <View style={[styles.nodeBadge, { backgroundColor: primaryColor }]}>
-              <Text variant="labelSmall" style={[styles.nodeBadgeText, { color: onPrimaryColor }]}>You</Text>
-            </View>
-        ) : badgeLabel ? (
-            <View style={[styles.nodeBadge, { backgroundColor: tertiaryColor }]}>
-              <Text variant="labelSmall" style={[styles.nodeBadgeText, { color: onTertiaryColor }]} numberOfLines={1}>{badgeLabel}</Text>
-            </View>
-        ) : null}
         <View style={styles.nodeInnerRow}>
-          <View style={styles.nodeAvatarWrap}>
+          <View style={styles.nodeAvatarColumn}>
+            <View style={styles.nodeAvatarWrap}>
             {photo ? (
                 <Image source={{ uri: photo.url }} style={styles.nodeAvatar} />
             ) : (
@@ -315,6 +307,16 @@ const PersonNode = React.memo(function PersonNode(props: PersonNodeProps) {
                   <MaterialCommunityIcons name={getPersonFallbackAvatarIcon(person)} size={28} color={isHighlighted ? tertiaryColor : primaryColor} />
                 </View>
             )}
+            </View>
+            {isCurrentUser ? (
+              <View style={[styles.nodeBadgeInline, { backgroundColor: primaryColor }]}>
+                <Text variant="labelSmall" style={[styles.nodeBadgeText, { color: onPrimaryColor }]}>You</Text>
+              </View>
+            ) : badgeLabel ? (
+              <View style={[styles.nodeBadgeInline, { backgroundColor: tertiaryColor }]}>
+                <Text variant="labelSmall" style={[styles.nodeBadgeText, { color: onTertiaryColor }]} numberOfLines={1}>{badgeLabel}</Text>
+              </View>
+            ) : null}
           </View>
           <View style={styles.nodeTextWrap}>
             <Text variant="titleSmall" style={styles.nodeTitle} numberOfLines={2}>
