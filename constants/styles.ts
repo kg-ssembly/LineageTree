@@ -647,13 +647,20 @@ export class GlobalStyles {
             borderRadius: 20,
             padding: 22,
             marginBottom: 16,
+            position: 'relative',
+            paddingTop: 72,
         },
-        heroToolbar: {
-            marginBottom: 12,
-            alignItems: 'flex-start',
+        heroFloatingButton: {
+            position: 'absolute',
+            top: 14,
+            zIndex: 1,
+            margin: 0,
         },
-        heroToolbarButtonContent: {
-            paddingHorizontal: 0,
+        heroFloatingButtonLeft: {
+            left: 14,
+        },
+        heroFloatingButtonRight: {
+            right: 14,
         },
         heroHeader: {
             flexDirection: 'row',

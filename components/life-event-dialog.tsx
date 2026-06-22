@@ -14,6 +14,7 @@ interface LifeEventDialogProps {
   loading?: boolean;
   event?: PersonLifeEvent | null;
   onDismiss: () => void;
+  onDelete?: (() => void | Promise<void>) | null;
   onSubmit: (payload: Omit<PersonLifeEvent, 'id'>) => void | Promise<void>;
 }
 
@@ -58,6 +59,7 @@ export default function LifeEventDialog({
   loading = false,
   event,
   onDismiss,
+  onDelete,
   onSubmit,
 }: LifeEventDialogProps) {
   const theme = useTheme();
@@ -188,6 +190,11 @@ export default function LifeEventDialog({
             </ScrollView>
           </Dialog.ScrollArea>
           <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
+            {event && onDelete ? (
+              <Button onPress={onDelete} textColor={theme.colors.error} disabled={loading}>
+                Delete
+              </Button>
+            ) : null}
             <Button mode="outlined" onPress={onDismiss} disabled={loading}>Cancel</Button>
             <Button mode="contained" onPress={handleSubmit} disabled={loading}>Save</Button>
           </Dialog.Actions>
@@ -215,4 +222,3 @@ export default function LifeEventDialog({
     </>
   );
 }
-

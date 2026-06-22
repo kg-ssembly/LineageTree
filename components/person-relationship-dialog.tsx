@@ -21,6 +21,7 @@ interface PersonRelationshipDialogProps {
   loading?: boolean;
   editingRelationship?: RelationshipRecord | null;
   onDismiss: () => void;
+  onDelete?: (() => void | Promise<void>) | null;
   onSubmit: (payload: {
     mode: PersonRelationshipMode;
     relatedPersonId: string;
@@ -80,6 +81,7 @@ export default function PersonRelationshipDialog({
   loading = false,
   editingRelationship,
   onDismiss,
+  onDelete,
   onSubmit,
 }: PersonRelationshipDialogProps) {
   const theme = useTheme();
@@ -324,6 +326,11 @@ export default function PersonRelationshipDialog({
           </ScrollView>
         </Dialog.ScrollArea>
         <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
+          {editingRelationship && onDelete ? (
+            <Button onPress={onDelete} textColor={theme.colors.error} disabled={loading}>
+              Delete
+            </Button>
+          ) : null}
           <Button mode="outlined" onPress={onDismiss} disabled={loading}>Cancel</Button>
           <Button mode="contained" onPress={handleSubmit} disabled={loading || !person || candidates.length === 0 || !!validationMessage}>Save</Button>
         </Dialog.Actions>

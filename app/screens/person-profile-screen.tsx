@@ -18,7 +18,7 @@ import {
   TextInput,
   useTheme,
 } from 'react-native-paper';
-import { ConfirmDialog, FamilyTreeCanvas, LifeEventDialog, PersonFormDialog, PersonRelationshipDialog, RelationshipInsightCard } from '../../components';
+import { ConfirmDialog, FamilyTreeCanvas, HorizontalTabStrip, LifeEventDialog, PersonFormDialog, PersonRelationshipDialog, RelationshipInsightCard } from '../../components';
 import type { PersonRelationshipMode } from '../../components/person-relationship-dialog';
 import { useAuthStore } from '../../stores/auth-store';
 import { useTreeStore } from '../../stores/tree-store';
@@ -172,15 +172,15 @@ function getAscendantIds(rootPersonId: string, relationships: RelationshipRecord
 const helperDialogCopy: Record<HelperDialogKey, { title: string; message: string }> = {
   tabs: {
     title: 'Family member sections',
-    message: 'Profile shows core identity details and notes. Relationships lets you add, edit, or remove parent, child, and spouse connections. Descendant tree follows children downward through generations. Ascendant tree follows parents upward. Memories & gallery holds chronological life events, notes, and a photo gallery.',
+    message: 'Profile shows core identity details and notes. Relationships lets you add and review parent, child, and spouse connections. Descendant tree follows children downward through generations. Ascendant tree follows parents upward. Memories & gallery holds chronological life events, notes, and a photo gallery.',
   },
   'member-profile': {
     title: 'Member profile',
-    message: 'Displays the first name, last name, birth date, gender, presence status, and photo count for this family member. Personal notes are shown at the bottom of this section. Use the Edit button in the header to update any of these details.',
+    message: 'Displays the first name, last name, birth date, gender, presence status, and photo count for this family member. Personal notes are shown at the bottom of this section. Use the floating pencil button to update these details.',
   },
   relationships: {
     title: 'Relationships',
-    message: 'Add new parent, child, or spouse connections with the button above. Tap the pencil to edit an existing link or the bin to remove it. The Relationship insight tool at the bottom lets you search for the path between any two family members in the tree.',
+    message: 'Add new parent, child, or spouse connections with the button above. Open a relationship in edit mode to change or delete it. The Relationship insight tool lets you search for the path between any two family members in the tree.',
   },
   'descendant-tree': {
     title: 'Descendant tree',
@@ -192,7 +192,7 @@ const helperDialogCopy: Record<HelperDialogKey, { title: string; message: string
   },
   'memories-gallery': {
     title: 'Memories & gallery',
-    message: 'Notes capture free-form details about this family member. The photo gallery shows all uploaded images — tap any photo to open the full-screen viewer and swipe through. Life events form a date-ordered timeline of milestones such as marriage, graduation, a move, retirement, or any custom family memory.',
+    message: 'Notes capture free-form details about this family member. The photo gallery shows all uploaded images — tap any photo to open the full-screen viewer and swipe through. Life events form a date-ordered timeline of milestones such as marriage, graduation, a move, retirement, or any custom family memory. Open an event in edit mode to update or delete it.',
   },
 };
 
@@ -779,16 +779,24 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <ScrollView contentContainerStyle={styles.content}>
         <Surface style={[styles.heroCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
-          <View style={styles.heroToolbar}>
-            <Button
-              mode="text"
-              icon="arrow-left"
-              onPress={handleGoBack}
-              contentStyle={styles.heroToolbarButtonContent}
-            >
-              Back
-            </Button>
-          </View>
+          <IconButton
+            icon="home-outline"
+            mode="contained-tonal"
+            size={22}
+            onPress={handleGoBack}
+            style={[styles.heroFloatingButton, styles.heroFloatingButtonLeft]}
+            accessibilityLabel="Go back"
+          />
+          {canEdit ? (
+            <IconButton
+              icon="pencil"
+              mode="contained-tonal"
+              size={22}
+              onPress={() => setEditorVisible(true)}
+              style={[styles.heroFloatingButton, styles.heroFloatingButtonRight]}
+              accessibilityLabel="Edit family member"
+            />
+          ) : null}
           <View style={styles.heroHeader}>
             <View style={styles.heroAvatarRow}>
               {preferredPhoto ? (
@@ -815,11 +823,6 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
                 </Text>
               </View>
             </View>
-            {canEdit ? (
-              <Button mode="contained-tonal" icon="pencil" onPress={() => setEditorVisible(true)}>
-                Edit family member
-              </Button>
-            ) : null}
           </View>
 
           {showClaimBox ? (
@@ -946,27 +949,14 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
               ) : null}
             </View>
 
-            <View style={[styles.tabStripCard, styles.relationshipTabStripCard, { backgroundColor: theme.colors.surface }]}>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabStripContent}>
-                {RELATIONSHIP_SECTION_TABS.map((tab) => {
-                  const isActive = relationshipSectionTab === tab.key;
-                  return (
-                    <Pressable
-                      key={tab.key}
-                      onPress={() => setRelationshipSectionTab(tab.key)}
-                      style={[
-                        styles.tabStripItem,
-                        isActive && { borderBottomColor: theme.colors.primary, borderBottomWidth: 2 },
-                      ]}
-                    >
-                      <Text variant="labelLarge" style={{ color: isActive ? theme.colors.primary : theme.colors.onSurfaceVariant }}>
-                        {tab.label}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
-            </View>
+            <HorizontalTabStrip
+              items={RELATIONSHIP_SECTION_TABS}
+              activeKey={relationshipSectionTab}
+              onChange={setRelationshipSectionTab}
+              containerStyle={[styles.tabStripCard, styles.relationshipTabStripCard, { backgroundColor: theme.colors.surface }]}
+              contentContainerStyle={styles.tabStripContent}
+              itemStyle={styles.tabStripItem}
+            />
 
             {relationshipSectionTab === 'insight' ? (
               <RelationshipInsightCard
@@ -994,20 +984,6 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
                             <IconButton
                               icon="pencil"
                               onPress={() => setRelationshipDialog({ visible: true, relationship: entry.relationship })}
-                              disabled={mutating}
-                            />
-                            <IconButton
-                              icon="delete"
-                              iconColor="#C62828"
-                              onPress={() => openConfirm(
-                                'Remove relationship',
-                                `Remove the ${entry.title.toLowerCase()} connection?`,
-                                'Remove',
-                                async () => {
-                                  if (!user?.id) return;
-                                  await removeRelationship(user.id, entry.relationship.id);
-                                },
-                              )}
                               disabled={mutating}
                             />
                           </View>
@@ -1121,27 +1097,14 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
               />
             </View>
 
-            <View style={[styles.tabStripCard, { backgroundColor: theme.colors.surface }]}>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabStripContent}>
-                {MEMORY_SECTION_TABS.map((tab) => {
-                  const isActive = memorySectionTab === tab.key;
-                  return (
-                    <Pressable
-                      key={tab.key}
-                      onPress={() => setMemorySectionTab(tab.key)}
-                      style={[
-                        styles.tabStripItem,
-                        isActive && { borderBottomColor: theme.colors.primary, borderBottomWidth: 2 },
-                      ]}
-                    >
-                      <Text variant="labelLarge" style={{ color: isActive ? theme.colors.primary : theme.colors.onSurfaceVariant }}>
-                        {tab.label}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
-            </View>
+            <HorizontalTabStrip
+              items={MEMORY_SECTION_TABS}
+              activeKey={memorySectionTab}
+              onChange={setMemorySectionTab}
+              containerStyle={[styles.tabStripCard, { backgroundColor: theme.colors.surface }]}
+              contentContainerStyle={styles.tabStripContent}
+              itemStyle={styles.tabStripItem}
+            />
 
             {memorySectionTab === 'notes' ? (
               <View style={[styles.notesBox, { backgroundColor: theme.colors.surfaceVariant }]}>
@@ -1229,17 +1192,6 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
                                   onPress={() => setLifeEventDialog({ visible: true, event: editableEvent })}
                                   disabled={mutating}
                                 />
-                                <IconButton
-                                  icon="delete"
-                                  iconColor="#C62828"
-                                  onPress={() => openConfirm(
-                                    'Delete life event',
-                                    `Delete the "${editableEvent.title}" memory from ${formatPersonName(person)}?`,
-                                    'Delete',
-                                    async () => handleDeleteLifeEvent(editableEvent),
-                                  )}
-                                  disabled={mutating}
-                                />
                               </View>
                             ) : null}
                           </View>
@@ -1301,6 +1253,18 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
         loading={mutating}
         editingRelationship={relationshipDialog.relationship}
         onDismiss={() => setRelationshipDialog({ visible: false, relationship: null })}
+        onDelete={relationshipDialog.relationship ? async () => {
+          openConfirm(
+            'Remove relationship',
+            'Remove this family connection?',
+            'Remove',
+            async () => {
+              if (!user?.id) return;
+              await removeRelationship(user.id, relationshipDialog.relationship!.id);
+              setRelationshipDialog({ visible: false, relationship: null });
+            },
+          );
+        } : undefined}
         onSubmit={handleRelationshipSubmit}
       />
 
@@ -1309,6 +1273,17 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
         loading={mutating}
         event={lifeEventDialog.event}
         onDismiss={() => setLifeEventDialog({ visible: false, event: null })}
+        onDelete={lifeEventDialog.event ? async () => {
+          openConfirm(
+            'Delete life event',
+            `Delete the "${lifeEventDialog.event!.title}" memory from ${formatPersonName(person)}?`,
+            'Delete',
+            async () => {
+              await handleDeleteLifeEvent(lifeEventDialog.event!);
+              setLifeEventDialog({ visible: false, event: null });
+            },
+          );
+        } : undefined}
         onSubmit={handleLifeEventSubmit}
       />
 

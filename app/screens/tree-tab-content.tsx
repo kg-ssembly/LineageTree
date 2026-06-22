@@ -17,6 +17,7 @@ import {
   TextInput,
   useTheme,
 } from 'react-native-paper';
+import { HorizontalTabStrip } from '../../components';
 import { canUserReviewApprovalRequest, isApprovalExpired, type ApprovalRequest } from '../../components/dto/approval';
 import type { MergeHistoryRecord, MergeRequestRecord } from '../../components/dto/merge';
 import { FamilyTreeCanvas } from '../../components';
@@ -50,6 +51,7 @@ type SelfAssignmentSuggestion = {
 };
 
 type TreeManagementTabKey = 'overview' | 'collaborators' | 'approvals' | 'merges' | 'trees';
+type TreeHelperDialogKey = 'tree-management' | 'surname-variants' | 'my-place';
 
 const TREE_MANAGEMENT_TABS: Array<{ key: TreeManagementTabKey; label: string }> = [
   { key: 'overview', label: 'Overview' },
@@ -58,6 +60,21 @@ const TREE_MANAGEMENT_TABS: Array<{ key: TreeManagementTabKey; label: string }> 
   { key: 'merges', label: 'Merges' },
   { key: 'trees', label: 'My Trees' },
 ];
+
+const TREE_HELPER_COPY: Record<TreeHelperDialogKey, { title: string; message: string }> = {
+  'tree-management': {
+    title: 'Tree management',
+    message: 'Overview shows key stats and your account link in this tree. Collaborators manages who has access. Approvals shows pending edits awaiting review and lets you adjust the auto-approve window.',
+  },
+  'surname-variants': {
+    title: 'Surname variants',
+    message: 'Surname variants belong to this tree as one shared list. Add alternate spellings or related surnames here so search and merge suggestions can recognize them across the whole tree.',
+  },
+  'my-place': {
+    title: 'My place in this tree',
+    message: 'Link your account to the family member profile that represents you in this tree. Once linked, you can open that profile quickly and the app can show you where you appear in the family network.',
+  },
+};
 
 const settingsTabStripStyles = StyleSheet.create({
   card: {
@@ -953,7 +970,10 @@ function ProfileTabContent({
   onSwitchTree,
 }: SharedTabProps) {
   const theme = useTheme();
-  const [helperVisible, setHelperVisible] = useState(false);
+  const [helperDialog, setHelperDialog] = useState<{ visible: boolean; key: TreeHelperDialogKey }>({
+    visible: false,
+    key: 'tree-management',
+  });
   const [activeManagementTab, setActiveManagementTab] = useState<TreeManagementTabKey>('overview');
   const [showLinkChooser, setShowLinkChooser] = useState(false);
   const [linkSearchQuery, setLinkSearchQuery] = useState('');
@@ -961,11 +981,15 @@ function ProfileTabContent({
   const [ownerLinkSearchQuery, setOwnerLinkSearchQuery] = useState('');
   const [approvalWindowInput, setApprovalWindowInput] = useState(`${selectedTree.approvalWindowHours}`);
   const [mergeTargetTreeId, setMergeTargetTreeId] = useState('');
-  const [surnamePrimary, setSurnamePrimary] = useState('');
   const [surnameVariantDraft, setSurnameVariantDraft] = useState('');
   const [surnameVariantDrafts, setSurnameVariantDrafts] = useState<string[]>([]);
   const [surnameVariantDialogVisible, setSurnameVariantDialogVisible] = useState(false);
   const [previewApprovalRequest, setPreviewApprovalRequest] = useState<ApprovalRequest | null>(null);
+
+  const treeSurnameVariants = useMemo(
+    () => [...new Set(selectedTree.surnameVariantGroups.flatMap((group) => [group.primarySurname, ...group.variants]).map((value) => value.trim()).filter(Boolean))],
+    [selectedTree.surnameVariantGroups],
+  );
 
   const unlinkedCollaboratorCount = useMemo(
     () => getUnlinkedCollaborators(selectedTree).filter((collaborator) => collaborator.userId !== userId).length,
@@ -1066,6 +1090,10 @@ function ProfileTabContent({
     setApprovalWindowInput(`${selectedTree.approvalWindowHours}`);
   }, [selectedTree.approvalWindowHours]);
 
+  useEffect(() => {
+    setSurnameVariantDrafts(treeSurnameVariants);
+  }, [treeSurnameVariants]);
+
   const handleSelfLink = async (personId: string) => {
     if (!userId || currentAssignedPerson) {
       return;
@@ -1087,27 +1115,26 @@ function ProfileTabContent({
     setOwnerLinkSearchQuery('');
   };
 
-  const handleAddSurnameGroup = async () => {
-    const primarySurname = surnamePrimary.trim();
-    if (!primarySurname) {
+  const handleSaveSurnameVariants = async () => {
+    const normalizedVariants = [...new Set(surnameVariantDrafts.map((value) => value.trim()).filter(Boolean))];
+    if (normalizedVariants.length === 0) {
+      await onSetSurnameVariantGroups([]);
+      setSurnameVariantDialogVisible(false);
       return;
     }
 
+    const existingGroup = selectedTree.surnameVariantGroups[0];
     await onSetSurnameVariantGroups([
-      ...selectedTree.surnameVariantGroups,
       {
-        id: `${selectedTree.id}-${Date.now()}`,
-        primarySurname,
-        variants: surnameVariantDrafts,
-        notes: '',
-        createdAt: new Date().toISOString(),
+        id: existingGroup?.id ?? `${selectedTree.id}-surname-variants`,
+        primarySurname: normalizedVariants[0],
+        variants: normalizedVariants.slice(1),
+        notes: existingGroup?.notes ?? '',
+        createdAt: existingGroup?.createdAt ?? new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       },
     ]);
 
-    setSurnamePrimary('');
-    setSurnameVariantDraft('');
-    setSurnameVariantDrafts([]);
     setSurnameVariantDialogVisible(false);
   };
 
@@ -1157,32 +1184,19 @@ function ProfileTabContent({
             icon="information-outline"
             size={20}
             style={styles.helperIconButton}
-            onPress={() => setHelperVisible(true)}
+            onPress={() => setHelperDialog({ visible: true, key: 'tree-management' })}
             accessibilityLabel="About tree management"
           />
         </View>
 
-        <Surface style={[settingsTabStripStyles.card, { backgroundColor: theme.colors.surface }]} elevation={0}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={settingsTabStripStyles.content}>
-            {TREE_MANAGEMENT_TABS.map((tab) => {
-              const isActive = activeManagementTab === tab.key;
-              return (
-                <Pressable
-                  key={tab.key}
-                  onPress={() => setActiveManagementTab(tab.key)}
-                  style={[
-                    settingsTabStripStyles.item,
-                    isActive && { borderBottomColor: theme.colors.primary, borderBottomWidth: 2 },
-                  ]}
-                >
-                  <Text variant="labelLarge" style={{ color: isActive ? theme.colors.primary : theme.colors.onSurfaceVariant }}>
-                    {tab.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-        </Surface>
+        <HorizontalTabStrip
+          items={TREE_MANAGEMENT_TABS}
+          activeKey={activeManagementTab}
+          onChange={setActiveManagementTab}
+          containerStyle={[settingsTabStripStyles.card, { backgroundColor: theme.colors.surface }]}
+          contentContainerStyle={settingsTabStripStyles.content}
+          itemStyle={settingsTabStripStyles.item}
+        />
 
         {activeManagementTab === 'overview' ? (
           <>
@@ -1205,63 +1219,47 @@ function ProfileTabContent({
                         icon="information-outline"
                         size={18}
                         style={styles.helperIconButton}
-                        onPress={() => setHelperVisible(true)}
+                        onPress={() => setHelperDialog({ visible: true, key: 'surname-variants' })}
                         accessibilityLabel="About surname variants"
                       />
                     </View>
                   </View>
                 </View>
 
-                {selectedTree.surnameVariantGroups.length > 0 ? (
-                  <View style={styles.assignmentSuggestionList}>
-                    {selectedTree.surnameVariantGroups.map((group) => (
-                      <View key={group.id} style={{ marginBottom: 12 }}>
-                        <Text variant="titleMedium">{group.primarySurname}</Text>
-                        <View style={styles.collaboratorChipRow}>
-                          {group.variants.map((variant) => <Chip key={`${group.id}-${variant}`} compact>{variant}</Chip>)}
-                          {group.variants.length === 0 ? <Chip compact icon="information-outline">No variants yet</Chip> : null}
-                        </View>
-                      </View>
-                    ))}
+                {treeSurnameVariants.length > 0 ? (
+                  <View style={styles.collaboratorChipRow}>
+                    {treeSurnameVariants.map((variant) => <Chip key={`tree-variant-${variant}`} compact>{variant}</Chip>)}
                   </View>
                 ) : (
                   <Text variant="bodySmall" style={[styles.assignmentHelperText, { color: theme.colors.onSurfaceVariant }]}>
-                    No surname families have been defined yet. Add them below so searches and merge suggestions can recognize related spellings.
+                    No surname variants have been added yet. Add them below so searches and merge suggestions can recognize related spellings.
                   </Text>
                 )}
 
                 {isOwner || role === 'editor' ? (
                   <View style={{ marginTop: 8 }}>
-                    <TextInput
-                      mode="outlined"
-                      label="Primary surname"
-                      value={surnamePrimary}
-                      onChangeText={setSurnamePrimary}
-                      style={{ marginBottom: 8 }}
-                    />
                     <Button
                       mode="outlined"
-                      icon="shape-outline"
-                      onPress={() => setSurnameVariantDialogVisible(true)}
+                      icon="shape-plus-outline"
+                      onPress={() => {
+                        setSurnameVariantDraft('');
+                        setSurnameVariantDrafts(treeSurnameVariants);
+                        setSurnameVariantDialogVisible(true);
+                      }}
                       style={{ marginBottom: 8 }}
                     >
-                      {surnameVariantDrafts.length > 0 ? `Manage variants (${surnameVariantDrafts.length})` : 'Manage variants'}
+                      {treeSurnameVariants.length > 0 ? `Manage variants (${treeSurnameVariants.length})` : 'Manage variants'}
                     </Button>
                     <View style={[styles.collaboratorChipRow, styles.surnameVariantDraftsRow]}>
-                      {surnameVariantDrafts.length > 0 ? surnameVariantDrafts.map((variant) => (
+                      {treeSurnameVariants.length > 0 ? treeSurnameVariants.map((variant) => (
                         <Chip
-                          key={`draft-${variant}`}
+                          key={`saved-${variant}`}
                           compact
-                          icon="close-circle-outline"
-                          onPress={() => handleRemoveSurnameVariantDraft(variant)}
                         >
                           {variant}
                         </Chip>
                       )) : <Chip compact icon="information-outline">No variants added yet</Chip>}
                     </View>
-                    <Button mode="contained-tonal" icon="plus" onPress={handleAddSurnameGroup} disabled={mutating || !surnamePrimary.trim()} style={styles.surnameGroupButton}>
-                      Add surname group
-                    </Button>
                   </View>
                 ) : null}
               </Card.Content>
@@ -1276,7 +1274,7 @@ function ProfileTabContent({
                       icon="information-outline"
                       size={18}
                       style={styles.helperIconButton}
-                      onPress={() => setHelperVisible(true)}
+                      onPress={() => setHelperDialog({ visible: true, key: 'my-place' })}
                       accessibilityLabel="About my place in this tree"
                     />
                   </View>
@@ -1981,11 +1979,18 @@ function ProfileTabContent({
       <Portal>
         <Dialog
           visible={surnameVariantDialogVisible}
-          onDismiss={() => setSurnameVariantDialogVisible(false)}
+          onDismiss={() => {
+            setSurnameVariantDraft('');
+            setSurnameVariantDrafts(treeSurnameVariants);
+            setSurnameVariantDialogVisible(false);
+          }}
           style={[dialogChrome.dialog, { backgroundColor: theme.colors.surface }]}
         >
           <Dialog.Title style={dialogChrome.dialogTitle}>Manage surname variants</Dialog.Title>
           <Dialog.Content style={dialogChrome.content}>
+            <Text variant="bodySmall" style={{ marginBottom: 12, color: theme.colors.onSurfaceVariant }}>
+              Add every alternate spelling or related surname that should be recognized anywhere in this tree.
+            </Text>
             <TextInput
               mode="outlined"
               label="Add variant"
@@ -2017,23 +2022,30 @@ function ProfileTabContent({
             </View>
           </Dialog.Content>
           <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
-            <Button onPress={() => setSurnameVariantDialogVisible(false)}>Done</Button>
+            <Button onPress={() => {
+              setSurnameVariantDraft('');
+              setSurnameVariantDrafts(treeSurnameVariants);
+              setSurnameVariantDialogVisible(false);
+            }}>
+              Cancel
+            </Button>
+            <Button mode="contained" onPress={handleSaveSurnameVariants} disabled={mutating}>
+              Save
+            </Button>
           </Dialog.Actions>
         </Dialog>
 
         <Dialog
-          visible={helperVisible}
-          onDismiss={() => setHelperVisible(false)}
+          visible={helperDialog.visible}
+          onDismiss={() => setHelperDialog((current) => ({ ...current, visible: false }))}
           style={[dialogChrome.dialog, { backgroundColor: theme.colors.surface }]}
         >
-          <Dialog.Title style={dialogChrome.dialogTitle}>Tree management</Dialog.Title>
+          <Dialog.Title style={dialogChrome.dialogTitle}>{TREE_HELPER_COPY[helperDialog.key].title}</Dialog.Title>
           <Dialog.Content style={dialogChrome.content}>
-            <Text variant="bodyMedium">
-              Overview shows key stats and lets you link your account to a family member profile. Collaborators manages who has access - owners can add, remove, or change roles, and can suggest a person link for any unlinked member. Approvals shows pending edits awaiting another collaborator's review; you can also set the auto-approve window here.
-            </Text>
+            <Text variant="bodyMedium">{TREE_HELPER_COPY[helperDialog.key].message}</Text>
           </Dialog.Content>
           <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
-            <Button onPress={() => setHelperVisible(false)}>Close</Button>
+            <Button onPress={() => setHelperDialog((current) => ({ ...current, visible: false }))}>Close</Button>
           </Dialog.Actions>
         </Dialog>
 
