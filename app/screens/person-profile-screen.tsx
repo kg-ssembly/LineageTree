@@ -965,8 +965,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
                 people={people}
                 relationships={relationships}
                 lockedFromPersonId={person.id}
-                title={`How ${formatPersonName(person)} relates to others`}
-                subtitle={`Pick another family member to see how they connect to ${formatPersonName(person)}.`}
+                title={`How does ${formatPersonName(person)} relate to...`}
               />
             ) : relationshipEntries.length > 0 ? (
               <>

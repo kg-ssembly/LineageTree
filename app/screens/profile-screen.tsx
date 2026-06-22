@@ -364,6 +364,7 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
     addSpouseRelationship,
     editRelationship,
     removeRelationship,
+    selectTree,
     clearError,
     clearNotice,
   } = useTreeStore();
@@ -401,9 +402,19 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
     [selectedTreeId, trees],
   );
 
+  const defaultTree = useMemo(
+    () => trees.find((tree) => tree.id === user?.defaultTreeId) ?? null,
+    [trees, user?.defaultTreeId],
+  );
+
   const peopleById = useMemo(
     () => new Map(people.map((person) => [person.id, person])),
     [people],
+  );
+
+  const defaultAssignedPersonId = useMemo(
+    () => (defaultTree ? getAssignedPersonId(defaultTree, user?.id) : null),
+    [defaultTree, user?.id],
   );
 
   const currentAssignedPersonId = useMemo(
@@ -411,22 +422,120 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
     [selectedTree, user?.id],
   );
 
+  const profileTree = useMemo(
+    () => {
+      if (defaultTree && defaultAssignedPersonId) {
+        return defaultTree;
+      }
+
+      if (selectedTree && currentAssignedPersonId) {
+        return selectedTree;
+      }
+
+      return defaultTree ?? selectedTree ?? null;
+    },
+    [currentAssignedPersonId, defaultAssignedPersonId, defaultTree, selectedTree],
+  );
+
+  const profileAssignedPersonId = useMemo(
+    () => {
+      if (profileTree?.id === defaultTree?.id) {
+        return defaultAssignedPersonId;
+      }
+
+      if (profileTree?.id === selectedTree?.id) {
+        return currentAssignedPersonId;
+      }
+
+      return defaultAssignedPersonId ?? currentAssignedPersonId;
+    },
+    [currentAssignedPersonId, defaultAssignedPersonId, defaultTree?.id, profileTree?.id, selectedTree?.id],
+  );
+
   const currentAssignedPerson = useMemo(
-    () => (currentAssignedPersonId ? peopleById.get(currentAssignedPersonId) ?? null : null),
-    [currentAssignedPersonId, peopleById],
+    () => (profileAssignedPersonId ? peopleById.get(profileAssignedPersonId) ?? null : null),
+    [peopleById, profileAssignedPersonId],
   );
 
   const canEditLinkedProfile = useMemo(
-    () => Boolean(selectedTree && canEditTreeContent(selectedTree, user?.id)),
-    [selectedTree, user?.id],
+    () => Boolean(profileTree && canEditTreeContent(profileTree, user?.id)),
+    [profileTree, user?.id],
+  );
+
+  const needsDefaultTreeSelection = Boolean(
+    user?.defaultTreeId
+    && defaultTree
+    && selectedTreeId !== user.defaultTreeId,
+  );
+
+  const needsAssignedPersonHydration = Boolean(
+    profileTree
+    && profileAssignedPersonId
+    && (!selectedTreeId || selectedTreeId === profileTree.id)
+    && !currentAssignedPerson,
   );
 
   const shouldShowLinkedProfileTabs = Boolean(
-    selectedTree
-    && user?.defaultTreeId
-    && selectedTree.id === user.defaultTreeId
+    profileTree
+    && profileAssignedPersonId
     && currentAssignedPerson,
   );
+
+  const fallbackProfileState = useMemo(() => {
+    if (trees.length === 0) {
+      return {
+        title: 'Create or join a tree',
+        summary: 'You can unlock the rest of this profile workspace once you create or join a family tree.',
+        detail: 'Open the tree settings tab to create your first tree or accept access to a shared tree.',
+      };
+    }
+
+    if (!user?.defaultTreeId) {
+      return {
+        title: 'Choose a default tree',
+        summary: 'You already have a family tree, but no default tree has been chosen for this profile workspace yet.',
+        detail: 'Open the tree settings tab to mark one of your trees as the default tree.',
+      };
+    }
+
+    if (!defaultTree) {
+      if (selectedTree && currentAssignedPersonId) {
+        return {
+          title: 'Linked profile available',
+          summary: `You are linked in "${selectedTree.name}", but your saved default tree is not available right now.`,
+          detail: 'The profile tabs should still open from this linked tree. If not, reopen the profile tab or choose a new default tree in tree settings.',
+        };
+      }
+
+      return {
+        title: 'Reconnect your default tree',
+        summary: 'Your account still points to a default tree, but that tree is not available right now.',
+        detail: 'Open the tree settings tab to pick a new default tree or rejoin the original tree if you still need access.',
+      };
+    }
+
+    if (!defaultAssignedPersonId && !currentAssignedPersonId) {
+      return {
+        title: 'Link or claim your family profile',
+        summary: `You have a tree ready, but your account is not linked to a family member profile yet${defaultTree ? ` in "${defaultTree.name}"` : ''}.`,
+        detail: 'Open the tree settings tab to link yourself to an existing person or claim your profile there.',
+      };
+    }
+
+    if (!currentAssignedPerson) {
+      return {
+        title: 'Loading your family profile',
+        summary: `Your account is linked${profileTree ? ` in "${profileTree.name}"` : ''}, and we are still loading that family member profile.`,
+        detail: 'This should resolve in a moment. If it does not, reopen the profile tab.',
+      };
+    }
+
+    return {
+      title: 'Profile workspace',
+      summary: 'Your profile workspace is getting ready.',
+      detail: 'If this message stays here, reopen the profile tab.',
+    };
+  }, [currentAssignedPerson, currentAssignedPersonId, defaultAssignedPersonId, defaultTree, profileTree, selectedTree, trees.length, user?.defaultTreeId]);
 
   const linkedPerson = currentAssignedPerson;
   const preferredPhoto = getPreferredPersonPhoto(linkedPerson);
@@ -527,6 +636,18 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
       setSnackVisible(true);
     }
   }, [error, notice]);
+
+  useEffect(() => {
+    if (!user?.defaultTreeId || selectedTreeId === user.defaultTreeId) {
+      return;
+    }
+
+    if (!defaultTree) {
+      return;
+    }
+
+    selectTree(user.defaultTreeId);
+  }, [defaultTree, selectTree, selectedTreeId, user?.defaultTreeId]);
 
   useEffect(() => {
     if (!shouldShowLinkedProfileTabs && activeTab !== 'app-settings') {
@@ -791,7 +912,7 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
   const viewerWidth = Dimensions.get('window').width;
   const viewerHeight = Dimensions.get('window').height;
 
-  if (loadingTrees || loadingTreeData) {
+  if (loadingTrees || loadingTreeData || needsDefaultTreeSelection || needsAssignedPersonHydration) {
     return (
       <View style={[personProfileStyles.loadingContainer, { backgroundColor: theme.colors.background }]}>
         <ActivityIndicator color={theme.colors.primary} />
@@ -862,7 +983,7 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
                   {user?.email}
                 </Text>
                 <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
-                  Create or join a family tree, then link or claim yourself there to unlock the rest of your profile workspace.
+                  {fallbackProfileState.summary}
                 </Text>
               </View>
             </View>
@@ -885,12 +1006,12 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
 
         {!shouldShowLinkedProfileTabs ? (
           <Surface style={[treeDetailStyles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
-            <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>Link your family profile</Text>
+            <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>{fallbackProfileState.title}</Text>
             <Text variant="bodyMedium" style={[treeDetailStyles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-              You can access more of your profile here once you have a family tree and are linked to or have claimed your person in that tree.
+              {fallbackProfileState.summary}
             </Text>
             <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-              Open the tree settings tab to create a tree, choose your default tree, or link yourself to an existing family member profile.
+              {fallbackProfileState.detail}
             </Text>
           </Surface>
         ) : null}
@@ -973,8 +1094,7 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
                 people={people}
                 relationships={relationships}
                 lockedFromPersonId={linkedPerson.id}
-                title={`How ${formatPersonName(linkedPerson)} relates to others`}
-                subtitle={`Pick another family member to see how they connect to ${formatPersonName(linkedPerson)}.`}
+                title={`How does ${formatPersonName(linkedPerson)} relate to...`}
               />
             ) : relationshipEntries.length > 0 ? (
               <View style={personProfileStyles.relationshipList}>
