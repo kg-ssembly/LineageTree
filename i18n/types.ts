@@ -9,8 +9,7 @@ export type AppLanguage =
   | 'ts'
   | 'ss'
   | 've'
-  | 'nr'
-  | 'sasl';
+  | 'nr';
 
 export type TranslationMap = Record<string, string>;
 

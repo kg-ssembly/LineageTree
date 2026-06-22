@@ -43,6 +43,8 @@ import {
   type SurnameVariantGroup,
 } from '../../components/dto/tree';
 import { GlobalStyles } from '../../constants/styles';
+import { translate } from '../../i18n';
+import { useI18n } from '../../hooks/use-i18n';
 const dialogChrome = GlobalStyles.dialogChrome;
 
 type SelfAssignmentSuggestion = {
@@ -164,7 +166,7 @@ const styles = GlobalStyles.treeDetail;
 
 function formatRole(role: string | null | undefined) {
   if (!role) {
-    return 'Shared';
+    return translate('Shared');
   }
 
   return role.charAt(0).toUpperCase() + role.slice(1);
@@ -186,7 +188,7 @@ type ApprovalPreviewField = {
 
 function formatApprovalValue(value?: string | null, emptyLabel = 'Not provided') {
   if (!value?.trim()) {
-    return emptyLabel;
+    return translate(emptyLabel);
   }
 
   return value.trim();
@@ -194,7 +196,7 @@ function formatApprovalValue(value?: string | null, emptyLabel = 'Not provided')
 
 function formatApprovalList(values?: string[] | null, emptyLabel = 'None') {
   if (!values?.length) {
-    return emptyLabel;
+    return translate(emptyLabel);
   }
 
   return values.join(', ');
@@ -202,18 +204,18 @@ function formatApprovalList(values?: string[] | null, emptyLabel = 'None') {
 
 function formatApprovalLifeEvents(person?: PersonRecord | null) {
   if (!person?.lifeEvents?.length) {
-    return 'None';
+    return translate('None');
   }
 
-  return `${person.lifeEvents.length} recorded`;
+  return translate('{count} recorded', { count: person.lifeEvents.length });
 }
 
 function formatApprovalPhotos(person?: PersonRecord | null) {
   if (!person?.photos?.length) {
-    return 'None';
+    return translate('None');
   }
 
-  return `${person.photos.length} photo${person.photos.length === 1 ? '' : 's'}`;
+  return translate('{count} photo(s)', { count: person.photos.length });
 }
 
 function buildPersonApprovalPreviewFields(beforePerson?: PersonRecord | null, afterPerson?: PersonRecord | null): ApprovalPreviewField[] {
@@ -227,15 +229,15 @@ function buildPersonApprovalPreviewFields(beforePerson?: PersonRecord | null, af
     { label: 'Maiden name', before: formatApprovalValue(beforePerson?.maidenName), after: formatApprovalValue(afterPerson?.maidenName) },
     { label: 'Nicknames', before: formatApprovalList(beforePerson?.nicknames), after: formatApprovalList(afterPerson?.nicknames) },
     { label: 'Gender', before: beforePerson ? formatPersonGender(beforePerson.gender) : null, after: afterPerson ? formatPersonGender(afterPerson.gender) : null },
-    { label: 'Birth date', before: beforePerson?.birthDate ? formatPersonDate(beforePerson.birthDate) : 'Unknown', after: afterPerson?.birthDate ? formatPersonDate(afterPerson.birthDate) : 'Unknown' },
-    { label: 'Death date', before: beforePerson?.deathDate ? formatPersonDate(beforePerson.deathDate) : 'Present', after: afterPerson?.deathDate ? formatPersonDate(afterPerson.deathDate) : 'Present' },
+    { label: 'Birth date', before: beforePerson?.birthDate ? formatPersonDate(beforePerson.birthDate) : translate('Unknown'), after: afterPerson?.birthDate ? formatPersonDate(afterPerson.birthDate) : translate('Unknown') },
+    { label: 'Death date', before: beforePerson?.deathDate ? formatPersonDate(beforePerson.deathDate) : translate('Present'), after: afterPerson?.deathDate ? formatPersonDate(afterPerson.deathDate) : translate('Present') },
     { label: 'Birth place', before: formatApprovalValue(beforePerson?.birthPlace), after: formatApprovalValue(afterPerson?.birthPlace) },
     { label: 'Hometown', before: formatApprovalValue(beforePerson?.hometown), after: formatApprovalValue(afterPerson?.hometown) },
     { label: 'Clan name', before: formatApprovalValue(beforePerson?.clanName), after: formatApprovalValue(afterPerson?.clanName) },
     { label: 'Family branch', before: formatApprovalValue(beforePerson?.familyBranch), after: formatApprovalValue(afterPerson?.familyBranch) },
     { label: 'Life events', before: formatApprovalLifeEvents(beforePerson), after: formatApprovalLifeEvents(afterPerson) },
     { label: 'Photos', before: formatApprovalPhotos(beforePerson), after: formatApprovalPhotos(afterPerson) },
-    { label: 'Notes', before: formatApprovalValue(beforePerson?.notes, 'No notes'), after: formatApprovalValue(afterPerson?.notes, 'No notes') },
+    { label: 'Notes', before: formatApprovalValue(beforePerson?.notes, translate('No notes')), after: formatApprovalValue(afterPerson?.notes, translate('No notes')) },
   ];
 
   if (!beforePerson || !afterPerson) {
@@ -246,12 +248,12 @@ function buildPersonApprovalPreviewFields(beforePerson?: PersonRecord | null, af
 }
 
 function formatRelationshipType(type: RelationshipRecord['type']) {
-  return type === 'spouse' ? 'Spouse' : 'Parent-child';
+  return type === 'spouse' ? translate('Spouse') : translate('Parent-child');
 }
 
 function formatRelationshipStatus(value?: RelationshipRecord['relationshipStatus']) {
   if (!value) {
-    return 'Not set';
+    return translate('Not set');
   }
 
   return value.charAt(0).toUpperCase() + value.slice(1);
@@ -259,7 +261,7 @@ function formatRelationshipStatus(value?: RelationshipRecord['relationshipStatus
 
 function formatParentChildKind(value?: RelationshipRecord['parentChildKind']) {
   if (!value) {
-    return 'Not set';
+    return translate('Not set');
   }
 
   return value.charAt(0).toUpperCase() + value.slice(1);
@@ -270,7 +272,7 @@ function formatRelationshipPeople(
   peopleById: Map<string, PersonRecord>,
 ) {
   if (!relationship) {
-    return 'Unknown people';
+    return translate('Unknown people');
   }
 
   const fromPerson = peopleById.get(relationship.fromPersonId);
@@ -325,15 +327,15 @@ function buildRelationshipApprovalPreviewFields(
 function getApprovalOperationLabel(operation: ApprovalRequest['operation']) {
   switch (operation) {
     case 'update-person':
-      return 'Update profile';
+      return translate('Update profile');
     case 'delete-person':
-      return 'Delete profile';
+      return translate('Delete profile');
     case 'create-relationship':
-      return 'Create relationship';
+      return translate('Create relationship');
     case 'update-relationship':
-      return 'Update relationship';
+      return translate('Update relationship');
     case 'delete-relationship':
-      return 'Delete relationship';
+      return translate('Delete relationship');
     default:
       return operation;
   }
@@ -488,6 +490,7 @@ export function PeopleRelationshipsTabContent({
   onOpenAddPerson,
 }: SharedTabProps) {
   const theme = useTheme();
+  const { t } = useI18n();
   const [helperVisible, setHelperVisible] = useState(false);
   const [filterModalVisible, setFilterModalVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -615,7 +618,7 @@ export function PeopleRelationshipsTabContent({
           <View style={styles.memberListInfo}>
             <View style={styles.personNameRow}>
               <Text variant="titleMedium">{formatPersonName(person)}</Text>
-              {isCurrentUsersPerson ? <Chip compact icon="account">You</Chip> : null}
+              {isCurrentUsersPerson ? <Chip compact icon="account">{t('You')}</Chip> : null}
             </View>
             <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant, marginTop: 6 }]}>
               {[person.birthDate ? formatPersonDate(person.birthDate) : null, getPersonPresenceLabel(person)]
@@ -637,29 +640,29 @@ export function PeopleRelationshipsTabContent({
         <View style={styles.sectionHeader}>
           <View style={styles.titleWrap}>
             <View style={styles.titleWithHelperRow}>
-              <Text variant="titleLarge">Family members</Text>
+              <Text variant="titleLarge">{t('Family members')}</Text>
               <IconButton
                 icon="information-outline"
                 size={20}
                 style={styles.helperIconButton}
                 onPress={() => setHelperVisible(true)}
-                accessibilityLabel="About family members"
+                accessibilityLabel={t('About family members')}
               />
             </View>
             <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-              Tap a card to open a profile.
+              {t('Tap a card to open a profile.')}
             </Text>
           </View>
           {canEdit ? (
             <Button mode="contained" icon="account-plus" onPress={onOpenAddPerson} disabled={mutating}>
-              Add
+              {t('Add')}
             </Button>
           ) : null}
         </View>
 
         <View style={styles.searchRow}>
           <Searchbar
-            placeholder="Search family members"
+            placeholder={t('Search family members')}
             value={searchQuery}
             onChangeText={setSearchQuery}
             style={styles.searchBar}
@@ -686,20 +689,20 @@ export function PeopleRelationshipsTabContent({
           <View style={styles.centeredState}>
             <ActivityIndicator color={theme.colors.primary} />
             <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
-              Loading tree details...
+              {t('Loading tree details...')}
             </Text>
           </View>
         ) : filteredPeople.length === 0 ? (
           <View style={styles.emptyState}>
-            <Text variant="titleMedium">No matching family members</Text>
+            <Text variant="titleMedium">{t('No matching family members')}</Text>
             <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
               {people.length === 0
-                ? (canEdit ? 'Add a family member to start building this family tree.' : 'This shared tree does not have any family members yet.')
-                : 'Try adjusting the search or filters.'}
+                ? (canEdit ? t('Add a family member to start building this family tree.') : t('This shared tree does not have any family members yet.'))
+                : t('Try adjusting the search or filters.')}
             </Text>
             {activeFilterCount > 0 ? (
               <Button mode="outlined" onPress={() => setFilters(DEFAULT_FILTERS)} style={{ marginTop: 8 }}>
-                Clear filters
+                {t('Clear filters')}
               </Button>
             ) : null}
           </View>
@@ -707,7 +710,7 @@ export function PeopleRelationshipsTabContent({
           <>
             <View style={[styles.resultsPill, { backgroundColor: theme.colors.surfaceVariant }]}>
               <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                {filteredPeople.length} member{filteredPeople.length !== 1 ? 's' : ''}
+                {t('{count} member(s)', { count: filteredPeople.length })}
               </Text>
             </View>
             <FlatList
@@ -728,16 +731,16 @@ export function PeopleRelationshipsTabContent({
                     icon="chevron-left"
                     onPress={() => setCurrentPage((page) => Math.max(1, page - 1))}
                     disabled={currentPage === 1}
-                    accessibilityLabel="Previous page"
+                    accessibilityLabel={t('Previous page')}
                   />
                   <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-                    Page {currentPage} of {totalPages}
+                    {t('Page {current} of {total}', { current: currentPage, total: totalPages })}
                   </Text>
                   <IconButton
                     icon="chevron-right"
                     onPress={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
                     disabled={currentPage === totalPages}
-                    accessibilityLabel="Next page"
+                    accessibilityLabel={t('Next page')}
                   />
                 </View>
               ) : null}
@@ -753,10 +756,10 @@ export function PeopleRelationshipsTabContent({
           onDismiss={() => setFilterModalVisible(false)}
           style={[dialogChrome.dialog, { maxHeight: '85%', backgroundColor: theme.colors.surface }]}
         >
-          <Dialog.Title style={dialogChrome.dialogTitle}>Filter members</Dialog.Title>
+          <Dialog.Title style={dialogChrome.dialogTitle}>{t('Filter members')}</Dialog.Title>
           <Dialog.ScrollArea style={dialogChrome.scrollArea}>
             <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={dialogChrome.content}>
-              <Text variant="titleSmall" style={{ marginTop: 8, marginBottom: 4 }}>Gender</Text>
+              <Text variant="titleSmall" style={{ marginTop: 8, marginBottom: 4 }}>{t('Gender')}</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
                 {(['all', 'female', 'male', 'non-binary', 'other', 'unspecified'] as const).map((gender) => (
                   <Chip
@@ -765,12 +768,12 @@ export function PeopleRelationshipsTabContent({
                     onPress={() => setDraftFilters((current) => ({ ...current, gender }))}
                     style={{ marginRight: 8, marginBottom: 8 }}
                   >
-                    {gender === 'all' ? 'All genders' : gender.charAt(0).toUpperCase() + gender.slice(1)}
+                    {gender === 'all' ? t('All genders') : formatPersonGender(gender)}
                   </Chip>
                 ))}
               </View>
 
-              <Text variant="titleSmall" style={{ marginTop: 8, marginBottom: 4 }}>Presence</Text>
+              <Text variant="titleSmall" style={{ marginTop: 8, marginBottom: 4 }}>{t('Presence')}</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
                 {(['all', 'present', 'deceased'] as const).map((presence) => (
                   <Chip
@@ -779,23 +782,23 @@ export function PeopleRelationshipsTabContent({
                     onPress={() => setDraftFilters((current) => ({ ...current, presence }))}
                     style={{ marginRight: 8, marginBottom: 8 }}
                   >
-                    {presence === 'all' ? 'Any' : presence.charAt(0).toUpperCase() + presence.slice(1)}
+                    {presence === 'all' ? t('Any') : t(presence.charAt(0).toUpperCase() + presence.slice(1))}
                   </Chip>
                 ))}
               </View>
 
-              <Text variant="titleSmall" style={{ marginTop: 8, marginBottom: 4 }}>Birth date range</Text>
+              <Text variant="titleSmall" style={{ marginTop: 8, marginBottom: 4 }}>{t('Birth date range')}</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
                 <Button
                   mode="outlined"
                   icon="calendar-start"
                   onPress={() => setBirthDateFromPickerVisible(true)}
                 >
-                  {formatDateFilterLabel(draftFilters.birthDateFrom, 'From date')}
+                  {formatDateFilterLabel(draftFilters.birthDateFrom, t('From date'))}
                 </Button>
                 {draftFilters.birthDateFrom ? (
                   <Button onPress={() => setDraftFilters((current) => ({ ...current, birthDateFrom: '' }))}>
-                    Clear
+                    {t('Clear')}
                   </Button>
                 ) : null}
               </View>
@@ -805,35 +808,35 @@ export function PeopleRelationshipsTabContent({
                   icon="calendar-end"
                   onPress={() => setBirthDateToPickerVisible(true)}
                 >
-                  {formatDateFilterLabel(draftFilters.birthDateTo, 'To date')}
+                  {formatDateFilterLabel(draftFilters.birthDateTo, t('To date'))}
                 </Button>
                 {draftFilters.birthDateTo ? (
                   <Button onPress={() => setDraftFilters((current) => ({ ...current, birthDateTo: '' }))}>
-                    Clear
+                    {t('Clear')}
                   </Button>
                 ) : null}
               </View>
 
-              <Text variant="titleSmall" style={{ marginTop: 8, marginBottom: 4 }}>Has notes</Text>
+              <Text variant="titleSmall" style={{ marginTop: 8, marginBottom: 4 }}>{t('Has notes')}</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-                <TriToggleChip label="Has notes" value={draftFilters.hasNotes} onChange={(value) => setDraftFilters((current) => ({ ...current, hasNotes: value }))} />
+                <TriToggleChip label={t('Has notes')} value={draftFilters.hasNotes} onChange={(value) => setDraftFilters((current) => ({ ...current, hasNotes: value }))} />
               </View>
 
-              <Text variant="titleSmall" style={{ marginTop: 8, marginBottom: 4 }}>Relationships</Text>
+              <Text variant="titleSmall" style={{ marginTop: 8, marginBottom: 4 }}>{t('Relationships')}</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-                <TriToggleChip label="Has parents" value={draftFilters.hasParents} onChange={(value) => setDraftFilters((current) => ({ ...current, hasParents: value }))} />
-                <TriToggleChip label="Has children" value={draftFilters.hasChildren} onChange={(value) => setDraftFilters((current) => ({ ...current, hasChildren: value }))} />
-                <TriToggleChip label="Has spouse" value={draftFilters.hasSpouse} onChange={(value) => setDraftFilters((current) => ({ ...current, hasSpouse: value }))} />
+                <TriToggleChip label={t('Has parents')} value={draftFilters.hasParents} onChange={(value) => setDraftFilters((current) => ({ ...current, hasParents: value }))} />
+                <TriToggleChip label={t('Has children')} value={draftFilters.hasChildren} onChange={(value) => setDraftFilters((current) => ({ ...current, hasChildren: value }))} />
+                <TriToggleChip label={t('Has spouse')} value={draftFilters.hasSpouse} onChange={(value) => setDraftFilters((current) => ({ ...current, hasSpouse: value }))} />
               </View>
 
               <Button mode="outlined" icon="filter-remove" onPress={() => setDraftFilters(DEFAULT_FILTERS)} style={{ marginTop: 12 }}>
-                Clear all filters
+                {t('Clear all filters')}
               </Button>
             </ScrollView>
           </Dialog.ScrollArea>
           <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
-            <Button mode="outlined" onPress={() => setFilterModalVisible(false)}>Cancel</Button>
-            <Button mode="contained" onPress={applyFilters}>Apply</Button>
+            <Button mode="outlined" onPress={() => setFilterModalVisible(false)}>{t('Cancel')}</Button>
+            <Button mode="contained" onPress={applyFilters}>{t('Apply')}</Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>
@@ -850,8 +853,8 @@ export function PeopleRelationshipsTabContent({
             setDraftFilters((current) => ({ ...current, birthDateFrom: formatIsoDate(date) }));
           }
         }}
-        saveLabel="Save"
-        label="Select earliest birth date"
+        saveLabel={t('Save')}
+        label={t('Select earliest birth date')}
       />
 
       <DatePickerModal
@@ -866,8 +869,8 @@ export function PeopleRelationshipsTabContent({
             setDraftFilters((current) => ({ ...current, birthDateTo: formatIsoDate(date) }));
           }
         }}
-        saveLabel="Save"
-        label="Select latest birth date"
+        saveLabel={t('Save')}
+        label={t('Select latest birth date')}
       />
 
       <Portal>
@@ -876,17 +879,17 @@ export function PeopleRelationshipsTabContent({
           onDismiss={() => setHelperVisible(false)}
           style={[dialogChrome.dialog, { backgroundColor: theme.colors.surface }]}
         >
-          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>Family members</Dialog.Title>
+          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{t('Family members')}</Dialog.Title>
           <IconButton
             icon="close"
             size={20}
             onPress={() => setHelperVisible(false)}
             style={dialogChrome.closeButton}
-            accessibilityLabel="Close"
+            accessibilityLabel={t('Close')}
           />
           <Dialog.Content style={dialogChrome.content}>
             <Text variant="bodyMedium">
-              Each card represents one person in this family tree. Tap a card to open their full profile. Use the search bar and Filters button to narrow by name, gender, presence, birth date, photos, notes, or relationship status. The tri-state filter chips cycle through unset, must have, and must not have.
+              {t('Each card represents one person in this family tree. Tap a card to open their full profile. Use the search bar and Filters button to narrow by name, gender, presence, birth date, photos, notes, or relationship status. The tri-state filter chips cycle through unset, must have, and must not have.')}
             </Text>
           </Dialog.Content>
         </Dialog>
@@ -904,6 +907,7 @@ export function VisualisationTabContent({
   activeFamilyRef,
 }: SharedTabProps) {
   const theme = useTheme();
+  const { t } = useI18n();
 
   return (
     <View style={styles.visualisationTabContainer}>
@@ -921,9 +925,9 @@ export function VisualisationTabContent({
         />
       ) : (
         <View style={[styles.visualisationEmptyState, { backgroundColor: theme.colors.surface }]}>
-          <Text variant="titleMedium">No visual tree yet</Text>
+          <Text variant="titleMedium">{t('No visual tree yet')}</Text>
           <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
-            Add the first family member from the profile tools or link yourself to begin drawing this tree.
+            {t('Add the first family member from the profile tools or link yourself to begin drawing this tree.')}
           </Text>
         </View>
       )}
@@ -978,6 +982,7 @@ function ProfileTabContent({
   onSwitchTree,
 }: SharedTabProps) {
   const theme = useTheme();
+  const { t } = useI18n();
   const [helperDialog, setHelperDialog] = useState<{ visible: boolean; key: TreeHelperDialogKey }>({
     visible: false,
     key: 'tree-management',
@@ -1177,12 +1182,12 @@ function ProfileTabContent({
             size={20}
             style={styles.helperIconButton}
             onPress={() => setHelperDialog({ visible: true, key: 'tree-management' })}
-            accessibilityLabel="About tree management"
+            accessibilityLabel={t('About tree management')}
           />
         </View>
 
         <HorizontalTabStrip
-          items={TREE_MANAGEMENT_TABS}
+          items={TREE_MANAGEMENT_TABS.map((tab) => ({ ...tab, label: t(tab.label) }))}
           activeKey={activeManagementTab}
           onChange={setActiveManagementTab}
           containerStyle={[settingsTabStripStyles.card, { backgroundColor: theme.colors.surface }]}
@@ -1194,11 +1199,11 @@ function ProfileTabContent({
           <>
             <View style={styles.summaryChipRow}>
               <Chip icon="account-key">{formatRole(role)}</Chip>
-              <Chip icon="account-group">{people.length} family members</Chip>
-              <Chip icon="graph-outline">{relationships.length} relationships</Chip>
-              <Chip icon="account-multiple">{selectedTree.collaborators.length} collaborators</Chip>
-              <Chip icon="link-variant">{assignedPersonByUserId.size} linked</Chip>
-              {unlinkedCollaboratorCount > 0 ? <Chip icon="account-clock">{unlinkedCollaboratorCount} awaiting link</Chip> : null}
+              <Chip icon="account-group">{t('{count} family members', { count: people.length })}</Chip>
+              <Chip icon="graph-outline">{t('{count} relationships', { count: relationships.length })}</Chip>
+              <Chip icon="account-multiple">{t('{count} collaborators', { count: selectedTree.collaborators.length })}</Chip>
+              <Chip icon="link-variant">{t('{count} linked', { count: assignedPersonByUserId.size })}</Chip>
+              {unlinkedCollaboratorCount > 0 ? <Chip icon="account-clock">{t('{count} awaiting link', { count: unlinkedCollaboratorCount })}</Chip> : null}
             </View>
 
             <Card mode="elevated" style={[styles.selfAssignmentCard, { backgroundColor: theme.colors.surface, marginBottom: 16 }]}>
@@ -1206,13 +1211,13 @@ function ProfileTabContent({
                 <View style={styles.sectionHeader}>
                   <View style={styles.titleWrap}>
                     <View style={styles.titleWithHelperRow}>
-                      <Text variant="titleLarge">Surname variants</Text>
+                      <Text variant="titleLarge">{t('Surname variants')}</Text>
                       <IconButton
                         icon="information-outline"
                         size={18}
                         style={styles.helperIconButton}
                         onPress={() => setHelperDialog({ visible: true, key: 'surname-variants' })}
-                        accessibilityLabel="About surname variants"
+                        accessibilityLabel={t('About surname variants')}
                       />
                     </View>
                   </View>
@@ -1224,7 +1229,7 @@ function ProfileTabContent({
                   </View>
                 ) : (
                   <Text variant="bodySmall" style={[styles.assignmentHelperText, { color: theme.colors.onSurfaceVariant }]}>
-                    No surname variants have been added yet. Add them below so searches and merge suggestions can recognize related spellings.
+                    {t('No surname variants have been added yet. Add them below so searches and merge suggestions can recognize related spellings.')}
                   </Text>
                 )}
 
@@ -1240,7 +1245,7 @@ function ProfileTabContent({
                       }}
                       style={{ marginBottom: 8 }}
                     >
-                      {treeSurnameVariants.length > 0 ? `Manage variants (${treeSurnameVariants.length})` : 'Manage variants'}
+                      {treeSurnameVariants.length > 0 ? t('Manage variants ({count})', { count: treeSurnameVariants.length }) : t('Manage variants')}
                     </Button>
                     <View style={[styles.collaboratorChipRow, styles.surnameVariantDraftsRow]}>
                       {treeSurnameVariants.length > 0 ? treeSurnameVariants.map((variant) => (
@@ -1250,7 +1255,7 @@ function ProfileTabContent({
                         >
                           {variant}
                         </Chip>
-                      )) : <Chip compact icon="information-outline">No variants added yet</Chip>}
+                      )) : <Chip compact icon="information-outline">{t('No variants added yet')}</Chip>}
                     </View>
                   </View>
                 ) : null}
@@ -1261,19 +1266,19 @@ function ProfileTabContent({
               <View style={styles.sectionHeader}>
                 <View style={styles.titleWrap}>
                   <View style={styles.titleWithHelperRow}>
-                    <Text variant="titleLarge">My place in this tree</Text>
+                    <Text variant="titleLarge">{t('My place in this tree')}</Text>
                     <IconButton
                       icon="information-outline"
                       size={18}
                       style={styles.helperIconButton}
                       onPress={() => setHelperDialog({ visible: true, key: 'my-place' })}
-                      accessibilityLabel="About my place in this tree"
+                      accessibilityLabel={t('About my place in this tree')}
                     />
                   </View>
                 </View>
                 {!currentAssignedPerson ? (
                   <Button mode="contained-tonal" icon="account-plus" onPress={onOpenAddSelf} disabled={mutating || !canCreateSelfProfile}>
-                    Add myself
+                    {t('Add myself')}
                   </Button>
                 ) : null}
               </View>
@@ -1284,46 +1289,46 @@ function ProfileTabContent({
                     <View style={styles.selfAssignmentTextWrap}>
                       <View style={styles.collaboratorChipRow}>
                         <Chip compact icon={currentAssignedPerson ? 'check-decagram' : 'link-variant-off'}>
-                          {currentAssignedPerson ? 'Linked profile' : 'Not linked yet'}
+                          {currentAssignedPerson ? t('Linked profile') : t('Not linked yet')}
                         </Chip>
                         <Chip compact icon="account">{currentUserLabel}</Chip>
                       </View>
                       <Text variant="titleMedium" style={styles.selfAssignmentTitle}>
-                        {currentAssignedPerson ? formatPersonName(currentAssignedPerson) : 'Choose an existing family member or create your own profile'}
+                          {currentAssignedPerson ? formatPersonName(currentAssignedPerson) : t('Choose an existing family member or create your own profile')}
                       </Text>
                       <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>
                         {currentAssignedPerson
-                          ? 'This linked family member represents you in the tree. Unlink first before claiming a different profile.'
-                          : 'We will suggest name matches from your sign-in profile and let you link yourself manually if needed.'}
+                          ? t('This linked family member represents you in the tree. Unlink first before claiming a different profile.')
+                          : t('We will suggest name matches from your sign-in profile and let you link yourself manually if needed.')}
                       </Text>
                     </View>
                     {currentAssignedPerson ? (
                       <View style={styles.selfAssignmentActions}>
                         <Button mode="contained" icon="open-in-new" onPress={() => openPersonProfile(currentAssignedPerson)} disabled={mutating}>
-                          Open
+                          {t('Open')}
                         </Button>
                         <Button
                           mode="text"
                           icon="link-off"
                           textColor={theme.colors.error}
                           onPress={() => openConfirm(
-                            'Unlink your profile',
-                            'Remove the connection between your account and this family member profile?',
-                            'Unlink',
+                            t('Unlink your profile'),
+                            t('Remove the connection between your account and this family member profile?'),
+                            t('Unlink'),
                             onClearSelfAssignment,
                           )}
                           disabled={mutating}
                         >
-                          Unlink
+                          {t('Unlink')}
                         </Button>
                       </View>
                     ) : (
                       <View style={styles.selfAssignmentActions}>
                         <Button mode="contained" icon="account-search" onPress={() => setShowLinkChooser(true)} disabled={mutating}>
-                          Browse family members
+                          {t('Browse family members')}
                         </Button>
                         <Button mode="outlined" icon="account-plus" onPress={onOpenAddSelf} disabled={mutating || !canCreateSelfProfile}>
-                          Add myself
+                          {t('Add myself')}
                         </Button>
                       </View>
                     )}
@@ -1331,11 +1336,11 @@ function ProfileTabContent({
 
                   {!canCreateSelfProfile ? (
                     <Text variant="bodySmall" style={[styles.assignmentHelperText, { color: theme.colors.onSurfaceVariant }]}>
-                      You can link yourself to an existing person right now. Creating a new profile still requires editor access on this tree.
+                      {t('You can link yourself to an existing person right now. Creating a new profile still requires editor access on this tree.')}
                     </Text>
                   ) : currentAssignedPerson ? (
                     <Text variant="bodySmall" style={[styles.assignmentHelperText, { color: theme.colors.onSurfaceVariant }]}>
-                      To claim a different person, unlink yourself from {formatPersonName(currentAssignedPerson)} first.
+                      {t('To claim a different person, unlink yourself from {name} first.', { name: formatPersonName(currentAssignedPerson) })}
                     </Text>
                   ) : null}
                 </Card.Content>
@@ -1355,7 +1360,7 @@ function ProfileTabContent({
                             <View style={styles.assignmentSuggestionTextWrap}>
                               <View style={styles.collaboratorChipRow}>
                                 <Chip compact icon={suggestion.tone === 'exact' ? 'star-four-points' : 'lightbulb-on-outline'}>
-                                  {suggestion.tone === 'exact' ? 'Suggested match' : 'Likely match'}
+                                  {suggestion.tone === 'exact' ? t('Suggested match') : t('Likely match')}
                                 </Chip>
                                 {suggestion.person.birthDate ? <Chip compact icon="calendar">{suggestion.person.birthDate}</Chip> : null}
                               </View>
@@ -1363,7 +1368,7 @@ function ProfileTabContent({
                               <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>{suggestion.reason}</Text>
                             </View>
                             <Button mode="contained" onPress={() => handleSelfLink(suggestion.person.id)} disabled={mutating || !userId}>
-                              Link me
+                              {t('Link me')}
                             </Button>
                           </View>
                         </Card.Content>
@@ -1372,21 +1377,21 @@ function ProfileTabContent({
                   </View>
                 ) : (
                   <Text variant="bodySmall" style={[styles.assignmentHelperText, { color: theme.colors.onSurfaceVariant }]}>
-                    No exact name-and-surname match was found yet, so you can browse the tree manually or create your own family member profile.
+                    {t('No exact name-and-surname match was found yet, so you can browse the tree manually or create your own family member profile.')}
                   </Text>
                 )
               ) : null}
 
               {!currentAssignedPerson && (showLinkChooser || !currentAssignedPerson) ? (
                 <View style={styles.assignmentChooserWrap}>
-                  <Text variant="titleMedium">Link to an existing family member</Text>
+                  <Text variant="titleMedium">{t('Link to an existing family member')}</Text>
                   <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-                    Search everyone in this tree and pick the profile that represents you best.
+                    {t('Search everyone in this tree and pick the profile that represents you best.')}
                   </Text>
 
                   <TextInput
                     mode="outlined"
-                    label="Search existing family members"
+                    label={t('Search existing family members')}
                     value={linkSearchQuery}
                     onChangeText={setLinkSearchQuery}
                     style={styles.assignmentSearchInput}
@@ -1411,7 +1416,7 @@ function ProfileTabContent({
                                 </View>
                               </View>
                               <Button mode="contained-tonal" onPress={() => handleSelfLink(person.id)} disabled={mutating || !userId}>
-                                Link me
+                                {t('Link me')}
                               </Button>
                             </View>
                           </Card.Content>
@@ -1420,7 +1425,7 @@ function ProfileTabContent({
                     </View>
                   ) : (
                     <Text variant="bodySmall" style={[styles.assignmentHelperText, { color: theme.colors.onSurfaceVariant }]}>
-                      No available family members match that search yet.
+                      {t('No available family members match that search yet.')}
                     </Text>
                   )}
                 </View>
@@ -1433,14 +1438,14 @@ function ProfileTabContent({
           <View style={styles.collaboratorSectionWrap}>
             <View style={styles.sectionHeader}>
               <View style={styles.titleWrap}>
-                <Text variant="titleLarge">Collaborators</Text>
+                <Text variant="titleLarge">{t('Collaborators')}</Text>
                 <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-                  Owners manage access. Editors can update content. Viewers can browse.
+                  {t('Owners manage access. Editors can update content. Viewers can browse.')}
                 </Text>
               </View>
               {isOwner ? (
                 <Button mode="contained" icon="account-plus" onPress={onOpenCollaboratorDialog} disabled={mutating}>
-                  Add collaborator
+                  {t('Add collaborator')}
                 </Button>
               ) : null}
             </View>
@@ -1462,7 +1467,7 @@ function ProfileTabContent({
                           <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>{collaborator.email}</Text>
                           <View style={styles.collaboratorChipRow}>
                             <Chip compact>{formatRole(collaborator.role)}</Chip>
-                            {collaborator.userId === userId ? <Chip compact icon="account">You</Chip> : null}
+                            {collaborator.userId === userId ? <Chip compact icon="account">{t('You')}</Chip> : null}
                             {linkedPerson ? <Chip compact icon="link-variant">{formatPersonName(linkedPerson)}</Chip> : null}
                           </View>
                         </View>
@@ -1471,9 +1476,9 @@ function ProfileTabContent({
                             icon="account-remove"
                             iconColor="#C62828"
                             onPress={() => openConfirm(
-                              'Remove collaborator',
-                              `Remove ${collaborator.displayName || collaborator.email} from this tree?`,
-                              'Remove',
+                              t('Remove collaborator'),
+                              t('Remove {name} from this tree?', { name: collaborator.displayName || collaborator.email }),
+                              t('Remove'),
                               async () => onRemoveCollaborator(collaborator.userId),
                             )}
                             disabled={mutating}
@@ -1483,9 +1488,9 @@ function ProfileTabContent({
 
                       {isOwner && collaborator.userId !== userId && !linkedPerson ? (
                         <View style={styles.ownerSuggestionWrap}>
-                          <Text variant="titleSmall">Suggest a matching family member</Text>
+                          <Text variant="titleSmall">{t('Suggest a matching family member')}</Text>
                           <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-                            Help {collaborator.displayName || collaborator.email} get started by linking the family member that looks like them best.
+                            {t('Help {name} get started by linking the family member that looks like them best.', { name: collaborator.displayName || collaborator.email })}
                           </Text>
 
                           {collaboratorSuggestions.length > 0 ? (
@@ -1501,7 +1506,7 @@ function ProfileTabContent({
                                       <View style={styles.assignmentSuggestionTextWrap}>
                                         <View style={styles.collaboratorChipRow}>
                                           <Chip compact icon={suggestion.tone === 'exact' ? 'star-four-points' : 'lightbulb-on-outline'}>
-                                            {suggestion.tone === 'exact' ? 'Suggested match' : 'Likely match'}
+                                            {suggestion.tone === 'exact' ? t('Suggested match') : t('Likely match')}
                                           </Chip>
                                           {suggestion.person.birthDate ? <Chip compact icon="calendar">{suggestion.person.birthDate}</Chip> : null}
                                         </View>
@@ -1509,7 +1514,7 @@ function ProfileTabContent({
                                         <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>{suggestion.reason}</Text>
                                       </View>
                                       <Button mode="contained-tonal" onPress={() => handleOwnerLinkSuggestion(collaborator.userId, suggestion.person.id)} disabled={mutating}>
-                                        Suggest link
+                                        {t('Suggest link')}
                                       </Button>
                                     </View>
                                   </Card.Content>
@@ -1518,23 +1523,23 @@ function ProfileTabContent({
                             </View>
                           ) : (
                             <Text variant="bodySmall" style={[styles.assignmentHelperText, { color: theme.colors.onSurfaceVariant }]}>
-                              No obvious name match yet, but you can still choose a family member manually.
+                              {t('No obvious name match yet, but you can still choose a family member manually.')}
                             </Text>
                           )}
 
                           <Button mode="outlined" icon="account-search" onPress={() => toggleOwnerLinkChooser(collaborator.userId)} disabled={mutating} style={styles.ownerSuggestionButton}>
-                            {isOwnerSuggestionTarget ? 'Hide family members' : 'Choose family member'}
+                            {isOwnerSuggestionTarget ? t('Hide family members') : t('Choose family member')}
                           </Button>
 
                           {isOwnerSuggestionTarget ? (
                             <View style={styles.assignmentChooserWrap}>
                               <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-                                Search unlinked people and connect one to {ownerLinkTargetCollaborator?.displayName || ownerLinkTargetCollaborator?.email || 'this collaborator'}.
+                                {t('Search unlinked people and connect one to {name}.', { name: ownerLinkTargetCollaborator?.displayName || ownerLinkTargetCollaborator?.email || t('this collaborator') })}
                               </Text>
 
                               <TextInput
                                 mode="outlined"
-                                label="Search family members to suggest"
+                                label={t('Search family members to suggest')}
                                 value={ownerLinkSearchQuery}
                                 onChangeText={setOwnerLinkSearchQuery}
                                 style={styles.assignmentSearchInput}
@@ -1559,7 +1564,7 @@ function ProfileTabContent({
                                             </View>
                                           </View>
                                           <Button mode="contained-tonal" onPress={() => handleOwnerLinkSuggestion(collaborator.userId, person.id)} disabled={mutating}>
-                                            Suggest link
+                                            {t('Suggest link')}
                                           </Button>
                                         </View>
                                       </Card.Content>
@@ -1568,7 +1573,7 @@ function ProfileTabContent({
                                 </View>
                               ) : (
                                 <Text variant="bodySmall" style={[styles.assignmentHelperText, { color: theme.colors.onSurfaceVariant }]}>
-                                  No available family members match that search yet.
+                                  {t('No available family members match that search yet.')}
                                 </Text>
                               )}
                             </View>
@@ -1587,18 +1592,18 @@ function ProfileTabContent({
           <View style={styles.collaboratorSectionWrap}>
             <View style={styles.treeSettingsWrap}>
               <View style={styles.titleWithHelperRow}>
-                <Text variant="titleSmall">Approval settings</Text>
+                <Text variant="titleSmall">{t('Approval settings')}</Text>
                 <IconButton
                   icon="information-outline"
                   size={18}
                   style={styles.helperIconButton}
                   onPress={() => setHelperDialog({ visible: true, key: 'approval-settings' })}
-                  accessibilityLabel="About approval settings"
+                  accessibilityLabel={t('About approval settings')}
                 />
               </View>
               <View style={styles.summaryChipRow}>
                 <Chip compact icon={approvalsDisabled ? 'flash-outline' : 'timer-outline'}>
-                  {approvalsDisabled ? 'Approvals off' : `Current window: ${approvalWindowHours}h`}
+                  {approvalsDisabled ? t('Approvals off') : t('Current window: {hours}h', { hours: approvalWindowHours })}
                 </Chip>
               </View>
               <SegmentedButtons
@@ -1610,7 +1615,7 @@ function ProfileTabContent({
                   void onSetApprovalWindowHours(Number(value));
                 }}
                 buttons={[
-                  { value: '0', label: 'Off', disabled: !isOwner || mutating },
+                  { value: '0', label: t('Off'), disabled: !isOwner || mutating },
                   { value: '12', label: '12h', disabled: !isOwner || mutating },
                   { value: '24', label: '24h', disabled: !isOwner || mutating },
                   { value: '48', label: '48h', disabled: !isOwner || mutating },
@@ -1623,11 +1628,11 @@ function ProfileTabContent({
             <View style={styles.collaboratorSectionWrap}>
               <View style={styles.sectionHeader}>
                 <View style={styles.titleWrap}>
-                  <Text variant="titleLarge">Pending approvals</Text>
+                  <Text variant="titleLarge">{t('Pending approvals')}</Text>
                   <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
                     {approvalsDisabled
-                      ? 'Approvals are currently off. Any requests listed here were created before that change and can still be reviewed.'
-                      : 'Collaborator edits awaiting review - they auto-approve if nobody acts before the deadline.'}
+                      ? t('Approvals are currently off. Any requests listed here were created before that change and can still be reviewed.')
+                      : t('Collaborator edits awaiting review - they auto-approve if nobody acts before the deadline.')}
                   </Text>
                 </View>
               </View>
@@ -1649,27 +1654,27 @@ function ProfileTabContent({
                             <View style={styles.collaboratorTextWrap}>
                               <View style={styles.collaboratorChipRow}>
                                 <Chip compact icon={canReview ? 'clipboard-check-outline' : 'clock-outline'}>
-                                  {canReview ? 'Needs your review' : 'Awaiting review'}
+                                  {canReview ? t('Needs your review') : t('Awaiting review')}
                                 </Chip>
                                 <Chip compact icon={expiresSoon ? 'timer-alert-outline' : 'timer-outline'}>
-                                  Auto-approves {request.expiresAt.slice(0, 16).replace('T', ' ')}
+                                  {t('Auto-approves {date}', { date: request.expiresAt.slice(0, 16).replace('T', ' ') })}
                                 </Chip>
                               </View>
                               <Text variant="titleMedium" style={styles.selfAssignmentTitle}>{request.title}</Text>
                               <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>{request.description}</Text>
-                              <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>Requested by {request.requestedByLabel}</Text>
+                              <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>{t('Requested by {name}', { name: request.requestedByLabel })}</Text>
                             </View>
                             <View style={styles.approvalRequestActions}>
                               <Button mode="outlined" icon="eye-outline" onPress={() => setPreviewApprovalRequest(request)}>
-                                Preview change
+                                {t('Preview change')}
                               </Button>
                               {canReview ? (
                                 <>
                                   <Button mode="contained" onPress={() => onApproveApprovalRequest(request.id)} disabled={mutating}>
-                                    Approve
+                                    {t('Approve')}
                                   </Button>
                                   <Button mode="outlined" textColor={theme.colors.error} onPress={() => onRejectApprovalRequest(request.id)} disabled={mutating}>
-                                    Reject
+                                    {t('Reject')}
                                   </Button>
                                 </>
                               ) : null}
@@ -1682,9 +1687,9 @@ function ProfileTabContent({
                 </View>
               ) : (
                 <View style={styles.emptyState}>
-                  <Text variant="titleMedium">No pending approvals</Text>
+                  <Text variant="titleMedium">{t('No pending approvals')}</Text>
                   <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
-                    Any collaborator-submitted family member or relationship edits waiting for review will appear here.
+                    {t('Any collaborator-submitted family member or relationship edits waiting for review will appear here.')}
                   </Text>
                 </View>
               )}
@@ -1696,32 +1701,32 @@ function ProfileTabContent({
           <View style={styles.collaboratorSectionWrap}>
             <View style={styles.sectionHeader}>
               <View style={styles.titleWrap}>
-                <Text variant="titleLarge">Collaborative merges</Text>
+                <Text variant="titleLarge">{t('Collaborative merges')}</Text>
                 <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-                  Suggest a merge only when likely relatives exist, then collect editor approvals from both trees before anything is applied.
+                  {t('Suggest a merge only when likely relatives exist, then collect editor approvals from both trees before anything is applied.')}
                 </Text>
               </View>
             </View>
 
             <Card mode="elevated" style={[styles.selfAssignmentCard, { backgroundColor: theme.colors.surface, marginBottom: 16 }]}>
               <Card.Content>
-                <Text variant="titleMedium" style={{ marginBottom: 8 }}>Start a merge review</Text>
+                <Text variant="titleMedium" style={{ marginBottom: 8 }}>{t('Start a merge review')}</Text>
                 <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-                  Enter another tree ID, preview likely person matches, then submit the merge suggestion for joint review.
+                  {t('Enter another tree ID, preview likely person matches, then submit the merge suggestion for joint review.')}
                 </Text>
                 <TextInput
                   mode="outlined"
-                  label="Target tree ID"
+                  label={t('Target tree ID')}
                   value={mergeTargetTreeId}
                   onChangeText={setMergeTargetTreeId}
                   style={{ marginTop: 8 }}
                 />
                 <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
                   <Button mode="outlined" onPress={() => onLoadMergePreview(mergeTargetTreeId)} disabled={mutating || !mergeTargetTreeId.trim()}>
-                    Preview
+                    {t('Preview')}
                   </Button>
                   <Button mode="contained" onPress={() => onCreateMergeRequest(mergeTargetTreeId)} disabled={mutating || !mergeTargetTreeId.trim()}>
-                    Submit merge
+                    {t('Submit merge')}
                   </Button>
                 </View>
 
@@ -1740,14 +1745,19 @@ function ProfileTabContent({
             {mergePreview ? (
               <Card mode="elevated" style={[styles.collaboratorCard, { backgroundColor: theme.colors.surface, marginBottom: 16 }]}>
                 <Card.Content>
-                  <Text variant="titleMedium">Merge preview</Text>
+                  <Text variant="titleMedium">{t('Merge preview')}</Text>
                   <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>
-                    {mergePreview.sourceTree.treeName} ({mergePreview.sourceTree.personCount}) to {mergePreview.targetTree.treeName} ({mergePreview.targetTree.personCount})
+                    {t('{source} ({sourceCount}) to {target} ({targetCount})', {
+                      source: mergePreview.sourceTree.treeName,
+                      sourceCount: mergePreview.sourceTree.personCount,
+                      target: mergePreview.targetTree.treeName,
+                      targetCount: mergePreview.targetTree.personCount,
+                    })}
                   </Text>
                   <View style={styles.summaryChipRow}>
-                    <Chip compact icon="account-switch">{mergePreview.matches.length} possible matches</Chip>
-                    <Chip compact icon="source-branch-plus">{mergePreview.newBranchCount} new branches</Chip>
-                    <Chip compact icon="alert-circle-outline">{mergePreview.conflicts.length} conflicts</Chip>
+                    <Chip compact icon="account-switch">{t('{count} possible matches', { count: mergePreview.matches.length })}</Chip>
+                    <Chip compact icon="source-branch-plus">{t('{count} new branches', { count: mergePreview.newBranchCount })}</Chip>
+                    <Chip compact icon="alert-circle-outline">{t('{count} conflicts', { count: mergePreview.conflicts.length })}</Chip>
                   </View>
                   {mergePreview.matches.slice(0, 6).map((match) => (
                     <View key={match.id} style={{ marginTop: 12 }}>
@@ -1761,7 +1771,7 @@ function ProfileTabContent({
                       </Text>
                       {match.conflicts.length > 0 ? (
                         <Text variant="bodySmall" style={{ color: theme.colors.error, marginTop: 4 }}>
-                          Conflicts: {match.conflicts.map((conflict) => conflict.field).join(', ')}
+                          {t('Conflicts: {fields}', { fields: match.conflicts.map((conflict) => conflict.field).join(', ') })}
                         </Text>
                       ) : null}
                     </View>
@@ -1772,9 +1782,9 @@ function ProfileTabContent({
 
             <View style={styles.sectionHeader}>
               <View style={styles.titleWrap}>
-                <Text variant="titleLarge">Pending merge approvals</Text>
+                <Text variant="titleLarge">{t('Pending merge approvals')}</Text>
                 <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-                  Each merge needs at least one editor approval from each affected tree.
+                  {t('Each merge needs at least one editor approval from each affected tree.')}
                 </Text>
               </View>
             </View>
@@ -1786,7 +1796,11 @@ function ProfileTabContent({
                     <Card.Content>
                       <Text variant="titleMedium">{request.preview.sourceTree.treeName} ↔ {request.preview.targetTree.treeName}</Text>
                       <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>
-                        Suggested by {request.suggestedByLabel}. {request.preview.duplicateCount} strong duplicate candidates, {request.preview.conflicts.length} conflicts.
+                        {t('Suggested by {name}. {duplicates} strong duplicate candidates, {conflicts} conflicts.', {
+                          name: request.suggestedByLabel,
+                          duplicates: request.preview.duplicateCount,
+                          conflicts: request.preview.conflicts.length,
+                        })}
                       </Text>
                       <View style={[styles.collaboratorChipRow, { marginTop: 8 }]}>
                         {request.approvals.map((approval) => (
@@ -1804,9 +1818,9 @@ function ProfileTabContent({
                         ))}
                       </View>
                       <View style={{ flexDirection: 'row', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
-                        <Button mode="contained" onPress={() => onApproveMergeRequest(request.id)} disabled={mutating}>Approve</Button>
-                        <Button mode="outlined" onPress={() => onRequestMergeChanges(request.id, 'Please review the highlighted conflicts before merging.')} disabled={mutating}>Request changes</Button>
-                        <Button mode="text" textColor={theme.colors.error} onPress={() => onRejectMergeRequest(request.id)} disabled={mutating}>Reject</Button>
+                        <Button mode="contained" onPress={() => onApproveMergeRequest(request.id)} disabled={mutating}>{t('Approve')}</Button>
+                        <Button mode="outlined" onPress={() => onRequestMergeChanges(request.id, t('Please review the highlighted conflicts before merging.'))} disabled={mutating}>{t('Request changes')}</Button>
+                        <Button mode="text" textColor={theme.colors.error} onPress={() => onRejectMergeRequest(request.id)} disabled={mutating}>{t('Reject')}</Button>
                       </View>
                     </Card.Content>
                   </Card>
@@ -1814,9 +1828,9 @@ function ProfileTabContent({
               </View>
             ) : (
               <View style={styles.emptyState}>
-                <Text variant="titleMedium">No pending merge reviews</Text>
+                <Text variant="titleMedium">{t('No pending merge reviews')}</Text>
                 <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
-                  Merge suggestions with likely relative matches will appear here for joint editor approval.
+                  {t('Merge suggestions with likely relative matches will appear here for joint editor approval.')}
                 </Text>
               </View>
             )}
@@ -1825,9 +1839,9 @@ function ProfileTabContent({
 
             <View style={styles.sectionHeader}>
               <View style={styles.titleWrap}>
-                <Text variant="titleLarge">Merge history and undo</Text>
+                <Text variant="titleLarge">{t('Merge history and undo')}</Text>
                 <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-                  Undo preserves the audit trail and restores the pre-merge snapshot where possible.
+                  {t('Undo preserves the audit trail and restores the pre-merge snapshot where possible.')}
                 </Text>
               </View>
             </View>
@@ -1839,14 +1853,18 @@ function ProfileTabContent({
                     <Card.Content>
                       <Text variant="titleMedium">{entry.summary}</Text>
                       <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>
-                        {entry.preview.matches.length} reviewed matches · {entry.approvals.length} approval actions · {entry.changedPersonIds.length} people changed
+                        {t('{matches} reviewed matches · {approvals} approval actions · {people} people changed', {
+                          matches: entry.preview.matches.length,
+                          approvals: entry.approvals.length,
+                          people: entry.changedPersonIds.length,
+                        })}
                       </Text>
                       <View style={[styles.collaboratorChipRow, { marginTop: 8 }]}>
                         <Chip compact icon="history">{entry.status}</Chip>
                         <Chip compact icon="calendar-clock">{entry.createdAt.slice(0, 16).replace('T', ' ')}</Chip>
                       </View>
                       <Button mode="outlined" icon="undo" onPress={() => onUndoMerge(entry.mergeRequestId)} disabled={mutating || entry.status !== 'applied'} style={{ marginTop: 8 }}>
-                        Preview and undo merge
+                        {t('Preview and undo merge')}
                       </Button>
                     </Card.Content>
                   </Card>
@@ -1854,9 +1872,9 @@ function ProfileTabContent({
               </View>
             ) : (
               <View style={styles.emptyState}>
-                <Text variant="titleMedium">No merge history yet</Text>
+                <Text variant="titleMedium">{t('No merge history yet')}</Text>
                 <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
-                  Applied or rejected merge activity, approval history, confidence scores, and undoable snapshots will appear here.
+                  {t('Applied or rejected merge activity, approval history, confidence scores, and undoable snapshots will appear here.')}
                 </Text>
               </View>
             )}
@@ -1867,9 +1885,9 @@ function ProfileTabContent({
           <View>
             <View style={styles.sectionHeader}>
               <View style={styles.titleWrap}>
-                <Text variant="titleMedium">My Family Trees</Text>
+                <Text variant="titleMedium">{t('My Family Trees')}</Text>
                 <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-                  Switch between trees or manage the one you are working in now.
+                  {t('Switch between trees or manage the one you are working in now.')}
                 </Text>
               </View>
             </View>
@@ -1879,13 +1897,13 @@ function ProfileTabContent({
               </View>
             ) : (trees ?? []).length === 0 ? (
               <View style={styles.emptyState}>
-                <Text variant="titleMedium">No trees yet</Text>
+                <Text variant="titleMedium">{t('No trees yet')}</Text>
                 <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
-                  Create your first family tree to start building.
+                  {t('Create your first family tree to start building.')}
                 </Text>
                 {onCreateTree ? (
                   <Button mode="contained" icon="plus" onPress={onCreateTree} disabled={mutating} style={styles.emptyStateButton}>
-                    Create a tree
+                    {t('Create a tree')}
                   </Button>
                 ) : null}
               </View>
@@ -1913,11 +1931,11 @@ function ProfileTabContent({
                             <Text variant="titleMedium" style={isSelected ? { color: theme.colors.onPrimaryContainer } : undefined}>
                               {tree.name}
                             </Text>
-                            {isDefault ? <Chip compact icon="star" style={{ backgroundColor: theme.colors.secondaryContainer }}>Default</Chip> : null}
-                            {isSelected ? <Chip compact icon="check-circle" style={{ backgroundColor: theme.colors.primaryContainer }}>Active</Chip> : null}
+                            {isDefault ? <Chip compact icon="star" style={{ backgroundColor: theme.colors.secondaryContainer }}>{t('Default')}</Chip> : null}
+                            {isSelected ? <Chip compact icon="check-circle" style={{ backgroundColor: theme.colors.primaryContainer }}>{t('Active')}</Chip> : null}
                           </View>
                           <Text variant="bodySmall" style={{ color: isSelected ? theme.colors.onPrimaryContainer : theme.colors.onSurfaceVariant, marginTop: 2 }}>
-                            {tree.memberIds?.length ?? 0} member{(tree.memberIds?.length ?? 0) !== 1 ? 's' : ''} · {formatRole(treeRole)}
+                            {t('{count} member(s) · {role}', { count: tree.memberIds?.length ?? 0, role: formatRole(treeRole) })}
                           </Text>
                         </View>
                         <View style={{ flexDirection: 'row', gap: 4 }}>
@@ -1976,14 +1994,14 @@ function ProfileTabContent({
           }}
           style={[dialogChrome.dialog, { backgroundColor: theme.colors.surface }]}
         >
-          <Dialog.Title style={dialogChrome.dialogTitle}>Manage surname variants</Dialog.Title>
+          <Dialog.Title style={dialogChrome.dialogTitle}>{t('Manage surname variants')}</Dialog.Title>
           <Dialog.Content style={dialogChrome.content}>
             <Text variant="bodySmall" style={{ marginBottom: 12, color: theme.colors.onSurfaceVariant }}>
-              Add every alternate spelling or related surname that should be recognized anywhere in this tree.
+              {t('Add every alternate spelling or related surname that should be recognized anywhere in this tree.')}
             </Text>
             <TextInput
               mode="outlined"
-              label="Add variant"
+              label={t('Add variant')}
               value={surnameVariantDraft}
               onChangeText={setSurnameVariantDraft}
               onSubmitEditing={handleAddSurnameVariantDraft}
@@ -1996,7 +2014,7 @@ function ProfileTabContent({
               disabled={!surnameVariantDraft.trim()}
               style={{ marginBottom: 12 }}
             >
-              Add variant
+              {t('Add variant')}
             </Button>
             <View style={styles.collaboratorChipRow}>
               {surnameVariantDrafts.length > 0 ? surnameVariantDrafts.map((variant) => (
@@ -2008,7 +2026,7 @@ function ProfileTabContent({
                 >
                   {variant}
                 </Chip>
-              )) : <Chip compact icon="information-outline">Variants will appear here as chips</Chip>}
+              )) : <Chip compact icon="information-outline">{t('Variants will appear here as chips')}</Chip>}
             </View>
           </Dialog.Content>
           <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
@@ -2017,10 +2035,10 @@ function ProfileTabContent({
               setSurnameVariantDrafts(treeSurnameVariants);
               setSurnameVariantDialogVisible(false);
             }}>
-              Cancel
+              {t('Cancel')}
             </Button>
             <Button mode="contained" onPress={handleSaveSurnameVariants} disabled={mutating}>
-              Save
+              {t('Save')}
             </Button>
           </Dialog.Actions>
         </Dialog>
@@ -2030,16 +2048,16 @@ function ProfileTabContent({
           onDismiss={() => setHelperDialog((current) => ({ ...current, visible: false }))}
           style={[dialogChrome.dialog, { backgroundColor: theme.colors.surface }]}
         >
-          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{TREE_HELPER_COPY[helperDialog.key].title}</Dialog.Title>
+          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{t(TREE_HELPER_COPY[helperDialog.key].title)}</Dialog.Title>
           <IconButton
             icon="close"
             size={20}
             onPress={() => setHelperDialog((current) => ({ ...current, visible: false }))}
             style={dialogChrome.closeButton}
-            accessibilityLabel="Close"
+            accessibilityLabel={t('Close')}
           />
           <Dialog.Content style={dialogChrome.content}>
-            <Text variant="bodyMedium">{TREE_HELPER_COPY[helperDialog.key].message}</Text>
+            <Text variant="bodyMedium">{t(TREE_HELPER_COPY[helperDialog.key].message)}</Text>
           </Dialog.Content>
         </Dialog>
 
@@ -2049,14 +2067,14 @@ function ProfileTabContent({
           style={[dialogChrome.dialog, { backgroundColor: theme.colors.surface }]}
         >
           <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>
-            {previewApprovalRequest?.title ?? 'Approval preview'}
+            {previewApprovalRequest?.title ?? t('Approval preview')}
           </Dialog.Title>
           <IconButton
             icon="close"
             size={20}
             onPress={() => setPreviewApprovalRequest(null)}
             style={dialogChrome.closeButton}
-            accessibilityLabel="Close"
+            accessibilityLabel={t('Close')}
           />
           <Dialog.ScrollArea style={dialogChrome.scrollArea}>
             <ScrollView contentContainerStyle={{ paddingBottom: 8 }} keyboardShouldPersistTaps="handled">
@@ -2074,17 +2092,17 @@ function ProfileTabContent({
                           <Text variant="labelLarge">{field.label}</Text>
                           {field.before !== undefined && field.before !== null ? (
                             <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
-                              Before: {field.before}
+                              {t('Before: {value}', { value: field.before })}
                             </Text>
                           ) : null}
                           {field.after !== undefined && field.after !== null ? (
                             <Text variant="bodySmall" style={{ marginTop: 2 }}>
-                              After: {field.after}
+                              {t('After: {value}', { value: field.after })}
                             </Text>
                           ) : null}
                         </View>
                       )) : (
-                        <Text variant="bodyMedium">No field-level preview is available for this request.</Text>
+                        <Text variant="bodyMedium">{t('No field-level preview is available for this request.')}</Text>
                       )}
                     </View>
                   ) : (
@@ -2094,17 +2112,17 @@ function ProfileTabContent({
                           <Text variant="labelLarge">{field.label}</Text>
                           {field.before !== undefined && field.before !== null ? (
                             <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
-                              Before: {field.before}
+                              {t('Before: {value}', { value: field.before })}
                             </Text>
                           ) : null}
                           {field.after !== undefined && field.after !== null ? (
                             <Text variant="bodySmall" style={{ marginTop: 2 }}>
-                              After: {field.after}
+                              {t('After: {value}', { value: field.after })}
                             </Text>
                           ) : null}
                         </View>
                       )) : (
-                        <Text variant="bodyMedium">No field-level preview is available for this request.</Text>
+                        <Text variant="bodyMedium">{t('No field-level preview is available for this request.')}</Text>
                       )}
                     </View>
                   )}

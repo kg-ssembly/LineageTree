@@ -19,6 +19,7 @@ import type { PersonGender, PersonLifeEvent, PersonMutationPayload, PersonPhoto,
 import { formatPersonDate } from './dto/person';
 import type { RelationshipRecord } from './dto/relationship';
 import { GlobalStyles } from '../constants/styles';
+import { useI18n } from '../hooks/use-i18n';
 
 const styles = GlobalStyles.personFormDialog;
 const dialogChrome = GlobalStyles.dialogChrome;
@@ -80,8 +81,8 @@ function parseIsoDate(value: string) {
   return Number.isNaN(parsedDate.getTime()) ? undefined : parsedDate;
 }
 
-function formatDateButtonLabel(value: string) {
-  return value ? formatPersonDate(value) : 'Pick a date';
+function formatDateButtonLabel(value: string, t: (key: string, values?: Record<string, string | number>) => string) {
+  return value ? formatPersonDate(value) : t('Pick a date');
 }
 
 function formatPersonName(person: PersonRecord) {
@@ -123,6 +124,7 @@ export default function PersonFormDialog({
   onDelete,
 }: PersonFormDialogProps) {
   const theme = useTheme();
+  const { t } = useI18n();
   const [step, setStep] = useState<1 | 2>(1);
   const [isPresent, setIsPresent] = useState(true);
   const [firstName, setFirstName] = useState('');
@@ -282,23 +284,23 @@ export default function PersonFormDialog({
   // Gender-aware relationship mode labels
   const relationshipModeOptions = useMemo(() => [
     {
-      label: gender === 'male' ? 'Father of' : gender === 'female' ? 'Mother of' : 'Parent of',
+      label: gender === 'male' ? t('Father of') : gender === 'female' ? t('Mother of') : t('Parent of'),
       value: 'parent-of' as PendingRelationshipMode,
     },
     {
-      label: gender === 'male' ? 'Son of' : gender === 'female' ? 'Daughter of' : 'Child of',
+      label: gender === 'male' ? t('Son of') : gender === 'female' ? t('Daughter of') : t('Child of'),
       value: 'child-of' as PendingRelationshipMode,
     },
-    { label: 'Spouse of', value: 'spouse-of' as PendingRelationshipMode },
-  ], [gender]);
+    { label: t('Spouse of'), value: 'spouse-of' as PendingRelationshipMode },
+  ], [gender, t]);
 
   const handleNextStep = () => {
     if (!firstName.trim()) {
-      setFirstNameError('First name is required.');
+      setFirstNameError(t('First name is required.'));
       return;
     }
     if (!isPresent && birthDate && deathDate && deathDate < birthDate) {
-      setDeathDateError('Death date cannot be earlier than birth date.');
+      setDeathDateError(t('Death date cannot be earlier than birth date.'));
       return;
     }
     setStep(2);
@@ -306,14 +308,14 @@ export default function PersonFormDialog({
 
   const handleSubmit = async () => {
     if (!firstName.trim()) {
-      setFirstNameError('First name is required.');
+      setFirstNameError(t('First name is required.'));
       return;
     }
 
     if (mode === 'create') {
       const hasIncompleteRelationship = pendingRelationships.some((draft) => !draft.relatedPersonId);
       if (hasIncompleteRelationship) {
-        setRelationshipError('Choose a family member for each relationship you want to create.');
+        setRelationshipError(t('Choose a family member for each relationship you want to create.'));
         return;
       }
 
@@ -321,7 +323,7 @@ export default function PersonFormDialog({
       for (const draft of pendingRelationships) {
         const compositeKey = `${draft.mode}:${draft.relatedPersonId}`;
         if (duplicateKeys.has(compositeKey)) {
-          setRelationshipError('Remove duplicate pending relationships before saving.');
+          setRelationshipError(t('Remove duplicate pending relationships before saving.'));
           return;
         }
         duplicateKeys.add(compositeKey);
@@ -329,7 +331,7 @@ export default function PersonFormDialog({
     }
 
     if (birthDate && !isPresent && deathDate && deathDate < birthDate) {
-      setDeathDateError('Death date cannot be earlier than birth date.');
+      setDeathDateError(t('Death date cannot be earlier than birth date.'));
       return;
     }
 
@@ -361,17 +363,17 @@ export default function PersonFormDialog({
         >
           <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose, styles.dialogTitle]}>
             {mode === 'create'
-              ? (step === 1 ? 'Add family member' : 'Add relationships')
-              : 'Edit family member'}
+              ? (step === 1 ? t('Add family member') : t('Add relationships'))
+              : t('Edit family member')}
           </Dialog.Title>
-          <IconButton icon="close" onPress={onDismiss} disabled={loading} accessibilityLabel="Cancel" style={dialogChrome.closeButton} />
+          <IconButton icon="close" onPress={onDismiss} disabled={loading} accessibilityLabel={t('Cancel')} style={dialogChrome.closeButton} />
           {mode === 'create' ? (
             <View style={[styles.stepProgressRow, { borderBottomColor: theme.colors.outlineVariant }]}>
               <View style={[styles.stepDot, step >= 1 && { backgroundColor: theme.colors.primary }]} />
               <View style={[styles.stepLine, { backgroundColor: step >= 2 ? theme.colors.primary : theme.colors.outlineVariant }]} />
               <View style={[styles.stepDot, step >= 2 && { backgroundColor: theme.colors.primary }]} />
               <Text variant="labelSmall" style={[styles.stepLabel, { color: theme.colors.onSurfaceVariant }]}>
-                Step {step} of 2
+                {t('Step {step} of 2', { step })}
               </Text>
             </View>
           ) : null}
@@ -383,7 +385,7 @@ export default function PersonFormDialog({
                 <>
               <TextInput
                 mode="outlined"
-                label="First name *"
+                label={t('First name *')}
                 value={firstName}
                 onChangeText={(value) => {
                   setFirstName(value);
@@ -400,14 +402,14 @@ export default function PersonFormDialog({
 
               <TextInput
                 mode="outlined"
-                label="Second / middle names"
+                label={t('Second / middle names')}
                 value={middleNames}
                 onChangeText={setMiddleNames}
                 disabled={loading}
               />
 
               <View style={styles.sectionSpacing}>
-                <Text variant="titleSmall">Last name</Text>
+                <Text variant="titleSmall">{t('Last name')}</Text>
                 <Menu
                   visible={surnameMenuVisible}
                   onDismiss={() => setSurnameMenuVisible(false)}
@@ -419,7 +421,7 @@ export default function PersonFormDialog({
                       style={styles.fieldSpacing}
                       disabled={loading || uniqueLastNames.length === 0}
                     >
-                      {lastName || (uniqueLastNames.length > 0 ? 'Choose existing surname' : 'No existing surnames')}
+                      {lastName || (uniqueLastNames.length > 0 ? t('Choose existing surname') : t('No existing surnames'))}
                     </Button>
                   )}
                 >
@@ -437,7 +439,7 @@ export default function PersonFormDialog({
                 </Menu>
                 <TextInput
                   mode="outlined"
-                  label="Type new surname or edit selection"
+                  label={t('Type new surname or edit selection')}
                   value={lastName}
                   onChangeText={(value) => {
                     setLastName(value);
@@ -448,28 +450,28 @@ export default function PersonFormDialog({
                 />
                 {mode === 'create' && suggestedLastName ? (
                   <HelperText type="info" visible>
-                    Suggested surname from selected relationship: {suggestedLastName}
+                    {t('Suggested surname from selected relationship: {name}', { name: suggestedLastName })}
                   </HelperText>
                 ) : null}
               </View>
 
               <View style={styles.sectionSpacing}>
-                <Text variant="titleSmall">Maiden name</Text>
+                <Text variant="titleSmall">{t('Maiden name')}</Text>
                 <TextInput
                   mode="outlined"
-                  label="Maiden / birth surname (optional)"
+                  label={t('Maiden / birth surname (optional)')}
                   value={maidenName}
                   onChangeText={setMaidenName}
                   disabled={loading}
                   style={styles.fieldSpacing}
                 />
                 <HelperText type="info" visible>
-                  The surname this person was born with or used before marriage.
+                  {t('The surname this person was born with or used before marriage.')}
                 </HelperText>
               </View>
 
               <View style={styles.sectionSpacing}>
-                <Text variant="titleSmall">Birth date</Text>
+                <Text variant="titleSmall">{t('Birth date')}</Text>
                 <View style={styles.birthDateActions}>
                   <Button
                     mode="outlined"
@@ -477,11 +479,11 @@ export default function PersonFormDialog({
                     onPress={() => setBirthDatePickerVisible(true)}
                     disabled={loading}
                   >
-                    {formatDateButtonLabel(birthDate)}
+                    {formatDateButtonLabel(birthDate, t)}
                   </Button>
                   {birthDate ? (
                     <Button onPress={() => setBirthDate('')} disabled={loading}>
-                      Clear
+                      {t('Clear')}
                     </Button>
                   ) : null}
                 </View>
@@ -489,7 +491,7 @@ export default function PersonFormDialog({
 
               <View style={styles.sectionSpacing}>
                 <View style={styles.presentRow}>
-                  <Text variant="titleSmall">Still present</Text>
+                  <Text variant="titleSmall">{t('Still present')}</Text>
                   <Switch
                     value={isPresent}
                     onValueChange={(value) => {
@@ -511,7 +513,7 @@ export default function PersonFormDialog({
                         onPress={() => setDeathDatePickerVisible(true)}
                         disabled={loading}
                       >
-                        {formatDateButtonLabel(deathDate)}
+                        {formatDateButtonLabel(deathDate, t)}
                       </Button>
                       {deathDate ? (
                         <Button
@@ -521,7 +523,7 @@ export default function PersonFormDialog({
                           }}
                           disabled={loading}
                         >
-                          Clear
+                          {t('Clear')}
                         </Button>
                       ) : null}
                     </View>
@@ -533,7 +535,7 @@ export default function PersonFormDialog({
               </View>
 
               <View style={styles.sectionSpacing}>
-                <Text variant="titleSmall">Gender</Text>
+                <Text variant="titleSmall">{t('Gender')}</Text>
                 <View style={styles.chipGroup}>
                   {genderOptions.map((option) => (
                     <Chip
@@ -558,13 +560,13 @@ export default function PersonFormDialog({
               {mode === 'create' && relationshipCandidates.length > 0 ? (
                 <View style={styles.sectionSpacing}>
                   <View style={styles.relationshipHeader}>
-                    <Text variant="titleSmall">Create relationships now</Text>
+                    <Text variant="titleSmall">{t('Create relationships now')}</Text>
                     <Button onPress={() => setPendingRelationships((current) => [...current, createPendingRelationshipDraft()])}>
-                      Add relationship
+                      {t('Add relationship')}
                     </Button>
                   </View>
                   <Text variant="bodyMedium" style={styles.helperText}>
-                    Queue one or more relationships to create as soon as this family member is saved.
+                    {t('Queue one or more relationships to create as soon as this family member is saved.')}
                   </Text>
 
                   {pendingRelationships.map((draft, index) => {
@@ -583,7 +585,7 @@ export default function PersonFormDialog({
                     return (
                       <View key={draft.key} style={styles.pendingRelationshipCard}>
                         <View style={styles.relationshipHeader}>
-                          <Text variant="titleSmall">Relationship {index + 1}</Text>
+                          <Text variant="titleSmall">{t('Relationship {number}', { number: index + 1 })}</Text>
                           <IconButton
                             icon="delete"
                             size={18}
@@ -615,7 +617,7 @@ export default function PersonFormDialog({
                           <>
                             <TextInput
                               mode="outlined"
-                              label="Search family member"
+                              label={t('Search family member')}
                               value={draft.searchQuery}
                               onChangeText={(value) => setPendingRelationships((current) => current.map((item) => item.key === draft.key ? { ...item, searchQuery: value } : item))}
                               style={styles.fieldSpacing}
@@ -649,10 +651,10 @@ export default function PersonFormDialog({
                     <View style={[styles.coParentBanner, { backgroundColor: theme.colors.secondaryContainer, borderRadius: 8 }]}>
                       <View style={{ flex: 1 }}>
                         <Text variant="labelMedium" style={{ color: theme.colors.onSecondaryContainer }}>
-                          Also add {formatPersonName(coParentSuggestion)} as a parent?
+                          {t('Also add {name} as a parent?', { name: formatPersonName(coParentSuggestion) })}
                         </Text>
                         <Text variant="bodySmall" style={{ color: theme.colors.onSecondaryContainer, opacity: 0.8 }}>
-                          They are a spouse of the selected parent.
+                          {t('They are a spouse of the selected parent.')}
                         </Text>
                       </View>
                       <Button
@@ -671,7 +673,7 @@ export default function PersonFormDialog({
                         }}
                         disabled={loading}
                       >
-                        Add
+                        {t('Add')}
                       </Button>
                     </View>
                   ) : null}
@@ -680,10 +682,10 @@ export default function PersonFormDialog({
                     <View style={[styles.coParentBanner, { backgroundColor: theme.colors.tertiaryContainer ?? theme.colors.secondaryContainer, borderRadius: 8 }]}>
                       <View style={{ flex: 1 }}>
                         <Text variant="labelMedium" style={{ color: (theme.colors as any).onTertiaryContainer ?? theme.colors.onSecondaryContainer }}>
-                          💍 Did their surname change at marriage?
+                          {t('Did their surname change at marriage?')}
                         </Text>
                         <Text variant="bodySmall" style={{ color: (theme.colors as any).onTertiaryContainer ?? theme.colors.onSecondaryContainer, opacity: 0.8 }}>
-                          Record their original surname as a maiden name in Step 1.
+                          {t('Record their original surname as a maiden name in Step 1.')}
                         </Text>
                       </View>
                     </View>
@@ -704,18 +706,18 @@ export default function PersonFormDialog({
                 disabled={loading}
                 onPress={() => {
                   Alert.alert(
-                    'Delete family member',
-                    'Remove this person and all their relationships? This cannot be undone.',
+                    t('Delete family member'),
+                    t('Remove this person and all their relationships? This cannot be undone.'),
                     [
-                      { text: 'Cancel', style: 'cancel' },
-                      { text: 'Delete', style: 'destructive', onPress: () => void onDelete() },
+                      { text: t('Cancel'), style: 'cancel' },
+                      { text: t('Delete'), style: 'destructive', onPress: () => void onDelete() },
                     ],
                   );
                 }}
-                accessibilityLabel="Delete member"
+                accessibilityLabel={t('Delete member')}
               />
             ) : mode === 'create' && step === 2 ? (
-              <Button mode="outlined" onPress={() => setStep(1)} disabled={loading}>Back</Button>
+              <Button mode="outlined" onPress={() => setStep(1)} disabled={loading}>{t('Back')}</Button>
             ) : (
               <View />
             )}
@@ -723,12 +725,12 @@ export default function PersonFormDialog({
               <View style={{ flexDirection: 'row', gap: 8 }}>
               {mode === 'create' && step === 1 ? (
                 <>
-                  <Button mode="contained" onPress={handleNextStep} disabled={loading}>Next</Button>
+                  <Button mode="contained" onPress={handleNextStep} disabled={loading}>{t('Next')}</Button>
                 </>
               ) : (
                 <>
                   <Button mode="contained" onPress={handleSubmit} disabled={loading}>
-                    {mode === 'create' ? 'Create' : 'Save'}
+                    {mode === 'create' ? t('Create') : t('Save')}
                   </Button>
                 </>
               )}
@@ -749,8 +751,8 @@ export default function PersonFormDialog({
             setBirthDate(formatIsoDate(date));
           }
         }}
-        saveLabel="Save"
-        label="Select birth date"
+        saveLabel={t('Save')}
+        label={t('Select birth date')}
       />
 
       <DatePickerModal
@@ -768,8 +770,8 @@ export default function PersonFormDialog({
             }
           }
         }}
-        saveLabel="Save"
-        label="Select date of death"
+        saveLabel={t('Save')}
+        label={t('Select date of death')}
       />
     </>
   );

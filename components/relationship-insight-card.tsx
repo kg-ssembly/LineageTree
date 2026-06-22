@@ -325,7 +325,9 @@ export default function RelationshipInsightCard({
                     ]}
                   >
                     <Text variant="titleSmall" style={styles.resultRowTitle}>{formatPersonName(person)}</Text>
-                    <Text variant="bodySmall" style={styles.resultRowMeta}>{formatPersonMeta(person)}</Text>
+                    <Text variant="bodySmall" style={styles.resultRowMeta}>
+                      {formatPersonMeta(person) === 'No dates recorded yet' ? t('No dates recorded yet') : formatPersonMeta(person)}
+                    </Text>
                   </Pressable>
                 ))}
               </View>

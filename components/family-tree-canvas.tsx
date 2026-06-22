@@ -297,26 +297,26 @@ const PersonNode = React.memo(function PersonNode(props: PersonNodeProps) {
             },
           ]}
       >
+        {isCurrentUser ? (
+            <View style={[styles.nodeBadge, { backgroundColor: primaryColor }]}>
+              <Text variant="labelSmall" style={[styles.nodeBadgeText, { color: onPrimaryColor }]}>You</Text>
+            </View>
+        ) : badgeLabel ? (
+            <View style={[styles.nodeBadge, { backgroundColor: tertiaryColor }]}>
+              <Text variant="labelSmall" style={[styles.nodeBadgeText, { color: onTertiaryColor }]} numberOfLines={1}>{badgeLabel}</Text>
+            </View>
+        ) : null}
         <View style={styles.nodeInnerRow}>
           <View style={styles.nodeAvatarColumn}>
             <View style={styles.nodeAvatarWrap}>
-            {photo ? (
+              {photo ? (
                 <Image source={{ uri: photo.url }} style={styles.nodeAvatar} />
-            ) : (
+              ) : (
                 <View style={[styles.nodeAvatarFallback, { borderColor: outlineColor, backgroundColor: variantSurface }]}>
                   <MaterialCommunityIcons name={getPersonFallbackAvatarIcon(person)} size={28} color={isHighlighted ? tertiaryColor : primaryColor} />
                 </View>
-            )}
+              )}
             </View>
-            {isCurrentUser ? (
-              <View style={[styles.nodeBadgeInline, { backgroundColor: primaryColor }]}>
-                <Text variant="labelSmall" style={[styles.nodeBadgeText, { color: onPrimaryColor }]}>You</Text>
-              </View>
-            ) : badgeLabel ? (
-              <View style={[styles.nodeBadgeInline, { backgroundColor: tertiaryColor }]}>
-                <Text variant="labelSmall" style={[styles.nodeBadgeText, { color: onTertiaryColor }]} numberOfLines={1}>{badgeLabel}</Text>
-              </View>
-            ) : null}
           </View>
           <View style={styles.nodeTextWrap}>
             <Text variant="titleSmall" style={styles.nodeTitle} numberOfLines={2}>
@@ -864,12 +864,12 @@ function FamilyTreeCanvas({
 
   // ---- Labels ----
   const controlsLabel = lineageMode === 'ascendant'
-      ? 'Drag to pan, pinch / Ctrl-scroll to zoom through earlier generations.'
+      ? t('Drag to pan, pinch / Ctrl-scroll to zoom through earlier generations.')
       : lineageMode === 'descendant'
-          ? 'Drag to pan, pinch / Ctrl-scroll to zoom through descendants.'
-          : 'Drag to pan, pinch or Ctrl+scroll to zoom.';
-  const fullscreenTitle = lineageMode === 'ascendant' ? 'Full-screen ascendant tree'
-      : lineageMode === 'descendant' ? 'Full-screen descendant tree' : 'Full-screen family tree';
+          ? t('Drag to pan, pinch / Ctrl-scroll to zoom through descendants.')
+          : t('Drag to pan, pinch or Ctrl+scroll to zoom.');
+  const fullscreenTitle = lineageMode === 'ascendant' ? t('Full-screen ascendant tree')
+      : lineageMode === 'descendant' ? t('Full-screen descendant tree') : t('Full-screen family tree');
 
   // ---- Render helpers ----
   const transformStyle = {

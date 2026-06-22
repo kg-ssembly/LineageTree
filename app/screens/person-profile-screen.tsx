@@ -565,7 +565,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
     if (Platform.OS !== 'web') {
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permission.granted) {
-        Alert.alert('Permission needed', 'Please allow access to your photo library to add family photos.');
+        Alert.alert(t('Permission needed'), t('Please allow access to your photo library to add family photos.'));
         return;
       }
     }
@@ -583,7 +583,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
     if (Platform.OS !== 'web') {
       const permission = await ImagePicker.requestCameraPermissionsAsync();
       if (!permission.granted) {
-        Alert.alert('Permission needed', 'Please allow camera access to capture family photos.');
+        Alert.alert(t('Permission needed'), t('Please allow camera access to capture family photos.'));
         return;
       }
     }
@@ -597,7 +597,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
 
       addPhotoFromPickerResult(result);
     } catch {
-      Alert.alert('Camera unavailable', 'The camera could not be opened on this device.');
+      Alert.alert(t('Camera unavailable'), t('The camera could not be opened on this device.'));
     }
   };
 
@@ -814,9 +814,9 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
               {isCurrentUsersPerson ? (
                 <View style={styles.claimRow}>
                   <View style={styles.claimTextWrap}>
-                    <Text variant="titleSmall">This is your linked profile</Text>
+                    <Text variant="titleSmall">{t('This is your linked profile')}</Text>
                     <Text variant="bodySmall" style={[styles.claimText, { color: theme.colors.onSurfaceVariant }]}>
-                      Anywhere this family member appears in the tree, you will now see a You badge. Unlink this profile first if you want to claim someone else.
+                      {t('Anywhere this family member appears in the tree, you will now see a You badge. Unlink this profile first if you want to claim someone else.')}
                     </Text>
                   </View>
                     <Button mode="outlined" icon="link-off" onPress={handleUnclaimPerson} disabled={mutating}>
@@ -825,17 +825,17 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
                 </View>
               ) : linkedCollaborator ? (
                 <>
-                  <Text variant="titleSmall">Already linked to someone else</Text>
+                  <Text variant="titleSmall">{t('Already linked to someone else')}</Text>
                   <Text variant="bodySmall" style={[styles.claimText, { color: theme.colors.onSurfaceVariant }]}>
-                    This profile is already linked to {linkedCollaborator.displayName || linkedCollaborator.email}.
+                    {t('This profile is already linked to {name}.', { name: linkedCollaborator.displayName || linkedCollaborator.email })}
                   </Text>
                 </>
               ) : canClaimPerson ? (
                 <View style={styles.claimRow}>
                   <View style={styles.claimTextWrap}>
-                    <Text variant="titleSmall">Is this you?</Text>
+                    <Text variant="titleSmall">{t('Is this you?')}</Text>
                     <Text variant="bodySmall" style={[styles.claimText, { color: theme.colors.onSurfaceVariant }]}>
-                      Tap once to link your account to this family member profile.
+                      {t('Tap once to link your account to this family member profile.')}
                     </Text>
                   </View>
                   <Button mode="contained" icon="account-check" onPress={handleClaimPerson} disabled={mutating}>
@@ -857,15 +857,15 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
                 size={20}
                 style={styles.helperIconButton}
                 onPress={() => openHelperDialog('member-profile')}
-                accessibilityLabel="About member profile"
+                accessibilityLabel={t('About member profile')}
               />
             </View>
 
             <View style={styles.metadataRow}>
               {person.gender !== 'unspecified' ? <Chip compact>{formatPersonGender(person.gender)}</Chip> : null}
               <Chip compact icon={isPersonDeceased(person) ? 'flower-outline' : 'heart-pulse'}>{getPersonPresenceLabel(person)}</Chip>
-              <Chip compact icon="image-multiple">{person.photos.length} photos</Chip>
-              <Chip compact icon="source-branch">{getPersonTreeMembershipIds(person).length} tree memberships</Chip>
+              <Chip compact icon="image-multiple">{t('{count} photos', { count: person.photos.length })}</Chip>
+              <Chip compact icon="source-branch">{t('{count} tree memberships', { count: getPersonTreeMembershipIds(person).length })}</Chip>
               {preferredPhoto ? <Chip compact icon="star">{t('Preferred photo selected')}</Chip> : null}
               {linkedCollaborator && !isCurrentUsersPerson ? <Chip compact icon="link-variant">{t('Linked')}</Chip> : null}
               {person.canonicalPersonId?.trim() ? <Chip compact icon="merge">{t('Merged canonical profile')}</Chip> : null}
@@ -934,7 +934,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
             </View>
 
             <HorizontalTabStrip
-              items={RELATIONSHIP_SECTION_TABS}
+              items={RELATIONSHIP_SECTION_TABS.map((item) => ({ ...item, label: t(item.label) }))}
               activeKey={relationshipSectionTab}
               onChange={setRelationshipSectionTab}
               containerStyle={[styles.tabStripCard, styles.relationshipTabStripCard, { backgroundColor: theme.colors.surface }]}
@@ -947,7 +947,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
                 people={people}
                 relationships={relationships}
                 lockedFromPersonId={person.id}
-                title={`How does ${formatPersonName(person)} relate to...`}
+                title={t('How does {name} relate to...', { name: formatPersonName(person) })}
               />
             ) : relationshipEntries.length > 0 ? (
               <>
@@ -957,7 +957,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
                       <View style={styles.relationshipRow}>
                         <View style={styles.relationshipTextWrap}>
                           <Chip compact style={styles.relationshipChip}>
-                            {entry.mode === 'parent-of' ? 'Parent of' : entry.mode === 'child-of' ? 'Child of' : 'Spouse of'}
+                            {entry.mode === 'parent-of' ? t('Parent of') : entry.mode === 'child-of' ? t('Child of') : t('Spouse of')}
                           </Chip>
                           <Text variant="titleMedium" style={styles.relationshipTitle}>{formatPersonName(entry.relatedPerson)}</Text>
                           <Text variant="bodySmall" style={[styles.relationshipSubtitle, { color: theme.colors.onSurfaceVariant }]}>{entry.subtitle}</Text>
@@ -995,7 +995,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
             ) : (
               <View style={styles.emptyState}>
                 <Text variant="titleMedium">{t('No relationships yet')}</Text>
-                <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>Add parents, children, or spouses from this family member to grow the story around them.</Text>
+                <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>{t('Add parents, children, or spouses from this family member to grow the story around them.')}</Text>
               </View>
             )}
           </Surface>
@@ -1006,18 +1006,18 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
             <View style={styles.sectionHeader}>
               <View style={styles.sectionHeaderText}>
                 <View style={styles.titleWithHelperRow}>
-                  <Text variant="titleLarge">Descendant tree</Text>
+                  <Text variant="titleLarge">{t('Descendant tree')}</Text>
                   <IconButton
                     icon="information-outline"
                     size={20}
                     style={styles.helperIconButton}
                     onPress={() => openHelperDialog('descendant-tree')}
-                    accessibilityLabel="About descendant tree"
+                    accessibilityLabel={t('About descendant tree')}
                   />
                 </View>
                 {descendantIds.length > 0 ? (
                   <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-                    {descendantIds.length} {descendantIds.length === 1 ? 'descendant' : 'descendants'}
+                    {descendantIds.length === 1 ? t('{count} descendant', { count: descendantIds.length }) : t('{count} descendants', { count: descendantIds.length })}
                   </Text>
                 ) : null}
               </View>
@@ -1039,18 +1039,18 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
             <View style={styles.sectionHeader}>
               <View style={styles.sectionHeaderText}>
                 <View style={styles.titleWithHelperRow}>
-                  <Text variant="titleLarge">Ascendant tree</Text>
+                  <Text variant="titleLarge">{t('Ascendant tree')}</Text>
                   <IconButton
                     icon="information-outline"
                     size={20}
                     style={styles.helperIconButton}
                     onPress={() => openHelperDialog('ascendant-tree')}
-                    accessibilityLabel="About ascendant tree"
+                    accessibilityLabel={t('About ascendant tree')}
                   />
                 </View>
                 {ascendantIds.length > 0 ? (
                   <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-                    {ascendantIds.length} {ascendantIds.length === 1 ? 'ancestor' : 'ancestors'}
+                    {ascendantIds.length === 1 ? t('{count} ancestor', { count: ascendantIds.length }) : t('{count} ancestors', { count: ascendantIds.length })}
                   </Text>
                 ) : null}
               </View>
@@ -1076,12 +1076,12 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
                 size={20}
                 style={styles.helperIconButton}
                 onPress={() => openHelperDialog('memories-gallery')}
-                accessibilityLabel="About memories and gallery"
+                accessibilityLabel={t('About memories and gallery')}
               />
             </View>
 
             <HorizontalTabStrip
-              items={MEMORY_SECTION_TABS}
+              items={MEMORY_SECTION_TABS.map((item) => ({ ...item, label: t(item.label) }))}
               activeKey={memorySectionTab}
               onChange={setMemorySectionTab}
               containerStyle={[styles.tabStripCard, { backgroundColor: theme.colors.surface }]}
@@ -1132,7 +1132,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
                 ) : (
                   <View style={styles.emptyState}>
                     <Text variant="titleMedium">{t('No photos yet')}</Text>
-                    <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>Photos and scanned keepsakes will show up here.</Text>
+                    <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>{t('Photos and scanned keepsakes will show up here.')}</Text>
                   </View>
                 )}
               </View>
@@ -1185,7 +1185,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
                 ) : (
                   <View style={styles.emptyState}>
                     <Text variant="titleMedium">{t('No memories yet')}</Text>
-                    <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>Start with major milestones like marriage, divorce, moving house, graduation, or a treasured family story.</Text>
+                    <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>{t('Start with major milestones like marriage, divorce, moving house, graduation, or a treasured family story.')}</Text>
                   </View>
                 )}
               </View>
@@ -1217,7 +1217,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
       <BottomNavigation.Bar
         navigationState={{
           index: TAB_ROUTES.findIndex((r) => r.key === activeTab),
-          routes: TAB_ROUTES,
+          routes: TAB_ROUTES.map((route) => ({ ...route, title: t(route.title) })),
         }}
         onTabPress={({ route }) => setActiveTab(route.key as PersonProfileTabKey)}
         labeled={false}
@@ -1331,14 +1331,14 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
             <ScrollView contentContainerStyle={styles.memoryDialogContent} keyboardShouldPersistTaps="handled">
               <View style={styles.memoryDialogPhotoActions}>
                 <Button mode="outlined" icon="image-plus" onPress={handleAddPhotoFromLibrary} disabled={mutating}>
-                  Library
+                  {t('Library')}
                 </Button>
                 <Button mode="outlined" icon="camera" onPress={handleCapturePhoto} disabled={mutating}>
-                  Camera
+                  {t('Camera')}
                 </Button>
               </View>
               <Text variant="bodySmall" style={styles.memoryDialogHint}>
-                Add photos from the library or camera, then tap the star on one image to make it the main profile photo.
+                {t('Add photos from the library or camera, then tap the star on one image to make it the main profile photo.')}
               </Text>
 
               {photoEditorCount > 0 ? (
@@ -1384,7 +1384,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
                 </ScrollView>
               ) : (
                 <Text variant="bodySmall" style={styles.memoryDialogHint}>
-                  No photos added yet.
+                  {t('No photos added yet.')}
                 </Text>
               )}
             </ScrollView>
@@ -1463,7 +1463,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
           onDismiss={() => setHelperDialog((current) => ({ ...current, visible: false }))}
           style={[dialogChrome.dialog, { backgroundColor: theme.colors.surface }]}
         >
-          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{helperDialogCopy[helperDialog.key].title}</Dialog.Title>
+          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{t(helperDialogCopy[helperDialog.key].title)}</Dialog.Title>
           <IconButton
             icon="close"
             size={20}
@@ -1472,7 +1472,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
             accessibilityLabel={t('Close')}
           />
           <Dialog.Content style={dialogChrome.content}>
-            <Text variant="bodyMedium">{helperDialogCopy[helperDialog.key].message}</Text>
+            <Text variant="bodyMedium">{t(helperDialogCopy[helperDialog.key].message)}</Text>
           </Dialog.Content>
         </Dialog>
       </Portal>

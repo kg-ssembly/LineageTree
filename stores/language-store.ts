@@ -24,8 +24,7 @@ function isAppLanguage(value: string | null): value is AppLanguage {
     || value === 'ts'
     || value === 'ss'
     || value === 've'
-    || value === 'nr'
-    || value === 'sasl';
+    || value === 'nr';
 }
 
 export const useLanguageStore = create<LanguageState>((set, get) => ({

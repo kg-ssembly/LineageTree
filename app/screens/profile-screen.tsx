@@ -459,58 +459,68 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
   const fallbackProfileState = useMemo(() => {
     if (trees.length === 0) {
       return {
-        title: 'Create or join a tree',
-        summary: 'You can unlock the rest of this profile workspace once you create or join a family tree.',
-        detail: 'Open the tree settings tab to create your first tree or accept access to a shared tree.',
+        title: t('Create or join a tree'),
+        summary: t('You can unlock the rest of this profile workspace once you create or join a family tree.'),
+        detail: t('Open the tree settings tab to create your first tree or accept access to a shared tree.'),
       };
     }
 
     if (!user?.defaultTreeId) {
       return {
-        title: 'Choose a default tree',
-        summary: 'You already have a family tree, but no default tree has been chosen for this profile workspace yet.',
-        detail: 'Open the tree settings tab to mark one of your trees as the default tree.',
+        title: t('Choose a default tree'),
+        summary: t('You already have a family tree, but no default tree has been chosen for this profile workspace yet.'),
+        detail: t('Open the tree settings tab to mark one of your trees as the default tree.'),
       };
     }
 
     if (!defaultTree) {
       if (selectedTree && currentAssignedPersonId) {
         return {
-          title: 'Linked profile available',
-          summary: `You are linked in "${selectedTree.name}", but your saved default tree is not available right now.`,
-          detail: 'The profile tabs should still open from this linked tree. If not, reopen the profile tab or choose a new default tree in tree settings.',
+          title: t('Linked profile available'),
+          summary: t('You are linked in "{treeName}", but your saved default tree is not available right now.', { treeName: selectedTree.name }),
+          detail: t('The profile tabs should still open from this linked tree. If not, reopen the profile tab or choose a new default tree in tree settings.'),
         };
       }
 
       return {
-        title: 'Reconnect your default tree',
-        summary: 'Your account still points to a default tree, but that tree is not available right now.',
-        detail: 'Open the tree settings tab to pick a new default tree or rejoin the original tree if you still need access.',
+        title: t('Reconnect your default tree'),
+        summary: t('Your account still points to a default tree, but that tree is not available right now.'),
+        detail: t('Open the tree settings tab to pick a new default tree or rejoin the original tree if you still need access.'),
       };
     }
 
     if (!defaultAssignedPersonId && !currentAssignedPersonId) {
       return {
-        title: 'Link or claim your family profile',
-        summary: `You have a tree ready, but your account is not linked to a family member profile yet${defaultTree ? ` in "${defaultTree.name}"` : ''}.`,
-        detail: 'Open the tree settings tab to link yourself to an existing person or claim your profile there.',
+        title: t('Link or claim your family profile'),
+        summary: t(
+          defaultTree
+            ? 'You have a tree ready, but your account is not linked to a family member profile yet in "{treeName}".'
+            : 'You have a tree ready, but your account is not linked to a family member profile yet.',
+          { treeName: defaultTree?.name ?? '' },
+        ),
+        detail: t('Open the tree settings tab to link yourself to an existing person or claim your profile there.'),
       };
     }
 
     if (!currentAssignedPerson) {
       return {
-        title: 'Loading your family profile',
-        summary: `Your account is linked${profileTree ? ` in "${profileTree.name}"` : ''}, and we are still loading that family member profile.`,
-        detail: 'This should resolve in a moment. If it does not, reopen the profile tab.',
+        title: t('Loading your family profile'),
+        summary: t(
+          profileTree
+            ? 'Your account is linked in "{treeName}", and we are still loading that family member profile.'
+            : 'Your account is linked, and we are still loading that family member profile.',
+          { treeName: profileTree?.name ?? '' },
+        ),
+        detail: t('This should resolve in a moment. If it does not, reopen the profile tab.'),
       };
     }
 
     return {
-      title: 'Profile workspace',
-      summary: 'Your profile workspace is getting ready.',
-      detail: 'If this message stays here, reopen the profile tab.',
+      title: t('Profile workspace'),
+      summary: t('Your profile workspace is getting ready.'),
+      detail: t('If this message stays here, reopen the profile tab.'),
     };
-  }, [currentAssignedPerson, currentAssignedPersonId, defaultAssignedPersonId, defaultTree, profileTree, selectedTree, trees.length, user?.defaultTreeId]);
+  }, [currentAssignedPerson, currentAssignedPersonId, defaultAssignedPersonId, defaultTree, profileTree, selectedTree, t, trees.length, user?.defaultTreeId]);
 
   const linkedPerson = currentAssignedPerson;
   const preferredPhoto = getPreferredPersonPhoto(linkedPerson);
@@ -541,10 +551,10 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
               : relationship.fromPersonId;
         const relatedPerson = peopleById.get(relatedPersonId) ?? null;
         const subtitle = relationship.type === 'spouse'
-          ? 'Partner connection'
+          ? t('Partner connection')
           : mode === 'parent-of'
-            ? 'Parent → child connection'
-            : 'Child → parent connection';
+            ? t('Parent -> child connection')
+            : t('Child -> parent connection');
 
         return {
           relationship,
@@ -554,7 +564,7 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
         };
       })
       .sort((left, right) => right.relationship.createdAt.localeCompare(left.relationship.createdAt));
-  }, [linkedPerson, peopleById, relationships]);
+  }, [linkedPerson, peopleById, relationships, t]);
 
   const memoryTimeline = useMemo(() => {
     if (!linkedPerson) {
@@ -576,8 +586,8 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
         id: `birth-${linkedPerson.id}`,
         date: linkedPerson.birthDate,
         title: 'Birth',
-        description: `${formatPersonName(linkedPerson)} was born.`,
-        badgeLabel: 'Birth',
+        description: t('{name} was born.', { name: formatPersonName(linkedPerson) }),
+        badgeLabel: t('Birth'),
         system: true,
       });
     }
@@ -586,15 +596,15 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
       items.push({
         id: `death-${linkedPerson.id}`,
         date: linkedPerson.deathDate,
-        title: 'In memory',
-        description: `${formatPersonName(linkedPerson)} passed away.`,
-        badgeLabel: 'In memory',
+        title: t('In memory'),
+        description: t('{name} passed away.', { name: formatPersonName(linkedPerson) }),
+        badgeLabel: t('In memory'),
         system: true,
       });
     }
 
     return items.sort((left, right) => left.date.localeCompare(right.date));
-  }, [linkedPerson]);
+  }, [linkedPerson, t]);
 
   const descendantIds = useMemo(
     () => (linkedPerson ? getDescendantIds(linkedPerson.id, relationships) : []),
@@ -719,7 +729,7 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
     if (Platform.OS !== 'web') {
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permission.granted) {
-        Alert.alert('Permission needed', 'Please allow access to your photo library to add family photos.');
+        Alert.alert(t('Permission needed'), t('Please allow access to your photo library to add family photos.'));
         return;
       }
     }
@@ -737,7 +747,7 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
     if (Platform.OS !== 'web') {
       const permission = await ImagePicker.requestCameraPermissionsAsync();
       if (!permission.granted) {
-        Alert.alert('Permission needed', 'Please allow camera access to capture family photos.');
+        Alert.alert(t('Permission needed'), t('Please allow camera access to capture family photos.'));
         return;
       }
     }
@@ -751,7 +761,7 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
 
       addPhotoFromPickerResult(result);
     } catch {
-      Alert.alert('Camera unavailable', 'The camera could not be opened on this device.');
+      Alert.alert(t('Camera unavailable'), t('The camera could not be opened on this device.'));
     }
   };
 
@@ -907,7 +917,7 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
                 size={22}
                 onPress={() => setEditorVisible(true)}
                 style={[personProfileStyles.heroFloatingButton, personProfileStyles.heroFloatingButtonRight]}
-                accessibilityLabel="Edit my linked family profile"
+                accessibilityLabel={t('Edit my linked family profile')}
               />
             ) : null}
             <View style={personProfileStyles.heroHeader}>
@@ -925,14 +935,14 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
                 )}
                 <View style={personProfileStyles.heroIdentityWrap}>
                   <Text variant="labelLarge" style={{ color: theme.colors.primary }}>
-                    My linked family profile
+                    {t('My linked family profile')}
                   </Text>
                   <View style={personProfileStyles.heroNameRow}>
-                    <Text variant="headlineMedium">{linkedPerson ? formatPersonName(linkedPerson) : 'Unknown'}</Text>
-                    <Chip compact icon="account">You</Chip>
+                    <Text variant="headlineMedium">{linkedPerson ? formatPersonName(linkedPerson) : t('Unknown')}</Text>
+                    <Chip compact icon="account">{t('You')}</Chip>
                   </View>
                   <Text variant="bodyMedium" style={[personProfileStyles.heroSubtext, { color: theme.colors.onSurfaceVariant }]}>
-                    {linkedPerson ? getPersonLifeSpanLabel(linkedPerson) : 'Link yourself in your default tree to manage your family profile here.'}
+                    {linkedPerson ? getPersonLifeSpanLabel(linkedPerson) : t('Link yourself in your default tree to manage your family profile here.')}
                   </Text>
                 </View>
               </View>
@@ -949,10 +959,10 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
               />
               <View style={homeStyles.profileNameWrap}>
                 <Text variant="labelLarge" style={{ color: theme.colors.primary }}>
-                  Profile workspace
+                  {t('Profile workspace')}
                 </Text>
                 <Text variant="headlineMedium" style={{ color: theme.colors.onSurface, fontWeight: '800' }}>
-                  {user?.displayName ?? 'Unknown'}
+                  {user?.displayName ?? t('Unknown')}
                 </Text>
                 <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 2 }}>
                   {user?.email}
@@ -967,7 +977,7 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
 
         <Surface style={[treeDetailStyles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
           <Text variant="titleMedium" style={{ color: theme.colors.onSurface, marginBottom: 8 }}>
-            {shouldShowLinkedProfileTabs ? 'Your profile workspace' : 'Available right now'}
+            {shouldShowLinkedProfileTabs ? t('Your profile workspace') : t('Available right now')}
           </Text>
           <HorizontalTabStrip
             items={shouldShowLinkedProfileTabs ? profileTabs : profileTabs.filter((tab) => tab.key === 'app-settings')}
@@ -993,50 +1003,50 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
 
         {shouldShowLinkedProfileTabs && activeTab === 'profile' && linkedPerson ? (
           <Surface style={[personProfileStyles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
-            <Text variant="titleLarge">Profile</Text>
+            <Text variant="titleLarge">{t('Profile')}</Text>
             <View style={personProfileStyles.metadataRow}>
               {linkedPerson.gender !== 'unspecified' ? <Chip compact>{formatPersonGender(linkedPerson.gender)}</Chip> : null}
               <Chip compact icon={isPersonDeceased(linkedPerson) ? 'flower-outline' : 'heart-pulse'}>{getPersonPresenceLabel(linkedPerson)}</Chip>
-              <Chip compact icon="image-multiple">{linkedPerson.photos.length} photos</Chip>
-              <Chip compact icon="source-branch">{getPersonTreeMembershipIds(linkedPerson).length} tree memberships</Chip>
-              {preferredPhoto ? <Chip compact icon="star">Preferred photo selected</Chip> : null}
+              <Chip compact icon="image-multiple">{t('{count} photos', { count: linkedPerson.photos.length })}</Chip>
+              <Chip compact icon="source-branch">{t('{count} tree memberships', { count: getPersonTreeMembershipIds(linkedPerson).length })}</Chip>
+              {preferredPhoto ? <Chip compact icon="star">{t('Preferred photo selected')}</Chip> : null}
             </View>
 
             <View style={personProfileStyles.detailGrid}>
               <View style={[personProfileStyles.detailCard, { backgroundColor: theme.colors.elevation.level1 }]}>
-                <Text variant="labelMedium" style={[personProfileStyles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>First name</Text>
-                <Text variant="titleMedium">{linkedPerson.firstName || 'Unknown'}</Text>
+                <Text variant="labelMedium" style={[personProfileStyles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>{t('First name')}</Text>
+                <Text variant="titleMedium">{linkedPerson.firstName || t('Unknown')}</Text>
               </View>
               {linkedPerson.middleNames?.trim() ? (
                 <View style={[personProfileStyles.detailCard, { backgroundColor: theme.colors.elevation.level1 }]}>
-                  <Text variant="labelMedium" style={[personProfileStyles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>Second / middle names</Text>
+                  <Text variant="labelMedium" style={[personProfileStyles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>{t('Second / middle names')}</Text>
                   <Text variant="titleMedium">{linkedPerson.middleNames.trim()}</Text>
                 </View>
               ) : null}
               <View style={[personProfileStyles.detailCard, { backgroundColor: theme.colors.elevation.level1 }]}>
-                <Text variant="labelMedium" style={[personProfileStyles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>Last name</Text>
-                <Text variant="titleMedium">{linkedPerson.lastName || 'Unknown'}</Text>
+                <Text variant="labelMedium" style={[personProfileStyles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>{t('Last name')}</Text>
+                <Text variant="titleMedium">{linkedPerson.lastName || t('Unknown')}</Text>
               </View>
               {linkedPerson.maidenName?.trim() ? (
                 <View style={[personProfileStyles.detailCard, { backgroundColor: theme.colors.elevation.level1 }]}>
-                  <Text variant="labelMedium" style={[personProfileStyles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>Maiden name</Text>
+                  <Text variant="labelMedium" style={[personProfileStyles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>{t('Maiden name')}</Text>
                   <Text variant="titleMedium">{linkedPerson.maidenName.trim()}</Text>
                 </View>
               ) : null}
               <View style={[personProfileStyles.detailCard, { backgroundColor: theme.colors.elevation.level1 }]}>
-                <Text variant="labelMedium" style={[personProfileStyles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>Birth date</Text>
-                <Text variant="titleMedium">{linkedPerson.birthDate ? formatPersonDate(linkedPerson.birthDate) : 'Unknown'}</Text>
+                <Text variant="labelMedium" style={[personProfileStyles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>{t('Birth date')}</Text>
+                <Text variant="titleMedium">{linkedPerson.birthDate ? formatPersonDate(linkedPerson.birthDate) : t('Unknown')}</Text>
               </View>
               <View style={[personProfileStyles.detailCard, { backgroundColor: theme.colors.elevation.level1 }]}>
-                <Text variant="labelMedium" style={[personProfileStyles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>Tree memberships</Text>
-                <Text variant="titleMedium">{getPersonTreeMembershipIds(linkedPerson).join(', ') || 'Current tree only'}</Text>
+                <Text variant="labelMedium" style={[personProfileStyles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>{t('Tree memberships')}</Text>
+                <Text variant="titleMedium">{getPersonTreeMembershipIds(linkedPerson).join(', ') || t('Current tree only')}</Text>
               </View>
             </View>
 
             <View style={[personProfileStyles.notesBox, { backgroundColor: theme.colors.surfaceVariant }]}>
-              <Text variant="titleSmall">Notes</Text>
+              <Text variant="titleSmall">{t('Notes')}</Text>
               <Text variant="bodyMedium" style={[personProfileStyles.notesText, { color: theme.colors.onSurfaceVariant }]}>
-                {linkedPerson.notes || 'No notes added yet.'}
+                {linkedPerson.notes || t('No notes added yet.')}
               </Text>
             </View>
           </Surface>
@@ -1046,17 +1056,17 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
           <Surface style={[personProfileStyles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
             <View style={personProfileStyles.sectionHeader}>
               <View style={personProfileStyles.sectionHeaderText}>
-                <Text variant="titleLarge">Relationships</Text>
+                <Text variant="titleLarge">{t('Relationships')}</Text>
               </View>
               {canEditLinkedProfile ? (
                 <Button mode="contained" icon="family-tree" onPress={() => setRelationshipDialog({ visible: true, relationship: null })}>
-                  Add relationship
+                  {t('Add relationship')}
                 </Button>
               ) : null}
             </View>
 
             <HorizontalTabStrip
-              items={RELATIONSHIP_SECTION_TABS}
+              items={RELATIONSHIP_SECTION_TABS.map((item) => ({ ...item, label: t(item.label) }))}
               activeKey={relationshipSectionTab}
               onChange={setRelationshipSectionTab}
               containerStyle={[personProfileStyles.tabStripCard, personProfileStyles.relationshipTabStripCard, { backgroundColor: theme.colors.surface }]}
@@ -1069,7 +1079,7 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
                 people={people}
                 relationships={relationships}
                 lockedFromPersonId={linkedPerson.id}
-                title="How do I relate to..."
+                title={t('How do I relate to...')}
               />
             ) : relationshipEntries.length > 0 ? (
               <View style={personProfileStyles.relationshipList}>
@@ -1078,7 +1088,7 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
                     <View style={personProfileStyles.relationshipRow}>
                       <View style={personProfileStyles.relationshipTextWrap}>
                         <Chip compact style={personProfileStyles.relationshipChip}>
-                          {entry.mode === 'parent-of' ? 'Parent of' : entry.mode === 'child-of' ? 'Child of' : 'Spouse of'}
+                          {entry.mode === 'parent-of' ? t('Parent of') : entry.mode === 'child-of' ? t('Child of') : t('Spouse of')}
                         </Chip>
                         <Text variant="titleMedium" style={personProfileStyles.relationshipTitle}>{formatPersonName(entry.relatedPerson)}</Text>
                         <Text variant="bodySmall" style={[personProfileStyles.relationshipSubtitle, { color: theme.colors.onSurfaceVariant }]}>
@@ -1100,9 +1110,9 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
               </View>
             ) : (
               <View style={personProfileStyles.emptyState}>
-                <Text variant="titleMedium">No relationships yet</Text>
+                <Text variant="titleMedium">{t('No relationships yet')}</Text>
                 <Text variant="bodyMedium" style={[personProfileStyles.stateText, { color: theme.colors.onSurfaceVariant }]}>
-                  Add parents, children, or spouses from this family member to grow the story around them.
+                  {t('Add parents, children, or spouses from this family member to grow the story around them.')}
                 </Text>
               </View>
             )}
@@ -1111,10 +1121,10 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
 
         {shouldShowLinkedProfileTabs && activeTab === 'memories' && linkedPerson ? (
           <Surface style={[personProfileStyles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
-            <Text variant="titleLarge">Memories</Text>
+            <Text variant="titleLarge">{t('Memories')}</Text>
 
             <HorizontalTabStrip
-              items={MEMORY_SECTION_TABS}
+              items={MEMORY_SECTION_TABS.map((item) => ({ ...item, label: t(item.label) }))}
               activeKey={memorySectionTab}
               onChange={setMemorySectionTab}
               containerStyle={[personProfileStyles.tabStripCard, { backgroundColor: theme.colors.surface }]}
@@ -1126,16 +1136,16 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
               <View style={[personProfileStyles.notesBox, { backgroundColor: theme.colors.surfaceVariant }]}>
                 <View style={personProfileStyles.sectionHeader}>
                   <View style={personProfileStyles.sectionHeaderText}>
-                    <Text variant="titleSmall">Notes</Text>
+                    <Text variant="titleSmall">{t('Notes')}</Text>
                   </View>
                   {canEditLinkedProfile ? (
                     <Button mode="contained-tonal" icon="pencil" onPress={openNotesDialog}>
-                      {linkedPerson.notes ? 'Edit notes' : 'Add notes'}
+                      {linkedPerson.notes ? t('Edit notes') : t('Add notes')}
                     </Button>
                   ) : null}
                 </View>
                 <Text variant="bodyMedium" style={[personProfileStyles.notesText, { color: theme.colors.onSurfaceVariant }]}>
-                  {linkedPerson.notes || 'No notes added yet.'}
+                  {linkedPerson.notes || t('No notes added yet.')}
                 </Text>
               </View>
             ) : null}
@@ -1144,11 +1154,11 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
               <View style={personProfileStyles.gallerySection}>
                 <View style={personProfileStyles.sectionHeader}>
                   <View style={personProfileStyles.sectionHeaderText}>
-                    <Text variant="titleSmall">Photo gallery ({linkedPerson.photos.length})</Text>
+                    <Text variant="titleSmall">{t('Photo gallery ({count})', { count: linkedPerson.photos.length })}</Text>
                   </View>
                   {canEditLinkedProfile ? (
                     <Button mode="contained-tonal" icon="image-plus" onPress={openPhotosDialog}>
-                      {linkedPerson.photos.length > 0 ? 'Manage photos' : 'Add photos'}
+                      {linkedPerson.photos.length > 0 ? t('Manage photos') : t('Add photos')}
                     </Button>
                   ) : null}
                 </View>
@@ -1164,7 +1174,7 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
                   </ScrollView>
                 ) : (
                   <View style={personProfileStyles.emptyState}>
-                    <Text variant="titleMedium">No photos yet</Text>
+                    <Text variant="titleMedium">{t('No photos yet')}</Text>
                     <Text variant="bodyMedium" style={[personProfileStyles.stateText, { color: theme.colors.onSurfaceVariant }]}>
                       Photos and scanned keepsakes will show up here.
                     </Text>
@@ -1177,11 +1187,11 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
               <View style={personProfileStyles.lifeEventsSection}>
                 <View style={personProfileStyles.sectionHeader}>
                   <View style={personProfileStyles.sectionHeaderText}>
-                    <Text variant="titleSmall">Life events ({memoryTimeline.length})</Text>
+                    <Text variant="titleSmall">{t('Life events ({count})', { count: memoryTimeline.length })}</Text>
                   </View>
                   {canEditLinkedProfile ? (
                     <Button mode="contained-tonal" icon="plus" onPress={() => setLifeEventDialog({ visible: true, event: null })}>
-                      Add event
+                      {t('Add event')}
                     </Button>
                   ) : null}
                 </View>
@@ -1221,7 +1231,7 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
                   </View>
                 ) : (
                   <View style={personProfileStyles.emptyState}>
-                    <Text variant="titleMedium">No memories yet</Text>
+                    <Text variant="titleMedium">{t('No memories yet')}</Text>
                     <Text variant="bodyMedium" style={[personProfileStyles.stateText, { color: theme.colors.onSurfaceVariant }]}>
                       Start with major milestones like marriage, moving house, graduation, or a treasured family story.
                     </Text>
@@ -1236,10 +1246,10 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
           <Surface style={[personProfileStyles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
             <View style={personProfileStyles.sectionHeader}>
               <View style={personProfileStyles.sectionHeaderText}>
-                <Text variant="titleLarge">Descendants</Text>
+                <Text variant="titleLarge">{t('Descendants')}</Text>
                 {descendantIds.length > 0 ? (
                   <Text variant="bodySmall" style={[personProfileStyles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-                    {descendantIds.length} {descendantIds.length === 1 ? 'descendant' : 'descendants'}
+                    {descendantIds.length} {descendantIds.length === 1 ? t('descendant') : t('descendants')}
                   </Text>
                 ) : null}
               </View>
@@ -1260,10 +1270,10 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
           <Surface style={[personProfileStyles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
             <View style={personProfileStyles.sectionHeader}>
               <View style={personProfileStyles.sectionHeaderText}>
-                <Text variant="titleLarge">Ascendants</Text>
+                <Text variant="titleLarge">{t('Ascendants')}</Text>
                 {ascendantIds.length > 0 ? (
                   <Text variant="bodySmall" style={[personProfileStyles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-                    {ascendantIds.length} {ascendantIds.length === 1 ? 'ancestor' : 'ancestors'}
+                    {ascendantIds.length} {ascendantIds.length === 1 ? t('ancestor') : t('ancestors')}
                   </Text>
                 ) : null}
               </View>
@@ -1314,9 +1324,9 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
         onDismiss={() => setRelationshipDialog({ visible: false, relationship: null })}
         onDelete={relationshipDialog.relationship ? async () => {
           openConfirm(
-            'Remove relationship',
-            'Remove this family connection?',
-            'Remove',
+            t('Remove relationship'),
+            t('Remove this family connection?'),
+            t('Remove'),
             async () => {
               if (!user?.id) {
                 return;
@@ -1337,9 +1347,9 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
         onDismiss={() => setLifeEventDialog({ visible: false, event: null })}
         onDelete={lifeEventDialog.event && linkedPerson ? async () => {
           openConfirm(
-            'Delete life event',
-            `Delete the "${lifeEventDialog.event!.title}" memory from ${formatPersonName(linkedPerson)}?`,
-            'Delete',
+            t('Delete life event'),
+            t('Delete the "{title}" memory from {name}?', { title: lifeEventDialog.event!.title, name: formatPersonName(linkedPerson) }),
+            t('Delete'),
             async () => {
               await handleDeleteLifeEvent(lifeEventDialog.event!);
               setLifeEventDialog({ visible: false, event: null });
@@ -1355,13 +1365,13 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
           onDismiss={mutating ? undefined : () => setNotesDialogVisible(false)}
           style={[dialogChrome.dialog, personProfileStyles.memoryDialog, { backgroundColor: theme.colors.surface }]}
         >
-          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>Notes</Dialog.Title>
-          <IconButton icon="close" onPress={() => setNotesDialogVisible(false)} disabled={mutating} accessibilityLabel="Cancel" style={dialogChrome.closeButton} />
+          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{t('Notes')}</Dialog.Title>
+          <IconButton icon="close" onPress={() => setNotesDialogVisible(false)} disabled={mutating} accessibilityLabel={t('Cancel')} style={dialogChrome.closeButton} />
           <Dialog.ScrollArea style={personProfileStyles.memoryDialogScrollArea}>
             <ScrollView contentContainerStyle={personProfileStyles.memoryDialogContent} keyboardShouldPersistTaps="handled">
               <TextInput
                 mode="outlined"
-                label="Family notes"
+                label={t('Family notes')}
                 value={notesDraft}
                 onChangeText={setNotesDraft}
                 multiline
@@ -1372,7 +1382,7 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
             </ScrollView>
           </Dialog.ScrollArea>
           <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
-            <Button mode="contained" onPress={handleSaveNotes} disabled={mutating}>Save notes</Button>
+            <Button mode="contained" onPress={handleSaveNotes} disabled={mutating}>{t('Save notes')}</Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>
@@ -1383,20 +1393,20 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
           onDismiss={mutating ? undefined : () => setPhotosDialogVisible(false)}
           style={[dialogChrome.dialog, personProfileStyles.memoryDialog, { backgroundColor: theme.colors.surface }]}
         >
-          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>Manage photos</Dialog.Title>
-          <IconButton icon="close" onPress={() => setPhotosDialogVisible(false)} disabled={mutating} accessibilityLabel="Cancel" style={dialogChrome.closeButton} />
+          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{t('Manage photos')}</Dialog.Title>
+          <IconButton icon="close" onPress={() => setPhotosDialogVisible(false)} disabled={mutating} accessibilityLabel={t('Cancel')} style={dialogChrome.closeButton} />
           <Dialog.ScrollArea style={personProfileStyles.memoryDialogScrollArea}>
             <ScrollView contentContainerStyle={personProfileStyles.memoryDialogContent} keyboardShouldPersistTaps="handled">
               <View style={personProfileStyles.memoryDialogPhotoActions}>
                 <Button mode="outlined" icon="image-plus" onPress={handleAddPhotoFromLibrary} disabled={mutating}>
-                  Library
+                  {t('Library')}
                 </Button>
                 <Button mode="outlined" icon="camera" onPress={handleCapturePhoto} disabled={mutating}>
-                  Camera
+                  {t('Camera')}
                 </Button>
               </View>
               <Text variant="bodySmall" style={personProfileStyles.memoryDialogHint}>
-                Add photos from the library or camera, then tap the star on one image to make it the main profile photo.
+                {t('Add photos from the library or camera, then tap the star on one image to make it the main profile photo.')}
               </Text>
 
               {photoEditorCount > 0 ? (

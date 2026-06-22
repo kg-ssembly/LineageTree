@@ -2,7 +2,6 @@ import af from './locales/af';
 import en from './locales/en';
 import nr from './locales/nr';
 import nso from './locales/nso';
-import sasl from './locales/sasl';
 import ss from './locales/ss';
 import st from './locales/st';
 import tn from './locales/tn';
@@ -24,7 +23,6 @@ export const LANGUAGE_OPTIONS: LanguageOption[] = [
   { code: 'ss', englishName: 'siSwati', nativeName: 'siSwati' },
   { code: 've', englishName: 'Tshivenda', nativeName: 'Tshivenda' },
   { code: 'nr', englishName: 'isiNdebele', nativeName: 'isiNdebele' },
-  { code: 'sasl', englishName: 'South African Sign Language', nativeName: 'South African Sign Language' },
 ];
 
 const TRANSLATIONS: Record<AppLanguage, TranslationMap> = {
@@ -39,7 +37,6 @@ const TRANSLATIONS: Record<AppLanguage, TranslationMap> = {
   ss,
   ve,
   nr,
-  sasl,
 };
 
 let activeLanguage: AppLanguage = 'en';
