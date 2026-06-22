@@ -641,6 +641,16 @@ export class GlobalStyles {
         content: {
             padding: 16,
             paddingBottom: 40,
+            paddingTop: 84,
+        },
+        stickyActionBar: {
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 3,
+            elevation: 6,
+            height: 72,
         },
         heroCard: {
             ...CARD_CHROME,
@@ -648,12 +658,12 @@ export class GlobalStyles {
             padding: 22,
             marginBottom: 16,
             position: 'relative',
-            paddingTop: 72,
         },
         heroFloatingButton: {
             position: 'absolute',
             top: 14,
             zIndex: 1,
+            elevation: 7,
             margin: 0,
         },
         heroFloatingButtonLeft: {
@@ -1288,8 +1298,18 @@ export class GlobalStyles {
             justifyContent: 'flex-end',
             marginTop: 8,
         },
-        lockedPersonRow: {
-            marginTop: 8,
+        pickerDialog: {
+            borderRadius: 20,
+            marginHorizontal: 16,
+        },
+        paginationRow: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginTop: 12,
+        },
+        paginationLabel: {
+            color: F.onSurfaceVariant,
         },
         resultBox: {
             marginTop: 12,

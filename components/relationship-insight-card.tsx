@@ -1,6 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
-import { Button, Chip, Divider, Text, TextInput, useTheme } from 'react-native-paper';
+import { Button, Chip, Dialog, Divider, Portal, Text, TextInput, useTheme } from 'react-native-paper';
 import { getPersonLifeSpanLabel, type PersonRecord } from './dto/person';
 import type { RelationshipRecord } from './dto/relationship';
 import { useI18n } from '../hooks/use-i18n';
@@ -8,7 +8,8 @@ import { computeRelationshipInsight } from '../providers';
 import { GlobalStyles } from '../constants/styles';
 
 const styles = GlobalStyles.relationshipInsightCard;
-const MAX_VISIBLE_RESULTS = 3;
+const dialogChrome = GlobalStyles.dialogChrome;
+const PICKER_PAGE_SIZE = 5;
 
 interface RelationshipInsightCardProps {
   people: PersonRecord[];
@@ -53,22 +54,16 @@ export default function RelationshipInsightCard({
   const { t } = useI18n();
   const [fromPersonId, setFromPersonId] = useState(lockedFromPersonId ?? '');
   const [toPersonId, setToPersonId] = useState('');
-  const [fromSearchQuery, setFromSearchQuery] = useState('');
-  const [toSearchQuery, setToSearchQuery] = useState('');
   const [showPathDetails, setShowPathDetails] = useState(false);
+  const [pickerMode, setPickerMode] = useState<'from' | 'to' | null>(null);
+  const [pickerSearchQuery, setPickerSearchQuery] = useState('');
+  const [pickerPage, setPickerPage] = useState(1);
 
-  const effectiveSubtitle = subtitle ?? (lockedFromPersonId
-    ? t('See how this family member is connected to everyone else in the tree.')
-    : t('Select two family members to compute their relationship and show the connection path.'));
+  const effectiveSubtitle = subtitle ?? '';
 
   const peopleById = useMemo(
     () => new Map(people.map((person) => [person.id, person])),
     [people],
-  );
-
-  const fromCandidates = useMemo(
-    () => (lockedFromPersonId ? people.filter((person) => person.id === lockedFromPersonId) : people),
-    [lockedFromPersonId, people],
   );
 
   const toCandidates = useMemo(
@@ -76,53 +71,54 @@ export default function RelationshipInsightCard({
     [fromPersonId, lockedFromPersonId, people],
   );
 
-  const filteredFromCandidates = useMemo(() => {
-    const query = fromSearchQuery.trim().toLowerCase();
-    const candidates = query
-      ? fromCandidates.filter((person) => formatPersonName(person).toLowerCase().includes(query))
-      : fromCandidates;
+  const fromCandidates = useMemo(
+    () => people,
+    [people],
+  );
 
-    return candidates.slice(0, MAX_VISIBLE_RESULTS);
-  }, [fromCandidates, fromSearchQuery]);
+  const pickerCandidates = useMemo(
+    () => (pickerMode === 'from' ? fromCandidates : toCandidates),
+    [fromCandidates, pickerMode, toCandidates],
+  );
 
-  const filteredToCandidates = useMemo(() => {
-    const query = toSearchQuery.trim().toLowerCase();
-    const candidates = query
-      ? toCandidates.filter((person) => formatPersonName(person).toLowerCase().includes(query))
-      : toCandidates;
+  const filteredPickerCandidates = useMemo(() => {
+    const query = pickerSearchQuery.trim().toLowerCase();
+    return query
+      ? pickerCandidates.filter((person) => formatPersonName(person).toLowerCase().includes(query))
+      : pickerCandidates;
+  }, [pickerCandidates, pickerSearchQuery]);
 
-    return candidates.slice(0, MAX_VISIBLE_RESULTS);
-  }, [toCandidates, toSearchQuery]);
+  const totalPickerPages = Math.max(1, Math.ceil(filteredPickerCandidates.length / PICKER_PAGE_SIZE));
+  const paginatedPickerCandidates = useMemo(() => {
+    const start = (pickerPage - 1) * PICKER_PAGE_SIZE;
+    return filteredPickerCandidates.slice(start, start + PICKER_PAGE_SIZE);
+  }, [filteredPickerCandidates, pickerPage]);
 
-  const totalFromMatches = useMemo(() => {
-    const query = fromSearchQuery.trim().toLowerCase();
-    return (query
-      ? fromCandidates.filter((person) => formatPersonName(person).toLowerCase().includes(query))
-      : fromCandidates).length;
-  }, [fromCandidates, fromSearchQuery]);
-
-  const totalToMatches = useMemo(() => {
-    const query = toSearchQuery.trim().toLowerCase();
-    return (query
-      ? toCandidates.filter((person) => formatPersonName(person).toLowerCase().includes(query))
-      : toCandidates).length;
-  }, [toCandidates, toSearchQuery]);
-
-  React.useEffect(() => {
+  useEffect(() => {
     if (lockedFromPersonId) {
       setFromPersonId(lockedFromPersonId);
     }
   }, [lockedFromPersonId]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (toPersonId && !toCandidates.some((person) => person.id === toPersonId)) {
       setToPersonId('');
     }
   }, [toCandidates, toPersonId]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     setShowPathDetails(false);
   }, [fromPersonId, toPersonId]);
+
+  useEffect(() => {
+    setPickerPage(1);
+  }, [pickerMode, pickerSearchQuery]);
+
+  useEffect(() => {
+    if (pickerPage > totalPickerPages) {
+      setPickerPage(totalPickerPages);
+    }
+  }, [pickerPage, totalPickerPages]);
 
   const insight = useMemo(() => {
     if (!fromPersonId || !toPersonId) {
@@ -145,116 +141,58 @@ export default function RelationshipInsightCard({
   const toPerson = peopleById.get(toPersonId) ?? null;
   const canShowInsight = Boolean(fromPersonId && toPersonId);
 
+  const openPicker = (mode: 'from' | 'to') => {
+    setPickerMode(mode);
+    setPickerSearchQuery('');
+    setPickerPage(1);
+  };
+
+  const closePicker = () => {
+    setPickerMode(null);
+    setPickerSearchQuery('');
+    setPickerPage(1);
+  };
+
+  const handleSelectPerson = (personId: string) => {
+    if (pickerMode === 'from') {
+      setFromPersonId(personId);
+      if (personId === toPersonId) {
+        setToPersonId('');
+      }
+    } else if (pickerMode === 'to') {
+      setToPersonId(personId);
+    }
+
+    closePicker();
+  };
+
   return (
-    <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
+    <>
+      <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
         <Text variant="titleMedium">{title}</Text>
-        <Text variant="bodyMedium" style={[styles.subtitle, { color: theme.colors.onSurfaceVariant }]}>
-          {effectiveSubtitle}
-        </Text>
+        {effectiveSubtitle ? (
+          <Text variant="bodyMedium" style={[styles.subtitle, { color: theme.colors.onSurfaceVariant }]}>
+            {effectiveSubtitle}
+          </Text>
+        ) : null}
 
         {!lockedFromPersonId ? (
           <View style={styles.section}>
-            <Text variant="titleSmall">{t('1. Who are we starting with?')}</Text>
-            <TextInput
-              mode="outlined"
-              label={t('Search first family member')}
-              value={fromSearchQuery}
-              onChangeText={setFromSearchQuery}
-              style={styles.searchInput}
-              left={<TextInput.Icon icon="magnify" />}
-            />
-            {filteredFromCandidates.length > 0 ? (
-              <View style={styles.resultsList}>
-                {filteredFromCandidates.map((person, index) => (
-                  <Pressable
-                    key={`from-${person.id}`}
-                    onPress={() => {
-                      setFromPersonId(person.id);
-                      setFromSearchQuery('');
-                    }}
-                    style={[
-                      styles.resultRow,
-                      fromPersonId === person.id ? styles.resultRowSelected : null,
-                      index > 0 ? styles.resultRowDivider : null,
-                    ]}
-                  >
-                    <Text variant="titleSmall" style={styles.resultRowTitle}>{formatPersonName(person)}</Text>
-                    <Text variant="bodySmall" style={styles.resultRowMeta}>{formatPersonMeta(person)}</Text>
-                  </Pressable>
-                ))}
-              </View>
-            ) : (
-              <View style={styles.emptyState}>
-                <Text variant="bodyMedium">{t('No matching family members found.')}</Text>
-              </View>
-            )}
-            {totalFromMatches > MAX_VISIBLE_RESULTS ? (
-              <Text variant="bodySmall" style={styles.pathText}>
-                {t('Showing the first 3 matches. Add more letters to narrow the results.')}
-              </Text>
-            ) : null}
-            {!fromPersonId ? (
-              <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 8 }}>
-                {t('Start by choosing one person.')}
-              </Text>
-            ) : null}
+            <Button mode="outlined" icon="account-search" onPress={() => openPicker('from')}>
+              {fromPerson ? formatPersonName(fromPerson) : t('Select family member')}
+            </Button>
           </View>
-        ) : (
-          <View style={styles.section}>
-            <Text variant="titleSmall">{t('1. Selected family member')}</Text>
-            <View style={styles.lockedPersonRow}>
-              <Chip selected style={styles.chip}>{formatPersonName(peopleById.get(fromPersonId))}</Chip>
-            </View>
-          </View>
-        )}
+        ) : null}
 
         <View style={styles.section}>
-          <Text variant="titleSmall">{t('2. Who do you want to compare with?')}</Text>
-          <TextInput
-            mode="outlined"
-            label={t('Search second family member')}
-            value={toSearchQuery}
-            onChangeText={setToSearchQuery}
-            style={styles.searchInput}
-            left={<TextInput.Icon icon="magnify" />}
+          <Button
+            mode="contained-tonal"
+            icon="account-search"
+            onPress={() => openPicker('to')}
             disabled={!fromPersonId}
-          />
-          {filteredToCandidates.length > 0 ? (
-            <View style={styles.resultsList}>
-              {filteredToCandidates.map((person, index) => (
-                <Pressable
-                  key={`to-${person.id}`}
-                  onPress={() => {
-                    setToPersonId(person.id);
-                    setToSearchQuery('');
-                  }}
-                  style={[
-                    styles.resultRow,
-                    toPersonId === person.id ? styles.resultRowSelected : null,
-                    index > 0 ? styles.resultRowDivider : null,
-                  ]}
-                  disabled={!fromPersonId}
-                >
-                  <Text variant="titleSmall" style={styles.resultRowTitle}>{formatPersonName(person)}</Text>
-                  <Text variant="bodySmall" style={styles.resultRowMeta}>{formatPersonMeta(person)}</Text>
-                </Pressable>
-              ))}
-            </View>
-          ) : (
-            <View style={styles.emptyState}>
-              <Text variant="bodyMedium">{t('No matching family members found.')}</Text>
-            </View>
-          )}
-          {totalToMatches > MAX_VISIBLE_RESULTS ? (
-            <Text variant="bodySmall" style={styles.pathText}>
-              {t('Showing the first 3 matches. Add more letters to narrow the results.')}
-            </Text>
-          ) : null}
-          {fromPersonId && !toPersonId ? (
-            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 8 }}>
-              {t('Pick the second person and we’ll explain the relationship in plain language.')}
-            </Text>
-          ) : null}
+          >
+            {toPerson ? formatPersonName(toPerson) : t('Select family member')}
+          </Button>
         </View>
 
         <View style={styles.actionsRow}>
@@ -276,8 +214,6 @@ export default function RelationshipInsightCard({
               setFromPersonId('');
             }
             setToPersonId('');
-            setFromSearchQuery('');
-            setToSearchQuery('');
             setShowPathDetails(false);
           }}>
             {t('Clear')}
@@ -286,9 +222,8 @@ export default function RelationshipInsightCard({
 
         {!canShowInsight ? (
           <View style={[styles.resultBox, { backgroundColor: theme.colors.surfaceVariant }]}>
-            <Text variant="titleMedium">{t('Choose two family members')}</Text>
             <Text variant="bodyMedium" style={[styles.pathText, { color: theme.colors.onSurfaceVariant }]}>
-              {t('We’ll show a simple answer first, then you can open the full connection path only if you want more detail.')}
+              {t('Select a family member to see the relationship.')}
             </Text>
           </View>
         ) : (
@@ -344,6 +279,66 @@ export default function RelationshipInsightCard({
             </View>
           )
         )}
-    </View>
+      </View>
+      <Portal>
+        <Dialog
+          visible={pickerMode !== null}
+          onDismiss={closePicker}
+          style={[dialogChrome.dialog, styles.pickerDialog, { backgroundColor: theme.colors.surface }]}
+        >
+          <Dialog.Title style={dialogChrome.dialogTitle}>{t('Select family member')}</Dialog.Title>
+          <Dialog.ScrollArea style={dialogChrome.scrollArea}>
+            <View>
+            <TextInput
+              mode="outlined"
+              label={t('Search family member')}
+              value={pickerSearchQuery}
+              onChangeText={setPickerSearchQuery}
+              style={styles.searchInput}
+              left={<TextInput.Icon icon="magnify" />}
+            />
+            {paginatedPickerCandidates.length > 0 ? (
+              <View style={styles.resultsList}>
+                {paginatedPickerCandidates.map((person, index) => (
+                  <Pressable
+                    key={`${pickerMode}-${person.id}`}
+                    onPress={() => handleSelectPerson(person.id)}
+                    style={[
+                      styles.resultRow,
+                      index > 0 ? styles.resultRowDivider : null,
+                    ]}
+                  >
+                    <Text variant="titleSmall" style={styles.resultRowTitle}>{formatPersonName(person)}</Text>
+                    <Text variant="bodySmall" style={styles.resultRowMeta}>{formatPersonMeta(person)}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : (
+              <View style={styles.emptyState}>
+                <Text variant="bodyMedium">{t('No matching family members found.')}</Text>
+              </View>
+            )}
+
+            {filteredPickerCandidates.length > 0 ? (
+              <View style={styles.paginationRow}>
+                <Button onPress={() => setPickerPage((page) => Math.max(1, page - 1))} disabled={pickerPage === 1}>
+                  {t('Previous')}
+                </Button>
+                <Text variant="bodySmall" style={styles.paginationLabel}>
+                  {pickerPage} / {totalPickerPages}
+                </Text>
+                <Button onPress={() => setPickerPage((page) => Math.min(totalPickerPages, page + 1))} disabled={pickerPage === totalPickerPages}>
+                  {t('Next')}
+                </Button>
+              </View>
+            ) : null}
+            </View>
+          </Dialog.ScrollArea>
+          <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
+            <Button onPress={closePicker}>{t('Close')}</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
+    </>
   );
 }

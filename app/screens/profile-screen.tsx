@@ -1094,7 +1094,7 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
                 people={people}
                 relationships={relationships}
                 lockedFromPersonId={linkedPerson.id}
-                title={`How does ${formatPersonName(linkedPerson)} relate to...`}
+                title="How do I relate to..."
               />
             ) : relationshipEntries.length > 0 ? (
               <View style={personProfileStyles.relationshipList}>

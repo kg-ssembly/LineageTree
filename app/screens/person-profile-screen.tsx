@@ -781,24 +781,6 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <ScrollView contentContainerStyle={styles.content}>
         <Surface style={[styles.heroCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
-          <IconButton
-            icon="home-outline"
-            mode="contained-tonal"
-            size={22}
-            onPress={handleGoBack}
-            style={[styles.heroFloatingButton, styles.heroFloatingButtonLeft]}
-            accessibilityLabel={t('Go back')}
-          />
-          {canEdit ? (
-            <IconButton
-              icon="pencil"
-              mode="contained-tonal"
-              size={22}
-                onPress={() => setEditorVisible(true)}
-                style={[styles.heroFloatingButton, styles.heroFloatingButtonRight]}
-                accessibilityLabel={t('Edit family member')}
-              />
-          ) : null}
           <View style={styles.heroHeader}>
             <View style={styles.heroAvatarRow}>
               {preferredPhoto ? (
@@ -1211,6 +1193,26 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
           </Surface>
         ) : null}
       </ScrollView>
+      <View pointerEvents="box-none" style={styles.stickyActionBar}>
+        <IconButton
+          icon="home-outline"
+          mode="contained-tonal"
+          size={22}
+          onPress={handleGoBack}
+          style={[styles.heroFloatingButton, styles.heroFloatingButtonLeft]}
+          accessibilityLabel={t('Go back')}
+        />
+        {canEdit ? (
+          <IconButton
+            icon="pencil"
+            mode="contained-tonal"
+            size={22}
+            onPress={() => setEditorVisible(true)}
+            style={[styles.heroFloatingButton, styles.heroFloatingButtonRight]}
+            accessibilityLabel={t('Edit family member')}
+          />
+        ) : null}
+      </View>
 
       <BottomNavigation.Bar
         navigationState={{
