@@ -9,11 +9,15 @@ import { StatusBar } from 'expo-status-bar';
 import { getAppThemes } from './constants/theme';
 import linking from './app/navigation/app-linking';
 import RootNavigator from './app/navigation/root-navigator';
+import { setActiveLanguage } from './i18n';
+import { useLanguageStore } from './stores/language-store';
 import { useThemeStore } from './stores/theme-store';
 
 export default function App() {
   const preference = useThemeStore((state) => state.preference);
   const hydrateTheme = useThemeStore((state) => state.hydrate);
+  const language = useLanguageStore((state) => state.language);
+  const hydrateLanguage = useLanguageStore((state) => state.hydrate);
   const { paperTheme, navigationTheme, resolvedTheme } = getAppThemes(preference);
   const [fontsLoaded] = useFonts({
     ...MaterialCommunityIcons.font,
@@ -21,7 +25,12 @@ export default function App() {
 
   useEffect(() => {
     hydrateTheme();
-  }, [hydrateTheme]);
+    hydrateLanguage();
+  }, [hydrateLanguage, hydrateTheme]);
+
+  useEffect(() => {
+    setActiveLanguage(language);
+  }, [language]);
 
   if (!fontsLoaded) {
     return (

@@ -12,15 +12,16 @@ import {
   useTheme,
 } from 'react-native-paper';
 import { useAuthStore } from '../../../stores/auth-store';
+import { useI18n } from '../../../hooks/use-i18n';
 import { GlobalStyles } from '../../../constants/styles';
 
-function validateEmail(email: string): string | null {
-  if (!email.trim()) return 'Email is required.';
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return 'Enter a valid email address.';
+function validateEmail(email: string, t: (message: string) => string): string | null {
+  if (!email.trim()) return t('Email is required.');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return t('Enter a valid email address.');
   return null;
 }
-function validatePassword(password: string): string | null {
-  if (!password) return 'Password is required.';
+function validatePassword(password: string, t: (message: string) => string): string | null {
+  if (!password) return t('Password is required.');
   return null;
 }
 
@@ -28,6 +29,7 @@ const styles = GlobalStyles.login;
 
 export default function LoginScreen({ navigation }: any) {
   const theme = useTheme();
+  const { t } = useI18n();
   const { signIn, loading, error, clearError } = useAuthStore();
 
   const [email, setEmail] = useState('');
@@ -45,8 +47,8 @@ export default function LoginScreen({ navigation }: any) {
 
   const handleSignIn = async () => {
     const errors = {
-      email: validateEmail(email),
-      password: validatePassword(password),
+      email: validateEmail(email, t),
+      password: validatePassword(password, t),
     };
     setFieldErrors(errors);
     if (Object.values(errors).some(Boolean)) return;
@@ -65,26 +67,26 @@ export default function LoginScreen({ navigation }: any) {
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <View style={styles.heroWrap}>
           <Chip icon="account-heart" style={{ backgroundColor: theme.colors.secondaryContainer }}>
-            Welcome back
+            {t('Welcome back')}
           </Chip>
           <Text variant="displaySmall" style={[styles.heroTitle, { color: theme.colors.onSurface }]}>
             Lineage Tree
           </Text>
           <Text variant="bodyLarge" style={[styles.heroSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-            Return to your family stories, people profiles, and memories.
+            {t('Return to your family stories, people profiles, and memories.')}
           </Text>
         </View>
 
         <Surface style={[styles.card, { backgroundColor: theme.colors.surface }]} elevation={2}>
           <Text variant="headlineMedium" style={[styles.title, { color: theme.colors.onSurface }]}>
-            Sign in
+            {t('Sign in')}
           </Text>
           <Text variant="bodyMedium" style={[styles.subtitle, { color: theme.colors.onSurfaceVariant }]}>
-            Pick up where you left off.
+            {t('Pick up where you left off.')}
           </Text>
 
           <TextInput
-            label="Email"
+            label={t('Email')}
             value={email}
             onChangeText={(v) => { setEmail(v); setFieldErrors((e) => ({ ...e, email: null })); }}
             mode="outlined"
@@ -98,7 +100,7 @@ export default function LoginScreen({ navigation }: any) {
           <HelperText type="error" visible={!!fieldErrors.email}>{fieldErrors.email}</HelperText>
 
           <TextInput
-            label="Password"
+            label={t('Password')}
             value={password}
             onChangeText={(v) => { setPassword(v); setFieldErrors((e) => ({ ...e, password: null })); }}
             mode="outlined"
@@ -129,11 +131,11 @@ export default function LoginScreen({ navigation }: any) {
           >
             {loading
               ? <ActivityIndicator color={theme.colors.onPrimary} size="small" />
-              : 'Sign In'}
+              : t('Sign in')}
           </Button>
 
           <Button mode="text" onPress={() => navigation.navigate('SignUp')} style={styles.linkButton}>
-            Don't have an account? Sign up
+            {t("Don't have an account? Sign up")}
           </Button>
         </Surface>
       </ScrollView>
@@ -142,11 +144,10 @@ export default function LoginScreen({ navigation }: any) {
         visible={snackVisible}
         onDismiss={() => { setSnackVisible(false); clearError(); }}
         duration={4000}
-        action={{ label: 'Dismiss', onPress: () => { setSnackVisible(false); clearError(); } }}
+        action={{ label: t('Dismiss'), onPress: () => { setSnackVisible(false); clearError(); } }}
       >
         {error}
       </Snackbar>
     </KeyboardAvoidingView>
   );
 }
-

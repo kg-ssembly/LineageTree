@@ -67,6 +67,7 @@ import {
   getConnectedSurnames,
   getSortedSurnames,
 } from './family-tree-surname-clusters';
+import { useI18n } from '../hooks/use-i18n';
 
 const styles = GlobalStyles.familyTreeCanvas;
 
@@ -344,8 +345,9 @@ function FamilyTreeCanvas({
                             fillAvailableSpace = false,
                             familySwitchRef,
                             activeFamilyRef,
-                          }: FamilyTreeCanvasProps) {
+}: FamilyTreeCanvasProps) {
   const theme = useTheme();
+  const { t } = useI18n();
   const { height: windowHeight } = useWindowDimensions();
   const inlineViewportHeight = Math.max(420, windowHeight - 360);
 
@@ -886,11 +888,11 @@ function FamilyTreeCanvas({
           <Chip compact icon="magnify">{scale.toFixed(2)}x</Chip>
           <IconButton icon="minus" size={18} mode="contained-tonal" onPress={() => zoomBy(-0.15)} />
           <IconButton icon="plus" size={18} mode="contained-tonal" onPress={() => zoomBy(0.15)} />
-          <Button compact mode="contained-tonal" onPress={resetView}>Reset</Button>
+          <Button compact mode="contained-tonal" onPress={resetView}>{t('Reset')}</Button>
           {allowFullscreen ? (
               mode === 'fullscreen'
-                  ? <Button compact mode="contained" icon="close" onPress={() => setIsFullscreen(false)}>Close</Button>
-                  : <Button compact mode="contained" icon="fullscreen" onPress={() => setIsFullscreen(true)}>Fullscreen</Button>
+                  ? <Button compact mode="contained" icon="close" onPress={() => setIsFullscreen(false)}>{t('Close')}</Button>
+                  : <Button compact mode="contained" icon="fullscreen" onPress={() => setIsFullscreen(true)}>{t('Fullscreen')}</Button>
           ) : null}
         </View>
       </View>
@@ -1001,7 +1003,7 @@ function FamilyTreeCanvas({
 
     return (
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 8, paddingVertical: 6 }}>
-        <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>Viewing:</Text>
+        <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>{t('Viewing:')}</Text>
         <Menu
           visible={familySelectorMenuVisible}
           onDismiss={() => setFamilySelectorMenuVisible(false)}
@@ -1037,7 +1039,7 @@ function FamilyTreeCanvas({
               );
             })
           ) : (
-            <Menu.Item title="No other families found" disabled />
+            <Menu.Item title={t('No other families found')} disabled />
           )}
         </Menu>
       </View>
@@ -1054,8 +1056,8 @@ function FamilyTreeCanvas({
                 <Chip compact icon="magnify-minus">{scale.toFixed(2)}x</Chip>
                 <Button compact mode="outlined" onPress={() => zoomBy(-0.15)}>-</Button>
                 <Button compact mode="outlined" onPress={() => zoomBy(0.15)}>+</Button>
-                <Button compact onPress={resetView}>Reset</Button>
-                {allowFullscreen ? <Button compact mode="contained-tonal" icon="fullscreen" onPress={() => setIsFullscreen(true)}>Fullscreen</Button> : null}
+                <Button compact onPress={resetView}>{t('Reset')}</Button>
+                {allowFullscreen ? <Button compact mode="contained-tonal" icon="fullscreen" onPress={() => setIsFullscreen(true)}>{t('Fullscreen')}</Button> : null}
               </View>
             </View>
         ) : null}

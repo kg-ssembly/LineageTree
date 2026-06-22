@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Button, Dialog, HelperText, Portal, SegmentedButtons, TextInput, useTheme } from 'react-native-paper';
 import type { CollaboratorRole } from './dto/tree';
+import { useI18n } from '../hooks/use-i18n';
 import { GlobalStyles } from '../constants/styles';
 
 const styles = GlobalStyles.collaboratorDialog;
@@ -20,6 +21,7 @@ export default function CollaboratorDialog({
   onSubmit,
 }: CollaboratorDialogProps) {
   const theme = useTheme();
+  const { t } = useI18n();
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<CollaboratorRole>('viewer');
   const [error, setError] = useState<string | null>(null);
@@ -37,12 +39,12 @@ export default function CollaboratorDialog({
   const handleSubmit = async () => {
     const trimmedEmail = email.trim();
     if (!trimmedEmail) {
-      setError('Collaborator email is required.');
+      setError(t('Collaborator email is required.'));
       return;
     }
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
-      setError('Enter a valid email address.');
+      setError(t('Enter a valid email address.'));
       return;
     }
 
@@ -56,11 +58,11 @@ export default function CollaboratorDialog({
         onDismiss={loading ? undefined : onDismiss}
         style={[dialogChrome.dialog, styles.dialog, { backgroundColor: theme.colors.surface }]}
       >
-        <Dialog.Title style={dialogChrome.dialogTitle}>Add collaborator</Dialog.Title>
+        <Dialog.Title style={dialogChrome.dialogTitle}>{t('Add collaborator')}</Dialog.Title>
         <Dialog.Content style={dialogChrome.content}>
           <TextInput
             mode="outlined"
-            label="Collaborator email"
+            label={t('Collaborator email')}
             value={email}
             onChangeText={(value) => {
               setEmail(value);
@@ -82,18 +84,17 @@ export default function CollaboratorDialog({
             onValueChange={(value) => setRole(value as CollaboratorRole)}
             style={styles.roleButtons}
             buttons={[
-              { value: 'viewer', label: 'Viewer' },
-              { value: 'contributor', label: 'Contributor' },
-              { value: 'editor', label: 'Editor' },
+              { value: 'viewer', label: t('Viewer') },
+              { value: 'contributor', label: t('Contributor') },
+              { value: 'editor', label: t('Editor') },
             ]}
           />
         </Dialog.Content>
         <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
-          <Button mode="outlined" onPress={onDismiss} disabled={loading}>Cancel</Button>
-          <Button mode="contained" onPress={handleSubmit} disabled={loading}>Invite</Button>
+          <Button mode="outlined" onPress={onDismiss} disabled={loading}>{t('Cancel')}</Button>
+          <Button mode="contained" onPress={handleSubmit} disabled={loading}>{t('Invite')}</Button>
         </Dialog.Actions>
       </Dialog>
     </Portal>
   );
 }
-

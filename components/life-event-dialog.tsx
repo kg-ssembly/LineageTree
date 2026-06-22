@@ -4,6 +4,7 @@ import { Button, Chip, Dialog, HelperText, Portal, Text, TextInput, useTheme } f
 import { DatePickerModal } from 'react-native-paper-dates';
 import type { PersonLifeEvent, PersonLifeEventType } from './dto/person';
 import { formatPersonDate, getLifeEventTypeLabel, parsePersonDate } from './dto/person';
+import { useI18n } from '../hooks/use-i18n';
 import { GlobalStyles } from '../constants/styles';
 
 const styles = GlobalStyles.lifeEventDialog;
@@ -63,6 +64,7 @@ export default function LifeEventDialog({
   onSubmit,
 }: LifeEventDialogProps) {
   const theme = useTheme();
+  const { t } = useI18n();
   const [type, setType] = useState<PersonLifeEventType>('married');
   const [title, setTitle] = useState('Marriage');
   const [date, setDate] = useState('');
@@ -96,12 +98,12 @@ export default function LifeEventDialog({
   const handleSubmit = async () => {
     const trimmedTitle = title.trim();
     if (!trimmedTitle) {
-      setTitleError('Add a title for this life event.');
+      setTitleError(t('Add a title for this life event.'));
       return;
     }
 
     if (!date.trim()) {
-      setDateError('Pick a date for this life event.');
+      setDateError(t('Pick a date for this life event.'));
       return;
     }
 
@@ -121,11 +123,11 @@ export default function LifeEventDialog({
           onDismiss={loading ? undefined : onDismiss}
           style={[dialogChrome.dialog, styles.dialog, { backgroundColor: theme.colors.surface }]}
         >
-          <Dialog.Title style={dialogChrome.dialogTitle}>{event ? 'Edit life event' : 'Add life event'}</Dialog.Title>
+          <Dialog.Title style={dialogChrome.dialogTitle}>{event ? t('Edit life event') : t('Add life event')}</Dialog.Title>
           <Dialog.ScrollArea style={[dialogChrome.scrollArea, styles.scrollArea]}>
             <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
               <Text variant="bodyMedium" style={styles.helperText}>
-                Capture milestones like marriage, divorce, moves, or other memorable family moments.
+                {t('Capture milestones like marriage, divorce, moves, or other memorable family moments.')}
               </Text>
 
               <View style={styles.typeWrap}>
@@ -144,7 +146,7 @@ export default function LifeEventDialog({
 
               <TextInput
                 mode="outlined"
-                label="Event title"
+                label={t('Event title')}
                 value={title}
                 onChangeText={(value) => {
                   setTitle(value);
@@ -161,14 +163,14 @@ export default function LifeEventDialog({
               </HelperText>
 
               <View style={styles.fieldSpacing}>
-                <Text variant="titleSmall">Event date</Text>
+                <Text variant="titleSmall">{t('Event date')}</Text>
                 <View style={styles.dateActions}>
                   <Button mode="outlined" icon="calendar" onPress={() => setDatePickerVisible(true)} disabled={loading}>
                     {formatDateButtonLabel(date)}
                   </Button>
                   {date ? (
                     <Button onPress={() => setDate('')} disabled={loading}>
-                      Clear
+                      {t('Clear')}
                     </Button>
                   ) : null}
                 </View>
@@ -179,7 +181,7 @@ export default function LifeEventDialog({
 
               <TextInput
                 mode="outlined"
-                label="Details"
+                label={t('Details')}
                 value={description}
                 onChangeText={setDescription}
                 style={styles.fieldSpacing}
@@ -192,11 +194,11 @@ export default function LifeEventDialog({
           <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
             {event && onDelete ? (
               <Button onPress={onDelete} textColor={theme.colors.error} disabled={loading}>
-                Delete
+                {t('Delete')}
               </Button>
             ) : null}
-            <Button mode="outlined" onPress={onDismiss} disabled={loading}>Cancel</Button>
-            <Button mode="contained" onPress={handleSubmit} disabled={loading}>Save</Button>
+            <Button mode="outlined" onPress={onDismiss} disabled={loading}>{t('Cancel')}</Button>
+            <Button mode="contained" onPress={handleSubmit} disabled={loading}>{t('Save')}</Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>
@@ -216,8 +218,8 @@ export default function LifeEventDialog({
             }
           }
         }}
-        saveLabel="Save"
-        label="Select event date"
+        saveLabel={t('Save')}
+        label={t('Select event date')}
       />
     </>
   );

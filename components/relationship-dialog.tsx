@@ -5,6 +5,7 @@ import { getPersonLifeSpanLabel, type PersonRecord } from './dto/person';
 import type { ParentChildRelationshipKind, RelationshipRecord, RelationshipType, SpouseRelationshipStatus } from './dto/relationship';
 import { DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND, DEFAULT_SPOUSE_RELATIONSHIP_STATUS } from './dto/relationship';
 import { validateProposedRelationship } from './family-tree-validation';
+import { useI18n } from '../hooks/use-i18n';
 import { GlobalStyles } from '../constants/styles';
 
 const styles = GlobalStyles.relationshipDialog;
@@ -44,6 +45,7 @@ export default function RelationshipDialog({
   onSubmit,
 }: RelationshipDialogProps) {
   const theme = useTheme();
+  const { t } = useI18n();
   const [type, setType] = useState<RelationshipType>('parent-child');
   const [fromPersonId, setFromPersonId] = useState('');
   const [toPersonId, setToPersonId] = useState('');
@@ -112,19 +114,19 @@ export default function RelationshipDialog({
 
   const handleSubmit = async () => {
     if (people.length < 2) {
-      setError('Add at least two family members before creating a relationship.');
+      setError(t('Add at least two family members before creating a relationship.'));
       return;
     }
 
     if (!fromPersonId || !toPersonId) {
-      setError('Select both family members for this relationship.');
+      setError(t('Select both family members for this relationship.'));
       return;
     }
 
     if (fromPersonId === toPersonId) {
       setError(type === 'spouse'
-        ? 'A family member cannot be their own spouse.'
-        : 'A family member cannot be their own parent or child.');
+        ? t('A family member cannot be their own spouse.')
+        : t('A family member cannot be their own parent or child.'));
       return;
     }
 
@@ -142,8 +144,8 @@ export default function RelationshipDialog({
     });
   };
 
-  const firstLabel = type === 'spouse' ? 'Select spouse A' : 'Select parent';
-  const secondLabel = type === 'spouse' ? 'Select spouse B' : 'Select child';
+  const firstLabel = type === 'spouse' ? t('Select spouse A') : t('Select parent');
+  const secondLabel = type === 'spouse' ? t('Select spouse B') : t('Select child');
 
   return (
     <Portal>
@@ -152,7 +154,7 @@ export default function RelationshipDialog({
         onDismiss={loading ? undefined : onDismiss}
         style={[dialogChrome.dialog, styles.dialog, { backgroundColor: theme.colors.surface }]}
       >
-        <Dialog.Title style={[dialogChrome.dialogTitle, styles.dialogTitle]}>Add relationship</Dialog.Title>
+        <Dialog.Title style={[dialogChrome.dialogTitle, styles.dialogTitle]}>{t('Add relationship')}</Dialog.Title>
         <Dialog.ScrollArea style={[dialogChrome.scrollArea, styles.scrollArea]}>
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
             <View style={[styles.relationshipTypeCard, { borderColor: theme.colors.outlineVariant }]}>
@@ -163,15 +165,15 @@ export default function RelationshipDialog({
                   setError(null);
                 }}
                 buttons={[
-                  { value: 'parent-child', label: 'Parent -> Child' },
-                  { value: 'spouse', label: 'Spouse <-> Spouse' },
+                  { value: 'parent-child', label: t('Parent -> Child') },
+                  { value: 'spouse', label: t('Spouse <-> Spouse') },
                 ]}
               />
             </View>
 
             {type === 'spouse' ? (
               <View style={[styles.relationshipTypeCard, { borderColor: theme.colors.outlineVariant }]}>
-                <Text variant="titleSmall">Relationship status</Text>
+                <Text variant="titleSmall">{t('Relationship status')}</Text>
                 <View style={styles.choiceWrap}>
                   {[
                     { value: 'partner', label: 'Partner' },
@@ -194,7 +196,7 @@ export default function RelationshipDialog({
               </View>
             ) : (
               <View style={[styles.relationshipTypeCard, { borderColor: theme.colors.outlineVariant }]}>
-                <Text variant="titleSmall">Child relationship</Text>
+                <Text variant="titleSmall">{t('Child relationship')}</Text>
                 <View style={styles.choiceWrap}>
                   {[
                     { value: 'biological', label: 'Biological' },
@@ -222,13 +224,13 @@ export default function RelationshipDialog({
                 <Text variant="titleSmall">{firstLabel}</Text>
                 {selectedFromPerson ? (
                   <Chip compact selected onPress={() => setFromPersonId('')}>
-                    Selected
+                    {t('Selected')}
                   </Chip>
                 ) : null}
               </View>
               <TextInput
                 mode="outlined"
-                label="Search family member"
+                label={t('Search family member')}
                 value={fromSearch}
                 onChangeText={setFromSearch}
                 style={styles.searchInput}
@@ -236,7 +238,7 @@ export default function RelationshipDialog({
                 left={<TextInput.Icon icon="magnify" />}
               />
               <Text variant="bodySmall" style={styles.helperCopy}>
-                Search by name, then pick from the best matches instead of scanning the whole tree.
+                {t('Search by name, then pick from the best matches instead of scanning the whole tree.')}
               </Text>
               {selectedFromPerson ? (
                 <View style={styles.selectedChipRow}>
@@ -268,12 +270,12 @@ export default function RelationshipDialog({
                 </View>
               ) : (
                 <View style={styles.emptyState}>
-                  <Text variant="bodyMedium">No matching family members found for this side yet.</Text>
+                  <Text variant="bodyMedium">{t('No matching family members found for this side yet.')}</Text>
                 </View>
               )}
               {fromMatches.length > MAX_VISIBLE_RESULTS ? (
                 <Text variant="bodySmall" style={styles.resultsFooterText}>
-                  Showing the first 3 matches. Keep typing to narrow the list.
+                  {t('Showing the first 3 matches. Keep typing to narrow the list.')}
                 </Text>
               ) : null}
             </View>
@@ -283,13 +285,13 @@ export default function RelationshipDialog({
                 <Text variant="titleSmall">{secondLabel}</Text>
                 {selectedToPerson ? (
                   <Chip compact selected onPress={() => setToPersonId('')}>
-                    Selected
+                    {t('Selected')}
                   </Chip>
                 ) : null}
               </View>
               <TextInput
                 mode="outlined"
-                label="Search family member"
+                label={t('Search family member')}
                 value={toSearch}
                 onChangeText={setToSearch}
                 style={styles.searchInput}
@@ -297,7 +299,7 @@ export default function RelationshipDialog({
                 left={<TextInput.Icon icon="magnify" />}
               />
               <Text variant="bodySmall" style={styles.helperCopy}>
-                The current selection on the other side is automatically removed from these results.
+                {t('The current selection on the other side is automatically removed from these results.')}
               </Text>
               {selectedToPerson ? (
                 <View style={styles.selectedChipRow}>
@@ -329,12 +331,12 @@ export default function RelationshipDialog({
                 </View>
               ) : (
                 <View style={styles.emptyState}>
-                  <Text variant="bodyMedium">No matching family members found for this side yet.</Text>
+                  <Text variant="bodyMedium">{t('No matching family members found for this side yet.')}</Text>
                 </View>
               )}
               {toMatches.length > MAX_VISIBLE_RESULTS ? (
                 <Text variant="bodySmall" style={styles.resultsFooterText}>
-                  Showing the first 3 matches. Keep typing to narrow the list.
+                  {t('Showing the first 3 matches. Keep typing to narrow the list.')}
                 </Text>
               ) : null}
             </View>
@@ -345,8 +347,8 @@ export default function RelationshipDialog({
           </ScrollView>
         </Dialog.ScrollArea>
         <Dialog.Actions style={[dialogChrome.dialogActions, styles.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
-          <Button mode="outlined" onPress={onDismiss} disabled={loading}>Cancel</Button>
-          <Button mode="contained" onPress={handleSubmit} disabled={loading || people.length < 2 || !!validationMessage}>Save</Button>
+          <Button mode="outlined" onPress={onDismiss} disabled={loading}>{t('Cancel')}</Button>
+          <Button mode="contained" onPress={handleSubmit} disabled={loading || people.length < 2 || !!validationMessage}>{t('Save')}</Button>
         </Dialog.Actions>
       </Dialog>
     </Portal>

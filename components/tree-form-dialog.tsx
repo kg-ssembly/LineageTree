@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Button, Dialog, HelperText, Portal, TextInput, useTheme } from 'react-native-paper';
 import type { FamilyTree } from './dto/tree';
+import { useI18n } from '../hooks/use-i18n';
 import { GlobalStyles } from '../constants/styles';
 
 const styles = GlobalStyles.treeFormDialog;
@@ -24,6 +25,7 @@ export default function TreeFormDialog({
   onSubmit,
 }: TreeFormDialogProps) {
   const theme = useTheme();
+  const { t } = useI18n();
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
 
@@ -39,7 +41,7 @@ export default function TreeFormDialog({
   const handleSubmit = async () => {
     const trimmedName = name.trim();
     if (!trimmedName) {
-      setError('Tree name is required.');
+      setError(t('Tree name is required.'));
       return;
     }
 
@@ -53,11 +55,11 @@ export default function TreeFormDialog({
         onDismiss={loading ? undefined : onDismiss}
         style={[dialogChrome.dialog, styles.dialog, { backgroundColor: theme.colors.surface }]}
       >
-        <Dialog.Title style={dialogChrome.dialogTitle}>{mode === 'create' ? 'Create family tree' : 'Rename family tree'}</Dialog.Title>
+        <Dialog.Title style={dialogChrome.dialogTitle}>{mode === 'create' ? t('Create family tree') : t('Rename family tree')}</Dialog.Title>
         <Dialog.Content style={dialogChrome.content}>
           <TextInput
             mode="outlined"
-            label="Tree name"
+            label={t('Tree name')}
             value={name}
             onChangeText={(value) => {
               setName(value);
@@ -74,14 +76,13 @@ export default function TreeFormDialog({
           </HelperText>
         </Dialog.Content>
         <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
-          <Button mode="outlined" onPress={onDismiss} disabled={loading}>Cancel</Button>
+          <Button mode="outlined" onPress={onDismiss} disabled={loading}>{t('Cancel')}</Button>
           <Button mode="contained" onPress={handleSubmit} disabled={loading}>
-            {mode === 'create' ? 'Create' : 'Save'}
+            {mode === 'create' ? t('Create') : t('Save')}
           </Button>
         </Dialog.Actions>
       </Dialog>
     </Portal>
   );
 }
-
 

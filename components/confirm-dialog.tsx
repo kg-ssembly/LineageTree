@@ -1,5 +1,6 @@
 import React from 'react';
 import { Button, Dialog, Portal, Text, useTheme } from 'react-native-paper';
+import { useI18n } from '../hooks/use-i18n';
 import { GlobalStyles } from '../constants/styles';
 
 const styles = GlobalStyles.confirmDialog;
@@ -27,6 +28,7 @@ export default function ConfirmDialog({
   onConfirm,
 }: ConfirmDialogProps) {
   const theme = useTheme();
+  const { t } = useI18n();
   return (
     <Portal>
       <Dialog
@@ -40,15 +42,14 @@ export default function ConfirmDialog({
         </Dialog.Content>
         <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
           <Button mode="outlined" onPress={onDismiss} disabled={loading}>
-            {cancelLabel}
+            {t(cancelLabel)}
           </Button>
           <Button mode="contained" onPress={onConfirm} disabled={loading}>
-            {confirmLabel}
+            {t(confirmLabel)}
           </Button>
         </Dialog.Actions>
       </Dialog>
     </Portal>
   );
 }
-
 

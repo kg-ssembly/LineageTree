@@ -47,6 +47,7 @@ import { canEditTreeContent, getAssignedPersonId } from '../../components/dto/tr
 import { formatPersonGender, formatPersonName } from '../../components/person-formatting';
 import type { ThemePreference } from '../../constants/theme';
 import { GlobalStyles } from '../../constants/styles';
+import { useI18n } from '../../hooks/use-i18n';
 import { useAuthStore } from '../../stores/auth-store';
 import { useThemeStore } from '../../stores/theme-store';
 import { useTreeStore } from '../../stores/tree-store';
@@ -197,6 +198,7 @@ function getAscendantIds(rootPersonId: string, relationships: RelationshipRecord
 
 function AppSettingsSection({ onSignOut, authLoading }: UserProfileTabProps) {
   const theme = useTheme();
+  const { language, languages, setLanguage, t } = useI18n();
   const { user, updateDisplayName } = useAuthStore();
   const preference = useThemeStore((state) => state.preference);
   const setPreference = useThemeStore((state) => state.setPreference);
@@ -211,12 +213,12 @@ function AppSettingsSection({ onSignOut, authLoading }: UserProfileTabProps) {
   const isDirty = editName.trim() !== (user?.displayName ?? '').trim();
   const appearanceSummary =
     preference === 'dark'
-      ? 'Dark mode is enabled for a cosy, low-light workspace.'
-      : 'Light mode is enabled for a bright, airy workspace.';
+      ? t('Dark mode is enabled for a cosy, low-light workspace.')
+      : t('Light mode is enabled for a bright, airy workspace.');
 
   const handleSaveName = async () => {
     if (!editName.trim()) {
-      setNameError('Display name cannot be empty.');
+      setNameError(t('Display name cannot be empty.'));
       return;
     }
 
@@ -225,7 +227,7 @@ function AppSettingsSection({ onSignOut, authLoading }: UserProfileTabProps) {
     try {
       await updateDisplayName(editName.trim());
     } catch {
-      setNameError('Failed to update name. Please try again.');
+      setNameError(t('Failed to update name. Please try again.'));
     } finally {
       setSavingName(false);
     }
@@ -243,29 +245,29 @@ function AppSettingsSection({ onSignOut, authLoading }: UserProfileTabProps) {
           />
           <View style={homeStyles.profileNameWrap}>
             <Text variant="labelLarge" style={{ color: theme.colors.primary }}>
-              Personal profile
+              {t('Personal profile')}
             </Text>
             <Text variant="headlineMedium" style={{ color: theme.colors.onSurface, fontWeight: '800' }}>
-              {user?.displayName ?? 'Unknown'}
+              {user?.displayName ?? t('Unknown')}
             </Text>
             <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 2 }}>
               {user?.email}
             </Text>
             <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
-              Member since {user?.createdAt ? formatDate(new Date(user.createdAt)) : '—'}
+              {t('Member since {date}', { date: user?.createdAt ? formatDate(new Date(user.createdAt)) : '-' })}
             </Text>
           </View>
         </View>
       </Surface>
 
       <Surface style={[treeDetailStyles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
-        <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>Edit profile</Text>
+        <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>{t('Edit profile')}</Text>
         <Text variant="bodySmall" style={[treeDetailStyles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-          Change the display name shown across your family trees.
+          {t('Change the display name shown across your family trees.')}
         </Text>
         <View style={homeStyles.editNameRow}>
           <TextInput
-            label="Display name"
+            label={t('Display name')}
             value={editName}
             onChangeText={(value) => { setEditName(value); setNameError(null); }}
             mode="outlined"
@@ -280,7 +282,7 @@ function AppSettingsSection({ onSignOut, authLoading }: UserProfileTabProps) {
             disabled={savingName || !isDirty}
             style={homeStyles.saveNameButton}
           >
-            Save changes
+            {t('Save changes')}
           </Button>
         </View>
         {nameError ? (
@@ -289,21 +291,41 @@ function AppSettingsSection({ onSignOut, authLoading }: UserProfileTabProps) {
       </Surface>
 
       <Surface style={[treeDetailStyles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
-        <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>Appearance</Text>
+        <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>{t('Appearance')}</Text>
         <Text variant="bodySmall" style={[treeDetailStyles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-          Switch the app between light and dark viewing modes.
+          {t('Switch the app between light and dark viewing modes.')}
         </Text>
         <SegmentedButtons
           value={preference}
           onValueChange={(value) => setPreference(value as ThemePreference)}
           buttons={[
-            { value: 'light', label: 'Light', icon: 'white-balance-sunny' },
-            { value: 'dark', label: 'Dark', icon: 'weather-night' },
+            { value: 'light', label: t('Light'), icon: 'white-balance-sunny' },
+            { value: 'dark', label: t('Dark'), icon: 'weather-night' },
           ]}
           style={homeStyles.themeSwitch}
         />
         <View style={[homeStyles.appearanceHint, { backgroundColor: theme.colors.surfaceVariant }]}>
           <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>{appearanceSummary}</Text>
+        </View>
+      </Surface>
+
+      <Surface style={[treeDetailStyles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
+        <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>{t('App language')}</Text>
+        <Text variant="bodySmall" style={[treeDetailStyles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
+          {t('Choose the language used across the app.')}
+        </Text>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+          {languages.map((option) => (
+            <Chip
+              key={option.code}
+              selected={option.code === language}
+              onPress={() => void setLanguage(option.code)}
+              style={{ marginBottom: 8 }}
+              icon={option.code === language ? 'check' : 'translate'}
+            >
+              {option.nativeName}
+            </Chip>
+          ))}
         </View>
       </Surface>
 
@@ -315,7 +337,7 @@ function AppSettingsSection({ onSignOut, authLoading }: UserProfileTabProps) {
         contentStyle={homeStyles.signOutButtonContent}
         style={homeStyles.signOutButton}
       >
-        Log out
+        {t('Log out')}
       </Button>
     </>
   );
@@ -323,6 +345,7 @@ function AppSettingsSection({ onSignOut, authLoading }: UserProfileTabProps) {
 
 export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTabProps) {
   const theme = useTheme();
+  const { t } = useI18n();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { user } = useAuthStore();
   const {
@@ -367,6 +390,11 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
     confirmLabel: 'Confirm',
     action: null,
   });
+
+  const profileTabs = useMemo(
+    () => PROFILE_TABS.map((tab) => ({ ...tab, label: t(tab.label) })),
+    [t],
+  );
 
   const selectedTree = useMemo(
     () => trees.find((tree) => tree.id === selectedTreeId) ?? null,
@@ -846,7 +874,7 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
             {shouldShowLinkedProfileTabs ? 'Your profile workspace' : 'Available right now'}
           </Text>
           <HorizontalTabStrip
-            items={shouldShowLinkedProfileTabs ? PROFILE_TABS : PROFILE_TABS.filter((tab) => tab.key === 'app-settings')}
+            items={shouldShowLinkedProfileTabs ? profileTabs : profileTabs.filter((tab) => tab.key === 'app-settings')}
             activeKey={activeTab}
             onChange={setActiveTab}
             containerStyle={[personProfileStyles.tabStripCard, { backgroundColor: theme.colors.surface }]}

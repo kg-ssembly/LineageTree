@@ -41,6 +41,7 @@ import {
   type FamilyTree,
 } from '../../components/dto/tree';
 import { GlobalStyles } from '../../constants/styles';
+import { useI18n } from '../../hooks/use-i18n';
 const dialogChrome = GlobalStyles.dialogChrome;
 import {
   PeopleRelationshipsTabContent,
@@ -114,17 +115,18 @@ const localStyles = StyleSheet.create({
 
 function NoTreeGate({ onCreateTree }: { onCreateTree: () => void }) {
   const theme = useTheme();
+  const { t } = useI18n();
   return (
     <View style={[localStyles.noTreeGate, { backgroundColor: theme.colors.background }]}>
       <MaterialCommunityIcons name="family-tree" size={64} color={theme.colors.primary} />
       <Text variant="headlineSmall" style={[localStyles.noTreeGateText, { color: theme.colors.onSurface }]}>
-        No family tree yet
+        {t('No family tree yet')}
       </Text>
       <Text variant="bodyMedium" style={[localStyles.noTreeGateText, { color: theme.colors.onSurfaceVariant }]}>
-        Create your first family tree to start adding people, photos, and relationships.
+        {t('Create your first family tree to start adding people, photos, and relationships.')}
       </Text>
       <Button mode="contained" icon="plus" onPress={onCreateTree} contentStyle={homeStyles.headerButtonContent}>
-        Create family tree
+        {t('Create family tree')}
       </Button>
     </View>
   );
@@ -135,6 +137,7 @@ function NoTreeGate({ onCreateTree }: { onCreateTree: () => void }) {
 
 export default function MainScreen({ navigation }: Props) {
   const theme = useTheme();
+  const { t } = useI18n();
   const { user, signOut, loading: authLoading, setDefaultTreeId } = useAuthStore();
   const {
     trees,
@@ -604,6 +607,7 @@ export default function MainScreen({ navigation }: Props) {
           tabBarInactiveTintColor: theme.colors.onSurfaceVariant,
           tabBarActiveBackgroundColor: theme.colors.elevation.level2,
           tabBarShowIcon: true,
+          tabBarShowLabel: false,
           tabBarStyle: [styles.tabBar, { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.outlineVariant }],
           tabBarLabelStyle: styles.tabLabel,
           tabBarItemStyle: styles.tabItem,
@@ -613,19 +617,19 @@ export default function MainScreen({ navigation }: Props) {
           ),
         })}
       >
-        <Tab.Screen name="tree" options={{ title: 'Tree' }}>
+        <Tab.Screen name="tree" options={{ title: t('Tree') }}>
           {() => (sharedTabProps ? <VisualisationTabContent {...sharedTabProps} /> : noTreeGate)}
         </Tab.Screen>
 
-        <Tab.Screen name="members" options={{ title: 'Members' }}>
+        <Tab.Screen name="members" options={{ title: t('Members') }}>
           {() => (sharedTabProps ? <PeopleRelationshipsTabContent {...sharedTabProps} /> : noTreeGate)}
         </Tab.Screen>
 
-        <Tab.Screen name="treeSettings" options={{ title: 'Settings' }}>
+        <Tab.Screen name="treeSettings" options={{ title: t('Settings') }}>
           {() => (sharedTabProps ? <TreeSettingsTabContent {...sharedTabProps} /> : noTreeGate)}
         </Tab.Screen>
 
-        <Tab.Screen name="myProfile" options={{ title: 'Profile' }}>
+        <Tab.Screen name="myProfile" options={{ title: t('Profile') }}>
           {() => <UserProfileTabContent onSignOut={signOut} authLoading={authLoading} />}
         </Tab.Screen>
       </Tab.Navigator>
@@ -691,14 +695,14 @@ export default function MainScreen({ navigation }: Props) {
           onDismiss={closeNodeQuickActions}
           style={[dialogChrome.dialog, styles.quickActionDialog, { backgroundColor: theme.colors.surface }]}
         >
-          <Dialog.Title style={dialogChrome.dialogTitle}>{nodeQuickActionState.person ? formatPersonName(nodeQuickActionState.person) : 'Quick actions'}</Dialog.Title>
+          <Dialog.Title style={dialogChrome.dialogTitle}>{nodeQuickActionState.person ? formatPersonName(nodeQuickActionState.person) : t('Quick actions')}</Dialog.Title>
           <Dialog.Content style={dialogChrome.content}>
             <Text variant="bodyMedium" style={[styles.quickActionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-              Choose what you want to do with this family member.
+              {t('Choose what you want to do with this family member.')}
             </Text>
             <List.Item
-              title="Open profile"
-              description="See photos, memories, and full relationship details"
+              title={t('Open profile')}
+              description={t('See photos, memories, and full relationship details')}
               left={(props) => <List.Icon {...props} icon="account-arrow-right-outline" />}
               onPress={() => {
                 const p = nodeQuickActionState.person;
@@ -754,22 +758,22 @@ export default function MainScreen({ navigation }: Props) {
             {canEdit && nodeQuickActionState.person ? (
               <>
                 <List.Item
-                  title="Add parent"
-                  description={`Create a new parent for ${formatPersonName(nodeQuickActionState.person)}`}
+                  title={t('Add parent')}
+                  description={t('Create a new parent for {name}', { name: formatPersonName(nodeQuickActionState.person) })}
                   left={(props) => <List.Icon {...props} icon="account-arrow-up-outline" />}
                   onPress={() => openCreateRelativeDialog('parent-of', nodeQuickActionState.person!)}
                   disabled={mutating}
                 />
                 <List.Item
-                  title="Add child"
-                  description={`Create a new child for ${formatPersonName(nodeQuickActionState.person)}`}
+                  title={t('Add child')}
+                  description={t('Create a new child for {name}', { name: formatPersonName(nodeQuickActionState.person) })}
                   left={(props) => <List.Icon {...props} icon="account-arrow-down-outline" />}
                   onPress={() => openCreateRelativeDialog('child-of', nodeQuickActionState.person!)}
                   disabled={mutating}
                 />
                 <List.Item
-                  title="Add spouse"
-                  description={`Create a spouse for ${formatPersonName(nodeQuickActionState.person)}`}
+                  title={t('Add spouse')}
+                  description={t('Create a spouse for {name}', { name: formatPersonName(nodeQuickActionState.person) })}
                   left={(props) => <List.Icon {...props} icon="account-heart-outline" />}
                   onPress={() => openCreateRelativeDialog('spouse-of', nodeQuickActionState.person!)}
                   disabled={mutating}
@@ -778,7 +782,7 @@ export default function MainScreen({ navigation }: Props) {
             ) : null}
           </Dialog.Content>
           <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
-            <Button onPress={closeNodeQuickActions}>Close</Button>
+            <Button onPress={closeNodeQuickActions}>{t('Close')}</Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>
@@ -797,7 +801,7 @@ export default function MainScreen({ navigation }: Props) {
         visible={snackVisible}
         onDismiss={() => { setSnackVisible(false); clearError(); clearNotice(); }}
         duration={5000}
-        action={{ label: 'Dismiss', onPress: () => { setSnackVisible(false); clearError(); clearNotice(); } }}
+        action={{ label: t('Dismiss'), onPress: () => { setSnackVisible(false); clearError(); clearNotice(); } }}
       >
         {error ?? notice}
       </Snackbar>

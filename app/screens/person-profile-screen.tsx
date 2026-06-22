@@ -37,6 +37,7 @@ import type { RootStackParamList } from '../../components/dto/navigation';
 import { canEditTreeContent, getAssignedPersonId, getAssignedUserIdForPerson } from '../../components/dto/tree';
 import { formatPersonGender, formatPersonName } from '../../components/person-formatting';
 import { GlobalStyles } from '../../constants/styles';
+import { useI18n } from '../../hooks/use-i18n';
 const dialogChrome = GlobalStyles.dialogChrome;
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PersonProfile'>;
@@ -208,6 +209,7 @@ const TAB_ROUTES: Array<{ key: PersonProfileTabKey; title: string; focusedIcon: 
 
 export default function PersonProfileScreen({ navigation, route }: Props) {
   const theme = useTheme();
+  const { t } = useI18n();
   const { user } = useAuthStore();
   const {
     trees,
@@ -785,17 +787,17 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
             size={22}
             onPress={handleGoBack}
             style={[styles.heroFloatingButton, styles.heroFloatingButtonLeft]}
-            accessibilityLabel="Go back"
+            accessibilityLabel={t('Go back')}
           />
           {canEdit ? (
             <IconButton
               icon="pencil"
               mode="contained-tonal"
               size={22}
-              onPress={() => setEditorVisible(true)}
-              style={[styles.heroFloatingButton, styles.heroFloatingButtonRight]}
-              accessibilityLabel="Edit family member"
-            />
+                onPress={() => setEditorVisible(true)}
+                style={[styles.heroFloatingButton, styles.heroFloatingButtonRight]}
+                accessibilityLabel={t('Edit family member')}
+              />
           ) : null}
           <View style={styles.heroHeader}>
             <View style={styles.heroAvatarRow}>
@@ -812,11 +814,11 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
               )}
               <View style={styles.heroIdentityWrap}>
                 <Text variant="labelLarge" style={{ color: theme.colors.primary }}>
-                  Family profile
+                  {t('Family profile')}
                 </Text>
                 <View style={styles.heroNameRow}>
                   <Text variant="headlineMedium">{formatPersonName(person)}</Text>
-                  {isCurrentUsersPerson ? <Chip compact icon="account">You</Chip> : null}
+                  {isCurrentUsersPerson ? <Chip compact icon="account">{t('You')}</Chip> : null}
                 </View>
                 <Text variant="bodyMedium" style={[styles.heroSubtext, { color: theme.colors.onSurfaceVariant }]}>
                   {getPersonLifeSpanLabel(person)}
@@ -835,8 +837,8 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
                       Anywhere this family member appears in the tree, you will now see a You badge. Unlink this profile first if you want to claim someone else.
                     </Text>
                   </View>
-                  <Button mode="outlined" icon="link-off" onPress={handleUnclaimPerson} disabled={mutating}>
-                    Unclaim myself
+                    <Button mode="outlined" icon="link-off" onPress={handleUnclaimPerson} disabled={mutating}>
+                    {t('Unclaim myself')}
                   </Button>
                 </View>
               ) : linkedCollaborator ? (
@@ -855,7 +857,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
                     </Text>
                   </View>
                   <Button mode="contained" icon="account-check" onPress={handleClaimPerson} disabled={mutating}>
-                    Claim this family member as me
+                    {t('Claim this family member as me')}
                   </Button>
                 </View>
               ) : null}
@@ -867,7 +869,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
         {activeTab === 'member-profile' ? (
           <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
             <View style={styles.titleWithHelperRow}>
-              <Text variant="titleLarge">Member profile</Text>
+              <Text variant="titleLarge">{t('Member profile')}</Text>
               <IconButton
                 icon="information-outline"
                 size={20}
@@ -882,46 +884,46 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
               <Chip compact icon={isPersonDeceased(person) ? 'flower-outline' : 'heart-pulse'}>{getPersonPresenceLabel(person)}</Chip>
               <Chip compact icon="image-multiple">{person.photos.length} photos</Chip>
               <Chip compact icon="source-branch">{getPersonTreeMembershipIds(person).length} tree memberships</Chip>
-              {preferredPhoto ? <Chip compact icon="star">Preferred photo selected</Chip> : null}
-              {linkedCollaborator && !isCurrentUsersPerson ? <Chip compact icon="link-variant">Linked</Chip> : null}
-              {person.canonicalPersonId?.trim() ? <Chip compact icon="merge">Merged canonical profile</Chip> : null}
+              {preferredPhoto ? <Chip compact icon="star">{t('Preferred photo selected')}</Chip> : null}
+              {linkedCollaborator && !isCurrentUsersPerson ? <Chip compact icon="link-variant">{t('Linked')}</Chip> : null}
+              {person.canonicalPersonId?.trim() ? <Chip compact icon="merge">{t('Merged canonical profile')}</Chip> : null}
             </View>
 
             <View style={styles.detailGrid}>
               <View style={[styles.detailCard, { backgroundColor: theme.colors.elevation.level1 }]}>
-                <Text variant="labelMedium" style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>First name</Text>
-                <Text variant="titleMedium">{person.firstName || 'Unknown'}</Text>
+                <Text variant="labelMedium" style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>{t('First name')}</Text>
+                <Text variant="titleMedium">{person.firstName || t('Unknown')}</Text>
               </View>
               {person.middleNames?.trim() ? (
                 <View style={[styles.detailCard, { backgroundColor: theme.colors.elevation.level1 }]}>
-                  <Text variant="labelMedium" style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>Second / middle names</Text>
+                  <Text variant="labelMedium" style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>{t('Second / middle names')}</Text>
                   <Text variant="titleMedium">{person.middleNames.trim()}</Text>
                 </View>
               ) : null}
               <View style={[styles.detailCard, { backgroundColor: theme.colors.elevation.level1 }]}>
-                <Text variant="labelMedium" style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>Last name</Text>
-                <Text variant="titleMedium">{person.lastName || 'Unknown'}</Text>
+                <Text variant="labelMedium" style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>{t('Last name')}</Text>
+                <Text variant="titleMedium">{person.lastName || t('Unknown')}</Text>
               </View>
               {person.maidenName?.trim() ? (
                 <View style={[styles.detailCard, { backgroundColor: theme.colors.elevation.level1 }]}>
-                  <Text variant="labelMedium" style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>Maiden name</Text>
+                  <Text variant="labelMedium" style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>{t('Maiden name')}</Text>
                   <Text variant="titleMedium">{person.maidenName.trim()}</Text>
                 </View>
               ) : null}
               <View style={[styles.detailCard, { backgroundColor: theme.colors.elevation.level1 }]}>
-                <Text variant="labelMedium" style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>Birth date</Text>
-                <Text variant="titleMedium">{person.birthDate ? formatPersonDate(person.birthDate) : 'Unknown'}</Text>
+                <Text variant="labelMedium" style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>{t('Birth date')}</Text>
+                <Text variant="titleMedium">{person.birthDate ? formatPersonDate(person.birthDate) : t('Unknown')}</Text>
               </View>
               <View style={[styles.detailCard, { backgroundColor: theme.colors.elevation.level1 }]}>
-                <Text variant="labelMedium" style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>Tree memberships</Text>
-                <Text variant="titleMedium">{getPersonTreeMembershipIds(person).join(', ') || 'Current tree only'}</Text>
+                <Text variant="labelMedium" style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>{t('Tree memberships')}</Text>
+                <Text variant="titleMedium">{getPersonTreeMembershipIds(person).join(', ') || t('Current tree only')}</Text>
               </View>
             </View>
 
             <View style={[styles.notesBox, { backgroundColor: theme.colors.surfaceVariant }]}>
-              <Text variant="titleSmall">Notes</Text>
+              <Text variant="titleSmall">{t('Notes')}</Text>
               <Text variant="bodyMedium" style={[styles.notesText, { color: theme.colors.onSurfaceVariant }]}>
-                {person.notes || 'No notes added yet.'}
+                {person.notes || t('No notes added yet.')}
               </Text>
             </View>
           </Surface>
@@ -932,7 +934,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
             <View style={styles.sectionHeader}>
               <View style={styles.sectionHeaderText}>
                 <View style={styles.titleWithHelperRow}>
-                  <Text variant="titleLarge">Relationships</Text>
+                  <Text variant="titleLarge">{t('Relationships')}</Text>
                   <IconButton
                     icon="information-outline"
                     size={20}
@@ -944,7 +946,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
               </View>
               {canEdit ? (
                 <Button mode="contained" icon="family-tree" onPress={() => setRelationshipDialog({ visible: true, relationship: null })}>
-                  Add relationship
+                  {t('Add relationship')}
                 </Button>
               ) : null}
             </View>
@@ -1011,7 +1013,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
               </>
             ) : (
               <View style={styles.emptyState}>
-                <Text variant="titleMedium">No relationships yet</Text>
+                <Text variant="titleMedium">{t('No relationships yet')}</Text>
                 <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>Add parents, children, or spouses from this family member to grow the story around them.</Text>
               </View>
             )}
@@ -1087,7 +1089,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
         {activeTab === 'memories-gallery' ? (
           <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
             <View style={styles.titleWithHelperRow}>
-              <Text variant="titleLarge">Memories & gallery</Text>
+                  <Text variant="titleLarge">{t('Memories & gallery')}</Text>
               <IconButton
                 icon="information-outline"
                 size={20}
@@ -1110,16 +1112,16 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
               <View style={[styles.notesBox, { backgroundColor: theme.colors.surfaceVariant }]}>
                 <View style={styles.sectionHeader}>
                   <View style={styles.sectionHeaderText}>
-                    <Text variant="titleSmall">Notes</Text>
+                    <Text variant="titleSmall">{t('Notes')}</Text>
                   </View>
                   {canEdit ? (
                     <Button mode="contained-tonal" icon="pencil" onPress={openNotesDialog}>
-                      {person.notes ? 'Edit notes' : 'Add notes'}
+                      {person.notes ? t('Edit notes') : t('Add notes')}
                     </Button>
                   ) : null}
                 </View>
                 <Text variant="bodyMedium" style={[styles.notesText, { color: theme.colors.onSurfaceVariant }]}>
-                  {person.notes || 'No notes added yet.'}
+                  {person.notes || t('No notes added yet.')}
                 </Text>
               </View>
             ) : null}
@@ -1128,11 +1130,11 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
               <View style={styles.gallerySection}>
                 <View style={styles.sectionHeader}>
                   <View style={styles.sectionHeaderText}>
-                    <Text variant="titleSmall">Photo gallery ({person.photos.length})</Text>
+                    <Text variant="titleSmall">{t('Photo gallery ({count})', { count: person.photos.length })}</Text>
                   </View>
                   {canEdit ? (
                     <Button mode="contained-tonal" icon="image-plus" onPress={openPhotosDialog}>
-                      {person.photos.length > 0 ? 'Manage photos' : 'Add photos'}
+                      {person.photos.length > 0 ? t('Manage photos') : t('Add photos')}
                     </Button>
                   ) : null}
                 </View>
@@ -1148,7 +1150,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
                   </ScrollView>
                 ) : (
                   <View style={styles.emptyState}>
-                    <Text variant="titleMedium">No photos yet</Text>
+                    <Text variant="titleMedium">{t('No photos yet')}</Text>
                     <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>Photos and scanned keepsakes will show up here.</Text>
                   </View>
                 )}
@@ -1159,11 +1161,11 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
               <View style={styles.lifeEventsSection}>
                 <View style={styles.sectionHeader}>
                   <View style={styles.sectionHeaderText}>
-                    <Text variant="titleSmall">Life events ({memoryTimeline.length})</Text>
+                    <Text variant="titleSmall">{t('Life events ({count})', { count: memoryTimeline.length })}</Text>
                   </View>
                   {canEdit ? (
                     <Button mode="contained-tonal" icon="plus" onPress={() => setLifeEventDialog({ visible: true, event: null })}>
-                      Add event
+                      {t('Add event')}
                     </Button>
                   ) : null}
                 </View>
@@ -1201,7 +1203,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
                   </View>
                 ) : (
                   <View style={styles.emptyState}>
-                    <Text variant="titleMedium">No memories yet</Text>
+                    <Text variant="titleMedium">{t('No memories yet')}</Text>
                     <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>Start with major milestones like marriage, divorce, moving house, graduation, or a treasured family story.</Text>
                   </View>
                 )}
@@ -1217,6 +1219,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
           routes: TAB_ROUTES,
         }}
         onTabPress={({ route }) => setActiveTab(route.key as PersonProfileTabKey)}
+        labeled={false}
         style={{
           backgroundColor: theme.colors.surface,
           borderTopWidth: 1,
@@ -1255,9 +1258,9 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
         onDismiss={() => setRelationshipDialog({ visible: false, relationship: null })}
         onDelete={relationshipDialog.relationship ? async () => {
           openConfirm(
-            'Remove relationship',
-            'Remove this family connection?',
-            'Remove',
+            t('Remove relationship'),
+            t('Remove this family connection?'),
+            t('Remove'),
             async () => {
               if (!user?.id) return;
               await removeRelationship(user.id, relationshipDialog.relationship!.id);
@@ -1275,9 +1278,9 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
         onDismiss={() => setLifeEventDialog({ visible: false, event: null })}
         onDelete={lifeEventDialog.event ? async () => {
           openConfirm(
-            'Delete life event',
-            `Delete the "${lifeEventDialog.event!.title}" memory from ${formatPersonName(person)}?`,
-            'Delete',
+            t('Delete life event'),
+            t('Delete the "{title}" memory from {name}?', { title: lifeEventDialog.event!.title, name: formatPersonName(person) }),
+            t('Delete'),
             async () => {
               await handleDeleteLifeEvent(lifeEventDialog.event!);
               setLifeEventDialog({ visible: false, event: null });
@@ -1293,12 +1296,12 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
           onDismiss={mutating ? undefined : () => setNotesDialogVisible(false)}
           style={[dialogChrome.dialog, styles.memoryDialog, { backgroundColor: theme.colors.surface }]}
         >
-          <Dialog.Title style={dialogChrome.dialogTitle}>Notes</Dialog.Title>
+          <Dialog.Title style={dialogChrome.dialogTitle}>{t('Notes')}</Dialog.Title>
           <Dialog.ScrollArea style={styles.memoryDialogScrollArea}>
             <ScrollView contentContainerStyle={styles.memoryDialogContent} keyboardShouldPersistTaps="handled">
               <TextInput
                 mode="outlined"
-                label="Family notes"
+                label={t('Family notes')}
                 value={notesDraft}
                 onChangeText={setNotesDraft}
                 multiline
@@ -1309,8 +1312,8 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
             </ScrollView>
           </Dialog.ScrollArea>
           <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
-            <Button onPress={() => setNotesDialogVisible(false)} disabled={mutating}>Cancel</Button>
-            <Button mode="contained" onPress={handleSaveNotes} disabled={mutating}>Save notes</Button>
+            <Button onPress={() => setNotesDialogVisible(false)} disabled={mutating}>{t('Cancel')}</Button>
+            <Button mode="contained" onPress={handleSaveNotes} disabled={mutating}>{t('Save notes')}</Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>
@@ -1321,7 +1324,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
           onDismiss={mutating ? undefined : () => setPhotosDialogVisible(false)}
           style={[dialogChrome.dialog, styles.memoryDialog, { backgroundColor: theme.colors.surface }]}
         >
-          <Dialog.Title style={dialogChrome.dialogTitle}>Manage photos</Dialog.Title>
+          <Dialog.Title style={dialogChrome.dialogTitle}>{t('Manage photos')}</Dialog.Title>
           <Dialog.ScrollArea style={styles.memoryDialogScrollArea}>
             <ScrollView contentContainerStyle={styles.memoryDialogContent} keyboardShouldPersistTaps="handled">
               <View style={styles.memoryDialogPhotoActions}>
@@ -1385,8 +1388,8 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
             </ScrollView>
           </Dialog.ScrollArea>
           <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
-            <Button onPress={() => setPhotosDialogVisible(false)} disabled={mutating}>Cancel</Button>
-            <Button mode="contained" onPress={handleSavePhotos} disabled={mutating}>Save photos</Button>
+            <Button onPress={() => setPhotosDialogVisible(false)} disabled={mutating}>{t('Cancel')}</Button>
+            <Button mode="contained" onPress={handleSavePhotos} disabled={mutating}>{t('Save photos')}</Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>

@@ -1,3 +1,5 @@
+import { translate } from '../../i18n';
+
 export type PersonGender = 'unspecified' | 'female' | 'male' | 'non-binary' | 'other';
 
 export type PersonLifeEventType = 'married' | 'divorced' | 'moved' | 'graduated' | 'retired' | 'milestone' | 'death' | 'child-born' | 'custom';
@@ -149,7 +151,7 @@ export function parsePersonDate(value: string) {
 export function formatPersonDate(value: string) {
   const parsed = parsePersonDate(value);
   if (!parsed) {
-    return value || 'Unknown';
+    return value || translate('Unknown');
   }
 
   return formatDate(parsed);
@@ -170,41 +172,41 @@ export function isPersonDeceased(person?: PersonRecord | null) {
 
 export function getPersonPresenceLabel(person?: PersonRecord | null) {
   if (person?.deathDate) {
-    return `In memory • ${formatPersonDate(person.deathDate)}`;
+    return translate('In memory • {date}', { date: formatPersonDate(person.deathDate) });
   }
 
-  return 'Present';
+  return translate('Present');
 }
 
 export function getPersonLifeSpanLabel(person?: PersonRecord | null) {
   if (!person) {
-    return 'Unknown lifespan';
+    return translate('Unknown lifespan');
   }
 
-  const birthLabel = person.birthDate ? formatPersonDate(person.birthDate) : 'Birth date unknown';
-  const deathLabel = person.deathDate ? formatPersonDate(person.deathDate) : 'Present';
-  return `${birthLabel} – ${deathLabel}`;
+  const birthLabel = person.birthDate ? formatPersonDate(person.birthDate) : translate('Birth date unknown');
+  const deathLabel = person.deathDate ? formatPersonDate(person.deathDate) : translate('Present');
+  return `${birthLabel} - ${deathLabel}`;
 }
 
 export function getLifeEventTypeLabel(type: PersonLifeEventType) {
   switch (type) {
     case 'married':
-      return 'Married';
+      return translate('Married');
     case 'divorced':
-      return 'Divorced';
+      return translate('Divorced');
     case 'moved':
-      return 'Moved';
+      return translate('Moved');
     case 'graduated':
-      return 'Graduated';
+      return translate('Graduated');
     case 'retired':
-      return 'Retired';
+      return translate('Retired');
     case 'milestone':
-      return 'Milestone';
+      return translate('Milestone');
     case 'death':
-      return 'Death';
+      return translate('Death');
     case 'child-born':
-      return 'Had a child';
+      return translate('Had a child');
     default:
-      return 'Custom';
+      return translate('Custom');
   }
 }

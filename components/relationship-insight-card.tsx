@@ -3,6 +3,7 @@ import { Pressable, View } from 'react-native';
 import { Button, Chip, Divider, Text, TextInput, useTheme } from 'react-native-paper';
 import { getPersonLifeSpanLabel, type PersonRecord } from './dto/person';
 import type { RelationshipRecord } from './dto/relationship';
+import { useI18n } from '../hooks/use-i18n';
 import { computeRelationshipInsight } from '../providers';
 import { GlobalStyles } from '../constants/styles';
 
@@ -49,6 +50,7 @@ export default function RelationshipInsightCard({
   subtitle,
 }: RelationshipInsightCardProps) {
   const theme = useTheme();
+  const { t } = useI18n();
   const [fromPersonId, setFromPersonId] = useState(lockedFromPersonId ?? '');
   const [toPersonId, setToPersonId] = useState('');
   const [fromSearchQuery, setFromSearchQuery] = useState('');
@@ -56,8 +58,8 @@ export default function RelationshipInsightCard({
   const [showPathDetails, setShowPathDetails] = useState(false);
 
   const effectiveSubtitle = subtitle ?? (lockedFromPersonId
-    ? 'See how this family member is connected to everyone else in the tree.'
-    : 'Select two family members to compute their relationship and show the connection path.');
+    ? t('See how this family member is connected to everyone else in the tree.')
+    : t('Select two family members to compute their relationship and show the connection path.'));
 
   const peopleById = useMemo(
     () => new Map(people.map((person) => [person.id, person])),
@@ -152,10 +154,10 @@ export default function RelationshipInsightCard({
 
         {!lockedFromPersonId ? (
           <View style={styles.section}>
-            <Text variant="titleSmall">1. Who are we starting with?</Text>
+            <Text variant="titleSmall">{t('1. Who are we starting with?')}</Text>
             <TextInput
               mode="outlined"
-              label="Search first family member"
+              label={t('Search first family member')}
               value={fromSearchQuery}
               onChangeText={setFromSearchQuery}
               style={styles.searchInput}
@@ -183,23 +185,23 @@ export default function RelationshipInsightCard({
               </View>
             ) : (
               <View style={styles.emptyState}>
-                <Text variant="bodyMedium">No matching family members found.</Text>
+                <Text variant="bodyMedium">{t('No matching family members found.')}</Text>
               </View>
             )}
             {totalFromMatches > MAX_VISIBLE_RESULTS ? (
               <Text variant="bodySmall" style={styles.pathText}>
-                Showing the first 3 matches. Add more letters to narrow the results.
+                {t('Showing the first 3 matches. Add more letters to narrow the results.')}
               </Text>
             ) : null}
             {!fromPersonId ? (
               <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 8 }}>
-                Start by choosing one person.
+                {t('Start by choosing one person.')}
               </Text>
             ) : null}
           </View>
         ) : (
           <View style={styles.section}>
-            <Text variant="titleSmall">1. Selected family member</Text>
+            <Text variant="titleSmall">{t('1. Selected family member')}</Text>
             <View style={styles.lockedPersonRow}>
               <Chip selected style={styles.chip}>{formatPersonName(peopleById.get(fromPersonId))}</Chip>
             </View>
@@ -207,10 +209,10 @@ export default function RelationshipInsightCard({
         )}
 
         <View style={styles.section}>
-          <Text variant="titleSmall">2. Who do you want to compare with?</Text>
+          <Text variant="titleSmall">{t('2. Who do you want to compare with?')}</Text>
           <TextInput
             mode="outlined"
-            label="Search second family member"
+            label={t('Search second family member')}
             value={toSearchQuery}
             onChangeText={setToSearchQuery}
             style={styles.searchInput}
@@ -240,17 +242,17 @@ export default function RelationshipInsightCard({
             </View>
           ) : (
             <View style={styles.emptyState}>
-              <Text variant="bodyMedium">No matching family members found.</Text>
+              <Text variant="bodyMedium">{t('No matching family members found.')}</Text>
             </View>
           )}
           {totalToMatches > MAX_VISIBLE_RESULTS ? (
             <Text variant="bodySmall" style={styles.pathText}>
-              Showing the first 3 matches. Add more letters to narrow the results.
+              {t('Showing the first 3 matches. Add more letters to narrow the results.')}
             </Text>
           ) : null}
           {fromPersonId && !toPersonId ? (
             <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 8 }}>
-              Pick the second person and we’ll explain the relationship in plain language.
+              {t('Pick the second person and we’ll explain the relationship in plain language.')}
             </Text>
           ) : null}
         </View>
@@ -266,7 +268,7 @@ export default function RelationshipInsightCard({
               }}
               disabled={!fromPersonId || !toPersonId}
             >
-              Swap
+              {t('Swap')}
             </Button>
           ) : null}
           <Button onPress={() => {
@@ -278,15 +280,15 @@ export default function RelationshipInsightCard({
             setToSearchQuery('');
             setShowPathDetails(false);
           }}>
-            Clear
+            {t('Clear')}
           </Button>
         </View>
 
         {!canShowInsight ? (
           <View style={[styles.resultBox, { backgroundColor: theme.colors.surfaceVariant }]}>
-            <Text variant="titleMedium">Choose two family members</Text>
+            <Text variant="titleMedium">{t('Choose two family members')}</Text>
             <Text variant="bodyMedium" style={[styles.pathText, { color: theme.colors.onSurfaceVariant }]}>
-              We’ll show a simple answer first, then you can open the full connection path only if you want more detail.
+              {t('We’ll show a simple answer first, then you can open the full connection path only if you want more detail.')}
             </Text>
           </View>
         ) : (
@@ -303,7 +305,7 @@ export default function RelationshipInsightCard({
                 <Chip compact icon="source-branch">{Math.max(insight.pathPersonIds.length - 1, 0)} steps</Chip>
               </View>
               <Button mode="text" onPress={() => setShowPathDetails((current) => !current)} style={{ alignSelf: 'flex-start', marginTop: 8 }}>
-                {showPathDetails ? 'Hide connection steps' : 'Show connection steps'}
+                {showPathDetails ? t('Hide connection steps') : t('Show connection steps')}
               </Button>
               {showPathDetails ? (
                 <View style={{ marginTop: 8 }}>
@@ -335,9 +337,9 @@ export default function RelationshipInsightCard({
             </View>
           ) : (
             <View style={[styles.resultBox, { backgroundColor: theme.colors.surfaceVariant }]}>
-              <Text variant="titleMedium">No direct family relationship found</Text>
+              <Text variant="titleMedium">{t('No direct family relationship found')}</Text>
               <Text variant="bodyMedium" style={[styles.pathText, { color: theme.colors.onSurfaceVariant }]}>
-                No result returned because these two family members are currently unrelated in this tree.
+                {t('No result returned because these two family members are currently unrelated in this tree.')}
               </Text>
             </View>
           )

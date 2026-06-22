@@ -12,24 +12,25 @@ import {
   useTheme,
 } from 'react-native-paper';
 import { useAuthStore } from '../../../stores/auth-store';
+import { useI18n } from '../../../hooks/use-i18n';
 import { GlobalStyles } from '../../../constants/styles';
 
-function validateEmail(email: string): string | null {
-  if (!email.trim()) return 'Email is required.';
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return 'Enter a valid email address.';
+function validateEmail(email: string, t: (message: string) => string): string | null {
+  if (!email.trim()) return t('Email is required.');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return t('Enter a valid email address.');
   return null;
 }
-function validatePassword(password: string): string | null {
-  if (!password) return 'Password is required.';
-  if (password.length < 8) return 'Use at least 8 characters.';
+function validatePassword(password: string, t: (message: string) => string): string | null {
+  if (!password) return t('Password is required.');
+  if (password.length < 8) return t('Use at least 8 characters.');
   if (!/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/\d/.test(password)) {
-    return 'Use uppercase, lowercase, and a number.';
+    return t('Use uppercase, lowercase, and a number.');
   }
   return null;
 }
-function validateDisplayName(name: string): string | null {
-  if (!name.trim()) return 'Name is required.';
-  if (name.trim().length < 2) return 'Name must be at least 2 characters.';
+function validateDisplayName(name: string, t: (message: string) => string): string | null {
+  if (!name.trim()) return t('Name is required.');
+  if (name.trim().length < 2) return t('Name must be at least 2 characters.');
   return null;
 }
 
@@ -37,6 +38,7 @@ const styles = GlobalStyles.signUp;
 
 export default function SignUpScreen({ navigation }: any) {
   const theme = useTheme();
+  const { t } = useI18n();
   const { signUp, loading, error, clearError } = useAuthStore();
 
   const [displayName, setDisplayName] = useState('');
@@ -56,9 +58,9 @@ export default function SignUpScreen({ navigation }: any) {
 
   const handleSignUp = async () => {
     const errors = {
-      displayName: validateDisplayName(displayName),
-      email: validateEmail(email),
-      password: validatePassword(password),
+      displayName: validateDisplayName(displayName, t),
+      email: validateEmail(email, t),
+      password: validatePassword(password, t),
     };
     setFieldErrors(errors);
     if (Object.values(errors).some(Boolean)) return;
@@ -77,26 +79,26 @@ export default function SignUpScreen({ navigation }: any) {
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <View style={styles.heroWrap}>
           <Chip icon="sprout" style={{ backgroundColor: theme.colors.tertiaryContainer }}>
-            Start your first branch
+            {t('Start your first branch')}
           </Chip>
           <Text variant="displaySmall" style={[styles.heroTitle, { color: theme.colors.onSurface }]}>
-            Create your account
+            {t('Create your account')}
           </Text>
           <Text variant="bodyLarge" style={[styles.heroSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-            Capture generations, memories, and milestones in a more beautiful family workspace.
+            {t('Capture generations, memories, and milestones in a more beautiful family workspace.')}
           </Text>
         </View>
 
         <Surface style={[styles.card, { backgroundColor: theme.colors.surface }]} elevation={2}>
           <Text variant="headlineMedium" style={[styles.title, { color: theme.colors.onSurface }]}>
-            Sign up
+            {t('Sign up')}
           </Text>
           <Text variant="bodyMedium" style={[styles.subtitle, { color: theme.colors.onSurfaceVariant }]}>
-            Set up your space in less than a minute.
+            {t('Set up your space in less than a minute.')}
           </Text>
 
           <TextInput
-            label="Full name"
+            label={t('Full name')}
             value={displayName}
             onChangeText={(v) => { setDisplayName(v); setFieldErrors((e) => ({ ...e, displayName: null })); }}
             mode="outlined"
@@ -108,7 +110,7 @@ export default function SignUpScreen({ navigation }: any) {
           <HelperText type="error" visible={!!fieldErrors.displayName}>{fieldErrors.displayName}</HelperText>
 
           <TextInput
-            label="Email"
+            label={t('Email')}
             value={email}
             onChangeText={(v) => { setEmail(v); setFieldErrors((e) => ({ ...e, email: null })); }}
             mode="outlined"
@@ -122,7 +124,7 @@ export default function SignUpScreen({ navigation }: any) {
           <HelperText type="error" visible={!!fieldErrors.email}>{fieldErrors.email}</HelperText>
 
           <TextInput
-            label="Password"
+            label={t('Password')}
             value={password}
             onChangeText={(v) => { setPassword(v); setFieldErrors((e) => ({ ...e, password: null })); }}
             mode="outlined"
@@ -144,7 +146,7 @@ export default function SignUpScreen({ navigation }: any) {
             }
           />
           <HelperText type={fieldErrors.password ? 'error' : 'info'} visible>
-            {fieldErrors.password ?? 'Use 8+ characters with uppercase, lowercase, and a number.'}
+            {fieldErrors.password ?? t('Use 8+ characters with uppercase, lowercase, and a number.')}
           </HelperText>
 
           <Button
@@ -156,11 +158,11 @@ export default function SignUpScreen({ navigation }: any) {
           >
             {loading
               ? <ActivityIndicator color={theme.colors.onPrimary} size="small" />
-              : 'Create account'}
+              : t('Create account')}
           </Button>
 
           <Button mode="text" onPress={() => navigation.navigate('Login')} style={styles.linkButton}>
-            Already have an account? Sign in
+            {t('Already have an account? Sign in')}
           </Button>
         </Surface>
       </ScrollView>
@@ -169,11 +171,10 @@ export default function SignUpScreen({ navigation }: any) {
         visible={snackVisible}
         onDismiss={() => { setSnackVisible(false); clearError(); }}
         duration={4000}
-        action={{ label: 'Dismiss', onPress: () => { setSnackVisible(false); clearError(); } }}
+        action={{ label: t('Dismiss'), onPress: () => { setSnackVisible(false); clearError(); } }}
       >
         {error}
       </Snackbar>
     </KeyboardAvoidingView>
   );
 }
-

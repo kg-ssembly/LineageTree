@@ -5,6 +5,7 @@ import { getPersonLifeSpanLabel, type PersonRecord } from './dto/person';
 import type { ParentChildRelationshipKind, RelationshipRecord, SpouseRelationshipStatus } from './dto/relationship';
 import { DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND, DEFAULT_SPOUSE_RELATIONSHIP_STATUS } from './dto/relationship';
 import { validateProposedRelationship } from './family-tree-validation';
+import { useI18n } from '../hooks/use-i18n';
 import { GlobalStyles } from '../constants/styles';
 
 const styles = GlobalStyles.personRelationshipDialog;
@@ -85,6 +86,7 @@ export default function PersonRelationshipDialog({
   onSubmit,
 }: PersonRelationshipDialogProps) {
   const theme = useTheme();
+  const { t } = useI18n();
   const [mode, setMode] = useState<PersonRelationshipMode>('parent-of');
   const [relatedPersonId, setRelatedPersonId] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -168,8 +170,8 @@ export default function PersonRelationshipDialog({
   }, [editingRelationship?.id, mode, people, person, relatedPersonId, relationships]);
 
   const handleSubmit = async () => {
-    if (!person) { setError('This family member could not be loaded.'); return; }
-    if (!relatedPersonId) { setError('Choose a related family member first.'); return; }
+    if (!person) { setError(t('This family member could not be loaded.')); return; }
+    if (!relatedPersonId) { setError(t('Choose a related family member first.')); return; }
     if (validationMessage) { setError(validationMessage); return; }
     await onSubmit({
       mode,
@@ -192,11 +194,11 @@ export default function PersonRelationshipDialog({
         onDismiss={loading ? undefined : onDismiss}
         style={[dialogChrome.dialog, styles.dialog, { backgroundColor: theme.colors.surface }]}
       >
-        <Dialog.Title style={dialogChrome.dialogTitle}>{editingRelationship ? 'Edit relationship' : 'Add relationship'}</Dialog.Title>
+        <Dialog.Title style={dialogChrome.dialogTitle}>{editingRelationship ? t('Edit relationship') : t('Add relationship')}</Dialog.Title>
         <Dialog.ScrollArea style={[dialogChrome.scrollArea, styles.scrollArea]}>
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
             <Text variant="bodyMedium" style={styles.helperText}>
-              Manage connections directly from {formatPersonName(person)}.
+              {t('Manage connections directly from {name}.', { name: formatPersonName(person) })}
             </Text>
 
             <SegmentedButtons
@@ -213,7 +215,7 @@ export default function PersonRelationshipDialog({
 
             {mode === 'spouse-of' ? (
               <View style={styles.section}>
-                <Text variant="titleSmall">Relationship status</Text>
+                <Text variant="titleSmall">{t('Relationship status')}</Text>
                 <View style={styles.choiceWrap}>
                   {[
                     { value: 'partner', label: 'Partner' },
@@ -236,7 +238,7 @@ export default function PersonRelationshipDialog({
               </View>
             ) : (
               <View style={styles.section}>
-                <Text variant="titleSmall">Child relationship</Text>
+                <Text variant="titleSmall">{t('Child relationship')}</Text>
                 <View style={styles.choiceWrap}>
                   {[
                     { value: 'biological', label: 'Biological' },
@@ -260,7 +262,7 @@ export default function PersonRelationshipDialog({
             )}
 
             <View style={styles.section}>
-              <Text variant="titleSmall">Select related family member</Text>
+              <Text variant="titleSmall">{t('Select related family member')}</Text>
               {selectedPerson ? (
                 <View style={styles.selectedChipRow}>
                   <Chip
@@ -277,7 +279,7 @@ export default function PersonRelationshipDialog({
                 <>
                   <TextInput
                     mode="outlined"
-                    label="Search family member"
+                    label={t('Search family member')}
                     value={searchQuery}
                     onChangeText={setSearchQuery}
                     style={styles.searchInput}
@@ -308,12 +310,12 @@ export default function PersonRelationshipDialog({
                     </View>
                   ) : (
                     <View style={styles.emptyState}>
-                      <Text variant="bodyMedium">No matching family members are available for this relationship type.</Text>
+                      <Text variant="bodyMedium">{t('No matching family members are available for this relationship type.')}</Text>
                     </View>
                   )}
                   {totalCandidateMatches > MAX_VISIBLE_RESULTS ? (
                     <Text variant="bodySmall" style={styles.resultsFooterText}>
-                      Showing the first 3 matches. Add more search text to narrow the list.
+                      {t('Showing the first 3 matches. Add more search text to narrow the list.')}
                     </Text>
                   ) : null}
                 </>
@@ -328,11 +330,11 @@ export default function PersonRelationshipDialog({
         <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
           {editingRelationship && onDelete ? (
             <Button onPress={onDelete} textColor={theme.colors.error} disabled={loading}>
-              Delete
+              {t('Delete')}
             </Button>
           ) : null}
-          <Button mode="outlined" onPress={onDismiss} disabled={loading}>Cancel</Button>
-          <Button mode="contained" onPress={handleSubmit} disabled={loading || !person || candidates.length === 0 || !!validationMessage}>Save</Button>
+          <Button mode="outlined" onPress={onDismiss} disabled={loading}>{t('Cancel')}</Button>
+          <Button mode="contained" onPress={handleSubmit} disabled={loading || !person || candidates.length === 0 || !!validationMessage}>{t('Save')}</Button>
         </Dialog.Actions>
       </Dialog>
     </Portal>
