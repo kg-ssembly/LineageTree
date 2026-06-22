@@ -27,10 +27,12 @@ import {
   getPersonPresenceLabel,
   getPreferredPersonPhoto,
   isPersonDeceased,
+  parsePersonDate,
 } from '../../components/dto/person';
 import type { RelationshipRecord } from '../../components/dto/relationship';
 import { getUserNameParts, type UserProfile } from '../../components/dto/user';
 import { formatPersonGender, formatPersonName } from '../../components/person-formatting';
+import { DatePickerModal } from 'react-native-paper-dates';
 import {
   getTreeApprovalWindowHours,
   getTreeRole,
@@ -385,8 +387,8 @@ type MemberFilters = {
   hasParents: boolean | null;
   hasChildren: boolean | null;
   hasSpouse: boolean | null;
-  birthYearFrom: string;
-  birthYearTo: string;
+  birthDateFrom: string;
+  birthDateTo: string;
 };
 
 const DEFAULT_FILTERS: MemberFilters = {
@@ -396,8 +398,8 @@ const DEFAULT_FILTERS: MemberFilters = {
   hasParents: null,
   hasChildren: null,
   hasSpouse: null,
-  birthYearFrom: '',
-  birthYearTo: '',
+  birthDateFrom: '',
+  birthDateTo: '',
 };
 
 const MEMBERS_PER_PAGE = 5;
@@ -410,9 +412,20 @@ function countActiveFilters(filters: MemberFilters): number {
   if (filters.hasParents !== null) count += 1;
   if (filters.hasChildren !== null) count += 1;
   if (filters.hasSpouse !== null) count += 1;
-  if (filters.birthYearFrom) count += 1;
-  if (filters.birthYearTo) count += 1;
+  if (filters.birthDateFrom) count += 1;
+  if (filters.birthDateTo) count += 1;
   return count;
+}
+
+function formatIsoDate(date: Date) {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function formatDateFilterLabel(value: string, emptyLabel: string) {
+  return value ? formatPersonDate(value) : emptyLabel;
 }
 
 function TriToggleChip({ label, value, onChange, disabled }: {
@@ -459,8 +472,12 @@ export function PeopleRelationshipsTabContent({
   const [filters, setFilters] = useState<MemberFilters>(DEFAULT_FILTERS);
   const [draftFilters, setDraftFilters] = useState<MemberFilters>(DEFAULT_FILTERS);
   const [currentPage, setCurrentPage] = useState(1);
+  const [birthDateFromPickerVisible, setBirthDateFromPickerVisible] = useState(false);
+  const [birthDateToPickerVisible, setBirthDateToPickerVisible] = useState(false);
 
   const activeFilterCount = useMemo(() => countActiveFilters(filters), [filters]);
+  const selectedBirthDateFrom = useMemo(() => parsePersonDate(draftFilters.birthDateFrom) ?? undefined, [draftFilters.birthDateFrom]);
+  const selectedBirthDateTo = useMemo(() => parsePersonDate(draftFilters.birthDateTo) ?? undefined, [draftFilters.birthDateTo]);
 
   const personRelStats = useMemo(() => {
     const parentOf = new Set<string>();
@@ -514,11 +531,10 @@ export function PeopleRelationshipsTabContent({
       if (filters.hasSpouse === true && !personRelStats.spouseOf.has(person.id)) return false;
       if (filters.hasSpouse === false && personRelStats.spouseOf.has(person.id)) return false;
 
-      if (filters.birthYearFrom || filters.birthYearTo) {
-        const birthYear = person.birthDate ? parseInt(person.birthDate.slice(0, 4), 10) : null;
-        if (birthYear === null) return false;
-        if (filters.birthYearFrom && birthYear < parseInt(filters.birthYearFrom, 10)) return false;
-        if (filters.birthYearTo && birthYear > parseInt(filters.birthYearTo, 10)) return false;
+      if (filters.birthDateFrom || filters.birthDateTo) {
+        if (!person.birthDate) return false;
+        if (filters.birthDateFrom && person.birthDate < filters.birthDateFrom) return false;
+        if (filters.birthDateTo && person.birthDate > filters.birthDateTo) return false;
       }
 
       return true;
@@ -747,26 +763,34 @@ export function PeopleRelationshipsTabContent({
                 ))}
               </View>
 
-              <Text variant="titleSmall" style={{ marginTop: 8, marginBottom: 4 }}>Birth year range</Text>
-              <View style={{ flexDirection: 'row', gap: 8 }}>
-                <TextInput
+              <Text variant="titleSmall" style={{ marginTop: 8, marginBottom: 4 }}>Birth date range</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+                <Button
                   mode="outlined"
-                  label="From"
-                  value={draftFilters.birthYearFrom}
-                  onChangeText={(value) => setDraftFilters((current) => ({ ...current, birthYearFrom: value.replace(/\D/g, '') }))}
-                  keyboardType="numeric"
-                  maxLength={4}
-                  style={{ flex: 1 }}
-                />
-                <TextInput
+                  icon="calendar-start"
+                  onPress={() => setBirthDateFromPickerVisible(true)}
+                >
+                  {formatDateFilterLabel(draftFilters.birthDateFrom, 'From date')}
+                </Button>
+                {draftFilters.birthDateFrom ? (
+                  <Button onPress={() => setDraftFilters((current) => ({ ...current, birthDateFrom: '' }))}>
+                    Clear
+                  </Button>
+                ) : null}
+              </View>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginTop: 8 }}>
+                <Button
                   mode="outlined"
-                  label="To"
-                  value={draftFilters.birthYearTo}
-                  onChangeText={(value) => setDraftFilters((current) => ({ ...current, birthYearTo: value.replace(/\D/g, '') }))}
-                  keyboardType="numeric"
-                  maxLength={4}
-                  style={{ flex: 1 }}
-                />
+                  icon="calendar-end"
+                  onPress={() => setBirthDateToPickerVisible(true)}
+                >
+                  {formatDateFilterLabel(draftFilters.birthDateTo, 'To date')}
+                </Button>
+                {draftFilters.birthDateTo ? (
+                  <Button onPress={() => setDraftFilters((current) => ({ ...current, birthDateTo: '' }))}>
+                    Clear
+                  </Button>
+                ) : null}
               </View>
 
               <Text variant="titleSmall" style={{ marginTop: 8, marginBottom: 4 }}>Has notes</Text>
@@ -793,6 +817,38 @@ export function PeopleRelationshipsTabContent({
         </Dialog>
       </Portal>
 
+      <DatePickerModal
+        locale="en"
+        mode="single"
+        visible={birthDateFromPickerVisible}
+        date={selectedBirthDateFrom}
+        onDismiss={() => setBirthDateFromPickerVisible(false)}
+        onConfirm={({ date }) => {
+          setBirthDateFromPickerVisible(false);
+          if (date) {
+            setDraftFilters((current) => ({ ...current, birthDateFrom: formatIsoDate(date) }));
+          }
+        }}
+        saveLabel="Save"
+        label="Select earliest birth date"
+      />
+
+      <DatePickerModal
+        locale="en"
+        mode="single"
+        visible={birthDateToPickerVisible}
+        date={selectedBirthDateTo}
+        onDismiss={() => setBirthDateToPickerVisible(false)}
+        onConfirm={({ date }) => {
+          setBirthDateToPickerVisible(false);
+          if (date) {
+            setDraftFilters((current) => ({ ...current, birthDateTo: formatIsoDate(date) }));
+          }
+        }}
+        saveLabel="Save"
+        label="Select latest birth date"
+      />
+
       <Portal>
         <Dialog
           visible={helperVisible}
@@ -802,7 +858,7 @@ export function PeopleRelationshipsTabContent({
           <Dialog.Title style={dialogChrome.dialogTitle}>Family members</Dialog.Title>
           <Dialog.Content style={dialogChrome.content}>
             <Text variant="bodyMedium">
-              Each card represents one person in this family tree. Tap a card to open their full profile. Use the search bar and Filters button to narrow by name, gender, presence, birth year, photos, notes, or relationship status. The tri-state filter chips cycle through unset, must have, and must not have.
+              Each card represents one person in this family tree. Tap a card to open their full profile. Use the search bar and Filters button to narrow by name, gender, presence, birth date, photos, notes, or relationship status. The tri-state filter chips cycle through unset, must have, and must not have.
             </Text>
           </Dialog.Content>
           <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
