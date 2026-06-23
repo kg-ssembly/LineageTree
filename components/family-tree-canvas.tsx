@@ -879,7 +879,7 @@ function FamilyTreeCanvas({
       { translateY: panYAnim },
       { scale: scaleAnim },
     ],
-    ...(Platform.OS === 'web' ? ({ transformOrigin: '0 0' } as any) : null),
+    transformOrigin: '0 0' as const,
   };
 
   const renderFloatingControls = (mode: 'inline' | 'fullscreen') => (
