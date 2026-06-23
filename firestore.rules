@@ -5,381 +5,41 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isOwner(userId) {
-      return signedIn() && request.auth.uid == userId;
-    }
-
-    function treeDoc(treeId) {
-      return get(/databases/$(database)/documents/trees/$(treeId));
-    }
-
-    function isTreeOwner(treeId) {
-      return signedIn() && treeDoc(treeId).data.ownerId == request.auth.uid;
-    }
-
-    function isTreeMember(treeId) {
-      return signedIn() && request.auth.uid in treeDoc(treeId).data.memberIds;
-    }
-
-    function isTreeEditor(treeId) {
-      return signedIn() && request.auth.uid in treeDoc(treeId).data.editorIds;
-    }
-
-    function personBelongsToTreeData(personData, treeId) {
-      return personData.treeId == treeId
-        || (
-          personData.treeMembershipIds is list
-          && treeId in personData.treeMembershipIds
-        );
-    }
-
-    function isMemberOfPersonTreeAt(personData, index) {
-      return personData.treeMembershipIds is list
-        && personData.treeMembershipIds.size() > index
-        && isTreeMember(personData.treeMembershipIds[index]);
-    }
-
-    function isEditorOfPersonTreeAt(personData, index) {
-      return personData.treeMembershipIds is list
-        && personData.treeMembershipIds.size() > index
-        && isTreeEditor(personData.treeMembershipIds[index]);
-    }
-
-    function canReadPersonData(personData) {
-      return isTreeMember(personData.treeId)
-        || isMemberOfPersonTreeAt(personData, 0)
-        || isMemberOfPersonTreeAt(personData, 1)
-        || isMemberOfPersonTreeAt(personData, 2)
-        || isMemberOfPersonTreeAt(personData, 3)
-        || isMemberOfPersonTreeAt(personData, 4)
-        || isMemberOfPersonTreeAt(personData, 5)
-        || isMemberOfPersonTreeAt(personData, 6)
-        || isMemberOfPersonTreeAt(personData, 7)
-        || isMemberOfPersonTreeAt(personData, 8)
-        || isMemberOfPersonTreeAt(personData, 9)
-        || isMemberOfPersonTreeAt(personData, 10)
-        || isMemberOfPersonTreeAt(personData, 11);
-    }
-
-    function canEditPersonData(personData) {
-      return isTreeEditor(personData.treeId)
-        || isEditorOfPersonTreeAt(personData, 0)
-        || isEditorOfPersonTreeAt(personData, 1)
-        || isEditorOfPersonTreeAt(personData, 2)
-        || isEditorOfPersonTreeAt(personData, 3)
-        || isEditorOfPersonTreeAt(personData, 4)
-        || isEditorOfPersonTreeAt(personData, 5)
-        || isEditorOfPersonTreeAt(personData, 6)
-        || isEditorOfPersonTreeAt(personData, 7)
-        || isEditorOfPersonTreeAt(personData, 8)
-        || isEditorOfPersonTreeAt(personData, 9)
-        || isEditorOfPersonTreeAt(personData, 10)
-        || isEditorOfPersonTreeAt(personData, 11);
-    }
-
-    function isOwnPersonAssignmentUpdate(treeId) {
-      return signedIn()
-        && isTreeMember(treeId)
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['personAssignments', 'updatedAt'])
-        && request.resource.data.personAssignments is map
-        && (
-          !(resource.data.personAssignments is map)
-          || request.resource.data.personAssignments.diff(resource.data.personAssignments).affectedKeys().hasOnly([request.auth.uid])
-        )
-        && (
-          !(resource.data.personAssignments is map)
-          || !(request.auth.uid in resource.data.personAssignments)
-          || !(request.auth.uid in request.resource.data.personAssignments)
-          || request.resource.data.personAssignments[request.auth.uid] == resource.data.personAssignments[request.auth.uid]
-        )
-        && (
-          !(request.auth.uid in request.resource.data.personAssignments)
-          || (
-            request.resource.data.personAssignments[request.auth.uid] is string
-            && exists(/databases/$(database)/documents/persons/$(request.resource.data.personAssignments[request.auth.uid]))
-            && personBelongsToTreeData(
-              get(/databases/$(database)/documents/persons/$(request.resource.data.personAssignments[request.auth.uid])).data,
-              treeId
-            )
-          )
-        );
-    }
-
-    function isPendingApprovalDecisionUpdate() {
-      return resource.data.status == 'pending'
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'status',
-          'decisionMode',
-          'decidedAt',
-          'decidedByUserId',
-          'decidedByLabel',
-          'appliedAt',
-          'updatedAt'
-        ]);
-    }
-
-    function isManualApprovalDecision() {
-      return isPendingApprovalDecisionUpdate()
-        && request.auth.uid in resource.data.eligibleApproverIds
-        && request.resource.data.status in ['applied', 'rejected']
-        && request.resource.data.decisionMode == 'manual'
-        && request.resource.data.decidedAt is string
-        && request.resource.data.decidedByUserId == request.auth.uid
-        && request.resource.data.decidedByLabel is string
-        && request.resource.data.updatedAt is string
-        && (
-          (request.resource.data.status == 'applied' && request.resource.data.appliedAt is string)
-          || (
-            request.resource.data.status == 'rejected'
-            && (
-              !('appliedAt' in request.resource.data)
-              || request.resource.data.appliedAt == resource.data.appliedAt
-            )
-          )
-        );
-    }
-
-    function isAutoApprovalDecision() {
-      return isPendingApprovalDecisionUpdate()
-        && resource.data.expiresAtMillis is number
-        && request.time.toMillis() >= resource.data.expiresAtMillis
-        && request.resource.data.status == 'applied'
-        && request.resource.data.decisionMode == 'auto'
-        && request.resource.data.decidedAt is string
-        && request.resource.data.decidedByUserId == ''
-        && request.resource.data.decidedByLabel == 'Automatic approval timer'
-        && request.resource.data.appliedAt is string
-        && request.resource.data.updatedAt is string;
-    }
-
-    function isApprovalRequestBaseCreate() {
-      return request.resource.data.treeId is string
-        && request.resource.data.entityType in ['person', 'relationship']
-        && request.resource.data.operation in [
-          'update-person',
-          'delete-person',
-          'create-relationship',
-          'update-relationship',
-          'delete-relationship'
-        ]
-        && request.resource.data.targetId is string
-        && request.resource.data.title is string
-        && request.resource.data.description is string
-        && request.resource.data.requestedByUserId == request.auth.uid
-        && request.resource.data.requestedByLabel is string
-        && request.resource.data.eligibleApproverIds is list
-        && request.resource.data.payload is map
-        && request.resource.data.expiresAt is string
-        && request.resource.data.expiresAtMillis is number
-        && request.resource.data.createdAt is string
-        && request.resource.data.updatedAt is string;
-    }
-
-    function isPendingApprovalRequestCreate() {
-      return isApprovalRequestBaseCreate()
-        && request.resource.data.status == 'pending'
-        && request.resource.data.decisionMode == 'manual'
-        && !('decidedAt' in request.resource.data)
-        && !('decidedByUserId' in request.resource.data)
-        && !('decidedByLabel' in request.resource.data)
-        && !('appliedAt' in request.resource.data);
-    }
-
-    function isImmediateApprovalRequestCreate() {
-      return isApprovalRequestBaseCreate()
-        && request.resource.data.status == 'applied'
-        && request.resource.data.decisionMode == 'immediate'
-        && request.resource.data.decidedAt is string
-        && request.resource.data.decidedByUserId == request.auth.uid
-        && request.resource.data.decidedByLabel is string
-        && request.resource.data.appliedAt is string;
-    }
-
-    function canReadMergeRecord(data) {
-      return isTreeMember(data.sourceTreeId) || isTreeMember(data.targetTreeId);
-    }
-
-    function canReviewMergeRecord(data) {
-      return isTreeEditor(data.sourceTreeId) || isTreeEditor(data.targetTreeId);
-    }
-
-    function canReadMergeHistory(data) {
-      return (
-        data.involvedTreeIds is list
-        && data.involvedTreeIds.size() > 0
-        && isTreeMember(data.involvedTreeIds[0])
-      )
-      || (
-        data.involvedTreeIds is list
-        && data.involvedTreeIds.size() > 1
-        && isTreeMember(data.involvedTreeIds[1])
-      );
-    }
-
-    function canCreateMergeHistory(data) {
-      return (
-        data.involvedTreeIds is list
-        && data.involvedTreeIds.size() > 0
-        && isTreeEditor(data.involvedTreeIds[0])
-      )
-      || (
-        data.involvedTreeIds is list
-        && data.involvedTreeIds.size() > 1
-        && isTreeEditor(data.involvedTreeIds[1])
-      );
-    }
-
-    function isEditorCollaboratorGrantUpdate(treeId) {
-      return signedIn()
-        && isTreeEditor(treeId)
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'collaborators',
-          'memberIds',
-          'membershipHistory',
-          'updatedAt'
-        ]);
-    }
-
     match /users/{userId} {
       allow read: if signedIn();
-      allow create, update, delete: if isOwner(userId);
+      allow create, update, delete: if signedIn() && request.auth.uid == userId;
     }
 
     match /trees/{treeId} {
-      allow create: if signedIn()
-        && request.resource.data.ownerId == request.auth.uid
-        && request.resource.data.name is string
-        && request.auth.uid in request.resource.data.memberIds
-        && request.auth.uid in request.resource.data.editorIds
-        && request.resource.data.personAssignments is map
-        && (!('approvalWindowHours' in request.resource.data) || request.resource.data.approvalWindowHours is number);
-      allow read: if signedIn() && request.auth.uid in resource.data.memberIds;
-      allow update: if (
-          isTreeOwner(treeId)
-          && request.resource.data.ownerId == resource.data.ownerId
-          && request.resource.data.name is string
-          && request.resource.data.memberIds is list
-          && request.resource.data.editorIds is list
-          && request.resource.data.collaborators is list
-          && (!('approvalWindowHours' in request.resource.data) || request.resource.data.approvalWindowHours is number)
-        )
-        || isEditorCollaboratorGrantUpdate(treeId)
-        || isOwnPersonAssignmentUpdate(treeId);
-      allow delete: if isTreeOwner(treeId);
-    }
-
-    match /mergeRequests/{requestId} {
-      allow create: if signedIn()
-        && request.resource.data.sourceTreeId is string
-        && request.resource.data.targetTreeId is string
-        && request.resource.data.involvedTreeIds is list
-        && request.resource.data.suggestedByUserId == request.auth.uid
-        && request.resource.data.suggestedByLabel is string
-        && request.resource.data.status in ['pending', 'changes-requested', 'approved', 'applied', 'rejected']
-        && request.resource.data.preview is map
-        && request.resource.data.selectedMatchIds is list
-        && request.resource.data.approvals is list
-        && request.resource.data.reviewerComments is list
-        && request.resource.data.conflictChoices is list
-        && request.resource.data.createdAt is string
-        && request.resource.data.updatedAt is string
-        && isTreeEditor(request.resource.data.sourceTreeId);
-      allow read: if canReadMergeRecord(resource.data);
-      allow update: if canReviewMergeRecord(resource.data);
-      allow delete: if false;
-    }
-
-    match /mergeHistory/{historyId} {
-      allow read: if canReadMergeHistory(resource.data);
-      allow create: if canCreateMergeHistory(request.resource.data);
-      allow update, delete: if false;
-    }
-
-    match /notifications/{notificationId} {
-      allow create: if signedIn()
-        && request.resource.data.userId is string
-        && request.resource.data.type == 'merge-invite'
-        && request.resource.data.status == 'pending'
-        && request.resource.data.requestedByUserId == request.auth.uid
-        && request.resource.data.requestedByLabel is string
-        && request.resource.data.sourceTreeId is string
-        && request.resource.data.sourceTreeName is string
-        && request.resource.data.targetIdentifier is string
-        && request.resource.data.message is string
-        && request.resource.data.createdAt is string
-        && request.resource.data.updatedAt is string
-        && isTreeEditor(request.resource.data.sourceTreeId);
-      allow read: if signedIn() && resource.data.userId == request.auth.uid;
-      allow update: if signedIn()
-        && resource.data.userId == request.auth.uid
-        && request.resource.data.userId == resource.data.userId
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'status',
-          'seenAt',
-          'openedAt',
-          'respondedAt',
-          'updatedAt'
-        ]);
-      allow delete: if false;
-    }
-
-    match /notificationActivity/{stateId} {
-      allow create: if signedIn()
-        && request.resource.data.userId == request.auth.uid
-        && request.resource.data.sourceKind in ['approval', 'merge-request', 'merge-history', 'membership']
-        && request.resource.data.sourceId is string
-        && request.resource.data.actionedAt is string
-        && request.resource.data.createdAt is string
-        && request.resource.data.updatedAt is string;
-      allow read: if signedIn() && resource.data.userId == request.auth.uid;
-      allow update: if signedIn()
-        && resource.data.userId == request.auth.uid
-        && request.resource.data.userId == resource.data.userId
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'actionedAt',
-          'updatedAt'
-        ]);
-      allow delete: if false;
-    }
-
-    match /approvalRequests/{requestId} {
-      allow create: if signedIn()
-        && isApprovalRequestBaseCreate()
-        && isTreeMember(request.resource.data.treeId)
-        && (isPendingApprovalRequestCreate() || isImmediateApprovalRequestCreate());
-      allow read: if isTreeMember(resource.data.treeId);
-      allow update: if isTreeMember(resource.data.treeId)
-        && (isManualApprovalDecision() || isAutoApprovalDecision());
-      allow delete: if isTreeOwner(resource.data.treeId);
+      allow read, write: if signedIn();
     }
 
     match /persons/{personId} {
-      allow create: if signedIn()
-        && request.resource.data.treeId is string
-        && request.resource.data.firstName is string
-        && isTreeEditor(request.resource.data.treeId);
-      allow read: if canReadPersonData(resource.data);
-      allow update: if canEditPersonData(resource.data)
-        && request.resource.data.treeId == resource.data.treeId
-        && request.resource.data.firstName is string;
-      allow delete: if canEditPersonData(resource.data);
+      allow read, write: if signedIn();
     }
 
     match /relationships/{relationshipId} {
-      allow create: if signedIn()
-        && request.resource.data.treeId is string
-        && request.resource.data.fromPersonId is string
-        && request.resource.data.toPersonId is string
-        && request.resource.data.type in ['parent-child', 'spouse']
-        && isTreeEditor(request.resource.data.treeId);
-      allow read: if isTreeMember(resource.data.treeId);
-      allow delete: if isTreeEditor(resource.data.treeId);
-      allow update: if isTreeEditor(resource.data.treeId)
-        && request.resource.data.treeId == resource.data.treeId
-        && request.resource.data.ownerId == resource.data.ownerId
-        && request.resource.data.type == resource.data.type
-        && request.resource.data.fromPersonId is string
-        && request.resource.data.toPersonId is string;
+      allow read, write: if signedIn();
+    }
+
+    match /mergeRequests/{requestId} {
+      allow read, write: if signedIn();
+    }
+
+    match /mergeHistory/{historyId} {
+      allow read, write: if signedIn();
+    }
+
+    match /notifications/{notificationId} {
+      allow read, write: if signedIn();
+    }
+
+    match /notificationActivity/{stateId} {
+      allow read, write: if signedIn();
+    }
+
+    match /approvalRequests/{requestId} {
+      allow read, write: if signedIn();
     }
   }
 }
