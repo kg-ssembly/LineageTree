@@ -199,7 +199,7 @@ export default function MainScreen({ navigation }: Props) {
     visible: false,
     title: '',
     message: '',
-    confirmLabel: 'Confirm',
+    confirmLabel: t('Confirm'),
     action: null,
   });
 
@@ -308,8 +308,8 @@ export default function MainScreen({ navigation }: Props) {
   }, []);
 
   const closeConfirm = useCallback(() => {
-    setConfirmState({ visible: false, title: '', message: '', confirmLabel: 'Confirm', action: null });
-  }, []);
+    setConfirmState({ visible: false, title: '', message: '', confirmLabel: t('Confirm'), action: null });
+  }, [t]);
 
   const handleConfirmAction = useCallback(async () => {
     if (!confirmState.action) return;
@@ -729,11 +729,11 @@ export default function MainScreen({ navigation }: Props) {
               const isViewingMaiden = currentFamily === maiden;
               const targetSurname = isViewingMaiden ? marital : maiden;
               const label = isViewingMaiden
-                ? `View ${marital} (marital) family tree`
-                : `View ${maiden} (maiden) family tree`;
+                ? t('View {surname} (marital) family tree', { surname: marital })
+                : t('View {surname} (maiden) family tree', { surname: maiden });
               const description = isViewingMaiden
-                ? `Switch to ${marital} — their family by marriage`
-                : `Switch to ${maiden} — their birth family`;
+                ? t('Switch to {surname} — their family by marriage', { surname: marital })
+                : t('Switch to {surname} — their birth family', { surname: maiden });
               return (
                 <List.Item
                   title={label}
@@ -753,8 +753,8 @@ export default function MainScreen({ navigation }: Props) {
               if (alreadyViewing) return null;
               return (
                 <List.Item
-                  title={`View ${surname} family tree`}
-                  description="This person has parents from different families"
+                  title={t('View {surname} family tree', { surname })}
+                  description={t('This person has parents from different families')}
                   left={(props) => <List.Icon {...props} icon="source-branch" />}
                   onPress={() => {
                     closeNodeQuickActions();

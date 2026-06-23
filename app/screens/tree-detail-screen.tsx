@@ -31,6 +31,7 @@ import { getUserDisplayLabel, getUserNameParts } from '../../components/dto/user
 import { formatPersonName } from '../../components/person-formatting';
 import { canEditTreeContent, canManageTree, getAssignedPersonId, getTreeRole, type CollaboratorRole } from '../../components/dto/tree';
 import { GlobalStyles } from '../../constants/styles';
+import { useI18n } from '../../hooks/use-i18n';
 import {
   buildSelfAssignmentSuggestions,
   PeopleRelationshipsTabContent,
@@ -67,6 +68,7 @@ const styles = GlobalStyles.treeDetail;
 
 export default function TreeDetailScreen({ navigation, route }: Props) {
   const theme = useTheme();
+  const { t } = useI18n();
   const { user } = useAuthStore();
   const {
     trees,
@@ -121,7 +123,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     visible: false,
     title: '',
     message: '',
-    confirmLabel: 'Confirm',
+    confirmLabel: t('Confirm'),
     action: null,
   });
 
@@ -223,8 +225,8 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
   }, []);
 
   const closeConfirm = useCallback(() => {
-    setConfirmState({ visible: false, title: '', message: '', confirmLabel: 'Confirm', action: null });
-  }, []);
+    setConfirmState({ visible: false, title: '', message: '', confirmLabel: t('Confirm'), action: null });
+  }, [t]);
 
   const openPersonProfile = useCallback((person: PersonRecord) => {
     navigation.navigate('PersonProfile', {
@@ -557,18 +559,18 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
           },
         })}
       >
-        <Tab.Screen name="PeopleRelationshipsTab" options={{ title: 'Family members' }}>
+        <Tab.Screen name="PeopleRelationshipsTab" options={{ title: t('Family members') }}>
           {() => <PeopleRelationshipsTabContent {...sharedTabProps} />}
         </Tab.Screen>
-        <Tab.Screen name="VisualisationTab" options={{ title: 'Tree' }}>
+        <Tab.Screen name="VisualisationTab" options={{ title: t('Tree') }}>
           {() => <VisualisationTabContent {...sharedTabProps} />}
         </Tab.Screen>
-        <Tab.Screen name="ProfileTab" options={{ title: 'Profile' }}>
+        <Tab.Screen name="ProfileTab" options={{ title: t('Profile') }}>
           {() => <TreeSettingsTabContent {...sharedTabProps} />}
         </Tab.Screen>
         <Tab.Screen
           name="HomeTab"
-          options={{ title: 'Home' }}
+          options={{ title: t('Home') }}
           listeners={() => ({
             tabPress: (event) => {
               event.preventDefault();
@@ -655,15 +657,15 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
             size={20}
             onPress={closeNodeQuickActions}
             style={dialogChrome.closeButton}
-            accessibilityLabel="Close"
+            accessibilityLabel={t('Close')}
           />
           <Dialog.Content style={dialogChrome.content}>
             <Text variant="bodyMedium" style={[styles.quickActionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-              Choose what you want to do with this family member in the tree.
+              {t('Choose what you want to do with this family member in the tree.')}
             </Text>
             <List.Item
-              title="Open profile"
-              description="See photos, memories, and full relationship details"
+              title={t('Open profile')}
+              description={t('See photos, memories, and full relationship details')}
               left={(props) => <List.Icon {...props} icon="account-arrow-right-outline" />}
               onPress={() => {
                 const selectedPerson = nodeQuickActionState.person;
@@ -678,8 +680,8 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
             {canEdit && nodeQuickActionState.person ? (
               <>
                 <List.Item
-                  title="Add parent"
-                  description={`Create a new parent for ${formatPersonName(nodeQuickActionState.person)}`}
+                  title={t('Add parent')}
+                  description={t('Create a new parent for {name}', { name: formatPersonName(nodeQuickActionState.person) })}
                   left={(props) => <List.Icon {...props} icon="account-arrow-up-outline" />}
                   onPress={() => {
                     const person = nodeQuickActionState.person;
@@ -691,8 +693,8 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
                   disabled={mutating}
                 />
                 <List.Item
-                  title="Add child"
-                  description={`Create a new child for ${formatPersonName(nodeQuickActionState.person)}`}
+                  title={t('Add child')}
+                  description={t('Create a new child for {name}', { name: formatPersonName(nodeQuickActionState.person) })}
                   left={(props) => <List.Icon {...props} icon="account-arrow-down-outline" />}
                   onPress={() => {
                     const person = nodeQuickActionState.person;
@@ -704,8 +706,8 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
                   disabled={mutating}
                 />
                 <List.Item
-                  title="Add spouse"
-                  description={`Create a spouse for ${formatPersonName(nodeQuickActionState.person)}`}
+                  title={t('Add spouse')}
+                  description={t('Create a spouse for {name}', { name: formatPersonName(nodeQuickActionState.person) })}
                   left={(props) => <List.Icon {...props} icon="account-heart-outline" />}
                   onPress={() => {
                     const person = nodeQuickActionState.person;
@@ -741,7 +743,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
         }}
         duration={5000}
         action={{
-          label: 'Dismiss',
+          label: t('Dismiss'),
           onPress: () => {
             setSnackVisible(false);
             clearError();

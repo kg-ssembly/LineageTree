@@ -241,7 +241,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
     visible: false,
     title: '',
     message: '',
-    confirmLabel: 'Confirm',
+    confirmLabel: t('Confirm'),
     action: null,
   });
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
@@ -349,15 +349,15 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
               : relationship.fromPersonId;
         const relatedPerson = peopleById.get(relatedPersonId) ?? null;
         const title = mode === 'parent-of'
-          ? `Parent of ${formatPersonName(relatedPerson)}`
+          ? t('Parent of {name}', { name: formatPersonName(relatedPerson) })
           : mode === 'child-of'
-            ? `Child of ${formatPersonName(relatedPerson)}`
-            : `Spouse of ${formatPersonName(relatedPerson)}`;
+            ? t('Child of {name}', { name: formatPersonName(relatedPerson) })
+            : t('Spouse of {name}', { name: formatPersonName(relatedPerson) });
         const subtitle = relationship.type === 'spouse'
-          ? 'Partner connection'
+          ? t('Partner connection')
           : mode === 'parent-of'
-            ? 'Parent → child connection'
-            : 'Child → parent connection';
+            ? t('Parent → child connection')
+            : t('Child → parent connection');
 
         return {
           relationship,
@@ -402,9 +402,9 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
       items.push({
         id: `birth-${person.id}`,
         date: person.birthDate,
-        title: 'Birth',
-        description: `${formatPersonName(person)} was born.`,
-        badgeLabel: 'Birth',
+        title: t('Birth'),
+        description: t('{name} was born.', { name: formatPersonName(person) }),
+        badgeLabel: t('Birth'),
         system: true,
       });
     }
@@ -413,9 +413,9 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
       items.push({
         id: `death-${person.id}`,
         date: person.deathDate,
-        title: 'In memory',
-        description: `${formatPersonName(person)} passed away.`,
-        badgeLabel: 'In memory',
+        title: t('In memory'),
+        description: t('{name} passed away.', { name: formatPersonName(person) }),
+        badgeLabel: t('In memory'),
         system: true,
       });
     }
@@ -492,7 +492,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
   };
 
   const closeConfirm = () => {
-    setConfirmState({ visible: false, title: '', message: '', confirmLabel: 'Confirm', action: null });
+    setConfirmState({ visible: false, title: '', message: '', confirmLabel: t('Confirm'), action: null });
   };
 
   const handleConfirm = async () => {
@@ -922,7 +922,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
                     size={20}
                     style={styles.helperIconButton}
                     onPress={() => openHelperDialog('relationships')}
-                    accessibilityLabel="About relationships"
+                    accessibilityLabel={t('About relationships')}
                   />
                 </View>
               </View>

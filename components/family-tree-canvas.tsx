@@ -38,6 +38,7 @@ import {
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Button, Chip, IconButton, Menu, Text, useTheme } from 'react-native-paper';
+import { translate } from '../i18n';
 import Svg, { Path, Text as SvgText } from 'react-native-svg';
 
 import type { PersonRecord } from './dto/person';
@@ -299,7 +300,7 @@ const PersonNode = React.memo(function PersonNode(props: PersonNodeProps) {
       >
         {isCurrentUser ? (
             <View style={[styles.nodeBadge, { backgroundColor: primaryColor }]}>
-              <Text variant="labelSmall" style={[styles.nodeBadgeText, { color: onPrimaryColor }]}>You</Text>
+              <Text variant="labelSmall" style={[styles.nodeBadgeText, { color: onPrimaryColor }]}>{translate('You')}</Text>
             </View>
         ) : badgeLabel ? (
             <View style={[styles.nodeBadge, { backgroundColor: tertiaryColor }]}>

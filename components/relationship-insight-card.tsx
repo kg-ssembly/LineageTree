@@ -4,6 +4,7 @@ import { Button, Chip, Dialog, Divider, IconButton, Portal, Text, TextInput, use
 import { getPersonLifeSpanLabel, type PersonRecord } from './dto/person';
 import type { RelationshipRecord } from './dto/relationship';
 import { useI18n } from '../hooks/use-i18n';
+import { translate } from '../i18n';
 import { computeRelationshipInsight } from '../providers';
 import { GlobalStyles } from '../constants/styles';
 
@@ -21,7 +22,7 @@ interface RelationshipInsightCardProps {
 
 function formatPersonName(person?: PersonRecord | null) {
   if (!person) {
-    return 'Unknown family member';
+    return translate('Unknown family member');
   }
 
   return [person.firstName, person.middleNames ?? '', person.lastName].join(' ').replace(/\s+/g, ' ').trim();
@@ -29,17 +30,17 @@ function formatPersonName(person?: PersonRecord | null) {
 
 function formatPersonMeta(person: PersonRecord) {
   const lifespan = getPersonLifeSpanLabel(person);
-  return lifespan === 'Unknown lifespan' ? 'No dates recorded yet' : lifespan;
+  return lifespan === 'Unknown lifespan' ? translate('No dates recorded yet') : lifespan;
 }
 
 function getPathRelationLabel(relation: 'parent' | 'child' | 'spouse') {
   switch (relation) {
     case 'parent':
-      return 'parent';
+      return translate('parent');
     case 'child':
-      return 'child';
+      return translate('child');
     default:
-      return 'spouse';
+      return translate('spouse');
   }
 }
 
@@ -47,7 +48,7 @@ export default function RelationshipInsightCard({
   people,
   relationships,
   lockedFromPersonId,
-  title = 'Relationship intelligence',
+  title = translate('Relationship intelligence'),
   subtitle,
 }: RelationshipInsightCardProps) {
   const theme = useTheme();
@@ -236,9 +237,15 @@ export default function RelationshipInsightCard({
         ) : (
           insight ? (
             <View style={[styles.resultBox, { backgroundColor: theme.colors.surfaceVariant }]}>
-              <Text variant="titleMedium">{formatPersonName(toPerson)} is {formatPersonName(fromPerson)}’s {insight.relationship.toLowerCase()}</Text>
+              <Text variant="titleMedium">
+                {t('{person} is {relative}’s {relationship}', {
+                  person: formatPersonName(toPerson),
+                  relative: formatPersonName(fromPerson),
+                  relationship: insight.relationship.toLowerCase(),
+                })}
+              </Text>
               <Text variant="bodyMedium" style={[styles.pathText, { color: theme.colors.onSurfaceVariant }]}>
-                We found a family connection and can show both the plain-language answer and the exact path through the tree.
+                {t('We found a family connection and can show both the plain-language answer and the exact path through the tree.')}
               </Text>
               <View style={styles.summaryRow}>
                 <Chip compact icon="account">{formatPersonName(fromPerson)}</Chip>
@@ -260,18 +267,18 @@ export default function RelationshipInsightCard({
                         <Text variant="titleSmall">{index + 1}. {formatPersonName(currentPerson)}</Text>
                         {relation ? (
                           <Text variant="bodySmall" style={styles.stepMeta}>
-                            Next step goes through a {getPathRelationLabel(relation)} relationship.
+                            {t('Next step goes through a {relation} relationship.', { relation: getPathRelationLabel(relation) })}
                           </Text>
                         ) : null}
                       </View>
                     );
                   })}
                   <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
-                    Full path: {pathLabel}
+                    {t('Full path: {path}', { path: pathLabel ?? '' })}
                   </Text>
                   {pathRelationLabel ? (
                     <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
-                      Path types: {pathRelationLabel}
+                      {t('Path types: {types}', { types: pathRelationLabel })}
                     </Text>
                   ) : null}
                 </View>

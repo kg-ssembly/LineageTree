@@ -224,20 +224,20 @@ function buildPersonApprovalPreviewFields(beforePerson?: PersonRecord | null, af
   }
 
   const fields: ApprovalPreviewField[] = [
-    { label: 'Name', before: beforePerson ? formatPersonName(beforePerson) : null, after: afterPerson ? formatPersonName(afterPerson) : null },
-    { label: 'Middle names', before: formatApprovalValue(beforePerson?.middleNames), after: formatApprovalValue(afterPerson?.middleNames) },
-    { label: 'Maiden name', before: formatApprovalValue(beforePerson?.maidenName), after: formatApprovalValue(afterPerson?.maidenName) },
-    { label: 'Nicknames', before: formatApprovalList(beforePerson?.nicknames), after: formatApprovalList(afterPerson?.nicknames) },
-    { label: 'Gender', before: beforePerson ? formatPersonGender(beforePerson.gender) : null, after: afterPerson ? formatPersonGender(afterPerson.gender) : null },
-    { label: 'Birth date', before: beforePerson?.birthDate ? formatPersonDate(beforePerson.birthDate) : translate('Unknown'), after: afterPerson?.birthDate ? formatPersonDate(afterPerson.birthDate) : translate('Unknown') },
-    { label: 'Death date', before: beforePerson?.deathDate ? formatPersonDate(beforePerson.deathDate) : translate('Present'), after: afterPerson?.deathDate ? formatPersonDate(afterPerson.deathDate) : translate('Present') },
-    { label: 'Birth place', before: formatApprovalValue(beforePerson?.birthPlace), after: formatApprovalValue(afterPerson?.birthPlace) },
-    { label: 'Hometown', before: formatApprovalValue(beforePerson?.hometown), after: formatApprovalValue(afterPerson?.hometown) },
-    { label: 'Clan name', before: formatApprovalValue(beforePerson?.clanName), after: formatApprovalValue(afterPerson?.clanName) },
-    { label: 'Family branch', before: formatApprovalValue(beforePerson?.familyBranch), after: formatApprovalValue(afterPerson?.familyBranch) },
-    { label: 'Life events', before: formatApprovalLifeEvents(beforePerson), after: formatApprovalLifeEvents(afterPerson) },
-    { label: 'Photos', before: formatApprovalPhotos(beforePerson), after: formatApprovalPhotos(afterPerson) },
-    { label: 'Notes', before: formatApprovalValue(beforePerson?.notes, translate('No notes')), after: formatApprovalValue(afterPerson?.notes, translate('No notes')) },
+    { label: translate('Name'), before: beforePerson ? formatPersonName(beforePerson) : null, after: afterPerson ? formatPersonName(afterPerson) : null },
+    { label: translate('Middle names'), before: formatApprovalValue(beforePerson?.middleNames), after: formatApprovalValue(afterPerson?.middleNames) },
+    { label: translate('Maiden name'), before: formatApprovalValue(beforePerson?.maidenName), after: formatApprovalValue(afterPerson?.maidenName) },
+    { label: translate('Nicknames'), before: formatApprovalList(beforePerson?.nicknames), after: formatApprovalList(afterPerson?.nicknames) },
+    { label: translate('Gender'), before: beforePerson ? formatPersonGender(beforePerson.gender) : null, after: afterPerson ? formatPersonGender(afterPerson.gender) : null },
+    { label: translate('Birth date'), before: beforePerson?.birthDate ? formatPersonDate(beforePerson.birthDate) : translate('Unknown'), after: afterPerson?.birthDate ? formatPersonDate(afterPerson.birthDate) : translate('Unknown') },
+    { label: translate('Death date'), before: beforePerson?.deathDate ? formatPersonDate(beforePerson.deathDate) : translate('Present'), after: afterPerson?.deathDate ? formatPersonDate(afterPerson.deathDate) : translate('Present') },
+    { label: translate('Birth place'), before: formatApprovalValue(beforePerson?.birthPlace), after: formatApprovalValue(afterPerson?.birthPlace) },
+    { label: translate('Hometown'), before: formatApprovalValue(beforePerson?.hometown), after: formatApprovalValue(afterPerson?.hometown) },
+    { label: translate('Clan name'), before: formatApprovalValue(beforePerson?.clanName), after: formatApprovalValue(afterPerson?.clanName) },
+    { label: translate('Family branch'), before: formatApprovalValue(beforePerson?.familyBranch), after: formatApprovalValue(afterPerson?.familyBranch) },
+    { label: translate('Life events'), before: formatApprovalLifeEvents(beforePerson), after: formatApprovalLifeEvents(afterPerson) },
+    { label: translate('Photos'), before: formatApprovalPhotos(beforePerson), after: formatApprovalPhotos(afterPerson) },
+    { label: translate('Notes'), before: formatApprovalValue(beforePerson?.notes, translate('No notes')), after: formatApprovalValue(afterPerson?.notes, translate('No notes')) },
   ];
 
   if (!beforePerson || !afterPerson) {
@@ -296,22 +296,22 @@ function buildRelationshipApprovalPreviewFields(
 
   const fields: ApprovalPreviewField[] = [
     {
-      label: 'Relationship type',
+      label: translate('Relationship type'),
       before: beforeRelationship ? formatRelationshipType(beforeRelationship.type) : null,
       after: afterRelationship ? formatRelationshipType(afterRelationship.type) : null,
     },
     {
-      label: beforeRelationship?.type === 'spouse' || afterRelationship?.type === 'spouse' ? 'People' : 'Parent -> child',
+      label: beforeRelationship?.type === 'spouse' || afterRelationship?.type === 'spouse' ? translate('People') : translate('Parent -> child'),
       before: formatRelationshipPeople(beforeRelationship, peopleById),
       after: formatRelationshipPeople(afterRelationship, peopleById),
     },
     {
-      label: 'Spouse status',
+      label: translate('Spouse status'),
       before: formatRelationshipStatus(beforeRelationship?.relationshipStatus),
       after: formatRelationshipStatus(afterRelationship?.relationshipStatus),
     },
     {
-      label: 'Parent-child kind',
+      label: translate('Parent-child kind'),
       before: formatParentChildKind(beforeRelationship?.parentChildKind),
       after: formatParentChildKind(afterRelationship?.parentChildKind),
     },

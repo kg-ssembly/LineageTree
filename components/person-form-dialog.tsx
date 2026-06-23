@@ -545,7 +545,7 @@ export default function PersonFormDialog({
                       disabled={loading}
                       style={styles.chip}
                     >
-                      {option.label}
+                      {t(option.label)}
                     </Chip>
                   ))}
                 </View>

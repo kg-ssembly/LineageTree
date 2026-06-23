@@ -6,6 +6,7 @@ import type { ParentChildRelationshipKind, RelationshipRecord, RelationshipType,
 import { DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND, DEFAULT_SPOUSE_RELATIONSHIP_STATUS } from './dto/relationship';
 import { validateProposedRelationship } from './family-tree-validation';
 import { useI18n } from '../hooks/use-i18n';
+import { translate } from '../i18n';
 import { GlobalStyles } from '../constants/styles';
 
 const styles = GlobalStyles.relationshipDialog;
@@ -33,7 +34,7 @@ function formatPersonName(person: PersonRecord) {
 
 function formatPersonMeta(person: PersonRecord) {
   const lifespan = getPersonLifeSpanLabel(person);
-  return lifespan === 'Unknown lifespan' ? 'No dates recorded yet' : lifespan;
+  return lifespan === 'Unknown lifespan' ? translate('No dates recorded yet') : lifespan;
 }
 
 export default function RelationshipDialog({
@@ -190,7 +191,7 @@ export default function RelationshipDialog({
                       style={styles.choiceChip}
                       disabled={loading}
                     >
-                      {option.label}
+                      {t(option.label)}
                     </Chip>
                   ))}
                 </View>
@@ -213,7 +214,7 @@ export default function RelationshipDialog({
                       style={styles.choiceChip}
                       disabled={loading}
                     >
-                      {option.label}
+                      {t(option.label)}
                     </Chip>
                   ))}
                 </View>

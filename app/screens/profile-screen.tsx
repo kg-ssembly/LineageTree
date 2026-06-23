@@ -363,7 +363,7 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
     visible: false,
     title: '',
     message: '',
-    confirmLabel: 'Confirm',
+    confirmLabel: t('Confirm'),
     action: null,
   });
 
@@ -585,7 +585,7 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
       items.push({
         id: `birth-${linkedPerson.id}`,
         date: linkedPerson.birthDate,
-        title: 'Birth',
+        title: t('Birth'),
         description: t('{name} was born.', { name: formatPersonName(linkedPerson) }),
         badgeLabel: t('Birth'),
         system: true,
@@ -645,7 +645,7 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
   };
 
   const closeConfirm = () => {
-    setConfirmState({ visible: false, title: '', message: '', confirmLabel: 'Confirm', action: null });
+    setConfirmState({ visible: false, title: '', message: '', confirmLabel: t('Confirm'), action: null });
   };
 
   const handleConfirm = async () => {
@@ -1458,7 +1458,7 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
             </ScrollView>
           </Dialog.ScrollArea>
           <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
-            <Button mode="contained" onPress={handleSavePhotos} disabled={mutating}>Save photos</Button>
+            <Button mode="contained" onPress={handleSavePhotos} disabled={mutating}>{t('Save photos')}</Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>

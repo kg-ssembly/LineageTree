@@ -6,6 +6,7 @@ import type { ParentChildRelationshipKind, RelationshipRecord, SpouseRelationshi
 import { DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND, DEFAULT_SPOUSE_RELATIONSHIP_STATUS } from './dto/relationship';
 import { validateProposedRelationship } from './family-tree-validation';
 import { useI18n } from '../hooks/use-i18n';
+import { translate } from '../i18n';
 import { GlobalStyles } from '../constants/styles';
 
 const styles = GlobalStyles.personRelationshipDialog;
@@ -32,13 +33,13 @@ interface PersonRelationshipDialogProps {
 }
 
 function formatPersonName(person?: PersonRecord | null) {
-  if (!person) return 'Unknown family member';
+  if (!person) return translate('Unknown family member');
   return [person.firstName, person.middleNames ?? '', person.lastName].join(' ').replace(/\s+/g, ' ').trim();
 }
 
 function formatPersonMeta(person: PersonRecord) {
   const lifespan = getPersonLifeSpanLabel(person);
-  return lifespan === 'Unknown lifespan' ? 'No dates recorded yet' : lifespan;
+  return lifespan === 'Unknown lifespan' ? translate('No dates recorded yet') : lifespan;
 }
 
 function getDraftFromRelationship(personId: string, relationship?: RelationshipRecord | null) {
@@ -109,14 +110,14 @@ export default function PersonRelationshipDialog({
   const modeButtons = useMemo(() => [
     {
       value: 'parent-of',
-      label: person?.gender === 'male' ? 'Father of' : person?.gender === 'female' ? 'Mother of' : 'Parent of',
+      label: person?.gender === 'male' ? t('Father of') : person?.gender === 'female' ? t('Mother of') : t('Parent of'),
     },
     {
       value: 'child-of',
-      label: person?.gender === 'male' ? 'Son of' : person?.gender === 'female' ? 'Daughter of' : 'Child of',
+      label: person?.gender === 'male' ? t('Son of') : person?.gender === 'female' ? t('Daughter of') : t('Child of'),
     },
-    { value: 'spouse-of', label: 'Spouse of' },
-  ], [person?.gender]);
+    { value: 'spouse-of', label: t('Spouse of') },
+  ], [person?.gender, t]);
 
   const candidates = useMemo(() => {
     const childIds = new Set(
@@ -232,7 +233,7 @@ export default function PersonRelationshipDialog({
                       style={styles.choiceChip}
                       disabled={loading}
                     >
-                      {option.label}
+                      {t(option.label)}
                     </Chip>
                   ))}
                 </View>
@@ -255,7 +256,7 @@ export default function PersonRelationshipDialog({
                       style={styles.choiceChip}
                       disabled={loading}
                     >
-                      {option.label}
+                      {t(option.label)}
                     </Chip>
                   ))}
                 </View>
