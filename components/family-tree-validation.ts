@@ -1,7 +1,7 @@
 import type { PersonInput, PersonLifeEvent, PersonPhoto, PersonRecord } from './dto/person';
 import { parsePersonDate } from './dto/person';
 import type { ParentChildRelationshipKind, RelationshipRecord, RelationshipType, SpouseRelationshipStatus } from './dto/relationship';
-import { MAX_PHOTOS_PER_PERSON } from './photo-utils';
+import { MAX_PHOTOS_PER_PERSON } from './photo-constants';
 import { translate } from '../i18n';
 
 const MIN_BIOLOGICAL_PARENT_AGE = 12;

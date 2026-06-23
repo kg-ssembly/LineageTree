@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import React, { Component, type ErrorInfo, type ReactNode, useEffect } from 'react';
+import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFonts } from 'expo-font';
@@ -8,12 +8,59 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { getAppThemes } from './constants/theme';
 import linking from './app/navigation/app-linking';
-import RootNavigator from './app/navigation/root-navigator';
 import { setActiveLanguage } from './i18n';
 import { useLanguageStore } from './stores/language-store';
 import { useThemeStore } from './stores/theme-store';
 
-export default function App() {
+type StartupErrorBoundaryState = {
+  error: Error | null;
+};
+
+class StartupErrorBoundary extends Component<{ children: ReactNode }, StartupErrorBoundaryState> {
+  state: StartupErrorBoundaryState = { error: null };
+
+  static getDerivedStateFromError(error: Error): StartupErrorBoundaryState {
+    return { error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error('Startup render failed', error, errorInfo.componentStack);
+  }
+
+  render() {
+    if (!this.state.error) {
+      return this.props.children;
+    }
+
+    return (
+      <ScrollView
+        contentContainerStyle={{
+          flexGrow: 1,
+          justifyContent: 'center',
+          padding: 24,
+          backgroundColor: '#ffffff',
+        }}
+      >
+        <Text style={{ fontSize: 20, fontWeight: '700', marginBottom: 12, color: '#111111' }}>
+          Startup error
+        </Text>
+        <Text selectable style={{ fontSize: 14, color: '#333333', marginBottom: 12 }}>
+          {this.state.error.message}
+        </Text>
+        <Text selectable style={{ fontSize: 12, color: '#666666' }}>
+          {this.state.error.stack}
+        </Text>
+      </ScrollView>
+    );
+  }
+}
+
+function RootNavigatorLoader() {
+  const RootNavigator = require('./app/navigation/root-navigator').default;
+  return <RootNavigator />;
+}
+
+function AppShell() {
   const preference = useThemeStore((state) => state.preference);
   const hydrateTheme = useThemeStore((state) => state.hydrate);
   const language = useLanguageStore((state) => state.language);
@@ -52,9 +99,17 @@ export default function App() {
       <PaperProvider theme={paperTheme}>
         <StatusBar style={resolvedTheme === 'dark' ? 'light' : 'dark'} />
         <NavigationContainer theme={navigationTheme} linking={linking}>
-          <RootNavigator />
+          <RootNavigatorLoader />
         </NavigationContainer>
       </PaperProvider>
     </SafeAreaProvider>
+  );
+}
+
+export default function App() {
+  return (
+    <StartupErrorBoundary>
+      <AppShell />
+    </StartupErrorBoundary>
   );
 }

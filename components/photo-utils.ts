@@ -1,8 +1,8 @@
 import * as ImagePicker from 'expo-image-picker';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
+export { MAX_PHOTOS_PER_PERSON, MAX_PHOTO_BYTES } from './photo-constants';
+import { MAX_PHOTO_BYTES } from './photo-constants';
 
-export const MAX_PHOTOS_PER_PERSON = 5;
-export const MAX_PHOTO_BYTES = 2 * 1024 * 1024;
 const MAX_PHOTO_DIMENSION = 1600;
 const MIN_COMPRESS_QUALITY = 0.35;
 const COMPRESS_QUALITY_STEPS = [0.82, 0.72, 0.62, 0.52, 0.42, MIN_COMPRESS_QUALITY];

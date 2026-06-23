@@ -1,16 +1,15 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import * as FirebaseAuth from 'firebase/auth';
-import type { Persistence } from 'firebase/auth';
+import {
+  browserLocalPersistence,
+  getAuth,
+  initializeAuth,
+  type Persistence,
+} from '@firebase/auth';
+import * as FirebaseAuth from '@firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-const {
-  initializeAuth,
-  getAuth,
-  browserLocalPersistence,
-} = FirebaseAuth;
 
 const getReactNativePersistence = (
   FirebaseAuth as typeof FirebaseAuth & {

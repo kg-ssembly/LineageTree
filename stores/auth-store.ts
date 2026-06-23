@@ -185,11 +185,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   init: () => {
     return onAuthStateChanged(auth, async (fbUser) => {
-      if (fbUser) {
-        const profile = await fetchUserProfile(fbUser.uid, fbUser);
-        set({ firebaseUser: fbUser, user: profile, loading: false });
-      } else {
-        set({ firebaseUser: null, user: null, loading: false });
+      try {
+        if (fbUser) {
+          const profile = await fetchUserProfile(fbUser.uid, fbUser);
+          set({ firebaseUser: fbUser, user: profile, loading: false });
+        } else {
+          set({ firebaseUser: null, user: null, loading: false });
+        }
+      } catch (err: any) {
+        console.error('Auth state initialization failed', err);
+        set({
+          firebaseUser: fbUser ?? null,
+          user: null,
+          loading: false,
+          error: humaniseError(err?.code ?? ''),
+        });
       }
     });
   },
