@@ -56,6 +56,7 @@ import {
   createPersonFromFormSubmission,
   findConnectedTreeForSurname,
 } from './tree-screen-helpers';
+import PersonProfileScreen from './person-profile-screen';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Main'>;
 
@@ -94,6 +95,11 @@ type TreeSettingsFocus = {
   token: number;
 } | null;
 
+type MemberProfileParams = {
+  treeId: string;
+  personId: string;
+};
+
 // ─── Navigator ────────────────────────────────────────────────────────────────
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -109,6 +115,12 @@ const TAB_ICONS: Record<keyof MainTabParamList, string> = {
   treeSettings: 'cog-outline',
   myProfile: 'account-circle-outline',
 };
+
+const MAIN_TAB_NAMES: readonly (keyof MainTabParamList)[] = ['tree', 'members', 'notifications', 'treeSettings', 'myProfile'];
+
+function isMainTabName(name: string): name is keyof MainTabParamList {
+  return (MAIN_TAB_NAMES as readonly string[]).includes(name);
+}
 
 // ─── Local styles ─────────────────────────────────────────────────────────────
 
@@ -217,6 +229,7 @@ export default function MainScreen({ navigation }: Props) {
   const [nodeQuickActionState, setNodeQuickActionState] = useState<NodeQuickActionState>({ visible: false, person: null });
   const [treeDialog, setTreeDialog] = useState<TreeDialogState>({ visible: false, mode: 'create', tree: null });
   const [treeSettingsFocus, setTreeSettingsFocus] = useState<TreeSettingsFocus>(null);
+  const [memberProfileParams, setMemberProfileParams] = useState<MemberProfileParams | null>(null);
   const [snackVisible, setSnackVisible] = useState(false);
   const [confirmState, setConfirmState] = useState<ConfirmState>({
     visible: false,
@@ -359,8 +372,42 @@ export default function MainScreen({ navigation }: Props) {
 
   const openPersonProfile = useCallback((person: PersonRecord) => {
     if (!selectedTree) return;
-    navigation.navigate('PersonProfile', { treeId: selectedTree.id, personId: person.id });
+    setMemberProfileParams({ treeId: selectedTree.id, personId: person.id });
+    navigation.navigate('Main', {
+      screen: 'members',
+    });
   }, [navigation, selectedTree]);
+
+  useEffect(() => {
+    if (memberProfileParams && selectedTree?.id !== memberProfileParams.treeId) {
+      setMemberProfileParams(null);
+    }
+  }, [memberProfileParams, selectedTree?.id]);
+
+  const memberProfileNavigation = useMemo(() => ({
+    canGoBack: () => true,
+    getState: () => ({ type: 'tab' }),
+    goBack: () => setMemberProfileParams(null),
+    navigate: (name: string, params?: unknown) => {
+      if (name === 'memberProfile' && params && typeof params === 'object') {
+        const nextParams = params as Partial<MemberProfileParams>;
+        if (nextParams.treeId && nextParams.personId) {
+          setMemberProfileParams({ treeId: nextParams.treeId, personId: nextParams.personId });
+        }
+        return;
+      }
+
+      if (name === 'members') {
+        setMemberProfileParams(null);
+        return;
+      }
+
+      if (isMainTabName(name)) {
+        navigation.navigate('Main', { screen: name });
+      }
+    },
+    setOptions: () => {},
+  }), [navigation]);
 
   const closePersonDialog = useCallback(() => {
     setPersonDialog({ visible: false, mode: 'create', person: null, initialPendingRelationships: [] });
@@ -729,7 +776,16 @@ export default function MainScreen({ navigation }: Props) {
         </Tab.Screen>
 
         <Tab.Screen name="members" options={{ title: t('Members') }}>
-          {() => (sharedTabProps ? <PeopleRelationshipsTabContent {...sharedTabProps} /> : noTreeGate)}
+          {() => (sharedTabProps
+            ? memberProfileParams
+              ? (
+                <PersonProfileScreen
+                  navigation={memberProfileNavigation}
+                  route={{ params: memberProfileParams }}
+                />
+              )
+              : <PeopleRelationshipsTabContent {...sharedTabProps} />
+            : noTreeGate)}
         </Tab.Screen>
 
         <Tab.Screen name="treeSettings" options={{ title: t('Settings') }}>

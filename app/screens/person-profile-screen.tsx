@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, Dimensions, Image, Modal, Platform, Pressable, ScrollView, View } from 'react-native';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import {
@@ -32,7 +31,7 @@ import {
   isPersonDeceased,
 } from '../../components/dto/person';
 import type { ParentChildRelationshipKind, RelationshipRecord, SpouseRelationshipStatus } from '../../components/dto/relationship';
-import type { MainTabParamList, RootStackParamList } from '../../components/dto/navigation';
+import type { MainTabParamList } from '../../components/dto/navigation';
 import { canEditTreeContent, getAssignedPersonId, getAssignedUserIdForPerson } from '../../components/dto/tree';
 import { getPersonValidationFeedback } from '../../components/family-tree-validation';
 import { cropPhotoForPreferredDisplay, MAX_PHOTOS_PER_PERSON, MAX_PHOTO_BYTES, preparePhotoForUpload } from '../../components/photo-utils';
@@ -42,7 +41,26 @@ import { useI18n } from '../../hooks/use-i18n';
 const dialogChrome = GlobalStyles.dialogChrome;
 const treeDetailStyles = GlobalStyles.treeDetail;
 
-type Props = NativeStackScreenProps<RootStackParamList, 'PersonProfile'>;
+type PersonProfileRouteParams = {
+  treeId: string;
+  personId: string;
+};
+
+type PersonProfileNavigation = {
+  canGoBack: () => boolean;
+  getState?: () => { type?: string };
+  goBack: () => void;
+  navigate: (name: string, params?: unknown) => void;
+  push?: (name: string, params?: unknown) => void;
+  setOptions: (options: { title?: string }) => void;
+};
+
+type Props = {
+  navigation: PersonProfileNavigation;
+  route: {
+    params: PersonProfileRouteParams;
+  };
+};
 
 type ConfirmState = {
   visible: boolean;
@@ -288,6 +306,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
     () => people.find((currentPerson) => currentPerson.id === route.params.personId) ?? null,
     [people, route.params.personId],
   );
+  const isMainTabNavigation = navigation.getState?.().type === 'tab';
 
   const canEdit = selectedTree ? canEditTreeContent(selectedTree, user?.id) : false;
   const preferredPhoto = getDisplayPersonPhoto(person);
@@ -454,7 +473,15 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
       return;
     }
 
-    navigation.push('PersonProfile', {
+    if (isMainTabNavigation) {
+      navigation.navigate('memberProfile', {
+        treeId: route.params.treeId,
+        personId: targetPerson.id,
+      });
+      return;
+    }
+
+    navigation.push?.('PersonProfile', {
       treeId: route.params.treeId,
       personId: targetPerson.id,
     });
@@ -854,8 +881,12 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
   };
 
   // ─── Back button ──────────────────────────────────────────────────────────────
-  // Navigate back to the main tab screen (PersonProfile is a stack screen on top of Main).
   const handleGoBack = () => {
+    if (isMainTabNavigation) {
+      navigation.navigate('members');
+      return;
+    }
+
     if (navigation.canGoBack()) {
       navigation.goBack();
     }
@@ -1321,46 +1352,48 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
           </Surface>
         ) : null}
       </ScrollView>
-      <Surface
-        style={[
-          treeDetailStyles.tabBar,
-          {
-            backgroundColor: theme.colors.surface,
-            borderTopColor: theme.colors.outlineVariant,
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-around',
-            paddingHorizontal: 10,
-          },
-        ]}
-        elevation={0}
-      >
-        {APP_TAB_ROUTES.map((routeItem) => {
-          const isActive = routeItem.key === 'members';
-          return (
-            <Pressable
-              key={routeItem.key}
-              onPress={() => navigation.navigate('Main', { screen: routeItem.key as keyof MainTabParamList })}
-              accessibilityRole="button"
-              accessibilityLabel={t(routeItem.title)}
-              style={{
-                minHeight: 56,
-                minWidth: 56,
-                borderRadius: 18,
-                alignItems: 'center',
-                justifyContent: 'center',
-                backgroundColor: isActive ? theme.colors.elevation.level2 : 'transparent',
-              }}
-            >
-              <MaterialCommunityIcons
-                name={routeItem.focusedIcon}
-                size={26}
-                color={isActive ? theme.colors.primary : theme.colors.onSurfaceVariant}
-              />
-            </Pressable>
-          );
-        })}
-      </Surface>
+      {!isMainTabNavigation ? (
+        <Surface
+          style={[
+            treeDetailStyles.tabBar,
+            {
+              backgroundColor: theme.colors.surface,
+              borderTopColor: theme.colors.outlineVariant,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-around',
+              paddingHorizontal: 10,
+            },
+          ]}
+          elevation={0}
+        >
+          {APP_TAB_ROUTES.map((routeItem) => {
+            const isActive = routeItem.key === 'members';
+            return (
+              <Pressable
+                key={routeItem.key}
+                onPress={() => navigation.navigate('Main', { screen: routeItem.key })}
+                accessibilityRole="button"
+                accessibilityLabel={t(routeItem.title)}
+                style={{
+                  minHeight: 56,
+                  minWidth: 56,
+                  borderRadius: 18,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: isActive ? theme.colors.elevation.level2 : 'transparent',
+                }}
+              >
+                <MaterialCommunityIcons
+                  name={routeItem.focusedIcon}
+                  size={26}
+                  color={isActive ? theme.colors.primary : theme.colors.onSurfaceVariant}
+                />
+              </Pressable>
+            );
+          })}
+        </Surface>
+      ) : null}
       <PersonFormDialog
         visible={editorVisible}
         mode="edit"
