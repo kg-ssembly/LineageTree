@@ -9,6 +9,7 @@ import LoginScreen from '../screens/auth/login-screen';
 import SignUpScreen from '../screens/auth/sign-up-screen';
 import MainScreen from '../screens/main-screen';
 import PersonProfileScreen from '../screens/person-profile-screen';
+import TreeDetailScreen from '../screens/tree-detail-screen';
 import type { RootStackParamList } from '../../components/dto/navigation';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -49,6 +50,7 @@ export default function RootNavigator() {
         {user ? (
           <>
             <Stack.Screen name="Main" component={MainScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="TreeDetail" component={TreeDetailScreen} options={{ headerShown: false }} />
             <Stack.Screen name="PersonProfile" component={PersonProfileScreen} options={{ headerShown: false }} />
           </>
         ) : (

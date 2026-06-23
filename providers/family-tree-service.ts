@@ -1024,6 +1024,219 @@ export async function createTreeWithPrimarySurname(
   return tree;
 }
 
+function buildTreeMembershipEntry(
+  treeId: string,
+  role: 'member' | 'subject' | 'branch-member' | 'canonical',
+  addedByUserId: string,
+  source: 'manual' | 'merge' | 'invite' = 'manual',
+) {
+  return {
+    treeId,
+    role,
+    joinedAt: nowIso(),
+    addedByUserId,
+    source,
+  } as const;
+}
+
+function upsertTreeMembership(
+  memberships: PersonRecord['treeMemberships'],
+  nextMembership: PersonRecord['treeMemberships'][number],
+) {
+  const existing = Array.isArray(memberships) ? memberships : [];
+  const filtered = existing.filter((membership) => membership.treeId !== nextMembership.treeId);
+  return [...filtered, nextMembership];
+}
+
+function treeMatchesSurname(tree: FamilyTree, surname: string) {
+  const key = normaliseSurnameKey(surname);
+  if (!key) {
+    return false;
+  }
+
+  if (normaliseSurnameKey(tree.name) === key) {
+    return true;
+  }
+
+  return tree.surnameVariantGroups.some((group) => (
+    [group.primarySurname, ...group.variants]
+      .map(normaliseSurnameKey)
+      .includes(key)
+  ));
+}
+
+export async function createSuggestedSurnameTree(
+  owner: Pick<UserProfile, 'id' | 'email' | 'displayName'>,
+  sourceTreeId: string,
+  surname: string,
+) {
+  const trimmedSurname = surname.trim();
+  const surnameKey = normaliseSurnameKey(trimmedSurname);
+  if (!surnameKey) {
+    throw new Error('Surname is required.');
+  }
+
+  const [sourceTree, sourcePeople, sourceRelationships] = await Promise.all([
+    getTreeById(sourceTreeId),
+    getPeopleByTreeId(sourceTreeId),
+    getRelationshipsByTreeId(sourceTreeId),
+  ]);
+
+  const connectedTrees = (await Promise.all(
+    sourceTree.connectedTreeIds.map(async (treeId) => {
+      try {
+        return await getTreeById(treeId);
+      } catch {
+        return null;
+      }
+    }),
+  )).filter((tree): tree is FamilyTree => Boolean(tree));
+  const existingConnectedTree = connectedTrees.find((tree) => treeMatchesSurname(tree, trimmedSurname));
+
+  if (existingConnectedTree) {
+    return existingConnectedTree;
+  }
+
+  const bridgePeople = sourcePeople.filter((person) => normaliseSurnameKey(person.maidenName ?? '') === surnameKey);
+  const surnameMembers = sourcePeople.filter((person) => normaliseSurnameKey(person.lastName) === surnameKey);
+  const newTreePersonIds = new Set([...bridgePeople, ...surnameMembers].map((person) => person.id));
+  const bridgePersonIds = new Set(bridgePeople.map((person) => person.id));
+  const movedPersonIds = new Set(
+    surnameMembers
+      .map((person) => person.id)
+      .filter((personId) => !bridgePersonIds.has(personId)),
+  );
+
+  const createdTree = await createTree(owner, trimmedSurname);
+  const createdAt = nowIso();
+  const newTreeRef = doc(db, TREES_COLLECTION, createdTree.id);
+  const sourceTreeRef = doc(db, TREES_COLLECTION, sourceTree.id);
+  const batch = writeBatch(db);
+  const copiedCollaborators = sortCollaborators([
+    buildOwnerCollaborator(owner),
+    ...sourceTree.collaborators
+      .filter((collaborator) => collaborator.userId !== owner.id)
+      .map((collaborator) => ({
+        ...collaborator,
+        role: collaborator.role === 'owner' ? 'editor' : collaborator.role,
+      })),
+  ]);
+  const copiedMemberIds = [...new Set([owner.id, ...sourceTree.memberIds])];
+  const copiedEditorIds = [...new Set([owner.id, ...sourceTree.editorIds])];
+
+  const copiedAssignments = Object.fromEntries(
+    Object.entries(sourceTree.personAssignments).filter(([, personId]) => newTreePersonIds.has(personId)),
+  );
+  const retainedAssignments = Object.fromEntries(
+    Object.entries(sourceTree.personAssignments).filter(([, personId]) => !movedPersonIds.has(personId)),
+  );
+
+  batch.update(newTreeRef, {
+    collaborators: copiedCollaborators,
+    memberIds: copiedMemberIds,
+    editorIds: copiedEditorIds,
+    personAssignments: copiedAssignments,
+    approvalWindowHours: sourceTree.approvalWindowHours,
+    surnameVariantGroups: [{
+      id: `${createdTree.id}-surname-variants`,
+      primarySurname: trimmedSurname,
+      variants: [],
+      notes: '',
+      createdAt,
+      updatedAt: createdAt,
+    }],
+    connectedTreeIds: [...new Set([...(createdTree.connectedTreeIds ?? []), sourceTree.id])],
+    updatedAt: createdAt,
+  });
+
+  batch.update(sourceTreeRef, {
+    connectedTreeIds: [...new Set([...(sourceTree.connectedTreeIds ?? []), createdTree.id])],
+    personAssignments: retainedAssignments,
+    updatedAt: createdAt,
+  });
+
+  sourcePeople.forEach((person) => {
+    if (!newTreePersonIds.has(person.id)) {
+      return;
+    }
+
+    const nextMembershipIds = person.treeMembershipIds.filter((treeId) => treeId !== sourceTree.id);
+    const nextMemberships = person.treeMemberships.filter((membership) => membership.treeId !== sourceTree.id);
+    const personRef = doc(db, PEOPLE_COLLECTION, person.id);
+
+    if (bridgePersonIds.has(person.id)) {
+      batch.update(personRef, {
+        treeMembershipIds: [...new Set([...person.treeMembershipIds, createdTree.id])],
+        treeMemberships: upsertTreeMembership(
+          person.treeMemberships,
+          buildTreeMembershipEntry(createdTree.id, 'branch-member', owner.id),
+        ),
+        updatedAt: createdAt,
+      });
+      return;
+    }
+
+    const replacedMembershipIds = [...new Set([...nextMembershipIds, createdTree.id])];
+    const replacedMemberships = upsertTreeMembership(
+      nextMemberships,
+      buildTreeMembershipEntry(createdTree.id, 'subject', owner.id),
+    );
+    batch.update(personRef, {
+      treeId: person.treeId === sourceTree.id ? createdTree.id : person.treeId,
+      treeMembershipIds: replacedMembershipIds,
+      treeMemberships: replacedMemberships,
+      updatedAt: createdAt,
+    });
+  });
+
+  sourceRelationships.forEach((relationship) => {
+    const endpointsInNewTree = newTreePersonIds.has(relationship.fromPersonId) && newTreePersonIds.has(relationship.toPersonId);
+    const endpointsRemainInSource = !movedPersonIds.has(relationship.fromPersonId) && !movedPersonIds.has(relationship.toPersonId);
+
+    if (endpointsInNewTree) {
+      const relationshipRef = doc(collection(db, RELATIONSHIPS_COLLECTION));
+      batch.set(relationshipRef, {
+        type: relationship.type,
+        treeId: createdTree.id,
+        ownerId: owner.id,
+        fromPersonId: relationship.fromPersonId,
+        toPersonId: relationship.toPersonId,
+        relationshipStatus: relationship.type === 'spouse'
+          ? relationship.relationshipStatus ?? DEFAULT_SPOUSE_RELATIONSHIP_STATUS
+          : null,
+        parentChildKind: relationship.type === 'parent-child'
+          ? relationship.parentChildKind ?? DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND
+          : null,
+        createdAt,
+      });
+    }
+
+    if (!endpointsRemainInSource) {
+      batch.delete(doc(db, RELATIONSHIPS_COLLECTION, relationship.id));
+    }
+  });
+
+  await batch.commit();
+  return {
+    ...createdTree,
+    collaborators: copiedCollaborators,
+    memberIds: copiedMemberIds,
+    editorIds: copiedEditorIds,
+    personAssignments: copiedAssignments,
+    approvalWindowHours: sourceTree.approvalWindowHours,
+    surnameVariantGroups: [{
+      id: `${createdTree.id}-surname-variants`,
+      primarySurname: trimmedSurname,
+      variants: [],
+      notes: '',
+      createdAt,
+      updatedAt: createdAt,
+    }],
+    connectedTreeIds: [...new Set([...(createdTree.connectedTreeIds ?? []), sourceTree.id])],
+    updatedAt: createdAt,
+  };
+}
+
 export async function updateTreeApprovalWindow(treeId: string, approvalWindowHours: number) {
   await updateDoc(doc(db, TREES_COLLECTION, treeId), {
     approvalWindowHours: clampApprovalWindowHours(approvalWindowHours),
@@ -1249,6 +1462,33 @@ export async function getTreeBundle(treeId: string) {
   ]);
 
   return { tree, people, relationships };
+}
+
+export async function getTreeDeletionImpact(treeId: string) {
+  const tree = await getTreeById(treeId);
+  const people = await getPeopleByTreeId(tree.id);
+  const relationshipSnapshot = await getDocs(query(collection(db, RELATIONSHIPS_COLLECTION), where('treeId', '==', tree.id)));
+  const approvalRequestsSnapshot = await getDocs(query(collection(db, APPROVAL_REQUESTS_COLLECTION), where('treeId', '==', tree.id)));
+  const mergeRequestsSnapshot = await getDocs(query(collection(db, MERGE_REQUESTS_COLLECTION), where('involvedTreeIds', 'array-contains', tree.id)));
+  const mergeHistorySnapshot = await getDocs(query(collection(db, MERGE_HISTORY_COLLECTION), where('involvedTreeIds', 'array-contains', tree.id)));
+
+  const peopleDeleted = people.filter((person) => person.treeMembershipIds.length <= 1);
+  const peopleDetached = people.filter((person) => person.treeMembershipIds.length > 1);
+  const photosDeleted = peopleDeleted.reduce((total, person) => total + person.photos.length, 0);
+
+  return {
+    tree,
+    collaboratorsRemoved: Math.max(0, tree.collaborators.length - 1),
+    linkedProfilesRemoved: Object.keys(tree.personAssignments).length,
+    peopleDeleted: peopleDeleted.length,
+    peopleDetached: peopleDetached.length,
+    photosDeleted,
+    relationshipsDeleted: relationshipSnapshot.size,
+    approvalRequestsDeleted: approvalRequestsSnapshot.size,
+    mergeRequestsAffected: mergeRequestsSnapshot.size,
+    mergeHistoryAffected: mergeHistorySnapshot.size,
+    connectedTreesDetached: tree.connectedTreeIds.length,
+  };
 }
 
 function getRequesterLabel(tree: FamilyTree, userId: string) {
@@ -2610,6 +2850,22 @@ export async function deleteTree(tree: FamilyTree) {
 
       await updateDoc(snapshot.ref, {
         involvedTreeIds: remainingTreeIds,
+        updatedAt: treeDeletionTimestamp,
+      });
+    }),
+  );
+
+  await Promise.all(
+    tree.connectedTreeIds.map(async (connectedTreeId) => {
+      const connectedTreeRef = doc(db, TREES_COLLECTION, connectedTreeId);
+      const connectedTreeSnapshot = await getDoc(connectedTreeRef);
+      if (!connectedTreeSnapshot.exists()) {
+        return;
+      }
+
+      const connectedTree = mapTreeData(connectedTreeSnapshot.id, connectedTreeSnapshot.data());
+      await updateDoc(connectedTreeRef, {
+        connectedTreeIds: connectedTree.connectedTreeIds.filter((treeId) => treeId !== tree.id),
         updatedAt: treeDeletionTimestamp,
       });
     }),

@@ -20,8 +20,7 @@ export type RootStackParamList = {
   Login: undefined;
   SignUp: undefined;
   Main: NavigatorScreenParams<MainTabParamList> | undefined;
-  // Legacy — tree-detail-screen.tsx kept for reference; no longer in the navigator
-  TreeDetail: { treeId: string; initialTab?: keyof TreeDetailTabParamList };
+  TreeDetail: { treeId: string; initialTab?: keyof TreeDetailTabParamList; returnTreeId?: string };
   PersonProfile: {
     treeId: string;
     personId: string;

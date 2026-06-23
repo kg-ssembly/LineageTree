@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -29,7 +29,8 @@ import type { ParentChildRelationshipKind, SpouseRelationshipStatus } from '../.
 import type { RootStackParamList, TreeDetailTabParamList } from '../../components/dto/navigation';
 import { getUserDisplayLabel, getUserNameParts } from '../../components/dto/user';
 import { formatPersonName } from '../../components/person-formatting';
-import { canEditTreeContent, canManageTree, getAssignedPersonId, getTreeRole, type CollaboratorRole } from '../../components/dto/tree';
+import { findCrossSurnameChildren, extractSurname } from '../../components/family-tree-surname-clusters';
+import { canEditTreeContent, canManageTree, getAssignedPersonId, getTreeRole, type CollaboratorRole, type FamilyTree } from '../../components/dto/tree';
 import { GlobalStyles } from '../../constants/styles';
 import { useI18n } from '../../hooks/use-i18n';
 import {
@@ -72,6 +73,27 @@ type TreeSettingsFocus = {
 
 const Tab = createBottomTabNavigator<TreeDetailTabParamList>();
 const styles = GlobalStyles.treeDetail;
+
+function normaliseSurnameKey(value: string) {
+  return value.trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function treeMatchesSurname(tree: FamilyTree, surname: string) {
+  const key = normaliseSurnameKey(surname);
+  if (!key) {
+    return false;
+  }
+
+  if (normaliseSurnameKey(tree.name) === key) {
+    return true;
+  }
+
+  return tree.surnameVariantGroups.some((group) => (
+    [group.primarySurname, ...group.variants]
+      .map(normaliseSurnameKey)
+      .includes(key)
+  ));
+}
 
 export default function TreeDetailScreen({ navigation, route }: Props) {
   const theme = useTheme();
@@ -143,6 +165,8 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     action: null,
   });
   const [treeSettingsFocus, setTreeSettingsFocus] = useState<TreeSettingsFocus>(null);
+  const canvasFamilySwitchRef = useRef<((surname: string) => void) | null>(null);
+  const canvasActiveFamilyRef = useRef<string | null>(null);
 
   const selectedTree = useMemo(
     () => trees.find((tree) => tree.id === route.params.treeId) ?? null,
@@ -160,6 +184,10 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
   const existingLastNames = useMemo(
     () => [...new Set(people.map((person) => person.lastName.trim()).filter(Boolean))].sort((left, right) => left.localeCompare(right)),
     [people],
+  );
+  const crossSurnameChildIds = useMemo(
+    () => findCrossSurnameChildren(people, relationships),
+    [people, relationships],
   );
 
   const currentUserLabel = useMemo(() => getUserDisplayLabel(user), [user]);
@@ -214,6 +242,12 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
       selectTree(route.params.treeId);
     }
   }, [route.params.treeId, selectTree, selectedTree, selectedTreeId]);
+
+  useEffect(() => () => {
+    if (route.params.returnTreeId) {
+      selectTree(route.params.returnTreeId);
+    }
+  }, [route.params.returnTreeId, selectTree]);
 
   useEffect(() => {
     if (selectedTree) {
@@ -508,9 +542,22 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     await grantMergeViewerAccess(user.id, requestId, treeId);
   }, [grantMergeViewerAccess, user?.id]);
   const onCreateSurnameTree = useCallback(async (surname: string) => {
-    if (!user) return;
-    await createTreeFromSurname({ id: user.id, email: user.email, displayName: user.displayName }, surname);
-  }, [createTreeFromSurname, user]);
+    if (!user || !selectedTree) return;
+    await createTreeFromSurname({ id: user.id, email: user.email, displayName: user.displayName }, selectedTree.id, surname);
+  }, [createTreeFromSurname, selectedTree, user]);
+  const findConnectedTreeForSurname = useCallback((person: PersonRecord, surname: string) => {
+    if (!selectedTree) {
+      return null;
+    }
+
+    const membershipIds = new Set(person.treeMembershipIds);
+    return trees.find((tree) => (
+      tree.id !== selectedTree.id
+      && selectedTree.connectedTreeIds.includes(tree.id)
+      && membershipIds.has(tree.id)
+      && treeMatchesSurname(tree, surname)
+    )) ?? null;
+  }, [selectedTree, trees]);
   const onOpenTreeSettingsTarget = useCallback((target: Omit<NonNullable<TreeSettingsFocus>, 'token'>) => {
     setTreeSettingsFocus({ ...target, token: Date.now() });
   }, []);
@@ -572,6 +619,8 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
       onCreateSurnameTree,
       treeSettingsFocus,
       onOpenTreeSettingsTarget,
+      familySwitchRef: canvasFamilySwitchRef,
+      activeFamilyRef: canvasActiveFamilyRef,
     };
   }, [
     selectedTree, people, relationships, approvalRequests, mergeRequests, mergeHistory, mergePreview, peopleById, canEdit, isOwner, role,
@@ -582,6 +631,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     handleAssignPersonToUser, handleClearSelfAssignment, onApproveApprovalRequest, onRejectApprovalRequest,
     onSetApprovalWindowHours, onSetSurnameVariantGroups, onCreateMergeRequest, onSendMergeInvite, onRespondToMergeInvite, onMarkNotificationSeen, onMarkNotificationOpened, onMarkNotificationActivityActioned, onLoadTreeMergePreview,
     onApproveMergeRequest, onRejectMergeRequest, onRequestMergeChanges, onUndoMerge, onGrantMergeViewerAccess, onCreateSurnameTree, treeSettingsFocus, onOpenTreeSettingsTarget,
+    canvasFamilySwitchRef, canvasActiveFamilyRef,
   ]);
 
   if (!selectedTree || !sharedTabProps) {
@@ -737,6 +787,56 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
                 openPersonProfile(selectedPerson);
               }}
             />
+            {nodeQuickActionState.person?.maidenName?.trim() ? (() => {
+              const person = nodeQuickActionState.person!;
+              const maiden = person.maidenName!.trim();
+              const marital = extractSurname(person);
+              const currentFamily = canvasActiveFamilyRef.current;
+              const isViewingMaiden = currentFamily === maiden;
+              const targetSurname = isViewingMaiden ? marital : maiden;
+              const label = isViewingMaiden
+                ? t('View {surname} (marital) family tree', { surname: marital })
+                : t('View {surname} (maiden) family tree', { surname: maiden });
+              const description = isViewingMaiden
+                ? t('Switch to {surname} — their family by marriage', { surname: marital })
+                : t('Switch to {surname} — their birth family', { surname: maiden });
+              const linkedTree = findConnectedTreeForSurname(person, targetSurname);
+              return (
+                <List.Item
+                  title={label}
+                  description={description}
+                  left={(props) => <List.Icon {...props} icon="family-tree" />}
+                  onPress={() => {
+                    closeNodeQuickActions();
+                    if (linkedTree) {
+                      navigation.push('TreeDetail', {
+                        treeId: linkedTree.id,
+                        initialTab: 'VisualisationTab',
+                        returnTreeId: selectedTree?.id,
+                      });
+                      return;
+                    }
+                    canvasFamilySwitchRef.current?.(targetSurname);
+                  }}
+                />
+              );
+            })() : null}
+            {nodeQuickActionState.person && !nodeQuickActionState.person.maidenName?.trim() && crossSurnameChildIds.has(nodeQuickActionState.person.id) ? (() => {
+              const surname = extractSurname(nodeQuickActionState.person!);
+              const alreadyViewing = canvasActiveFamilyRef.current === surname;
+              if (alreadyViewing) return null;
+              return (
+                <List.Item
+                  title={t('View {surname} family tree', { surname })}
+                  description={t('This person has parents from different families')}
+                  left={(props) => <List.Icon {...props} icon="source-branch" />}
+                  onPress={() => {
+                    closeNodeQuickActions();
+                    canvasFamilySwitchRef.current?.(surname);
+                  }}
+                />
+              );
+            })() : null}
             {canEdit && nodeQuickActionState.person ? (
               <>
                 <List.Item

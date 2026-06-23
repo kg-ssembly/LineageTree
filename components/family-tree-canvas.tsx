@@ -89,6 +89,7 @@ const VIEWPORT_COMMIT_INTERVAL_MS = 48;
 interface FamilyTreeCanvasProps {
   people: PersonRecord[];
   relationships: RelationshipRecord[];
+  currentTreeId?: string;
   onPressPerson: (person: PersonRecord) => void;
   currentUserPersonId?: string;
   initialFocusPersonId?: string;
@@ -337,6 +338,7 @@ const PersonNode = React.memo(function PersonNode(props: PersonNodeProps) {
 function FamilyTreeCanvas({
                             people,
                             relationships,
+                            currentTreeId,
                             onPressPerson,
                             currentUserPersonId,
                             initialFocusPersonId,
@@ -420,16 +422,16 @@ function FamilyTreeCanvas({
 
   // ---- Surname clustering ----
   const surnameClusters = useMemo(
-    () => buildSurnameClusters(renderedPeople),
-    [renderedPeople],
+    () => buildSurnameClusters(renderedPeople, currentTreeId),
+    [currentTreeId, renderedPeople],
   );
   const sortedSurnames = useMemo(
     () => getSortedSurnames(surnameClusters),
     [surnameClusters],
   );
   const allBridges = useMemo(
-    () => findFamilyBridges(renderedPeople, renderedRelationships),
-    [renderedPeople, renderedRelationships],
+    () => findFamilyBridges(renderedPeople, renderedRelationships, currentTreeId),
+    [currentTreeId, renderedPeople, renderedRelationships],
   );
 
   // Determine the "seed" person for initial surname selection (doesn't depend on layout).
@@ -452,13 +454,13 @@ function FamilyTreeCanvas({
       if (seedFocusPersonId) {
         const focusPerson = renderedPeopleById.get(seedFocusPersonId);
         if (focusPerson) {
-          const fs = extractSurname(focusPerson);
+          const fs = extractSurname(focusPerson, currentTreeId);
           if (surnameClusters.has(fs)) startSurname = fs;
         }
       }
       return [startSurname];
     });
-  }, [sortedSurnames, seedFocusPersonId, renderedPeopleById, surnameClusters]);
+  }, [currentTreeId, sortedSurnames, seedFocusPersonId, renderedPeopleById, surnameClusters]);
 
   // Determine if clustering is active (more than 1 surname in the data → show one family at a time).
   const clusteringActive = sortedSurnames.length >= 2;
@@ -478,8 +480,8 @@ function FamilyTreeCanvas({
         externalBridges: [],
       };
     }
-    return filterForActiveSurnames(renderedPeople, renderedRelationships, activeSurnames);
-  }, [clusteringActive, renderedPeople, renderedRelationships, activeSurnames]);
+    return filterForActiveSurnames(renderedPeople, renderedRelationships, activeSurnames, currentTreeId);
+  }, [activeSurnames, clusteringActive, currentTreeId, renderedPeople, renderedRelationships]);
 
   // Navigation: switch to a different surname (one family shown at a time).
   const navigateToSurname = useCallback((targetSurname: string) => {
@@ -594,8 +596,8 @@ function FamilyTreeCanvas({
   // ---- Cross-surname children ----
   // Detect children whose parents have different surnames (full pre-cluster dataset).
   const crossSurnameChildIds = useMemo(
-    () => findCrossSurnameChildren(renderedPeople, renderedRelationships),
-    [renderedPeople, renderedRelationships],
+    () => findCrossSurnameChildren(renderedPeople, renderedRelationships, currentTreeId),
+    [currentTreeId, renderedPeople, renderedRelationships],
   );
 
   // ---- Maiden name members ----

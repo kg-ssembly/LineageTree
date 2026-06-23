@@ -33,8 +33,13 @@ export type FamilyBridge = {
  * Extract the surname from a PersonRecord.
  * Uses the last word of `lastName`, or falls back to 'Unknown'.
  */
-export function extractSurname(person: PersonRecord): string {
-  const last = (person.lastName ?? '').trim();
+export function extractSurname(person: PersonRecord, currentTreeId?: string): string {
+  const membership = currentTreeId
+    ? person.treeMemberships.find((entry) => entry.treeId === currentTreeId)
+    : null;
+  const last = (membership?.role === 'branch-member' && person.maidenName?.trim()
+    ? person.maidenName
+    : person.lastName ?? '').trim();
   if (!last) return 'Unknown';
   // Use the full lastName as the surname key (handles multi-word surnames).
   return last;
@@ -48,11 +53,12 @@ export function extractSurname(person: PersonRecord): string {
  */
 export function buildSurnameClusters(
   people: PersonRecord[],
+  currentTreeId?: string,
 ): Map<string, SurnameCluster> {
   const clusters = new Map<string, SurnameCluster>();
 
   for (const person of people) {
-    const surname = extractSurname(person);
+    const surname = extractSurname(person, currentTreeId);
     if (!clusters.has(surname)) {
       clusters.set(surname, { surname, memberIds: new Set() });
     }
@@ -71,6 +77,7 @@ export function buildSurnameClusters(
 export function findFamilyBridges(
   people: PersonRecord[],
   relationships: RelationshipRecord[],
+  currentTreeId?: string,
 ): FamilyBridge[] {
   const personById = new Map(people.map((p) => [p.id, p]));
   const bridges: FamilyBridge[] = [];
@@ -81,8 +88,8 @@ export function findFamilyBridges(
     const b = personById.get(rel.toPersonId);
     if (!a || !b) continue;
 
-    const surnameA = extractSurname(a);
-    const surnameB = extractSurname(b);
+    const surnameA = extractSurname(a, currentTreeId);
+    const surnameB = extractSurname(b, currentTreeId);
     if (surnameA === surnameB) continue;
 
     bridges.push({
@@ -111,6 +118,7 @@ export function filterForActiveSurnames(
   people: PersonRecord[],
   relationships: RelationshipRecord[],
   activeSurnames: string[],
+  currentTreeId?: string,
 ): {
   filteredPeople: PersonRecord[];
   filteredRelationships: RelationshipRecord[];
@@ -127,12 +135,12 @@ export function filterForActiveSurnames(
   // Determine which people are in active clusters (by current lastName).
   const activePersonIds = new Set<string>();
   for (const person of people) {
-    if (activeSet.has(extractSurname(person))) {
+    if (activeSet.has(extractSurname(person, currentTreeId))) {
       activePersonIds.add(person.id);
     }
   }
 
-  const bridges = findFamilyBridges(people, relationships);
+  const bridges = findFamilyBridges(people, relationships, currentTreeId);
   const ghostPersonIds = new Set<string>();
   const activeBridges: FamilyBridge[] = [];
   const externalBridges: FamilyBridge[] = [];
@@ -195,6 +203,7 @@ export function findMaidenNameMembers(people: PersonRecord[]): Set<string> {
 export function findCrossSurnameChildren(
   people: PersonRecord[],
   relationships: RelationshipRecord[],
+  currentTreeId?: string,
 ): Set<string> {
   const personById = new Map(people.map((p) => [p.id, p]));
   // childId → set of parent surnames
@@ -207,7 +216,7 @@ export function findCrossSurnameChildren(
     if (!parentSurnamesByChild.has(rel.toPersonId)) {
       parentSurnamesByChild.set(rel.toPersonId, new Set());
     }
-    parentSurnamesByChild.get(rel.toPersonId)!.add(extractSurname(parent));
+    parentSurnamesByChild.get(rel.toPersonId)!.add(extractSurname(parent, currentTreeId));
   }
 
   const result = new Set<string>();

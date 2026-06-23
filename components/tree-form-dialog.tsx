@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { View } from 'react-native';
 import { Button, Dialog, HelperText, IconButton, Portal, TextInput, useTheme } from 'react-native-paper';
 import type { FamilyTree } from './dto/tree';
 import { useI18n } from '../hooks/use-i18n';
@@ -78,12 +79,23 @@ export default function TreeFormDialog({
             {error}
           </HelperText>
         </Dialog.Content>
-        <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
+        <Dialog.Actions
+          style={[
+            dialogChrome.dialogActions,
+            { borderTopColor: theme.colors.outlineVariant, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+          ]}
+        >
           {mode === 'edit' && onDelete ? (
-            <Button mode="text" textColor={theme.colors.error} onPress={onDelete} disabled={loading}>
-              {t('Delete tree')}
-            </Button>
-          ) : null}
+            <IconButton
+              icon="trash-can-outline"
+              iconColor={theme.colors.error}
+              onPress={onDelete}
+              disabled={loading}
+              accessibilityLabel={t('Delete tree')}
+            />
+          ) : (
+            <View />
+          )}
           <Button mode="contained" onPress={handleSubmit} disabled={loading}>
             {mode === 'create' ? t('Create') : t('Save')}
           </Button>

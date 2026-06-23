@@ -1305,6 +1305,7 @@ export function PeopleRelationshipsTabContent({
 }
 
 export function VisualisationTabContent({
+  selectedTree,
   people,
   relationships,
   onOpenPersonQuickActions,
@@ -1321,6 +1322,7 @@ export function VisualisationTabContent({
         <FamilyTreeCanvas
           people={people}
           relationships={relationships}
+          currentTreeId={selectedTree.id}
           onPressPerson={onOpenPersonQuickActions}
           currentUserPersonId={currentAssignedPerson?.id ?? undefined}
           initialFocusPersonId={currentAssignedPerson?.id ?? undefined}
@@ -1535,6 +1537,7 @@ function ProfileTabContent({
         count: value.count,
         existingTree: existingTreeLookup.get(key) ?? null,
       }))
+      .filter((suggestion) => !suggestion.existingTree)
       .sort((left, right) => right.count - left.count || left.surname.localeCompare(right.surname));
   }, [people, selectedTree.surnameVariantGroups, trees]);
 
@@ -2551,7 +2554,7 @@ function ProfileTabContent({
                 <Card.Content>
                   <Text variant="titleMedium">{t('Suggested maiden surname trees')}</Text>
                   <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-                    {t('These maiden surnames appear in this tree but are not part of its surname identity. Create a separate tree or use an existing one for later merge review.')}
+                    {t('These maiden surnames appear in this tree but are not part of its surname identity. Create a separate tree for later merge review.')}
                   </Text>
                   <View style={{ marginTop: 8 }}>
                     {maidenSurnameSuggestions.map((suggestion) => (
@@ -2561,24 +2564,10 @@ function ProfileTabContent({
                           <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
                             {t('{count} member(s) reference this as a maiden surname.', { count: suggestion.count })}
                           </Text>
-                          {suggestion.existingTree ? (
-                            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
-                              {t('Existing tree found: {name}', { name: suggestion.existingTree.name })}
-                            </Text>
-                          ) : null}
                           <View style={{ flexDirection: 'row', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
-                            {suggestion.existingTree ? (
-                              <Button mode="outlined" onPress={() => {
-                                setMergeTargetTreeId(suggestion.existingTree?.id ?? '');
-                                setActiveManagementTab('merges');
-                              }}>
-                                {t('Use existing tree')}
-                              </Button>
-                            ) : (
-                              <Button mode="contained-tonal" onPress={() => handleCreateSuggestedSurnameTree(suggestion.surname)} disabled={mutating}>
-                                {t('Create tree')}
-                              </Button>
-                            )}
+                            <Button mode="contained-tonal" onPress={() => handleCreateSuggestedSurnameTree(suggestion.surname)} disabled={mutating}>
+                              {t('Create tree')}
+                            </Button>
                           </View>
                         </Card.Content>
                       </Card>

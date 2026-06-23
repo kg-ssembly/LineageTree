@@ -24,6 +24,7 @@ import type { PersonFormSubmission } from '../../components/person-form-dialog';
 import type { PendingRelationshipSubmission } from '../../components/person-form-dialog';
 import { useAuthStore } from '../../stores/auth-store';
 import { useTreeStore } from '../../stores/tree-store';
+import { getTreeDeletionImpact } from '../../providers/family-tree-service';
 import type { PersonRecord } from '../../components/dto/person';
 import type { ParentChildRelationshipKind, SpouseRelationshipStatus } from '../../components/dto/relationship';
 import type { MainTabParamList, RootStackParamList } from '../../components/dto/navigation';
@@ -77,6 +78,27 @@ type ConfirmState = {
   confirmLabel: string;
   action: (() => Promise<void>) | null;
 };
+
+function normaliseSurnameKey(value: string) {
+  return value.trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function treeMatchesSurname(tree: FamilyTree, surname: string) {
+  const key = normaliseSurnameKey(surname);
+  if (!key) {
+    return false;
+  }
+
+  if (normaliseSurnameKey(tree.name) === key) {
+    return true;
+  }
+
+  return tree.surnameVariantGroups.some((group) => (
+    [group.primarySurname, ...group.variants]
+      .map(normaliseSurnameKey)
+      .includes(key)
+  ));
+}
 
 type TreeDialogState = {
   visible: boolean;
@@ -415,17 +437,64 @@ export default function MainScreen({ navigation }: Props) {
     selectTree(tree.id);
   }, [selectTree]);
 
+  const findConnectedTreeForSurname = useCallback((person: PersonRecord, surname: string) => {
+    if (!selectedTree) {
+      return null;
+    }
+
+    const membershipIds = new Set(person.treeMembershipIds);
+    return trees.find((tree) => (
+      tree.id !== selectedTree.id
+      && selectedTree.connectedTreeIds.includes(tree.id)
+      && membershipIds.has(tree.id)
+      && treeMatchesSurname(tree, surname)
+    )) ?? null;
+  }, [selectedTree, trees]);
+
   const handleConfirmDeleteTree = useCallback((tree: FamilyTree) => {
-    openConfirm(
-      'Delete family tree',
-      `Delete "${tree.name}" and all its people, photos, and relationships? This cannot be undone.`,
-      'Delete',
-      async () => {
-        await removeTree(tree);
-        if (user?.defaultTreeId === tree.id) await setDefaultTreeId(null);
-      },
-    );
-  }, [openConfirm, removeTree, setDefaultTreeId, user?.defaultTreeId]);
+    void (async () => {
+      try {
+        const impact = await getTreeDeletionImpact(tree.id);
+        const details = [
+          `Delete "${tree.name}" permanently?`,
+          '',
+          'This will also remove or disconnect:',
+          `${impact.peopleDeleted} family member profile(s) that only exist in this tree`,
+          `${impact.peopleDetached} shared family member profile(s) that will be removed from this tree but kept in other tree(s)`,
+          `${impact.photosDeleted} photo(s) attached to profiles being permanently deleted`,
+          `${impact.relationshipsDeleted} relationship record(s) in this tree`,
+          `${impact.linkedProfilesRemoved} linked profile assignment(s) for this tree`,
+          `${impact.collaboratorsRemoved} collaborator access record(s) on this tree`,
+          `${impact.approvalRequestsDeleted} approval request(s) for this tree`,
+          `${impact.mergeRequestsAffected} merge request record(s) involving this tree`,
+          `${impact.mergeHistoryAffected} merge history record(s) involving this tree`,
+          `${impact.connectedTreesDetached} connected tree link(s) to other family trees`,
+          '',
+          'This cannot be undone.',
+        ].join('\n');
+
+        openConfirm(
+          t('Delete family tree'),
+          details,
+          t('Delete'),
+          async () => {
+            await removeTree(tree);
+            if (user?.defaultTreeId === tree.id) await setDefaultTreeId(null);
+          },
+        );
+      } catch {
+        openConfirm(
+          t('Delete family tree'),
+          t('Delete "{treeName}" and everything attached to it, including family members, relationships, photos, collaborator access, approval history, merge records, and connected-tree links? This cannot be undone.', { treeName: tree.name }),
+          t('Delete'),
+          async () => {
+            await removeTree(tree);
+            if (user?.defaultTreeId === tree.id) await setDefaultTreeId(null);
+          },
+        );
+      }
+    })();
+  }, [openConfirm, removeTree, setDefaultTreeId, t, user?.defaultTreeId]);
 
   // ── Person / relationship handlers ───────────────────────────────────────────
 
@@ -580,9 +649,9 @@ export default function MainScreen({ navigation }: Props) {
     await grantMergeViewerAccess(user.id, requestId, treeId);
   }, [grantMergeViewerAccess, user?.id]);
   const onCreateSurnameTree = useCallback(async (surname: string) => {
-    if (!user) return;
-    await createTreeFromSurname({ id: user.id, email: user.email, displayName: user.displayName }, surname);
-  }, [createTreeFromSurname, user]);
+    if (!user || !selectedTree) return;
+    await createTreeFromSurname({ id: user.id, email: user.email, displayName: user.displayName }, selectedTree.id, surname);
+  }, [createTreeFromSurname, selectedTree, user]);
   const onOpenTreeSettingsTarget = useCallback((target: Omit<NonNullable<TreeSettingsFocus>, 'token'>) => {
     setTreeSettingsFocus({ ...target, token: Date.now() });
   }, []);
@@ -842,6 +911,7 @@ export default function MainScreen({ navigation }: Props) {
               const description = isViewingMaiden
                 ? t('Switch to {surname} — their family by marriage', { surname: marital })
                 : t('Switch to {surname} — their birth family', { surname: maiden });
+              const linkedTree = findConnectedTreeForSurname(person, targetSurname);
               return (
                 <List.Item
                   title={label}
@@ -849,6 +919,14 @@ export default function MainScreen({ navigation }: Props) {
                   left={(props) => <List.Icon {...props} icon="family-tree" />}
                   onPress={() => {
                     closeNodeQuickActions();
+                    if (linkedTree) {
+                      navigation.navigate('TreeDetail', {
+                        treeId: linkedTree.id,
+                        initialTab: 'VisualisationTab',
+                        returnTreeId: selectedTree?.id,
+                      });
+                      return;
+                    }
                     canvasFamilySwitchRef.current?.(targetSurname);
                   }}
                 />

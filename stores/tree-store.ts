@@ -10,7 +10,7 @@ import {
   addCollaboratorToTree,
   assignTreePersonToUser,
   clearTreePersonAssignment,
-  createTreeWithPrimarySurname,
+  createSuggestedSurnameTree,
   createMergeRequest,
   createParentChildRelationship,
   createPerson,
@@ -112,7 +112,7 @@ interface TreeState {
   syncFamilyData: (userId: string | null) => void;
   selectTree: (treeId: string | null) => void;
   createTree: (owner: Pick<UserProfile, 'id' | 'email' | 'displayName'>, name: string) => Promise<FamilyTree>;
-  createTreeFromSurname: (owner: Pick<UserProfile, 'id' | 'email' | 'displayName'>, surname: string) => Promise<FamilyTree>;
+  createTreeFromSurname: (owner: Pick<UserProfile, 'id' | 'email' | 'displayName'>, sourceTreeId: string, surname: string) => Promise<FamilyTree>;
   renameTree: (treeId: string, name: string) => Promise<void>;
   setApprovalWindowHours: (treeId: string, hours: number) => Promise<void>;
   setSurnameVariantGroups: (treeId: string, groups: SurnameVariantGroup[]) => Promise<void>;
@@ -334,12 +334,11 @@ export const useTreeStore = create<TreeState>((set, get) => {
       }
     },
 
-    createTreeFromSurname: async (owner, surname) => {
+    createTreeFromSurname: async (owner, sourceTreeId, surname) => {
       set({ mutating: true, error: null });
       try {
-        const tree = await createTreeWithPrimarySurname(owner, surname);
-        set({ selectedTreeId: tree.id, mutating: false, notice: 'Surname tree created.' });
-        subscribeToTreeData(tree.id);
+        const tree = await createSuggestedSurnameTree(owner, sourceTreeId, surname);
+        set({ mutating: false, notice: 'Surname tree created.' });
         return tree;
       } catch (error) {
         set({ mutating: false, error: normaliseError(error) });
