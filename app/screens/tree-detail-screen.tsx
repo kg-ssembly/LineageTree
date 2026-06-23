@@ -1,12 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View } from 'react-native';
+import { Image, Modal, Pressable, ScrollView, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   ActivityIndicator,
   Button,
+  Card,
+  Chip,
   Dialog,
+  Searchbar,
   IconButton,
   List,
   Portal,
@@ -17,6 +20,7 @@ import {
 import {
   CollaboratorDialog,
   ConfirmDialog,
+  HorizontalTabStrip,
   PersonFormDialog,
   RelationshipDialog,
 } from '../../components';
@@ -24,13 +28,17 @@ import type { PersonFormSubmission } from '../../components/person-form-dialog';
 import type { PendingRelationshipSubmission } from '../../components/person-form-dialog';
 import { useAuthStore } from '../../stores/auth-store';
 import { useTreeStore } from '../../stores/tree-store';
-import type { PersonRecord } from '../../components/dto/person';
+import type { PersonPhoto, PersonRecord } from '../../components/dto/person';
+import { formatPersonDate, getDisplayPersonPhoto, getLifeEventTypeLabel, getPersonLifeSpanLabel, getPersonPresenceLabel } from '../../components/dto/person';
 import type { ParentChildRelationshipKind, SpouseRelationshipStatus } from '../../components/dto/relationship';
+import type { RelationshipRecord } from '../../components/dto/relationship';
 import type { RootStackParamList, TreeDetailTabParamList } from '../../components/dto/navigation';
 import { getUserDisplayLabel, getUserNameParts } from '../../components/dto/user';
 import { formatPersonName } from '../../components/person-formatting';
 import { findCrossSurnameChildren, extractSurname } from '../../components/family-tree-surname-clusters';
 import { canEditTreeContent, canManageTree, getAssignedPersonId, getTreeRole, type CollaboratorRole, type FamilyTree } from '../../components/dto/tree';
+import { computeRelationshipInsight } from '../../providers';
+import { getTreeBundle } from '../../providers/family-tree-service';
 import { GlobalStyles } from '../../constants/styles';
 import { useI18n } from '../../hooks/use-i18n';
 import {
@@ -70,6 +78,11 @@ type TreeSettingsFocus = {
   mode: 'approval' | 'merge';
   token: number;
 } | null;
+
+type ViewerProfileTabKey = 'summary' | 'life' | 'photos';
+type TreeBundleState = Awaited<ReturnType<typeof getTreeBundle>> | null;
+
+const MAIDEN_MEMBERS_PER_PAGE = 3;
 
 const Tab = createBottomTabNavigator<TreeDetailTabParamList>();
 const styles = GlobalStyles.treeDetail;
@@ -167,11 +180,23 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
   const [treeSettingsFocus, setTreeSettingsFocus] = useState<TreeSettingsFocus>(null);
   const canvasFamilySwitchRef = useRef<((surname: string) => void) | null>(null);
   const canvasActiveFamilyRef = useRef<string | null>(null);
+  const [maidenMembersVisible, setMaidenMembersVisible] = useState(false);
+  const [viewerPerson, setViewerPerson] = useState<PersonRecord | null>(null);
+  const [viewerProfileTab, setViewerProfileTab] = useState<ViewerProfileTabKey>('summary');
+  const [viewerPhotoIndex, setViewerPhotoIndex] = useState<number | null>(null);
+  const [returnTreeBundle, setReturnTreeBundle] = useState<TreeBundleState>(null);
+  const [maidenMemberSearchQuery, setMaidenMemberSearchQuery] = useState('');
+  const [maidenMembersPage, setMaidenMembersPage] = useState(1);
 
   const selectedTree = useMemo(
     () => trees.find((tree) => tree.id === route.params.treeId) ?? null,
     [route.params.treeId, trees],
   );
+  const returnTree = useMemo(
+    () => (route.params.returnTreeId ? trees.find((tree) => tree.id === route.params.returnTreeId) ?? null : null),
+    [route.params.returnTreeId, trees],
+  );
+  const isMaidenViewerMode = Boolean(route.params.returnTreeId);
   const initialTab = route.params.initialTab && route.params.initialTab !== 'HomeTab'
     ? route.params.initialTab
     : 'PeopleRelationshipsTab';
@@ -215,6 +240,130 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     () => (currentAssignedPersonId ? peopleById.get(currentAssignedPersonId) ?? null : null),
     [currentAssignedPersonId, peopleById],
   );
+  const returnTreeAssignedPersonId = useMemo(
+    () => (returnTreeBundle?.tree ? getAssignedPersonId(returnTreeBundle.tree, user?.id) : null),
+    [returnTreeBundle?.tree, user?.id],
+  );
+  const returnTreePeopleById = useMemo(
+    () => new Map((returnTreeBundle?.people ?? []).map((person) => [person.id, person])),
+    [returnTreeBundle?.people],
+  );
+  const returnTreeAssignedPerson = useMemo(
+    () => (returnTreeAssignedPersonId ? returnTreePeopleById.get(returnTreeAssignedPersonId) ?? null : null),
+    [returnTreeAssignedPersonId, returnTreePeopleById],
+  );
+  const combinedRelationshipPeople = useMemo(() => {
+    const peopleByIdMap = new Map<string, PersonRecord>();
+    (returnTreeBundle?.people ?? []).forEach((person) => {
+      peopleByIdMap.set(person.id, person);
+    });
+    people.forEach((person) => {
+      peopleByIdMap.set(person.id, person);
+    });
+    return [...peopleByIdMap.values()];
+  }, [people, returnTreeBundle?.people]);
+  const combinedRelationshipRecords = useMemo(() => {
+    const relationshipsById = new Map<string, RelationshipRecord>();
+    (returnTreeBundle?.relationships ?? []).forEach((relationship) => {
+      relationshipsById.set(relationship.id, relationship);
+    });
+    relationships.forEach((relationship) => {
+      relationshipsById.set(relationship.id, relationship);
+    });
+    return [...relationshipsById.values()];
+  }, [relationships, returnTreeBundle?.relationships]);
+  const viewerPersonPreferredPhoto = useMemo(
+    () => getDisplayPersonPhoto(viewerPerson),
+    [viewerPerson],
+  );
+  const viewerRelationshipInsight = useMemo(
+    () => (returnTreeAssignedPerson && viewerPerson
+      ? computeRelationshipInsight(combinedRelationshipPeople, combinedRelationshipRecords, returnTreeAssignedPerson.id, viewerPerson.id)
+      : null),
+    [combinedRelationshipPeople, combinedRelationshipRecords, returnTreeAssignedPerson, viewerPerson],
+  );
+  const viewerTimeline = useMemo(() => {
+    if (!viewerPerson) {
+      return [] as Array<{
+        id: string;
+        date: string;
+        title: string;
+        description: string;
+        badgeLabel: string;
+        system: boolean;
+      }>;
+    }
+
+    const items = viewerPerson.lifeEvents.map((event) => ({
+      id: event.id,
+      date: event.date,
+      title: event.title,
+      description: event.description,
+      badgeLabel: getLifeEventTypeLabel(event.type),
+      system: false,
+    }));
+    const hasManualDeathEvent = viewerPerson.lifeEvents.some((event) => event.type === 'death');
+
+    if (viewerPerson.birthDate) {
+      items.push({
+        id: `birth-${viewerPerson.id}`,
+        date: viewerPerson.birthDate,
+        title: t('Birth'),
+        description: t('{name} was born.', { name: formatPersonName(viewerPerson) }),
+        badgeLabel: t('Birth'),
+        system: true,
+      });
+    }
+
+    if (viewerPerson.deathDate && !hasManualDeathEvent) {
+      items.push({
+        id: `death-${viewerPerson.id}`,
+        date: viewerPerson.deathDate,
+        title: t('In memory'),
+        description: t('{name} passed away.', { name: formatPersonName(viewerPerson) }),
+        badgeLabel: t('In memory'),
+        system: true,
+      });
+    }
+
+    return items.sort((left, right) => left.date.localeCompare(right.date));
+  }, [t, viewerPerson]);
+  const maidenViewerPeople = useMemo(
+    () => [...people].sort((left, right) => formatPersonName(left).localeCompare(formatPersonName(right))),
+    [people],
+  );
+  const filteredMaidenViewerPeople = useMemo(() => {
+    const normalizedQuery = maidenMemberSearchQuery.trim().toLowerCase();
+    if (!normalizedQuery) {
+      return maidenViewerPeople;
+    }
+
+    return maidenViewerPeople.filter((person) => {
+      const searchableText = [
+        formatPersonName(person),
+        person.middleNames ?? '',
+        person.nicknames?.join(' ') ?? '',
+        person.birthPlace ?? '',
+        person.hometown ?? '',
+        person.familyBranch ?? '',
+        person.clanName ?? '',
+        person.surnameVariantHints?.join(' ') ?? '',
+        person.birthDate,
+        person.deathDate,
+        person.notes,
+        getPersonPresenceLabel(person),
+      ].join(' ').toLowerCase();
+      return searchableText.includes(normalizedQuery);
+    });
+  }, [maidenMemberSearchQuery, maidenViewerPeople]);
+  const maidenMembersTotalPages = useMemo(
+    () => Math.max(1, Math.ceil(filteredMaidenViewerPeople.length / MAIDEN_MEMBERS_PER_PAGE)),
+    [filteredMaidenViewerPeople.length],
+  );
+  const paginatedMaidenViewerPeople = useMemo(() => {
+    const startIndex = (maidenMembersPage - 1) * MAIDEN_MEMBERS_PER_PAGE;
+    return filteredMaidenViewerPeople.slice(startIndex, startIndex + MAIDEN_MEMBERS_PER_PAGE);
+  }, [filteredMaidenViewerPeople, maidenMembersPage]);
 
   const availableSelfLinkPeople = useMemo(
     () => people
@@ -256,6 +405,38 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
   }, [navigation, selectedTree]);
 
   useEffect(() => {
+    if (!isMaidenViewerMode || !route.params.returnTreeId) {
+      setReturnTreeBundle(null);
+      return;
+    }
+
+    let cancelled = false;
+    void getTreeBundle(route.params.returnTreeId)
+      .then((bundle) => {
+        if (!cancelled) {
+          setReturnTreeBundle(bundle);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setReturnTreeBundle(null);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isMaidenViewerMode, route.params.returnTreeId]);
+
+  useEffect(() => {
+    setMaidenMembersPage(1);
+  }, [maidenMemberSearchQuery, maidenMembersVisible, people]);
+
+  useEffect(() => {
+    setMaidenMembersPage((page) => Math.min(page, maidenMembersTotalPages));
+  }, [maidenMembersTotalPages]);
+
+  useEffect(() => {
     if (!loadingTrees && !selectedTree && selectedTreeId !== route.params.treeId) {
       if (navigation.canGoBack()) {
         navigation.goBack();
@@ -280,11 +461,17 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
   }, [t]);
 
   const openPersonProfile = useCallback((person: PersonRecord) => {
+    if (isMaidenViewerMode) {
+      setViewerPerson(person);
+      setViewerProfileTab('summary');
+      setViewerPhotoIndex(null);
+      return;
+    }
     navigation.navigate('PersonProfile', {
       treeId: route.params.treeId,
       personId: person.id,
     });
-  }, [navigation, route.params.treeId]);
+  }, [isMaidenViewerMode, navigation, route.params.treeId]);
 
   const closePersonDialog = useCallback(() => {
     setPersonDialog({ visible: false, mode: 'create', person: null, initialPendingRelationships: [] });
@@ -292,6 +479,14 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
 
   const closeNodeQuickActions = useCallback(() => {
     setNodeQuickActionState({ visible: false, person: null });
+  }, []);
+  const closeViewerPersonDialog = useCallback(() => {
+    setViewerPerson(null);
+    setViewerProfileTab('summary');
+    setViewerPhotoIndex(null);
+  }, []);
+  const closeMaidenMembersModal = useCallback(() => {
+    setMaidenMembersVisible(false);
   }, []);
 
   const openCreateRelativeDialog = useCallback((mode: PendingRelationshipSubmission['mode'], relatedPerson: PersonRecord) => {
@@ -463,7 +658,16 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
 
   const onOpenAddPerson = useCallback(() => setPersonDialog({ visible: true, mode: 'create', person: null, initialPendingRelationships: [] }), []);
   const onOpenRelationshipDialog = useCallback(() => setRelationshipDialogVisible(true), []);
-  const onOpenPersonQuickActions = useCallback((person: PersonRecord) => setNodeQuickActionState({ visible: true, person }), []);
+  const onOpenPersonQuickActions = useCallback((person: PersonRecord) => {
+    if (isMaidenViewerMode) {
+      setViewerPerson(person);
+      setViewerProfileTab('summary');
+      setViewerPhotoIndex(null);
+      return;
+    }
+
+    setNodeQuickActionState({ visible: true, person });
+  }, [isMaidenViewerMode]);
   const onOpenCollaboratorDialog = useCallback(() => setCollaboratorDialogVisible(true), []);
   const onOpenAddSelf = useCallback(() => setSelfPersonDialogVisible(true), []);
   const onEditPerson = useCallback((person: PersonRecord) => setPersonDialog({ visible: true, mode: 'edit', person, initialPendingRelationships: [] }), []);
@@ -638,6 +842,346 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: theme.colors.background }]}>
         <ActivityIndicator color={theme.colors.primary} />
+      </View>
+    );
+  }
+
+  if (isMaidenViewerMode) {
+    return (
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <View
+          style={{
+            position: 'absolute',
+            top: 16,
+            left: 16,
+            right: 16,
+            zIndex: 20,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <Button
+            mode="contained-tonal"
+            icon="arrow-left"
+            onPress={() => navigation.goBack()}
+            style={{ borderRadius: 999 }}
+            contentStyle={{ paddingHorizontal: 6 }}
+          >
+            {t('Back to {treeName}', { treeName: returnTree?.name ?? t('original tree') })}
+          </Button>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <IconButton
+              mode="contained"
+              icon="family-tree"
+              onPress={() => {
+                if (canvasActiveFamilyRef.current) {
+                  canvasFamilySwitchRef.current?.(canvasActiveFamilyRef.current);
+                }
+              }}
+            />
+            <IconButton
+              mode={maidenMembersVisible ? 'contained' : 'contained-tonal'}
+              icon="account-group-outline"
+              onPress={() => setMaidenMembersVisible(true)}
+              selected={maidenMembersVisible}
+            />
+          </View>
+        </View>
+
+        <View style={{ flex: 1, paddingTop: 84 }}>
+          <VisualisationTabContent {...sharedTabProps} />
+        </View>
+
+        <Portal>
+          <Dialog
+            visible={maidenMembersVisible}
+            onDismiss={closeMaidenMembersModal}
+            style={[dialogChrome.dialog, { backgroundColor: theme.colors.surface, maxHeight: '88%' }]}
+          >
+            <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>
+              {t('Maiden family members')}
+            </Dialog.Title>
+            <IconButton
+              icon="close"
+              size={20}
+              onPress={closeMaidenMembersModal}
+              style={dialogChrome.closeButton}
+              accessibilityLabel={t('Close')}
+            />
+            <Dialog.ScrollArea style={dialogChrome.content}>
+              <View style={{ gap: 12, paddingBottom: 8 }}>
+                <View style={styles.searchRow}>
+                  <Searchbar
+                    placeholder={t('Search family members')}
+                    value={maidenMemberSearchQuery}
+                    onChangeText={setMaidenMemberSearchQuery}
+                    style={styles.searchBar}
+                    inputStyle={{ minHeight: 0 }}
+                    elevation={0}
+                    iconColor={theme.colors.onSurfaceVariant}
+                    clearIcon="close"
+                    onClearIconPress={() => setMaidenMemberSearchQuery('')}
+                  />
+                </View>
+                {filteredMaidenViewerPeople.length === 0 ? (
+                  <View style={styles.emptyState}>
+                    <Text variant="titleMedium">{t('No matching family members')}</Text>
+                    <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
+                      {t('Try adjusting the search.')}
+                    </Text>
+                  </View>
+                ) : (
+                  <>
+                    <View style={[styles.resultsPill, { backgroundColor: theme.colors.surfaceVariant }]}>
+                      <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                        {t('{count} member(s)', { count: filteredMaidenViewerPeople.length })}
+                      </Text>
+                    </View>
+                    <ScrollView contentContainerStyle={{ gap: 10, paddingBottom: 8 }}>
+                {paginatedMaidenViewerPeople.map((person) => (
+                  <Pressable
+                    key={person.id}
+                    onPress={() => {
+                      setMaidenMembersVisible(false);
+                      setViewerPerson(person);
+                      setViewerProfileTab('summary');
+                      setViewerPhotoIndex(null);
+                    }}
+                  >
+                    <Card mode="contained" style={{ borderRadius: 12 }}>
+                      <Card.Content style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                        {getDisplayPersonPhoto(person) ? (
+                          <Image source={{ uri: getDisplayPersonPhoto(person)!.url }} style={{ width: 52, height: 52, borderRadius: 10 }} />
+                        ) : (
+                          <View style={{ width: 52, height: 52, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.surfaceVariant }}>
+                            <MaterialCommunityIcons name="account" size={22} color={theme.colors.primary} />
+                          </View>
+                        )}
+                        <View style={{ flex: 1 }}>
+                          <Text variant="titleMedium">{formatPersonName(person)}</Text>
+                          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                            {getPersonLifeSpanLabel(person)}
+                          </Text>
+                        </View>
+                        <IconButton icon="chevron-right" size={18} />
+                      </Card.Content>
+                    </Card>
+                  </Pressable>
+                ))}
+                    </ScrollView>
+                    {maidenMembersTotalPages > 1 ? (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                        <IconButton
+                          icon="chevron-left"
+                          onPress={() => setMaidenMembersPage((page) => Math.max(1, page - 1))}
+                          disabled={maidenMembersPage === 1}
+                          accessibilityLabel={t('Previous page')}
+                        />
+                        <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+                          {t('Page {current} of {total}', { current: maidenMembersPage, total: maidenMembersTotalPages })}
+                        </Text>
+                        <IconButton
+                          icon="chevron-right"
+                          onPress={() => setMaidenMembersPage((page) => Math.min(maidenMembersTotalPages, page + 1))}
+                          disabled={maidenMembersPage === maidenMembersTotalPages}
+                          accessibilityLabel={t('Next page')}
+                        />
+                      </View>
+                    ) : null}
+                  </>
+                )}
+              </View>
+            </Dialog.ScrollArea>
+          </Dialog>
+          <Dialog
+            visible={Boolean(viewerPerson)}
+            onDismiss={closeViewerPersonDialog}
+            style={[dialogChrome.dialog, { backgroundColor: theme.colors.surface, maxHeight: '88%' }]}
+          >
+            <Button
+              mode="text"
+              icon="arrow-left"
+              onPress={() => {
+                setViewerPerson(null);
+                setViewerProfileTab('summary');
+                setViewerPhotoIndex(null);
+                setMaidenMembersVisible(true);
+              }}
+              style={{ alignSelf: 'flex-start', marginTop: 8, marginLeft: 8 }}
+              contentStyle={{ justifyContent: 'flex-start' }}
+            >
+              {t('Back to members')}
+            </Button>
+            <IconButton
+              icon="close"
+              size={20}
+              onPress={closeViewerPersonDialog}
+              style={dialogChrome.closeButton}
+              accessibilityLabel={t('Close')}
+            />
+            {viewerPerson ? (
+              <>
+                <Dialog.Content style={dialogChrome.content}>
+                  <View style={{ flexDirection: 'row', gap: 16, alignItems: 'center', marginBottom: 16 }}>
+                    {viewerPersonPreferredPhoto ? (
+                      <Image source={{ uri: viewerPersonPreferredPhoto.url }} style={{ width: 72, height: 72, borderRadius: 12 }} />
+                    ) : (
+                      <View style={{ width: 72, height: 72, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.surfaceVariant }}>
+                        <MaterialCommunityIcons name="account" size={30} color={theme.colors.primary} />
+                      </View>
+                    )}
+                    <View style={{ flex: 1 }}>
+                      <Text variant="titleLarge">{formatPersonName(viewerPerson)}</Text>
+                      <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+                        {getPersonLifeSpanLabel(viewerPerson)}
+                      </Text>
+                      <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                        {getPersonPresenceLabel(viewerPerson)}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <HorizontalTabStrip
+                    items={[
+                      { key: 'summary', label: t('Summary') },
+                      { key: 'life', label: t('Life events') },
+                      { key: 'photos', label: t('Photos') },
+                    ]}
+                    activeKey={viewerProfileTab}
+                    onChange={(key) => setViewerProfileTab(key as ViewerProfileTabKey)}
+                    containerStyle={{ backgroundColor: theme.colors.surfaceVariant, borderRadius: 24, marginBottom: 16 }}
+                    contentContainerStyle={{ paddingHorizontal: 8, paddingVertical: 4 }}
+                    itemStyle={{ paddingHorizontal: 12, paddingVertical: 10 }}
+                  />
+
+                  <ScrollView style={{ maxHeight: 440 }} contentContainerStyle={{ paddingBottom: 8 }}>
+                    {viewerProfileTab === 'summary' ? (
+                      <View style={{ gap: 12 }}>
+                        <Card mode="contained" style={{ borderRadius: 12 }}>
+                          <Card.Content>
+                            <Text variant="titleMedium">{t('How you relate')}</Text>
+                            <Text variant="bodyMedium" style={{ marginTop: 8 }}>
+                              {returnTreeAssignedPerson && viewerRelationshipInsight
+                                ? t('{name} is your {relationship}', {
+                                  name: viewerPerson.firstName || formatPersonName(viewerPerson),
+                                  relationship: viewerRelationshipInsight.relationship.toLowerCase(),
+                                })
+                                : returnTreeAssignedPerson
+                                  ? t('No family connection found in this tree yet.')
+                                  : t('No linked profile found in the original tree.')}
+                            </Text>
+                          </Card.Content>
+                        </Card>
+                        <Card mode="contained" style={{ borderRadius: 12 }}>
+                          <Card.Content>
+                            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                              {viewerPerson.maidenName?.trim() ? <Chip>{viewerPerson.maidenName.trim()}</Chip> : null}
+                              {viewerPerson.birthDate ? <Chip icon="calendar">{formatPersonDate(viewerPerson.birthDate)}</Chip> : null}
+                              {viewerPerson.deathDate ? <Chip icon="calendar-remove">{formatPersonDate(viewerPerson.deathDate)}</Chip> : null}
+                            </View>
+                            <Text variant="bodyMedium" style={{ marginTop: 12, color: theme.colors.onSurfaceVariant }}>
+                              {viewerPerson.notes?.trim() || t('No notes added yet.')}
+                            </Text>
+                          </Card.Content>
+                        </Card>
+                      </View>
+                    ) : null}
+
+                    {viewerProfileTab === 'life' ? (
+                      viewerTimeline.length > 0 ? (
+                        <View style={{ gap: 12 }}>
+                          {viewerTimeline.map((item) => (
+                            <Card key={item.id} mode="contained" style={{ borderRadius: 12 }}>
+                              <Card.Content>
+                                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+                                  <Chip compact>{item.badgeLabel}</Chip>
+                                  <Chip compact icon="calendar">{formatPersonDate(item.date)}</Chip>
+                                </View>
+                                <Text variant="titleMedium">{item.title}</Text>
+                                <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
+                                  {item.description}
+                                </Text>
+                              </Card.Content>
+                            </Card>
+                          ))}
+                        </View>
+                      ) : (
+                        <View style={{ paddingVertical: 12 }}>
+                          <Text variant="titleMedium">{t('No life events yet')}</Text>
+                          <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
+                            {t('Life milestones and memories will appear here.')}
+                          </Text>
+                        </View>
+                      )
+                    ) : null}
+
+                    {viewerProfileTab === 'photos' ? (
+                      viewerPerson.photos.length > 0 ? (
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingVertical: 4 }}>
+                          {viewerPerson.photos.map((photo, index) => (
+                            <Pressable key={photo.id} onPress={() => setViewerPhotoIndex(index)}>
+                              <Card mode="elevated" style={{ borderRadius: 12, overflow: 'hidden' }}>
+                                <Image source={{ uri: photo.url }} style={{ width: 180, height: 180 }} />
+                              </Card>
+                            </Pressable>
+                          ))}
+                        </ScrollView>
+                      ) : (
+                        <View style={{ paddingVertical: 12 }}>
+                          <Text variant="titleMedium">{t('No photos yet')}</Text>
+                          <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
+                            {t('Photos and scanned keepsakes will show up here.')}
+                          </Text>
+                        </View>
+                      )
+                    ) : null}
+                  </ScrollView>
+                </Dialog.Content>
+              </>
+            ) : null}
+          </Dialog>
+        </Portal>
+
+        <Modal visible={viewerPhotoIndex !== null && Boolean(viewerPerson)} transparent animationType="fade" onRequestClose={() => setViewerPhotoIndex(null)}>
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+            <IconButton
+              icon="close"
+              size={24}
+              iconColor="#fff"
+              style={{ position: 'absolute', top: 24, right: 24, zIndex: 2 }}
+              onPress={() => setViewerPhotoIndex(null)}
+            />
+            {viewerPerson && viewerPhotoIndex !== null ? (
+              <Image
+                source={{ uri: (viewerPerson.photos[viewerPhotoIndex] as PersonPhoto | undefined)?.url }}
+                style={{ width: '100%', height: '80%', resizeMode: 'contain' }}
+              />
+            ) : null}
+          </View>
+        </Modal>
+
+        <ConfirmDialog
+          visible={confirmState.visible}
+          title={confirmState.title}
+          message={confirmState.message}
+          confirmLabel={confirmState.confirmLabel}
+          loading={mutating}
+          onDismiss={closeConfirm}
+          onConfirm={handleConfirm}
+        />
+
+        <Snackbar
+          visible={snackVisible}
+          onDismiss={() => {
+            setSnackVisible(false);
+            clearError();
+            clearNotice();
+          }}
+          duration={3000}
+        >
+          {error || notice || t('Done')}
+        </Snackbar>
       </View>
     );
   }
