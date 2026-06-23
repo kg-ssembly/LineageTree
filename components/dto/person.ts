@@ -16,6 +16,8 @@ export interface PersonPhoto {
   id: string;
   url: string;
   path: string;
+  displayUrl?: string;
+  displayPath?: string;
   createdAt: string;
 }
 
@@ -98,7 +100,18 @@ export function getPersonTreeMembershipIds(person?: PersonRecord | null) {
 }
 
 export function getDisplayPersonPhoto(person?: PersonRecord | null) {
-  return getPreferredPersonPhoto(person) ?? person?.photos[0] ?? null;
+  const preferredPhoto = getPreferredPersonPhoto(person);
+  if (preferredPhoto) {
+    return preferredPhoto.displayUrl
+      ? {
+          ...preferredPhoto,
+          url: preferredPhoto.displayUrl,
+          path: preferredPhoto.displayPath ?? preferredPhoto.path,
+        }
+      : preferredPhoto;
+  }
+
+  return person?.photos[0] ?? null;
 }
 
 function getPersonAgeInYears(person?: PersonRecord | null) {

@@ -30,7 +30,7 @@ import {
   formatPersonDate,
   getPersonFallbackAvatarIcon,
   getPersonPresenceLabel,
-  getPreferredPersonPhoto,
+  getDisplayPersonPhoto,
   isPersonDeceased,
   parsePersonDate,
 } from '../../components/dto/person';
@@ -999,7 +999,7 @@ export function PeopleRelationshipsTabContent({
   };
 
   const renderMemberItem = ({ item: person }: { item: PersonRecord }) => {
-    const preferredPhoto = getPreferredPersonPhoto(person);
+    const preferredPhoto = getDisplayPersonPhoto(person);
     const isCurrentUsersPerson = currentAssignedPerson?.id === person.id;
 
     return (

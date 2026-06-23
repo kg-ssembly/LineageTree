@@ -46,7 +46,7 @@ import {
   getPersonFallbackAvatarIcon,
   getPersonLifeSpanLabel,
   getPersonPresenceLabel,
-  getPreferredPersonPhoto,
+  getDisplayPersonPhoto,
 } from './dto/person';
 import type { RelationshipRecord } from './dto/relationship';
 import { GlobalStyles } from '../constants/styles';
@@ -258,7 +258,7 @@ const PersonNode = React.memo(function PersonNode(props: PersonNodeProps) {
     variantSurface, variantOnSurface, onPrimaryColor,
     onPress,
   } = props;
-  const photo = getPreferredPersonPhoto(person);
+  const photo = getDisplayPersonPhoto(person);
 
   const handlePress = useCallback(() => {
     onPress(person);

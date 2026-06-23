@@ -1,6 +1,7 @@
 import type { PersonInput, PersonLifeEvent, PersonPhoto, PersonRecord } from './dto/person';
 import { parsePersonDate } from './dto/person';
 import type { ParentChildRelationshipKind, RelationshipRecord, RelationshipType, SpouseRelationshipStatus } from './dto/relationship';
+import { MAX_PHOTOS_PER_PERSON } from './photo-utils';
 import { translate } from '../i18n';
 
 const MIN_BIOLOGICAL_PARENT_AGE = 12;
@@ -337,6 +338,10 @@ export function getPersonValidationFeedback({
 
   if (duplicateNewPhoto || duplicateAgainstExisting) {
     errors.push(translate('Remove duplicate photos before saving.'));
+  }
+
+  if (activeExistingPhotos.length + newPhotoUris.length > MAX_PHOTOS_PER_PERSON) {
+    errors.push(translate('You can save up to 5 photos per family member.'));
   }
 
   const exactRelationshipSignature = getRelationshipSignature(pendingRelationships);

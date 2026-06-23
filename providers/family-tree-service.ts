@@ -26,6 +26,7 @@ import type { ApprovalRequest, ApprovalRequestPayload, ApprovalSubmissionResult 
 import type { MergeApproval, MergeConflictChoice, MergeHistoryRecord, MergePreview, MergeRequestRecord, MergeRequestSnapshot, MergeReviewDecision } from '../components/dto/merge';
 import type { AppNotification, NotificationActivityState } from '../components/dto/notification';
 import type { PersonInput, PersonLifeEvent, PersonMutationPayload, PersonPhoto, PersonRecord } from '../components/dto/person';
+import { cropPhotoForPreferredDisplay, MAX_PHOTO_BYTES } from '../components/photo-utils';
 import type { ParentChildRelationshipKind, RelationshipRecord, SpouseRelationshipStatus } from '../components/dto/relationship';
 import { DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND, DEFAULT_SPOUSE_RELATIONSHIP_STATUS } from '../components/dto/relationship';
 import type { CollaboratorRole, FamilyTree, SurnameVariantGroup, TreeCollaborator, TreeMembershipHistoryEntry, TreeRole } from '../components/dto/tree';
@@ -188,6 +189,8 @@ function mapPhoto(photo: any, index: number): PersonPhoto {
     id: photo?.id ?? `${photo?.path ?? photo?.url ?? 'photo'}-${index}`,
     url: photo?.url ?? '',
     path: photo?.path ?? '',
+    displayUrl: photo?.displayUrl ?? '',
+    displayPath: photo?.displayPath ?? '',
     createdAt: photo?.createdAt ?? nowIso(),
   };
 }
@@ -616,6 +619,9 @@ async function uploadPersonPhotos(
     const photoId = `${Date.now()}-${index}`;
     const path = `treePhotos/${treeId}/${personId}/${actorUserId}-${photoId}.${extension}`;
     const blob = await uriToBlob(uri);
+    if (blob.size > MAX_PHOTO_BYTES) {
+      throw new Error('Each photo must be smaller than 2 MB before upload.');
+    }
     const storageRef = ref(storage, path);
     await uploadBytes(storageRef, blob, { contentType: `image/${safeExtension}` });
     const url = await getDownloadURL(storageRef);
@@ -631,13 +637,73 @@ async function uploadPersonPhotos(
   return uploadedPhotos;
 }
 
+async function uploadPreferredPhotoDisplayVariant(
+  actorUserId: string,
+  treeId: string,
+  personId: string,
+  preferredPhotoId: string,
+  sourceUri: string,
+) {
+  const croppedPreferred = await cropPhotoForPreferredDisplay(sourceUri);
+  if (croppedPreferred.sizeBytes > MAX_PHOTO_BYTES) {
+    throw new Error('The preferred photo could not be cropped and compressed below 2 MB.');
+  }
+
+  const path = `treePhotos/${treeId}/${personId}/${actorUserId}-${preferredPhotoId}-preferred.jpeg`;
+  const blob = await uriToBlob(croppedPreferred.uri);
+  const storageRef = ref(storage, path);
+  await uploadBytes(storageRef, blob, { contentType: 'image/jpeg' });
+  const url = await getDownloadURL(storageRef);
+
+  return { url, path };
+}
+
+function applyPreferredPhotoDisplayVariant(
+  photos: PersonPhoto[],
+  preferredPhotoId: string,
+  preferredDisplayPhoto?: { url: string; path: string } | null,
+) {
+  return photos.map((photo) => {
+    if (photo.id !== preferredPhotoId) {
+      return {
+        ...photo,
+        displayUrl: '',
+        displayPath: '',
+      };
+    }
+
+    return {
+      ...photo,
+      displayUrl: preferredDisplayPhoto?.url ?? '',
+      displayPath: preferredDisplayPhoto?.path ?? '',
+    };
+  });
+}
+
+function resolvePreferredPhotoSourceUri(
+  preferredPhotoRef: string | undefined,
+  existingPhotos: PersonPhoto[],
+  newPhotoUris: string[],
+) {
+  if (!preferredPhotoRef) {
+    return '';
+  }
+
+  const existingPhoto = existingPhotos.find((photo) => photo.id === preferredPhotoRef);
+  if (existingPhoto) {
+    return existingPhoto.url;
+  }
+
+  return newPhotoUris.find((uri) => uri === preferredPhotoRef) ?? '';
+}
+
 async function deletePhotos(photos: PersonPhoto[]) {
   await Promise.all(
     photos
-      .filter((photo) => photo.path)
-      .map(async (photo) => {
+      .flatMap((photo) => [photo.path, photo.displayPath].filter(Boolean))
+      .map(async (path) => {
         try {
-          await deleteObject(ref(storage, photo.path));
+          await deleteObject(ref(storage, path!));
         } catch {
           // Ignore missing objects so a partially deleted tree can still be cleaned up.
         }
@@ -1329,12 +1395,24 @@ async function preparePersonUpdatePreview(
   input: PersonMutationPayload,
 ) {
   const uploadedPhotos = await uploadPersonPhotos(actorUserId, person.treeId, person.id, input.newPhotoUris);
-  const nextPhotos = [...input.existingPhotos, ...uploadedPhotos];
   const preferredPhotoId = resolvePreferredPhotoId(
     input.preferredPhotoRef,
     input.existingPhotos,
     input.newPhotoUris,
     uploadedPhotos,
+  );
+  const preferredPhotoSourceUri = resolvePreferredPhotoSourceUri(
+    input.preferredPhotoRef,
+    input.existingPhotos,
+    input.newPhotoUris,
+  );
+  const preferredDisplayPhoto = preferredPhotoId && preferredPhotoSourceUri
+    ? await uploadPreferredPhotoDisplayVariant(actorUserId, person.treeId, person.id, preferredPhotoId, preferredPhotoSourceUri)
+    : null;
+  const nextPhotos = applyPreferredPhotoDisplayVariant(
+    [...input.existingPhotos, ...uploadedPhotos],
+    preferredPhotoId,
+    preferredDisplayPhoto,
   );
   const timestamp = nowIso();
 
@@ -1358,6 +1436,14 @@ async function preparePersonUpdatePreview(
     nextPerson,
     uploadedPhotos,
     removedPhotos: input.removedPhotos,
+    cleanupPhotos: input.existingPhotos
+      .filter((photo) => photo.displayPath)
+      .filter((photo) => photo.id !== preferredPhotoId)
+      .map((photo) => ({
+        ...photo,
+        url: '',
+        path: '',
+      })),
   };
 }
 
@@ -1383,6 +1469,7 @@ async function applyApprovedPersonUpdate(payload: ApprovalRequestPayload) {
   });
 
   await deletePhotos(payload.removedPhotos ?? []);
+  await deletePhotos(payload.cleanupPhotos ?? []);
 
   const parentIds = await getParentIdsForChild(nextPerson.treeId, nextPerson.id);
   await updateParentLifeEventsForChild(parentIds, {
@@ -1396,6 +1483,7 @@ async function applyApprovedPersonUpdate(payload: ApprovalRequestPayload) {
 
 async function rejectApprovedPersonUpdate(payload: ApprovalRequestPayload) {
   await deletePhotos(payload.uploadedPhotos ?? []);
+  await deletePhotos(payload.cleanupPhotos ?? []);
 }
 
 async function applyApprovedDeletePerson(payload: ApprovalRequestPayload) {
@@ -1484,13 +1572,14 @@ export async function submitPersonUpdateApproval(
 ): Promise<ApprovalSubmissionResult> {
   const tree = await getTreeById(person.treeId);
   const requesterLabel = getRequesterLabel(tree, actorUserId);
-  const { nextPerson, uploadedPhotos, removedPhotos } = await preparePersonUpdatePreview(actorUserId, person, input);
+  const { nextPerson, uploadedPhotos, removedPhotos, cleanupPhotos } = await preparePersonUpdatePreview(actorUserId, person, input);
   const timestamp = nowIso();
   const payload: ApprovalRequestPayload = {
     beforePerson: person,
     afterPerson: nextPerson,
     removedPhotos,
     uploadedPhotos,
+    cleanupPhotos,
   };
   const { eligibleApproverIds, autoApproveBecauseNoSameSurnameContributor } = await getEligibleApproverIds(tree, actorUserId, payload);
 
@@ -2557,6 +2646,12 @@ export async function createPerson(
   const personRef = doc(collection(db, PEOPLE_COLLECTION));
   const timestamp = nowIso();
   const uploadedPhotos = await uploadPersonPhotos(actorUserId, treeId, personRef.id, newPhotoUris);
+  const preferredPhotoId = resolvePreferredPhotoId(input.preferredPhotoRef, [], newPhotoUris, uploadedPhotos);
+  const preferredPhotoSourceUri = resolvePreferredPhotoSourceUri(input.preferredPhotoRef, [], newPhotoUris);
+  const preferredDisplayPhoto = preferredPhotoId && preferredPhotoSourceUri
+    ? await uploadPreferredPhotoDisplayVariant(actorUserId, treeId, personRef.id, preferredPhotoId, preferredPhotoSourceUri)
+    : null;
+  const nextPhotos = applyPreferredPhotoDisplayVariant(uploadedPhotos, preferredPhotoId, preferredDisplayPhoto);
 
   const person: Omit<PersonRecord, 'id'> = {
     treeId,
@@ -2580,8 +2675,8 @@ export async function createPerson(
     gender: input.gender,
     notes: input.notes.trim(),
     lifeEvents: normaliseLifeEvents(input.lifeEvents),
-    photos: uploadedPhotos,
-    preferredPhotoId: resolvePreferredPhotoId(input.preferredPhotoRef, [], newPhotoUris, uploadedPhotos),
+    photos: nextPhotos,
+    preferredPhotoId,
     createdAt: timestamp,
     updatedAt: timestamp,
   };

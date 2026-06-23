@@ -13,6 +13,7 @@ export interface ApprovalRequestPayload {
   relationship?: RelationshipRecord | null;
   removedPhotos?: PersonPhoto[];
   uploadedPhotos?: PersonPhoto[];
+  cleanupPhotos?: PersonPhoto[];
 }
 
 export interface ApprovalRequest {

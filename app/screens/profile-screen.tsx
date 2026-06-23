@@ -34,13 +34,14 @@ import type { RootStackParamList } from '../../components/dto/navigation';
 import type { PersonLifeEvent, PersonMutationPayload, PersonPhoto, PersonRecord } from '../../components/dto/person';
 import {
   formatPersonDate,
+  getDisplayPersonPhoto,
   getLifeEventTypeLabel,
   getPersonLifeSpanLabel,
   getPersonPresenceLabel,
   getPersonTreeMembershipIds,
-  getPreferredPersonPhoto,
   isPersonDeceased,
 } from '../../components/dto/person';
+import { cropPhotoForPreferredDisplay, MAX_PHOTOS_PER_PERSON, MAX_PHOTO_BYTES, preparePhotoForUpload } from '../../components/photo-utils';
 import type { ParentChildRelationshipKind, RelationshipRecord, SpouseRelationshipStatus } from '../../components/dto/relationship';
 import { canEditTreeContent, getAssignedPersonId } from '../../components/dto/tree';
 import { getPersonValidationFeedback } from '../../components/family-tree-validation';
@@ -358,6 +359,7 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
   const [photoEditorRemovedPhotos, setPhotoEditorRemovedPhotos] = useState<PersonPhoto[]>([]);
   const [photoEditorNewPhotoUris, setPhotoEditorNewPhotoUris] = useState<string[]>([]);
   const [photoEditorPreferredPhotoRef, setPhotoEditorPreferredPhotoRef] = useState('');
+  const [photoProcessing, setPhotoProcessing] = useState(false);
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const [snackVisible, setSnackVisible] = useState(false);
   const [confirmState, setConfirmState] = useState<ConfirmState>({
@@ -524,7 +526,7 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
   }, [currentAssignedPerson, currentAssignedPersonId, defaultAssignedPersonId, defaultTree, profileTree, selectedTree, t, trees.length, user?.defaultTreeId]);
 
   const linkedPerson = currentAssignedPerson;
-  const preferredPhoto = getPreferredPersonPhoto(linkedPerson);
+  const preferredPhoto = getDisplayPersonPhoto(linkedPerson);
   const existingLastNames = useMemo(
     () => [...new Set(people.map((person) => person.lastName.trim()).filter(Boolean))].sort((left, right) => left.localeCompare(right)),
     [people],
@@ -720,9 +722,30 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
     setPhotosDialogVisible(true);
   };
 
-  const addPhotoFromPickerResult = (result: ImagePicker.ImagePickerResult) => {
-    if (!result.canceled && result.assets.length > 0) {
-      setPhotoEditorNewPhotoUris((current) => [...current, result.assets[0].uri]);
+  const addPhotoFromPickerResult = async (result: ImagePicker.ImagePickerResult) => {
+    if (result.canceled || result.assets.length === 0) {
+      return;
+    }
+
+    if (photoEditorCount >= MAX_PHOTOS_PER_PERSON) {
+      Alert.alert(t('Photo limit reached'), t('You can save up to 5 photos per family member.'));
+      return;
+    }
+
+    setPhotoProcessing(true);
+
+    try {
+      const preparedPhoto = await preparePhotoForUpload(result.assets[0]);
+      if (preparedPhoto.sizeBytes > MAX_PHOTO_BYTES) {
+        Alert.alert(t('Photo too large'), t('This photo could not be compressed below 2 MB. Please choose a smaller image.'));
+        return;
+      }
+
+      setPhotoEditorNewPhotoUris((current) => [...current, preparedPhoto.uri]);
+    } catch {
+      Alert.alert(t('Photo processing failed'), t('We could not prepare this image. Please try a different photo.'));
+    } finally {
+      setPhotoProcessing(false);
     }
   };
 
@@ -737,11 +760,11 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      quality: 0.8,
+      allowsEditing: false,
+      quality: 1,
     });
 
-    addPhotoFromPickerResult(result);
+    await addPhotoFromPickerResult(result);
   };
 
   const handleCapturePhoto = async () => {
@@ -756,11 +779,11 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
     try {
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        quality: 0.8,
+        allowsEditing: false,
+        quality: 1,
       });
 
-      addPhotoFromPickerResult(result);
+      await addPhotoFromPickerResult(result);
     } catch {
       Alert.alert(t('Camera unavailable'), t('The camera could not be opened on this device.'));
     }
@@ -782,40 +805,59 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
       return;
     }
 
-    const nextPayload = buildPersonMutationPayload(linkedPerson, {
-      existingPhotos: photoEditorExistingPhotos,
-      removedPhotos: photoEditorRemovedPhotos,
-      newPhotoUris: photoEditorNewPhotoUris,
-      preferredPhotoRef: photoEditorPreferredPhotoRef,
-    });
-    const photoValidation = getPersonValidationFeedback({
-      people,
-      relationships,
-      person: {
-        firstName: nextPayload.firstName,
-        middleNames: nextPayload.middleNames,
-        lastName: nextPayload.lastName,
-        maidenName: nextPayload.maidenName ?? '',
-        birthDate: nextPayload.birthDate,
-        deathDate: nextPayload.deathDate,
-        notes: nextPayload.notes,
-        lifeEvents: nextPayload.lifeEvents,
-      },
-      existingPhotos: nextPayload.existingPhotos,
-      removedPhotos: nextPayload.removedPhotos,
-      newPhotoUris: nextPayload.newPhotoUris,
-      ignorePersonId: linkedPerson.id,
-    });
-    if (photoValidation.errors.length > 0) {
-      Alert.alert(t('Cannot save photos'), photoValidation.errors[0]);
-      return;
-    }
+    setPhotoProcessing(true);
 
     try {
+      let nextNewPhotoUris = [...photoEditorNewPhotoUris];
+      let nextPreferredPhotoRef = photoEditorPreferredPhotoRef;
+
+      const preferredNewPhotoIndex = nextNewPhotoUris.findIndex((uri) => uri === nextPreferredPhotoRef);
+      if (preferredNewPhotoIndex >= 0) {
+        const croppedPreferred = await cropPhotoForPreferredDisplay(nextNewPhotoUris[preferredNewPhotoIndex]);
+        if (croppedPreferred.sizeBytes > MAX_PHOTO_BYTES) {
+          Alert.alert(t('Photo too large'), t('This preferred photo could not be cropped and compressed below 2 MB. Please choose a smaller image.'));
+          return;
+        }
+
+        nextNewPhotoUris[preferredNewPhotoIndex] = croppedPreferred.uri;
+        nextPreferredPhotoRef = croppedPreferred.uri;
+      }
+
+      const nextPayload = buildPersonMutationPayload(linkedPerson, {
+        existingPhotos: photoEditorExistingPhotos,
+        removedPhotos: photoEditorRemovedPhotos,
+        newPhotoUris: nextNewPhotoUris,
+        preferredPhotoRef: nextPreferredPhotoRef,
+      });
+      const photoValidation = getPersonValidationFeedback({
+        people,
+        relationships,
+        person: {
+          firstName: nextPayload.firstName,
+          middleNames: nextPayload.middleNames,
+          lastName: nextPayload.lastName,
+          maidenName: nextPayload.maidenName ?? '',
+          birthDate: nextPayload.birthDate,
+          deathDate: nextPayload.deathDate,
+          notes: nextPayload.notes,
+          lifeEvents: nextPayload.lifeEvents,
+        },
+        existingPhotos: nextPayload.existingPhotos,
+        removedPhotos: nextPayload.removedPhotos,
+        newPhotoUris: nextPayload.newPhotoUris,
+        ignorePersonId: linkedPerson.id,
+      });
+      if (photoValidation.errors.length > 0) {
+        Alert.alert(t('Cannot save photos'), photoValidation.errors[0]);
+        return;
+      }
+
       await updatePerson(user.id, linkedPerson, nextPayload);
       setPhotosDialogVisible(false);
     } catch {
       // surfaced by store snackbar
+    } finally {
+      setPhotoProcessing(false);
     }
   };
 
@@ -1438,15 +1480,15 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
           <Dialog.ScrollArea style={personProfileStyles.memoryDialogScrollArea}>
             <ScrollView contentContainerStyle={personProfileStyles.memoryDialogContent} keyboardShouldPersistTaps="handled">
               <View style={personProfileStyles.memoryDialogPhotoActions}>
-                <Button mode="outlined" icon="image-plus" onPress={handleAddPhotoFromLibrary} disabled={mutating}>
+                <Button mode="outlined" icon="image-plus" onPress={handleAddPhotoFromLibrary} disabled={mutating || photoProcessing || photoEditorCount >= MAX_PHOTOS_PER_PERSON}>
                   {t('Library')}
                 </Button>
-                <Button mode="outlined" icon="camera" onPress={handleCapturePhoto} disabled={mutating}>
+                <Button mode="outlined" icon="camera" onPress={handleCapturePhoto} disabled={mutating || photoProcessing || photoEditorCount >= MAX_PHOTOS_PER_PERSON}>
                   {t('Camera')}
                 </Button>
               </View>
               <Text variant="bodySmall" style={personProfileStyles.memoryDialogHint}>
-                {t('Add photos from the library or camera, then tap the star on one image to make it the main profile photo.')}
+                {t('Add up to 5 photos. Every photo is compressed to stay under 2 MB. When you choose a preferred photo, that one is cropped to fit the circular tree avatar.')}
               </Text>
 
               {photoEditorCount > 0 ? (
@@ -1498,7 +1540,7 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
             </ScrollView>
           </Dialog.ScrollArea>
           <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
-            <Button mode="contained" onPress={handleSavePhotos} disabled={mutating}>{t('Save photos')}</Button>
+            <Button mode="contained" onPress={handleSavePhotos} disabled={mutating || photoProcessing}>{t('Save photos')}</Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>
