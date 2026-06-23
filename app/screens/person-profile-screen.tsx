@@ -5,7 +5,6 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import {
   ActivityIndicator,
-  BottomNavigation,
   Button,
   Card,
   Chip,
@@ -33,7 +32,7 @@ import {
   isPersonDeceased,
 } from '../../components/dto/person';
 import type { ParentChildRelationshipKind, RelationshipRecord, SpouseRelationshipStatus } from '../../components/dto/relationship';
-import type { RootStackParamList } from '../../components/dto/navigation';
+import type { MainTabParamList, RootStackParamList } from '../../components/dto/navigation';
 import { canEditTreeContent, getAssignedPersonId, getAssignedUserIdForPerson } from '../../components/dto/tree';
 import { getPersonValidationFeedback } from '../../components/family-tree-validation';
 import { cropPhotoForPreferredDisplay, MAX_PHOTOS_PER_PERSON, MAX_PHOTO_BYTES, preparePhotoForUpload } from '../../components/photo-utils';
@@ -41,6 +40,7 @@ import { formatPersonGender, formatPersonName } from '../../components/person-fo
 import { GlobalStyles } from '../../constants/styles';
 import { useI18n } from '../../hooks/use-i18n';
 const dialogChrome = GlobalStyles.dialogChrome;
+const treeDetailStyles = GlobalStyles.treeDetail;
 
 type Props = NativeStackScreenProps<RootStackParamList, 'PersonProfile'>;
 
@@ -179,7 +179,7 @@ const helperDialogCopy: Record<HelperDialogKey, { title: string; message: string
   },
   'member-profile': {
     title: 'Member profile',
-    message: 'Displays the first name, last name, birth date, gender, presence status, and photo count for this family member. Personal notes are shown at the bottom of this section. Use the floating pencil button to update these details.',
+    message: 'Displays the first name, last name, birth date, gender, presence status, and photo count for this family member. Personal notes are shown at the bottom of this section.',
   },
   relationships: {
     title: 'Relationships',
@@ -201,12 +201,25 @@ const helperDialogCopy: Record<HelperDialogKey, { title: string; message: string
 
 const styles = GlobalStyles.personProfile;
 
-const TAB_ROUTES: Array<{ key: PersonProfileTabKey; title: string; focusedIcon: string; unfocusedIcon: string }> = [
-  { key: 'member-profile', title: 'Profile', focusedIcon: 'account', unfocusedIcon: 'account-outline' },
-  { key: 'relationships', title: 'Relationships', focusedIcon: 'family-tree', unfocusedIcon: 'family-tree' },
-  { key: 'descendant-tree', title: 'Descendants', focusedIcon: 'arrow-down-thick', unfocusedIcon: 'arrow-down-thick' },
-  { key: 'ascendant-tree', title: 'Ancestors', focusedIcon: 'arrow-up-thick', unfocusedIcon: 'arrow-up-thick' },
-  { key: 'memories-gallery', title: 'Memories', focusedIcon: 'image-multiple', unfocusedIcon: 'image-multiple-outline' },
+const PROFILE_TABS: Array<{ key: PersonProfileTabKey; label: string }> = [
+  { key: 'member-profile', label: 'Profile' },
+  { key: 'relationships', label: 'Relationships' },
+  { key: 'memories-gallery', label: 'Memories' },
+  { key: 'descendant-tree', label: 'Descendants' },
+  { key: 'ascendant-tree', label: 'Ascendants' },
+];
+
+const APP_TAB_ROUTES: Array<{
+  key: keyof MainTabParamList;
+  title: string;
+  focusedIcon: keyof typeof MaterialCommunityIcons.glyphMap;
+  unfocusedIcon: keyof typeof MaterialCommunityIcons.glyphMap;
+}> = [
+  { key: 'tree', title: 'Tree', focusedIcon: 'family-tree', unfocusedIcon: 'family-tree' },
+  { key: 'members', title: 'Members', focusedIcon: 'account-group-outline', unfocusedIcon: 'account-group-outline' },
+  { key: 'treeSettings', title: 'Settings', focusedIcon: 'cog-outline', unfocusedIcon: 'cog-outline' },
+  { key: 'notifications', title: 'Notifications', focusedIcon: 'bell-outline', unfocusedIcon: 'bell-outline' },
+  { key: 'myProfile', title: 'My profile', focusedIcon: 'account-circle-outline', unfocusedIcon: 'account-circle-outline' },
 ];
 
 export default function PersonProfileScreen({ navigation, route }: Props) {
@@ -861,6 +874,18 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <View pointerEvents="box-none" style={styles.stickyActionBarHost}>
+        <Button
+          mode="contained-tonal"
+          icon="arrow-left"
+          onPress={handleGoBack}
+          style={[styles.heroFloatingButton, styles.heroFloatingButtonLeft]}
+          contentStyle={{ height: 44, paddingHorizontal: 6 }}
+          accessibilityLabel={t('Back to member search')}
+        >
+          {t('Back to member search')}
+        </Button>
+      </View>
       <ScrollView contentContainerStyle={styles.content}>
         <Surface style={[styles.heroCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
           <View style={styles.heroHeader}>
@@ -929,18 +954,40 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
           ) : null}
         </Surface>
 
+        <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
+          <Text variant="titleMedium" style={{ color: theme.colors.onSurface, marginBottom: 8 }}>
+            {t('Your profile workspace')}
+          </Text>
+          <HorizontalTabStrip
+            items={PROFILE_TABS.map((tab) => ({ ...tab, label: t(tab.label) }))}
+            activeKey={activeTab}
+            onChange={setActiveTab}
+            containerStyle={[styles.tabStripCard, { backgroundColor: theme.colors.surface }]}
+            contentContainerStyle={styles.tabStripContent}
+            itemStyle={styles.tabStripItem}
+          />
+        </Surface>
 
         {activeTab === 'member-profile' ? (
           <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
-            <View style={styles.titleWithHelperRow}>
-              <Text variant="titleLarge">{t('Member profile')}</Text>
-              <IconButton
-                icon="information-outline"
-                size={20}
-                style={styles.helperIconButton}
-                onPress={() => openHelperDialog('member-profile')}
-                accessibilityLabel={t('About member profile')}
-              />
+            <View style={styles.sectionHeader}>
+              <View style={styles.sectionHeaderText}>
+                <View style={styles.titleWithHelperRow}>
+                  <Text variant="titleLarge">{t('Member profile')}</Text>
+                  <IconButton
+                    icon="information-outline"
+                    size={20}
+                    style={styles.helperIconButton}
+                    onPress={() => openHelperDialog('member-profile')}
+                    accessibilityLabel={t('About member profile')}
+                  />
+                </View>
+              </View>
+              {canEdit ? (
+                <Button mode="contained-tonal" icon="pencil" onPress={() => setEditorVisible(true)}>
+                  {t('Edit family member')}
+                </Button>
+              ) : null}
             </View>
 
             <View style={styles.metadataRow}>
@@ -992,7 +1039,6 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
             </View>
           </Surface>
         ) : null}
-
         {activeTab === 'relationships' ? (
           <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
             <View style={styles.sectionHeader}>
@@ -1275,45 +1321,46 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
           </Surface>
         ) : null}
       </ScrollView>
-      <View pointerEvents="box-none" style={styles.stickyActionBar}>
-        <IconButton
-          icon="home-outline"
-          mode="contained-tonal"
-          size={22}
-          onPress={handleGoBack}
-          style={[styles.heroFloatingButton, styles.heroFloatingButtonLeft]}
-          accessibilityLabel={t('Go back')}
-        />
-        {canEdit ? (
-          <IconButton
-            icon="pencil"
-            mode="contained-tonal"
-            size={22}
-            onPress={() => setEditorVisible(true)}
-            style={[styles.heroFloatingButton, styles.heroFloatingButtonRight]}
-            accessibilityLabel={t('Edit family member')}
-          />
-        ) : null}
-      </View>
-
-      <BottomNavigation.Bar
-        navigationState={{
-          index: TAB_ROUTES.findIndex((r) => r.key === activeTab),
-          routes: TAB_ROUTES.map((route) => ({ ...route, title: t(route.title) })),
-        }}
-        onTabPress={({ route }) => setActiveTab(route.key as PersonProfileTabKey)}
-        labeled={false}
-        style={{
-          backgroundColor: theme.colors.surface,
-          borderTopWidth: 1,
-          borderTopColor: theme.colors.outlineVariant,
-          height: 76,
-          paddingTop: 8,
-        }}
-        activeColor={theme.colors.primary}
-        inactiveColor={theme.colors.onSurfaceVariant}
-      />
-
+      <Surface
+        style={[
+          treeDetailStyles.tabBar,
+          {
+            backgroundColor: theme.colors.surface,
+            borderTopColor: theme.colors.outlineVariant,
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-around',
+            paddingHorizontal: 10,
+          },
+        ]}
+        elevation={0}
+      >
+        {APP_TAB_ROUTES.map((routeItem) => {
+          const isActive = routeItem.key === 'members';
+          return (
+            <Pressable
+              key={routeItem.key}
+              onPress={() => navigation.navigate('Main', { screen: routeItem.key as keyof MainTabParamList })}
+              accessibilityRole="button"
+              accessibilityLabel={t(routeItem.title)}
+              style={{
+                minHeight: 56,
+                minWidth: 56,
+                borderRadius: 18,
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: isActive ? theme.colors.elevation.level2 : 'transparent',
+              }}
+            >
+              <MaterialCommunityIcons
+                name={routeItem.focusedIcon}
+                size={26}
+                color={isActive ? theme.colors.primary : theme.colors.onSurfaceVariant}
+              />
+            </Pressable>
+          );
+        })}
+      </Surface>
       <PersonFormDialog
         visible={editorVisible}
         mode="edit"

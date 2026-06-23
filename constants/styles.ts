@@ -665,14 +665,43 @@ export class GlobalStyles {
             paddingTop: 8,
             paddingBottom: 40,
         },
-        stickyActionBar: {
+        compactContentWithFloatingNav: {
+            paddingTop: 80,
+        },
+        stickyActionBarHost: {
             position: 'absolute',
             top: 0,
             left: 0,
             right: 0,
             zIndex: 3,
             elevation: 6,
-            height: 64,
+        },
+        stickyActionBar: {
+            position: 'absolute',
+            top: 12,
+            left: 16,
+            right: 16,
+            borderRadius: 999,
+            paddingHorizontal: 10,
+            paddingVertical: 8,
+        },
+        stickyActionBarSurface: {
+            borderWidth: StyleSheet.hairlineWidth,
+            borderColor: F.outlineVariant,
+        },
+        floatingNavRow: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 8,
+        },
+        floatingNavButton: {
+            width: 44,
+            height: 44,
+            borderRadius: 22,
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderWidth: StyleSheet.hairlineWidth,
         },
         heroCard: {
             ...CARD_CHROME,
@@ -738,6 +767,11 @@ export class GlobalStyles {
         heroSubtext: {
             marginTop: 6,
             color: F.onSurfaceVariant,
+        },
+        heroInlineAction: {
+            marginTop: 14,
+            alignSelf: 'flex-start',
+            borderRadius: 999,
         },
         metadataRow: {
             flexDirection: 'row',

@@ -37,7 +37,7 @@ import {
   View,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Button, Chip, IconButton, Menu, Text, useTheme } from 'react-native-paper';
+import { Button, Chip, IconButton, Text, useTheme } from 'react-native-paper';
 import { translate } from '../i18n';
 import Svg, { Path, Text as SvgText } from 'react-native-svg';
 
@@ -506,8 +506,6 @@ function FamilyTreeCanvas({
     }
   }, [activeFamilyRef, activeSurnames]);
 
-  // State for the family-selector dropdown menu.
-  const [familySelectorMenuVisible, setFamilySelectorMenuVisible] = useState(false);
   const layoutCacheKey = useMemo(
     () => buildLayoutCacheKey(clusterPeople, clusterRelationships),
     [clusterPeople, clusterRelationships],
@@ -997,63 +995,8 @@ function FamilyTreeCanvas({
       </View>
   );
 
-  // ---- Surname selector bar ----
-  // Shows the CURRENT family prominently. Tapping it opens a menu of the
-  // OTHER available families to switch to.
-  const renderSurnameSelector = () => {
-    if (!clusteringActive) return null;
-
-    const currentSurname = activeSurnames[0] ?? '';
-    const otherSurnames = sortedSurnames.filter((s) => s !== currentSurname);
-
-    return (
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 8, paddingVertical: 6 }}>
-        <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>{t('Viewing:')}</Text>
-        <Menu
-          visible={familySelectorMenuVisible}
-          onDismiss={() => setFamilySelectorMenuVisible(false)}
-          anchor={
-            <Chip
-              compact
-              selected
-              mode="flat"
-              icon="check"
-              closeIcon="chevron-down"
-              onPress={() => setFamilySelectorMenuVisible(true)}
-              onClose={() => setFamilySelectorMenuVisible(true)}
-              style={{ backgroundColor: theme.colors.primaryContainer }}
-              textStyle={{ color: theme.colors.onPrimaryContainer }}
-            >
-              {currentSurname} family
-            </Chip>
-          }
-        >
-          {otherSurnames.length > 0 ? (
-            otherSurnames.map((surname) => {
-              const isConnected = getConnectedSurnames(currentSurname, allBridges).includes(surname);
-              return (
-                <Menu.Item
-                  key={surname}
-                  leadingIcon={isConnected ? 'link-variant' : 'swap-horizontal'}
-                  title={`${surname} family`}
-                  onPress={() => {
-                    setFamilySelectorMenuVisible(false);
-                    navigateToSurname(surname);
-                  }}
-                />
-              );
-            })
-          ) : (
-            <Menu.Item title={t('No other families found')} disabled />
-          )}
-        </Menu>
-      </View>
-    );
-  };
-
   return (
       <View style={[styles.container, fillAvailableSpace ? styles.containerFill : null]}>
-        {renderSurnameSelector()}
         {!floatingControls ? (
             <View style={styles.controlsRow}>
               <Text variant="bodyMedium">{controlsLabel}</Text>
