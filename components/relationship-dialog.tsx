@@ -4,7 +4,7 @@ import { Button, Chip, Dialog, HelperText, IconButton, Portal, SegmentedButtons,
 import { getPersonLifeSpanLabel, type PersonRecord } from './dto/person';
 import type { ParentChildRelationshipKind, RelationshipRecord, RelationshipType, SpouseRelationshipStatus } from './dto/relationship';
 import { DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND, DEFAULT_SPOUSE_RELATIONSHIP_STATUS } from './dto/relationship';
-import { validateProposedRelationship } from './family-tree-validation';
+import { getRelationshipValidationFeedback, validateProposedRelationship } from './family-tree-validation';
 import { useI18n } from '../hooks/use-i18n';
 import { translate } from '../i18n';
 import { GlobalStyles } from '../constants/styles';
@@ -78,8 +78,20 @@ export default function RelationshipDialog({
       type,
       fromPersonId,
       toPersonId,
+      parentChildKind: type === 'parent-child' ? parentChildKind : undefined,
     }),
-    [fromPersonId, people, relationships, toPersonId, type],
+    [fromPersonId, parentChildKind, people, relationships, toPersonId, type],
+  );
+  const validationWarnings = useMemo(
+    () => getRelationshipValidationFeedback({
+      people,
+      relationships,
+      type,
+      fromPersonId,
+      toPersonId,
+      parentChildKind: type === 'parent-child' ? parentChildKind : undefined,
+    }).warnings,
+    [fromPersonId, parentChildKind, people, relationships, toPersonId, type],
   );
 
   const fromMatches = useMemo(
@@ -202,6 +214,7 @@ export default function RelationshipDialog({
                 <View style={styles.choiceWrap}>
                   {[
                     { value: 'biological', label: 'Biological' },
+                    { value: 'non-biological', label: 'Non-biological' },
                     { value: 'step', label: 'Step' },
                     { value: 'adopted', label: 'Adopted' },
                     { value: 'foster', label: 'Foster' },
@@ -218,6 +231,9 @@ export default function RelationshipDialog({
                     </Chip>
                   ))}
                 </View>
+                <HelperText type="info" visible={validationWarnings.length > 0}>
+                  {validationWarnings[0] ?? ''}
+                </HelperText>
               </View>
             )}
 

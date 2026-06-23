@@ -1,6 +1,6 @@
 export type RelationshipType = 'parent-child' | 'spouse';
 export type SpouseRelationshipStatus = 'married' | 'partner' | 'separated' | 'divorced' | 'widowed';
-export type ParentChildRelationshipKind = 'biological' | 'step' | 'adopted' | 'foster' | 'guardian';
+export type ParentChildRelationshipKind = 'biological' | 'non-biological' | 'step' | 'adopted' | 'foster' | 'guardian';
 
 export interface RelationshipRecord {
   id: string;

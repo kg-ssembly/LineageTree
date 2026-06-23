@@ -4,7 +4,7 @@ import { Button, Chip, Dialog, HelperText, IconButton, Portal, SegmentedButtons,
 import { getPersonLifeSpanLabel, type PersonRecord } from './dto/person';
 import type { ParentChildRelationshipKind, RelationshipRecord, SpouseRelationshipStatus } from './dto/relationship';
 import { DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND, DEFAULT_SPOUSE_RELATIONSHIP_STATUS } from './dto/relationship';
-import { validateProposedRelationship } from './family-tree-validation';
+import { getRelationshipValidationFeedback, validateProposedRelationship } from './family-tree-validation';
 import { useI18n } from '../hooks/use-i18n';
 import { translate } from '../i18n';
 import { GlobalStyles } from '../constants/styles';
@@ -166,9 +166,25 @@ export default function PersonRelationshipDialog({
       type: mode === 'spouse-of' ? 'spouse' : 'parent-child',
       fromPersonId: mode === 'child-of' ? relatedPersonId : person.id,
       toPersonId: mode === 'child-of' ? person.id : relatedPersonId,
+      parentChildKind: mode === 'spouse-of' ? undefined : parentChildKind,
       ignoreRelationshipId: editingRelationship?.id,
     });
-  }, [editingRelationship?.id, mode, people, person, relatedPersonId, relationships]);
+  }, [editingRelationship?.id, mode, parentChildKind, people, person, relatedPersonId, relationships]);
+  const validationWarnings = useMemo(() => {
+    if (!person || !relatedPersonId) {
+      return [];
+    }
+
+    return getRelationshipValidationFeedback({
+      people,
+      relationships,
+      type: mode === 'spouse-of' ? 'spouse' : 'parent-child',
+      fromPersonId: mode === 'child-of' ? relatedPersonId : person.id,
+      toPersonId: mode === 'child-of' ? person.id : relatedPersonId,
+      parentChildKind: mode === 'spouse-of' ? undefined : parentChildKind,
+      ignoreRelationshipId: editingRelationship?.id,
+    }).warnings;
+  }, [editingRelationship?.id, mode, parentChildKind, people, person, relatedPersonId, relationships]);
 
   const handleSubmit = async () => {
     if (!person) { setError(t('This family member could not be loaded.')); return; }
@@ -244,6 +260,7 @@ export default function PersonRelationshipDialog({
                 <View style={styles.choiceWrap}>
                   {[
                     { value: 'biological', label: 'Biological' },
+                    { value: 'non-biological', label: 'Non-biological' },
                     { value: 'step', label: 'Step' },
                     { value: 'adopted', label: 'Adopted' },
                     { value: 'foster', label: 'Foster' },
@@ -260,6 +277,9 @@ export default function PersonRelationshipDialog({
                     </Chip>
                   ))}
                 </View>
+                <HelperText type="info" visible={validationWarnings.length > 0}>
+                  {validationWarnings[0] ?? ''}
+                </HelperText>
               </View>
             )}
 

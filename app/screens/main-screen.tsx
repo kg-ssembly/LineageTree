@@ -394,13 +394,13 @@ export default function MainScreen({ navigation }: Props) {
   const createPersonFromPayload = useCallback(async (payload: PersonFormSubmission) => {
     if (!user?.id || !selectedTree) return null;
     const created = await createPerson(user.id, selectedTree.id, {
-      firstName: payload.firstName, middleNames: payload.middleNames, lastName: payload.lastName, birthDate: payload.birthDate,
+      firstName: payload.firstName, middleNames: payload.middleNames, lastName: payload.lastName, maidenName: payload.maidenName, birthDate: payload.birthDate,
       deathDate: payload.deathDate, gender: payload.gender, notes: payload.notes,
       lifeEvents: payload.lifeEvents, preferredPhotoRef: payload.preferredPhotoRef,
     }, payload.newPhotoUris);
     for (const pr of payload.pendingRelationships) {
-      if (pr.mode === 'parent-of') await addParentChildRelationship(user.id, selectedTree.id, created.id, pr.relatedPersonId);
-      else if (pr.mode === 'child-of') await addParentChildRelationship(user.id, selectedTree.id, pr.relatedPersonId, created.id);
+      if (pr.mode === 'parent-of') await addParentChildRelationship(user.id, selectedTree.id, created.id, pr.relatedPersonId, pr.parentChildKind);
+      else if (pr.mode === 'child-of') await addParentChildRelationship(user.id, selectedTree.id, pr.relatedPersonId, created.id, pr.parentChildKind);
       else await addSpouseRelationship(user.id, selectedTree.id, created.id, pr.relatedPersonId);
     }
     return created;

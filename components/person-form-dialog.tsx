@@ -17,7 +17,9 @@ import {
 import { DatePickerModal } from 'react-native-paper-dates';
 import type { PersonGender, PersonLifeEvent, PersonMutationPayload, PersonPhoto, PersonRecord } from './dto/person';
 import { formatPersonDate } from './dto/person';
-import type { RelationshipRecord } from './dto/relationship';
+import type { ParentChildRelationshipKind, RelationshipRecord } from './dto/relationship';
+import { DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND } from './dto/relationship';
+import { getPersonValidationFeedback, getRelationshipValidationFeedback } from './family-tree-validation';
 import { GlobalStyles } from '../constants/styles';
 import { useI18n } from '../hooks/use-i18n';
 
@@ -29,6 +31,7 @@ export type PendingRelationshipMode = 'parent-of' | 'child-of' | 'spouse-of';
 export interface PendingRelationshipSubmission {
   mode: PendingRelationshipMode;
   relatedPersonId: string;
+  parentChildKind?: ParentChildRelationshipKind;
 }
 
 interface PendingRelationshipDraft extends PendingRelationshipSubmission {
@@ -89,11 +92,71 @@ function formatPersonName(person: PersonRecord) {
   return [person.firstName, person.middleNames ?? '', person.lastName].join(' ').replace(/\s+/g, ' ').trim();
 }
 
+function createValidationPersonRecord(input: {
+  firstName: string;
+  middleNames: string;
+  lastName: string;
+  maidenName: string;
+  birthDate: string;
+  deathDate: string;
+  gender: PersonGender;
+  notes: string;
+  lifeEvents: PersonLifeEvent[];
+  person?: PersonRecord | null;
+}): PersonRecord {
+  return {
+    id: '__new-person__',
+    treeId: input.person?.treeId ?? '',
+    treeMembershipIds: [],
+    treeMemberships: [],
+    ownerId: input.person?.ownerId ?? '',
+    firstName: input.firstName,
+    middleNames: input.middleNames,
+    lastName: input.lastName,
+    maidenName: input.maidenName,
+    nicknames: [],
+    clanName: '',
+    familyBranch: '',
+    hometown: '',
+    birthPlace: '',
+    surnameVariantHints: [],
+    canonicalPersonId: '',
+    duplicatePersonIds: [],
+    birthDate: input.birthDate,
+    deathDate: input.deathDate,
+    gender: input.gender,
+    notes: input.notes,
+    lifeEvents: input.lifeEvents,
+    photos: [],
+    preferredPhotoId: '',
+    createdAt: '',
+    updatedAt: '',
+  };
+}
+
+function createPendingValidationRelationships(
+  pendingDrafts: PendingRelationshipDraft[],
+): RelationshipRecord[] {
+  return pendingDrafts
+    .filter((draft) => draft.relatedPersonId)
+    .map((draft, index) => ({
+      id: `__pending-relationship__-${index}`,
+      treeId: '',
+      ownerId: '',
+      type: draft.mode === 'spouse-of' ? 'spouse' : 'parent-child',
+      fromPersonId: draft.mode === 'child-of' ? draft.relatedPersonId : '__new-person__',
+      toPersonId: draft.mode === 'child-of' ? '__new-person__' : draft.relatedPersonId,
+      parentChildKind: draft.mode === 'spouse-of' ? undefined : draft.parentChildKind,
+      createdAt: '',
+    }));
+}
+
 function createPendingRelationshipDraft(): PendingRelationshipDraft {
   return {
     key: `${Date.now()}-${Math.random()}`,
     mode: 'parent-of',
     relatedPersonId: '',
+    parentChildKind: DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND,
     searchQuery: '',
   };
 }
@@ -105,6 +168,7 @@ function createPendingRelationshipDraftFromSubmission(
     key: `${Date.now()}-${Math.random()}`,
     mode: relationship.mode,
     relatedPersonId: relationship.relatedPersonId,
+    parentChildKind: relationship.parentChildKind ?? DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND,
     searchQuery: '',
   };
 }
@@ -211,6 +275,73 @@ export default function PersonFormDialog({
     () => new Map(relationshipCandidates.map((candidate) => [candidate.id, candidate])),
     [relationshipCandidates],
   );
+  const validationPersonRecord = useMemo(
+    () => createValidationPersonRecord({
+      firstName,
+      middleNames,
+      lastName,
+      maidenName,
+      birthDate,
+      deathDate: isPresent ? '' : deathDate,
+      gender,
+      notes,
+      lifeEvents,
+      person,
+    }),
+    [birthDate, deathDate, firstName, gender, isPresent, lastName, lifeEvents, maidenName, middleNames, notes, person],
+  );
+  const personValidationFeedback = useMemo(
+    () => getPersonValidationFeedback({
+      people: relationshipCandidates,
+      person: {
+        firstName,
+        middleNames,
+        lastName,
+        maidenName,
+        birthDate,
+        deathDate: isPresent ? '' : deathDate,
+      },
+      ignorePersonId: person?.id,
+    }),
+    [birthDate, deathDate, firstName, isPresent, lastName, maidenName, middleNames, person?.id, relationshipCandidates],
+  );
+  const pendingValidationRelationships = useMemo(
+    () => createPendingValidationRelationships(pendingRelationships),
+    [pendingRelationships],
+  );
+  const validationPeople = useMemo(
+    () => [
+      validationPersonRecord,
+      ...relationshipCandidates.filter((candidate, index, current) => current.findIndex((item) => item.id === candidate.id) === index),
+    ],
+    [relationshipCandidates, validationPersonRecord],
+  );
+  const relationshipWarnings = useMemo(() => pendingRelationships.flatMap((draft) => {
+    if (!draft.relatedPersonId) {
+      return [];
+    }
+
+    const relatedPerson = relationshipCandidatesById.get(draft.relatedPersonId);
+    if (!relatedPerson) {
+      return [];
+    }
+
+    const ageFeedback = getRelationshipValidationFeedback({
+      people: validationPeople,
+      relationships: [...relationships, ...pendingValidationRelationships],
+      type: draft.mode === 'spouse-of' ? 'spouse' : 'parent-child',
+      fromPersonId: draft.mode === 'child-of' ? draft.relatedPersonId : '__new-person__',
+      toPersonId: draft.mode === 'child-of' ? '__new-person__' : draft.relatedPersonId,
+      parentChildKind: draft.mode === 'spouse-of' ? undefined : draft.parentChildKind,
+      ignoreRelationshipId: pendingValidationRelationships.find((relationship) =>
+        relationship.type === (draft.mode === 'spouse-of' ? 'spouse' : 'parent-child')
+        && relationship.fromPersonId === (draft.mode === 'child-of' ? draft.relatedPersonId : '__new-person__')
+        && relationship.toPersonId === (draft.mode === 'child-of' ? '__new-person__' : draft.relatedPersonId),
+      )?.id,
+    });
+
+    return ageFeedback.warnings.map((warning) => `${formatPersonName(relatedPerson)}: ${warning}`);
+  }), [pendingRelationships, pendingValidationRelationships, relationshipCandidatesById, relationships, validationPeople]);
 
   const suggestedLastName = useMemo(() => {
     if (mode !== 'create') {
@@ -295,20 +426,23 @@ export default function PersonFormDialog({
   ], [gender, t]);
 
   const handleNextStep = () => {
-    if (!firstName.trim()) {
-      setFirstNameError(t('First name is required.'));
+    const firstError = personValidationFeedback.errors.find((message) => message === t('First name is required.'));
+    if (firstError) {
+      setFirstNameError(firstError);
       return;
     }
-    if (!isPresent && birthDate && deathDate && deathDate < birthDate) {
-      setDeathDateError(t('Death date cannot be earlier than birth date.'));
+    const deathError = personValidationFeedback.errors.find((message) => message === t('Death date cannot be earlier than birth date.'));
+    if (deathError) {
+      setDeathDateError(deathError);
       return;
     }
     setStep(2);
   };
 
   const handleSubmit = async () => {
-    if (!firstName.trim()) {
-      setFirstNameError(t('First name is required.'));
+    const firstError = personValidationFeedback.errors.find((message) => message === t('First name is required.'));
+    if (firstError) {
+      setFirstNameError(firstError);
       return;
     }
 
@@ -330,8 +464,86 @@ export default function PersonFormDialog({
       }
     }
 
-    if (birthDate && !isPresent && deathDate && deathDate < birthDate) {
-      setDeathDateError(t('Death date cannot be earlier than birth date.'));
+    const deathError = personValidationFeedback.errors.find((message) => message === t('Death date cannot be earlier than birth date.'));
+    if (deathError) {
+      setDeathDateError(deathError);
+      return;
+    }
+
+    const duplicateError = personValidationFeedback.errors.find((message) => message !== t('First name is required.') && message !== t('Death date cannot be earlier than birth date.'));
+    if (duplicateError) {
+      setRelationshipError(duplicateError);
+      return;
+    }
+
+    const pendingRelationshipError = pendingRelationships
+      .map((draft) => {
+        if (!draft.relatedPersonId) {
+          return null;
+        }
+
+        const relatedPerson = relationshipCandidatesById.get(draft.relatedPersonId);
+        if (!relatedPerson) {
+          return null;
+        }
+
+        const feedback = getRelationshipValidationFeedback({
+          people: validationPeople,
+          relationships: [...relationships, ...pendingValidationRelationships],
+          type: draft.mode === 'spouse-of' ? 'spouse' : 'parent-child',
+          fromPersonId: draft.mode === 'child-of' ? draft.relatedPersonId : '__new-person__',
+          toPersonId: draft.mode === 'child-of' ? '__new-person__' : draft.relatedPersonId,
+          parentChildKind: draft.mode === 'spouse-of' ? undefined : draft.parentChildKind,
+          ignoreRelationshipId: pendingValidationRelationships.find((relationship) =>
+            relationship.type === (draft.mode === 'spouse-of' ? 'spouse' : 'parent-child')
+            && relationship.fromPersonId === (draft.mode === 'child-of' ? draft.relatedPersonId : '__new-person__')
+            && relationship.toPersonId === (draft.mode === 'child-of' ? '__new-person__' : draft.relatedPersonId),
+          )?.id,
+        });
+
+        return feedback.errors[0] ? `${formatPersonName(relatedPerson)}: ${feedback.errors[0]}` : null;
+      })
+      .find(Boolean);
+
+    if (pendingRelationshipError) {
+      setRelationshipError(pendingRelationshipError);
+      return;
+    }
+
+    const warningMessages = [...personValidationFeedback.warnings, ...relationshipWarnings];
+    if (warningMessages.length > 0) {
+      Alert.alert(
+        t('Please review before saving'),
+        warningMessages.join('\n\n'),
+        [
+          { text: t('Go back'), style: 'cancel' },
+          {
+            text: t('Save anyway'),
+            onPress: () => {
+              void onSubmit({
+                firstName,
+                middleNames,
+                lastName,
+                maidenName,
+                birthDate,
+                deathDate: isPresent ? '' : deathDate,
+                gender,
+                notes,
+                lifeEvents,
+                preferredPhotoRef,
+                existingPhotos,
+                removedPhotos,
+                newPhotoUris,
+                pendingRelationships: pendingRelationships.map(({ mode: relationshipMode, relatedPersonId, parentChildKind }) => ({
+                  mode: relationshipMode,
+                  relatedPersonId,
+                  parentChildKind: relationshipMode === 'spouse-of' ? undefined : parentChildKind,
+                })),
+              });
+            },
+          },
+        ],
+      );
       return;
     }
 
@@ -349,7 +561,11 @@ export default function PersonFormDialog({
       existingPhotos,
       removedPhotos,
       newPhotoUris,
-      pendingRelationships: pendingRelationships.map(({ mode, relatedPersonId }) => ({ mode, relatedPersonId })),
+      pendingRelationships: pendingRelationships.map(({ mode: relationshipMode, relatedPersonId, parentChildKind }) => ({
+        mode: relationshipMode,
+        relatedPersonId,
+        parentChildKind: relationshipMode === 'spouse-of' ? undefined : parentChildKind,
+      })),
     });
   };
 
@@ -398,6 +614,9 @@ export default function PersonFormDialog({
               />
               <HelperText type="error" visible={!!firstNameError}>
                 {firstNameError}
+              </HelperText>
+              <HelperText type="info" visible={personValidationFeedback.warnings.length > 0}>
+                {personValidationFeedback.warnings[0] ?? ''}
               </HelperText>
 
               <TextInput
@@ -596,11 +815,46 @@ export default function PersonFormDialog({
                         <SegmentedButtons
                           value={draft.mode}
                           onValueChange={(value) => {
-                            setPendingRelationships((current) => current.map((item) => item.key === draft.key ? { ...item, mode: value as PendingRelationshipMode } : item));
+                            setPendingRelationships((current) => current.map((item) => item.key === draft.key ? {
+                              ...item,
+                              mode: value as PendingRelationshipMode,
+                              parentChildKind: value === 'spouse-of' ? undefined : item.parentChildKind ?? DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND,
+                            } : item));
                             if (relationshipError) setRelationshipError(null);
                           }}
                           buttons={relationshipModeOptions}
                         />
+                        {draft.mode !== 'spouse-of' ? (
+                          <View style={styles.sectionSpacing}>
+                            <Text variant="bodyMedium">{t('Parent-child relationship type')}</Text>
+                            <View style={styles.chipGroup}>
+                              {[
+                                { value: 'biological', label: 'Biological' },
+                                { value: 'non-biological', label: 'Non-biological' },
+                                { value: 'step', label: 'Step' },
+                                { value: 'adopted', label: 'Adopted' },
+                                { value: 'foster', label: 'Foster' },
+                                { value: 'guardian', label: 'Guardian' },
+                              ].map((option) => (
+                                <Chip
+                                  key={`${draft.key}-${option.value}`}
+                                  selected={draft.parentChildKind === option.value}
+                                  onPress={() => {
+                                    setPendingRelationships((current) => current.map((item) => item.key === draft.key ? {
+                                      ...item,
+                                      parentChildKind: option.value as ParentChildRelationshipKind,
+                                    } : item));
+                                    if (relationshipError) setRelationshipError(null);
+                                  }}
+                                  style={styles.chip}
+                                  disabled={loading}
+                                >
+                                  {t(option.label)}
+                                </Chip>
+                              ))}
+                            </View>
+                          </View>
+                        ) : null}
                         {selectedPerson ? (
                           <View style={styles.selectedPersonRow}>
                             <Chip
@@ -643,8 +897,8 @@ export default function PersonFormDialog({
                       </View>
                     );
                   })}
-                  <HelperText type="error" visible={!!relationshipError}>
-                    {relationshipError}
+                  <HelperText type="info" visible={relationshipWarnings.length > 0}>
+                    {relationshipWarnings[0] ?? ''}
                   </HelperText>
 
                   {coParentSuggestion ? (
@@ -667,6 +921,7 @@ export default function PersonFormDialog({
                               key: `${Date.now()}-${Math.random()}`,
                               mode: 'child-of',
                               relatedPersonId: coParentSuggestion.id,
+                              parentChildKind: DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND,
                               searchQuery: '',
                             },
                           ]);
@@ -695,6 +950,9 @@ export default function PersonFormDialog({
 
               </> /* end step 2 / edit wrapper */
               ) : null}
+              <HelperText type="error" visible={!!relationshipError}>
+                {relationshipError}
+              </HelperText>
             </ScrollView>
           </Dialog.ScrollArea>
           <Dialog.Actions style={[dialogChrome.dialogActions, styles.dialogActions, { borderTopColor: theme.colors.outlineVariant, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>

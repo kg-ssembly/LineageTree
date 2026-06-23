@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import type { PersonRecord } from '../components/dto/person';
 import type { RelationshipRecord } from '../components/dto/relationship';
 import { computeRelationshipInsight } from '../providers/relationship-intelligence';
-import { validateProposedRelationship } from '../components/family-tree-validation';
+import { getPersonValidationFeedback, getRelationshipValidationFeedback, validateProposedRelationship } from '../components/family-tree-validation';
 
 function makePerson(id: string, firstName: string, gender: PersonRecord['gender']): PersonRecord {
   return {
@@ -128,4 +128,102 @@ test('blocks parent-child links for existing spouses', () => {
   });
 
   assert.equal(message, 'A parent-child relationship cannot also be a spouse relationship.');
+});
+
+test('warns when adding a third biological parent', () => {
+  const people = [
+    makePerson('parent-a', 'Alex', 'male'),
+    makePerson('parent-b', 'Blair', 'female'),
+    makePerson('parent-c', 'Casey', 'female'),
+    makePerson('child', 'Jordan', 'male'),
+  ];
+  const relationships = [
+    { ...makeRelationship('a-child', 'parent-child', 'parent-a', 'child'), parentChildKind: 'biological' as const },
+    { ...makeRelationship('b-child', 'parent-child', 'parent-b', 'child'), parentChildKind: 'biological' as const },
+  ];
+
+  const feedback = getRelationshipValidationFeedback({
+    people,
+    relationships,
+    type: 'parent-child',
+    fromPersonId: 'parent-c',
+    toPersonId: 'child',
+    parentChildKind: 'biological',
+  });
+
+  assert.ok(feedback.warnings.includes('This child would have more than two biological parents recorded. Please double-check the relationship type.'));
+});
+
+test('warns when child birth is after recorded parent death', () => {
+  const parent = { ...makePerson('parent', 'Alex', 'male'), deathDate: '2000-01-01' };
+  const child = { ...makePerson('child', 'Jordan', 'male'), birthDate: '2001-01-01' };
+
+  const feedback = getRelationshipValidationFeedback({
+    people: [parent, child],
+    relationships: [],
+    type: 'parent-child',
+    fromPersonId: 'parent',
+    toPersonId: 'child',
+    parentChildKind: 'biological',
+  });
+
+  assert.ok(feedback.warnings.includes('This child was recorded as born after the parent died. Please double-check the dates.'));
+});
+
+test('warns when spouse shared-child timelines are implausible', () => {
+  const parentA = { ...makePerson('parent-a', 'Alex', 'male'), birthDate: '1995-01-01' };
+  const parentB = { ...makePerson('parent-b', 'Blair', 'female'), birthDate: '1995-01-01' };
+  const child = { ...makePerson('child', 'Jordan', 'male'), birthDate: '2005-01-01' };
+  const relationships = [
+    { ...makeRelationship('a-child', 'parent-child', 'parent-a', 'child'), parentChildKind: 'biological' as const },
+    { ...makeRelationship('b-child', 'parent-child', 'parent-b', 'child'), parentChildKind: 'biological' as const },
+  ];
+
+  const feedback = getRelationshipValidationFeedback({
+    people: [parentA, parentB, child],
+    relationships,
+    type: 'spouse',
+    fromPersonId: 'parent-a',
+    toPersonId: 'parent-b',
+  });
+
+  assert.ok(feedback.warnings.includes('These spouses have shared children whose recorded timelines look implausible. Please double-check the parents and birth dates.'));
+});
+
+test('warns on near-duplicate names including nickname variants', () => {
+  const existing = { ...makePerson('john', 'John', 'male'), lastName: 'Example' };
+
+  const feedback = getPersonValidationFeedback({
+    people: [existing],
+    person: {
+      firstName: 'Jon',
+      middleNames: '',
+      lastName: 'Example',
+      maidenName: '',
+      birthDate: '',
+      deathDate: '',
+    },
+  });
+
+  assert.ok(feedback.warnings.includes('This looks very similar to an existing family member name. Please check for a near-duplicate before saving.'));
+});
+
+test('warns when child surname differs from both biological parents without context', () => {
+  const parentA = { ...makePerson('parent-a', 'Alex', 'male'), lastName: 'Mokoena' };
+  const parentB = { ...makePerson('parent-b', 'Blair', 'female'), lastName: 'Nkosi' };
+  const child = { ...makePerson('child', 'Jordan', 'male'), lastName: 'Dlamini' };
+  const relationships = [
+    { ...makeRelationship('b-child', 'parent-child', 'parent-b', 'child'), parentChildKind: 'biological' as const },
+  ];
+
+  const feedback = getRelationshipValidationFeedback({
+    people: [parentA, parentB, child],
+    relationships,
+    type: 'parent-child',
+    fromPersonId: 'parent-a',
+    toPersonId: 'child',
+    parentChildKind: 'biological',
+  });
+
+  assert.ok(feedback.warnings.includes('This child surname differs from both biological parents and there is no maiden-name or non-biological context recorded.'));
 });

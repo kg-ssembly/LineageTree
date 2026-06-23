@@ -291,6 +291,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
         firstName: payload.firstName,
         middleNames: payload.middleNames,
         lastName: payload.lastName,
+        maidenName: payload.maidenName,
         birthDate: payload.birthDate,
         deathDate: payload.deathDate,
         gender: payload.gender,
@@ -303,9 +304,9 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
 
     for (const pendingRelationship of payload.pendingRelationships) {
       if (pendingRelationship.mode === 'parent-of') {
-        await addParentChildRelationship(user.id, selectedTree.id, createdPerson.id, pendingRelationship.relatedPersonId);
+        await addParentChildRelationship(user.id, selectedTree.id, createdPerson.id, pendingRelationship.relatedPersonId, pendingRelationship.parentChildKind);
       } else if (pendingRelationship.mode === 'child-of') {
-        await addParentChildRelationship(user.id, selectedTree.id, pendingRelationship.relatedPersonId, createdPerson.id);
+        await addParentChildRelationship(user.id, selectedTree.id, pendingRelationship.relatedPersonId, createdPerson.id, pendingRelationship.parentChildKind);
       } else {
         await addSpouseRelationship(user.id, selectedTree.id, createdPerson.id, pendingRelationship.relatedPersonId);
       }
