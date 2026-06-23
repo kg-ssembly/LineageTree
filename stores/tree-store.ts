@@ -198,11 +198,18 @@ export const useTreeStore = create<TreeState>((set, get) => {
       (approvalRequests) => {
         set({ approvalRequests });
         const currentUserId = get().currentUserId;
+        const currentTree = get().trees.find((tree) => tree.id === treeId) ?? null;
+        const canProcessExpirations = Boolean(
+          currentUserId
+          && currentTree
+          && Array.isArray(currentTree.editorIds)
+          && currentTree.editorIds.includes(currentUserId),
+        );
         const hasExpiredPendingRequests = approvalRequests.some(
           (request) => request.status === 'pending' && request.expiresAtMillis <= Date.now(),
         );
 
-        if (currentUserId && hasExpiredPendingRequests && !expiryProcessingTreeIds.has(treeId)) {
+        if (currentUserId && canProcessExpirations && hasExpiredPendingRequests && !expiryProcessingTreeIds.has(treeId)) {
           expiryProcessingTreeIds.add(treeId);
           processExpiredApprovalRequests(currentUserId, treeId)
             .catch((error) => set({ error: normaliseError(error) }))

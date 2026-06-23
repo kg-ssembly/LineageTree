@@ -798,7 +798,6 @@ export function subscribeToPeople(
       const membershipIds = new Set(membershipPeople.map((person) => person.id));
       legacyPeople = peopleNeedingBackfill.filter((person) => !membershipIds.has(person.id));
       emit();
-      return backfillLegacyPeopleMemberships(treeId, peopleNeedingBackfill);
     })
     .catch((error) => onError?.(error as Error));
 
@@ -1164,10 +1163,6 @@ async function getPeopleByTreeId(treeId: string) {
     getDocs(query(collection(db, PEOPLE_COLLECTION), where('treeMembershipIds', 'array-contains', treeId))),
     getLegacyPeopleNeedingBackfill(treeId),
   ]);
-
-  if (legacyPeople.length > 0) {
-    void backfillLegacyPeopleMemberships(treeId, legacyPeople);
-  }
 
   return mergeUniqueById([
     ...membershipSnapshot.docs.map(mapPerson),

@@ -33,6 +33,50 @@ service cloud.firestore {
         );
     }
 
+    function isMemberOfPersonTreeAt(personData, index) {
+      return personData.treeMembershipIds is list
+        && personData.treeMembershipIds.size() > index
+        && isTreeMember(personData.treeMembershipIds[index]);
+    }
+
+    function isEditorOfPersonTreeAt(personData, index) {
+      return personData.treeMembershipIds is list
+        && personData.treeMembershipIds.size() > index
+        && isTreeEditor(personData.treeMembershipIds[index]);
+    }
+
+    function canReadPersonData(personData) {
+      return isTreeMember(personData.treeId)
+        || isMemberOfPersonTreeAt(personData, 0)
+        || isMemberOfPersonTreeAt(personData, 1)
+        || isMemberOfPersonTreeAt(personData, 2)
+        || isMemberOfPersonTreeAt(personData, 3)
+        || isMemberOfPersonTreeAt(personData, 4)
+        || isMemberOfPersonTreeAt(personData, 5)
+        || isMemberOfPersonTreeAt(personData, 6)
+        || isMemberOfPersonTreeAt(personData, 7)
+        || isMemberOfPersonTreeAt(personData, 8)
+        || isMemberOfPersonTreeAt(personData, 9)
+        || isMemberOfPersonTreeAt(personData, 10)
+        || isMemberOfPersonTreeAt(personData, 11);
+    }
+
+    function canEditPersonData(personData) {
+      return isTreeEditor(personData.treeId)
+        || isEditorOfPersonTreeAt(personData, 0)
+        || isEditorOfPersonTreeAt(personData, 1)
+        || isEditorOfPersonTreeAt(personData, 2)
+        || isEditorOfPersonTreeAt(personData, 3)
+        || isEditorOfPersonTreeAt(personData, 4)
+        || isEditorOfPersonTreeAt(personData, 5)
+        || isEditorOfPersonTreeAt(personData, 6)
+        || isEditorOfPersonTreeAt(personData, 7)
+        || isEditorOfPersonTreeAt(personData, 8)
+        || isEditorOfPersonTreeAt(personData, 9)
+        || isEditorOfPersonTreeAt(personData, 10)
+        || isEditorOfPersonTreeAt(personData, 11);
+    }
+
     function isOwnPersonAssignmentUpdate(treeId) {
       return signedIn()
         && isTreeMember(treeId)
@@ -314,11 +358,11 @@ service cloud.firestore {
         && request.resource.data.treeId is string
         && request.resource.data.firstName is string
         && isTreeEditor(request.resource.data.treeId);
-      allow read: if isTreeMember(resource.data.treeId);
-      allow update: if isTreeEditor(resource.data.treeId)
+      allow read: if canReadPersonData(resource.data);
+      allow update: if canEditPersonData(resource.data)
         && request.resource.data.treeId == resource.data.treeId
         && request.resource.data.firstName is string;
-      allow delete: if isTreeEditor(resource.data.treeId);
+      allow delete: if canEditPersonData(resource.data);
     }
 
     match /relationships/{relationshipId} {
