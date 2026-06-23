@@ -28,12 +28,9 @@ import { getTreeDeletionImpact } from '../../providers/family-tree-service';
 import type { PersonRecord } from '../../components/dto/person';
 import type { ParentChildRelationshipKind, SpouseRelationshipStatus } from '../../components/dto/relationship';
 import type { MainTabParamList, RootStackParamList } from '../../components/dto/navigation';
-import { getUserNameParts, getUserDisplayLabel } from '../../components/dto/user';
+import { getUserDisplayLabel } from '../../components/dto/user';
 import { formatPersonName } from '../../components/person-formatting';
-import {
-  findCrossSurnameChildren,
-  extractSurname,
-} from '../../components/family-tree-surname-clusters';
+import { extractSurname, findCrossSurnameChildren } from '../../components/family-tree-surname-clusters';
 import {
   canSetDefaultTree,
   canEditTreeContent,
@@ -54,6 +51,11 @@ import {
   type SharedTabProps,
 } from './tree-tab-content';
 import { UserProfileTabContent } from './profile-screen';
+import {
+  buildSelfPersonInitialValues,
+  createPersonFromFormSubmission,
+  findConnectedTreeForSurname,
+} from './tree-screen-helpers';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Main'>;
 
@@ -78,27 +80,6 @@ type ConfirmState = {
   confirmLabel: string;
   action: (() => Promise<void>) | null;
 };
-
-function normaliseSurnameKey(value: string) {
-  return value.trim().toLowerCase().replace(/\s+/g, ' ');
-}
-
-function treeMatchesSurname(tree: FamilyTree, surname: string) {
-  const key = normaliseSurnameKey(surname);
-  if (!key) {
-    return false;
-  }
-
-  if (normaliseSurnameKey(tree.name) === key) {
-    return true;
-  }
-
-  return tree.surnameVariantGroups.some((group) => (
-    [group.primarySurname, ...group.variants]
-      .map(normaliseSurnameKey)
-      .includes(key)
-  ));
-}
 
 type TreeDialogState = {
   visible: boolean;
@@ -328,20 +309,7 @@ export default function MainScreen({ navigation }: Props) {
   const isOwner = selectedTree ? canManageTree(selectedTree, user?.id) : false;
   const canEdit = selectedTree ? canEditTreeContent(selectedTree, user?.id) : false;
 
-  const selfUserNameParts = useMemo(() => getUserNameParts(user), [user]);
-  const selfInitialValues = useMemo(() => ({
-    firstName: selfUserNameParts.firstName,
-    lastName: selfUserNameParts.lastName,
-    gender: 'unspecified' as const,
-    birthDate: '',
-    deathDate: '',
-    notes: '',
-    lifeEvents: [],
-    existingPhotos: [],
-    removedPhotos: [],
-    newPhotoUris: [],
-    preferredPhotoRef: '',
-  }), [selfUserNameParts.firstName, selfUserNameParts.lastName]);
+  const selfInitialValues = useMemo(() => buildSelfPersonInitialValues(user), [user]);
 
   // ── Auto-select tree ────────────────────────────────────────────────────────
 
@@ -437,20 +405,6 @@ export default function MainScreen({ navigation }: Props) {
     selectTree(tree.id);
   }, [selectTree]);
 
-  const findConnectedTreeForSurname = useCallback((person: PersonRecord, surname: string) => {
-    if (!selectedTree) {
-      return null;
-    }
-
-    const membershipIds = new Set(person.treeMembershipIds);
-    return trees.find((tree) => (
-      tree.id !== selectedTree.id
-      && selectedTree.connectedTreeIds.includes(tree.id)
-      && membershipIds.has(tree.id)
-      && treeMatchesSurname(tree, surname)
-    )) ?? null;
-  }, [selectedTree, trees]);
-
   const handleConfirmDeleteTree = useCallback((tree: FamilyTree) => {
     void (async () => {
       try {
@@ -507,18 +461,13 @@ export default function MainScreen({ navigation }: Props) {
   }, [addCollaborator, selectedTree]);
 
   const createPersonFromPayload = useCallback(async (payload: PersonFormSubmission) => {
-    if (!user?.id || !selectedTree) return null;
-    const created = await createPerson(user.id, selectedTree.id, {
-      firstName: payload.firstName, middleNames: payload.middleNames, lastName: payload.lastName, maidenName: payload.maidenName, birthDate: payload.birthDate,
-      deathDate: payload.deathDate, gender: payload.gender, notes: payload.notes,
-      lifeEvents: payload.lifeEvents, preferredPhotoRef: payload.preferredPhotoRef,
-    }, payload.newPhotoUris);
-    for (const pr of payload.pendingRelationships) {
-      if (pr.mode === 'parent-of') await addParentChildRelationship(user.id, selectedTree.id, created.id, pr.relatedPersonId, pr.parentChildKind);
-      else if (pr.mode === 'child-of') await addParentChildRelationship(user.id, selectedTree.id, pr.relatedPersonId, created.id, pr.parentChildKind);
-      else await addSpouseRelationship(user.id, selectedTree.id, created.id, pr.relatedPersonId);
-    }
-    return created;
+    return createPersonFromFormSubmission({
+      addParentChildRelationship,
+      addSpouseRelationship,
+      createPerson,
+      selectedTree,
+      userId: user?.id,
+    }, payload);
   }, [addParentChildRelationship, addSpouseRelationship, createPerson, selectedTree, user?.id]);
 
   const handlePersonSubmit = useCallback(async (payload: PersonFormSubmission) => {
@@ -911,7 +860,7 @@ export default function MainScreen({ navigation }: Props) {
               const description = isViewingMaiden
                 ? t('Switch to {surname} — their family by marriage', { surname: marital })
                 : t('Switch to {surname} — their birth family', { surname: maiden });
-              const linkedTree = findConnectedTreeForSurname(person, targetSurname);
+              const linkedTree = findConnectedTreeForSurname(person, targetSurname, selectedTree, trees);
               return (
                 <List.Item
                   title={label}

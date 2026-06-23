@@ -33,7 +33,7 @@ import { formatPersonDate, getDisplayPersonPhoto, getLifeEventTypeLabel, getPers
 import type { ParentChildRelationshipKind, SpouseRelationshipStatus } from '../../components/dto/relationship';
 import type { RelationshipRecord } from '../../components/dto/relationship';
 import type { RootStackParamList, TreeDetailTabParamList } from '../../components/dto/navigation';
-import { getUserDisplayLabel, getUserNameParts } from '../../components/dto/user';
+import { getUserDisplayLabel } from '../../components/dto/user';
 import { formatPersonName } from '../../components/person-formatting';
 import { findCrossSurnameChildren, extractSurname } from '../../components/family-tree-surname-clusters';
 import { canEditTreeContent, canManageTree, getAssignedPersonId, getTreeRole, type CollaboratorRole, type FamilyTree } from '../../components/dto/tree';
@@ -48,6 +48,11 @@ import {
   VisualisationTabContent,
   type SharedTabProps,
 } from './tree-tab-content';
+import {
+  buildSelfPersonInitialValues,
+  createPersonFromFormSubmission,
+  findConnectedTreeForSurname,
+} from './tree-screen-helpers';
 const dialogChrome = GlobalStyles.dialogChrome;
 
 type Props = NativeStackScreenProps<RootStackParamList, 'TreeDetail'>;
@@ -86,27 +91,6 @@ const MAIDEN_MEMBERS_PER_PAGE = 3;
 
 const Tab = createBottomTabNavigator<TreeDetailTabParamList>();
 const styles = GlobalStyles.treeDetail;
-
-function normaliseSurnameKey(value: string) {
-  return value.trim().toLowerCase().replace(/\s+/g, ' ');
-}
-
-function treeMatchesSurname(tree: FamilyTree, surname: string) {
-  const key = normaliseSurnameKey(surname);
-  if (!key) {
-    return false;
-  }
-
-  if (normaliseSurnameKey(tree.name) === key) {
-    return true;
-  }
-
-  return tree.surnameVariantGroups.some((group) => (
-    [group.primarySurname, ...group.variants]
-      .map(normaliseSurnameKey)
-      .includes(key)
-  ));
-}
 
 export default function TreeDetailScreen({ navigation, route }: Props) {
   const theme = useTheme();
@@ -526,39 +510,13 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
   }, [addCollaborator, selectedTree]);
 
   const createPersonFromPayload = useCallback(async (payload: PersonFormSubmission) => {
-    if (!user?.id || !selectedTree) {
-      return null;
-    }
-
-    const createdPerson = await createPerson(
-      user.id,
-      selectedTree.id,
-      {
-        firstName: payload.firstName,
-        middleNames: payload.middleNames,
-        lastName: payload.lastName,
-        maidenName: payload.maidenName,
-        birthDate: payload.birthDate,
-        deathDate: payload.deathDate,
-        gender: payload.gender,
-        notes: payload.notes,
-        lifeEvents: payload.lifeEvents,
-        preferredPhotoRef: payload.preferredPhotoRef,
-      },
-      payload.newPhotoUris,
-    );
-
-    for (const pendingRelationship of payload.pendingRelationships) {
-      if (pendingRelationship.mode === 'parent-of') {
-        await addParentChildRelationship(user.id, selectedTree.id, createdPerson.id, pendingRelationship.relatedPersonId, pendingRelationship.parentChildKind);
-      } else if (pendingRelationship.mode === 'child-of') {
-        await addParentChildRelationship(user.id, selectedTree.id, pendingRelationship.relatedPersonId, createdPerson.id, pendingRelationship.parentChildKind);
-      } else {
-        await addSpouseRelationship(user.id, selectedTree.id, createdPerson.id, pendingRelationship.relatedPersonId);
-      }
-    }
-
-    return createdPerson;
+    return createPersonFromFormSubmission({
+      addParentChildRelationship,
+      addSpouseRelationship,
+      createPerson,
+      selectedTree,
+      userId: user?.id,
+    }, payload);
   }, [addParentChildRelationship, addSpouseRelationship, createPerson, selectedTree, user?.id]);
 
   const handlePersonSubmit = useCallback(async (payload: PersonFormSubmission) => {
@@ -654,8 +612,6 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     [people, personDialog.person?.id],
   );
 
-  const selfUserNameParts = useMemo(() => getUserNameParts(user), [user]);
-
   const onOpenAddPerson = useCallback(() => setPersonDialog({ visible: true, mode: 'create', person: null, initialPendingRelationships: [] }), []);
   const onOpenRelationshipDialog = useCallback(() => setRelationshipDialogVisible(true), []);
   const onOpenPersonQuickActions = useCallback((person: PersonRecord) => {
@@ -749,19 +705,6 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     if (!user || !selectedTree) return;
     await createTreeFromSurname({ id: user.id, email: user.email, displayName: user.displayName }, selectedTree.id, surname);
   }, [createTreeFromSurname, selectedTree, user]);
-  const findConnectedTreeForSurname = useCallback((person: PersonRecord, surname: string) => {
-    if (!selectedTree) {
-      return null;
-    }
-
-    const membershipIds = new Set(person.treeMembershipIds);
-    return trees.find((tree) => (
-      tree.id !== selectedTree.id
-      && selectedTree.connectedTreeIds.includes(tree.id)
-      && membershipIds.has(tree.id)
-      && treeMatchesSurname(tree, surname)
-    )) ?? null;
-  }, [selectedTree, trees]);
   const onOpenTreeSettingsTarget = useCallback((target: Omit<NonNullable<TreeSettingsFocus>, 'token'>) => {
     setTreeSettingsFocus({ ...target, token: Date.now() });
   }, []);
@@ -1270,19 +1213,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
       <PersonFormDialog
         visible={selfPersonDialogVisible}
         mode="create"
-        initialValues={useMemo(() => ({
-          firstName: selfUserNameParts.firstName,
-          lastName: selfUserNameParts.lastName,
-          gender: 'unspecified' as const,
-          birthDate: '',
-          deathDate: '',
-          notes: '',
-          lifeEvents: [],
-          existingPhotos: [],
-          removedPhotos: [],
-          newPhotoUris: [],
-          preferredPhotoRef: '',
-        }), [selfUserNameParts.firstName, selfUserNameParts.lastName])}
+        initialValues={useMemo(() => buildSelfPersonInitialValues(user), [user])}
         loading={mutating}
         existingLastNames={existingLastNames}
         relationshipCandidates={people}
@@ -1344,7 +1275,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
               const description = isViewingMaiden
                 ? t('Switch to {surname} — their family by marriage', { surname: marital })
                 : t('Switch to {surname} — their birth family', { surname: maiden });
-              const linkedTree = findConnectedTreeForSurname(person, targetSurname);
+              const linkedTree = findConnectedTreeForSurname(person, targetSurname, selectedTree, trees);
               return (
                 <List.Item
                   title={label}

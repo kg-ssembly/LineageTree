@@ -49,6 +49,7 @@ import {
 import { GlobalStyles } from '../../constants/styles';
 import { translate } from '../../i18n';
 import { useI18n } from '../../hooks/use-i18n';
+import { normaliseSurnameKey } from './tree-screen-helpers';
 const dialogChrome = GlobalStyles.dialogChrome;
 
 type SelfAssignmentSuggestion = {
@@ -208,10 +209,6 @@ function formatRole(role: string | null | undefined) {
 
 function arraysEqual(left: string[], right: string[]) {
   return left.length === right.length && left.every((value, index) => value === right[index]);
-}
-
-function normaliseSurnameKey(value: string) {
-  return value.trim().toLowerCase().replace(/\s+/g, ' ');
 }
 
 function normaliseComparableName(value: string) {
