@@ -79,8 +79,9 @@ export default function RelationshipDialog({
       fromPersonId,
       toPersonId,
       parentChildKind: type === 'parent-child' ? parentChildKind : undefined,
+      relationshipStatus: type === 'spouse' ? relationshipStatus : undefined,
     }),
-    [fromPersonId, parentChildKind, people, relationships, toPersonId, type],
+    [fromPersonId, parentChildKind, people, relationshipStatus, relationships, toPersonId, type],
   );
   const validationWarnings = useMemo(
     () => getRelationshipValidationFeedback({
@@ -90,8 +91,9 @@ export default function RelationshipDialog({
       fromPersonId,
       toPersonId,
       parentChildKind: type === 'parent-child' ? parentChildKind : undefined,
+      relationshipStatus: type === 'spouse' ? relationshipStatus : undefined,
     }).warnings,
-    [fromPersonId, parentChildKind, people, relationships, toPersonId, type],
+    [fromPersonId, parentChildKind, people, relationshipStatus, relationships, toPersonId, type],
   );
 
   const fromMatches = useMemo(

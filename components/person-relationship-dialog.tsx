@@ -167,9 +167,10 @@ export default function PersonRelationshipDialog({
       fromPersonId: mode === 'child-of' ? relatedPersonId : person.id,
       toPersonId: mode === 'child-of' ? person.id : relatedPersonId,
       parentChildKind: mode === 'spouse-of' ? undefined : parentChildKind,
+      relationshipStatus: mode === 'spouse-of' ? relationshipStatus : undefined,
       ignoreRelationshipId: editingRelationship?.id,
     });
-  }, [editingRelationship?.id, mode, parentChildKind, people, person, relatedPersonId, relationships]);
+  }, [editingRelationship?.id, mode, parentChildKind, people, person, relatedPersonId, relationshipStatus, relationships]);
   const validationWarnings = useMemo(() => {
     if (!person || !relatedPersonId) {
       return [];
@@ -182,9 +183,10 @@ export default function PersonRelationshipDialog({
       fromPersonId: mode === 'child-of' ? relatedPersonId : person.id,
       toPersonId: mode === 'child-of' ? person.id : relatedPersonId,
       parentChildKind: mode === 'spouse-of' ? undefined : parentChildKind,
+      relationshipStatus: mode === 'spouse-of' ? relationshipStatus : undefined,
       ignoreRelationshipId: editingRelationship?.id,
     }).warnings;
-  }, [editingRelationship?.id, mode, parentChildKind, people, person, relatedPersonId, relationships]);
+  }, [editingRelationship?.id, mode, parentChildKind, people, person, relatedPersonId, relationshipStatus, relationships]);
 
   const handleSubmit = async () => {
     if (!person) { setError(t('This family member could not be loaded.')); return; }

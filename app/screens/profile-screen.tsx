@@ -43,6 +43,7 @@ import {
 } from '../../components/dto/person';
 import type { ParentChildRelationshipKind, RelationshipRecord, SpouseRelationshipStatus } from '../../components/dto/relationship';
 import { canEditTreeContent, getAssignedPersonId } from '../../components/dto/tree';
+import { getPersonValidationFeedback } from '../../components/family-tree-validation';
 import { formatPersonGender, formatPersonName } from '../../components/person-formatting';
 import type { ThemePreference } from '../../constants/theme';
 import { GlobalStyles } from '../../constants/styles';
@@ -781,17 +782,37 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
       return;
     }
 
+    const nextPayload = buildPersonMutationPayload(linkedPerson, {
+      existingPhotos: photoEditorExistingPhotos,
+      removedPhotos: photoEditorRemovedPhotos,
+      newPhotoUris: photoEditorNewPhotoUris,
+      preferredPhotoRef: photoEditorPreferredPhotoRef,
+    });
+    const photoValidation = getPersonValidationFeedback({
+      people,
+      relationships,
+      person: {
+        firstName: nextPayload.firstName,
+        middleNames: nextPayload.middleNames,
+        lastName: nextPayload.lastName,
+        maidenName: nextPayload.maidenName ?? '',
+        birthDate: nextPayload.birthDate,
+        deathDate: nextPayload.deathDate,
+        notes: nextPayload.notes,
+        lifeEvents: nextPayload.lifeEvents,
+      },
+      existingPhotos: nextPayload.existingPhotos,
+      removedPhotos: nextPayload.removedPhotos,
+      newPhotoUris: nextPayload.newPhotoUris,
+      ignorePersonId: linkedPerson.id,
+    });
+    if (photoValidation.errors.length > 0) {
+      Alert.alert(t('Cannot save photos'), photoValidation.errors[0]);
+      return;
+    }
+
     try {
-      await updatePerson(
-        user.id,
-        linkedPerson,
-        buildPersonMutationPayload(linkedPerson, {
-          existingPhotos: photoEditorExistingPhotos,
-          removedPhotos: photoEditorRemovedPhotos,
-          newPhotoUris: photoEditorNewPhotoUris,
-          preferredPhotoRef: photoEditorPreferredPhotoRef,
-        }),
-      );
+      await updatePerson(user.id, linkedPerson, nextPayload);
       setPhotosDialogVisible(false);
     } catch {
       // surfaced by store snackbar
@@ -871,6 +892,25 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
     const nextLifeEvents = lifeEventDialog.event
       ? linkedPerson.lifeEvents.map((event) => (event.id === lifeEventDialog.event?.id ? { ...event, ...payload } : event))
       : [...linkedPerson.lifeEvents, { id: `life-event-${Date.now()}`, ...payload }];
+    const validation = getPersonValidationFeedback({
+      people,
+      relationships,
+      person: {
+        firstName: linkedPerson.firstName,
+        middleNames: linkedPerson.middleNames ?? '',
+        lastName: linkedPerson.lastName,
+        maidenName: linkedPerson.maidenName ?? '',
+        birthDate: linkedPerson.birthDate,
+        deathDate: linkedPerson.deathDate,
+        notes: linkedPerson.notes,
+        lifeEvents: nextLifeEvents,
+      },
+      ignorePersonId: linkedPerson.id,
+    });
+    if (validation.errors.length > 0) {
+      Alert.alert(t('Cannot save life event'), validation.errors[0]);
+      return;
+    }
 
     try {
       await updatePerson(user.id, linkedPerson, buildPersonMutationPayload(linkedPerson, { lifeEvents: nextLifeEvents }));

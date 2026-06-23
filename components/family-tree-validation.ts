@@ -1,6 +1,6 @@
-import type { PersonInput, PersonRecord } from './dto/person';
+import type { PersonInput, PersonLifeEvent, PersonPhoto, PersonRecord } from './dto/person';
 import { parsePersonDate } from './dto/person';
-import type { ParentChildRelationshipKind, RelationshipRecord, RelationshipType } from './dto/relationship';
+import type { ParentChildRelationshipKind, RelationshipRecord, RelationshipType, SpouseRelationshipStatus } from './dto/relationship';
 import { translate } from '../i18n';
 
 const MIN_BIOLOGICAL_PARENT_AGE = 12;
@@ -12,12 +12,24 @@ type RelationshipValidationInput = {
   fromPersonId: string;
   toPersonId: string;
   parentChildKind?: ParentChildRelationshipKind;
+  relationshipStatus?: SpouseRelationshipStatus;
   ignoreRelationshipId?: string | null;
 };
 
 type PersonValidationInput = {
   people: PersonRecord[];
-  person: Pick<PersonInput, 'firstName' | 'middleNames' | 'lastName' | 'maidenName' | 'birthDate' | 'deathDate'>;
+  relationships?: RelationshipRecord[];
+  person: Pick<PersonInput, 'firstName' | 'middleNames' | 'lastName' | 'maidenName' | 'birthDate' | 'deathDate' | 'notes' | 'lifeEvents'>;
+  pendingRelationships?: Array<{
+    mode: 'parent-of' | 'child-of' | 'spouse-of';
+    relatedPersonId: string;
+    parentChildKind?: ParentChildRelationshipKind;
+    relationshipStatus?: SpouseRelationshipStatus;
+  }>;
+  existingPhotos?: PersonPhoto[];
+  removedPhotos?: PersonPhoto[];
+  newPhotoUris?: string[];
+  requireIdentityContext?: boolean;
   ignorePersonId?: string | null;
 };
 
@@ -28,6 +40,13 @@ type ValidationFeedback = {
 
 function normaliseNamePart(value?: string) {
   return value?.trim().toLowerCase().replace(/\s+/g, ' ') ?? '';
+}
+
+function formatDateToIso(date: Date) {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 function getFirstToken(value?: string) {
@@ -138,6 +157,55 @@ function isBiologicalParentChildKind(kind?: ParentChildRelationshipKind) {
   return !kind || kind === 'biological';
 }
 
+function isCurrentSpouseStatus(status?: SpouseRelationshipStatus) {
+  return !status || status === 'partner' || status === 'married';
+}
+
+function normalisePhotoValue(value?: string) {
+  return value?.trim().toLowerCase() ?? '';
+}
+
+function getRelationshipPeerId(relationship: RelationshipRecord, personId: string) {
+  if (relationship.fromPersonId === personId) {
+    return relationship.toPersonId;
+  }
+
+  if (relationship.toPersonId === personId) {
+    return relationship.fromPersonId;
+  }
+
+  return null;
+}
+
+function getRelationshipSignature(
+  relationships: Array<{
+    mode: 'parent-of' | 'child-of' | 'spouse-of';
+    relatedPersonId: string;
+  }>,
+) {
+  return relationships
+    .filter((relationship) => relationship.relatedPersonId)
+    .map((relationship) => `${relationship.mode}:${relationship.relatedPersonId}`)
+    .sort()
+    .join('|');
+}
+
+function hasMultipleBirthHint(person: Pick<PersonRecord, 'notes'> | Pick<PersonInput, 'notes'>) {
+  const notes = normaliseNamePart(person.notes);
+  return notes.includes('twin') || notes.includes('triplet') || notes.includes('multiple birth');
+}
+
+function diffDays(leftDateValue: string, rightDateValue: string) {
+  const left = parsePersonDate(leftDateValue);
+  const right = parsePersonDate(rightDateValue);
+  if (!left || !right) {
+    return null;
+  }
+
+  const milliseconds = Math.abs(left.getTime() - right.getTime());
+  return Math.round(milliseconds / (1000 * 60 * 60 * 24));
+}
+
 function getBiologicalParentIdsForChild(
   relationships: RelationshipRecord[],
   childId: string,
@@ -152,7 +220,13 @@ function getBiologicalParentIdsForChild(
 
 export function getPersonValidationFeedback({
   people,
+  relationships = [],
   person,
+  pendingRelationships = [],
+  existingPhotos = [],
+  removedPhotos = [],
+  newPhotoUris = [],
+  requireIdentityContext = false,
   ignorePersonId,
 }: PersonValidationInput): ValidationFeedback {
   const errors: string[] = [];
@@ -167,9 +241,34 @@ export function getPersonValidationFeedback({
     errors.push(translate('First name is required.'));
   }
 
+  if (requireIdentityContext && !lastName && !birthDate && pendingRelationships.filter((relationship) => relationship.relatedPersonId).length === 0) {
+    errors.push(translate('Add at least one identifying detail: surname, birth date, or a relationship.'));
+  }
+
+  if (birthDate && birthDate > formatDateToIso(new Date())) {
+    errors.push(translate('Birth date cannot be in the future.'));
+  }
+
+  if (deathDate && deathDate > formatDateToIso(new Date())) {
+    errors.push(translate('Death date cannot be in the future.'));
+  }
+
   if (birthDate && deathDate && deathDate < birthDate) {
     errors.push(translate('Death date cannot be earlier than birth date.'));
   }
+
+  person.lifeEvents.forEach((event) => {
+    if (birthDate && event.date < birthDate) {
+      errors.push(translate('Life events cannot be earlier than the birth date.'));
+    }
+
+    if (deathDate && event.date > deathDate) {
+      errors.push(translate('Life events cannot be later than the death date.'));
+      if (event.type !== 'death') {
+        warnings.push(translate('This deceased person has present-day life events recorded after death. Please review those dates.'));
+      }
+    }
+  });
 
   const matches = people.filter((candidate) => {
     if (candidate.id === ignorePersonId) {
@@ -212,6 +311,60 @@ export function getPersonValidationFeedback({
 
   if (nearDuplicate) {
     warnings.push(translate('This looks very similar to an existing family member name. Please check for a near-duplicate before saving.'));
+  }
+
+  const activeExistingPhotos = existingPhotos.filter((photo) => !removedPhotos.some((removedPhoto) => removedPhoto.id === photo.id));
+  const seenPhotoKeys = new Set<string>();
+  const duplicateNewPhoto = newPhotoUris.find((uri) => {
+    const key = normalisePhotoValue(uri);
+    if (!key) {
+      return false;
+    }
+    if (seenPhotoKeys.has(key)) {
+      return true;
+    }
+    seenPhotoKeys.add(key);
+    return false;
+  });
+  const duplicateAgainstExisting = activeExistingPhotos.find((photo) => {
+    const urlKey = normalisePhotoValue(photo.url);
+    const pathKey = normalisePhotoValue(photo.path);
+    return newPhotoUris.some((uri) => {
+      const uriKey = normalisePhotoValue(uri);
+      return uriKey && (uriKey === urlKey || uriKey === pathKey);
+    });
+  });
+
+  if (duplicateNewPhoto || duplicateAgainstExisting) {
+    errors.push(translate('Remove duplicate photos before saving.'));
+  }
+
+  const exactRelationshipSignature = getRelationshipSignature(pendingRelationships);
+  if (exactRelationshipSignature) {
+    const duplicateImportedPerson = matches.find((candidate) => {
+      const existingSignature = getRelationshipSignature(
+        relationships
+          .filter((relationship) => relationship.fromPersonId === candidate.id || relationship.toPersonId === candidate.id)
+          .map((relationship) => {
+            if (relationship.type === 'spouse') {
+              return {
+                mode: 'spouse-of' as const,
+                relatedPersonId: getRelationshipPeerId(relationship, candidate.id) ?? '',
+              };
+            }
+
+            return relationship.fromPersonId === candidate.id
+              ? { mode: 'parent-of' as const, relatedPersonId: relationship.toPersonId }
+              : { mode: 'child-of' as const, relatedPersonId: relationship.fromPersonId };
+          }),
+      );
+
+      return existingSignature === exactRelationshipSignature;
+    });
+
+    if (duplicateImportedPerson) {
+      errors.push(translate('A family member with the same name and attached relationships already exists. Please review before importing a duplicate.'));
+    }
   }
 
   if (!lastName && person.maidenName?.trim()) {
@@ -368,6 +521,7 @@ export function validateProposedRelationship({
   fromPersonId,
   toPersonId,
   parentChildKind,
+  relationshipStatus,
   ignoreRelationshipId,
 }: RelationshipValidationInput) {
   return getRelationshipValidationFeedback({
@@ -377,6 +531,7 @@ export function validateProposedRelationship({
     fromPersonId,
     toPersonId,
     parentChildKind,
+    relationshipStatus,
     ignoreRelationshipId,
   }).errors[0] ?? null;
 }
@@ -388,6 +543,7 @@ export function getRelationshipValidationFeedback({
   fromPersonId,
   toPersonId,
   parentChildKind,
+  relationshipStatus,
   ignoreRelationshipId,
 }: RelationshipValidationInput): ValidationFeedback {
   const errors: string[] = [];
@@ -470,6 +626,40 @@ export function getRelationshipValidationFeedback({
           warnings.push(translate('This child surname differs from both biological parents and there is no maiden-name or non-biological context recorded.'));
         }
       }
+
+      if (child.birthDate) {
+        const siblingIds = new Set<string>();
+        nextBiologicalParentIds.forEach((parentId) => {
+          relationships
+            .filter((relationship) => relationship.id !== ignoreRelationshipId)
+            .filter((relationship) => relationship.type === 'parent-child' && relationship.fromPersonId === parentId)
+            .filter((relationship) => isBiologicalParentChildKind(relationship.parentChildKind))
+            .forEach((relationship) => {
+              if (relationship.toPersonId !== toPersonId) {
+                siblingIds.add(relationship.toPersonId);
+              }
+            });
+        });
+
+        const implausiblyCloseSibling = [...siblingIds]
+          .map((siblingId) => peopleById.get(siblingId))
+          .find((sibling) => {
+            if (!sibling?.birthDate) {
+              return false;
+            }
+
+            const daysApart = diffDays(child.birthDate, sibling.birthDate);
+            if (typeof daysApart !== 'number' || daysApart === 0 || daysApart >= 240) {
+              return false;
+            }
+
+            return !hasMultipleBirthHint(child) && !hasMultipleBirthHint(sibling);
+          });
+
+        if (implausiblyCloseSibling) {
+          warnings.push(translate('This child birth date is unusually close to a sibling. If they were twins or triplets, add that context in notes.'));
+        }
+      }
     }
 
     if (type === 'spouse') {
@@ -506,11 +696,30 @@ export function getRelationshipValidationFeedback({
       if (hasImplausibleSharedChildTimeline) {
         warnings.push(translate('These spouses have shared children whose recorded timelines look implausible. Please double-check the parents and birth dates.'));
       }
+
+      if (isCurrentSpouseStatus(relationshipStatus)) {
+        const currentSpouseExists = relationships
+          .filter((relationship) => relationship.id !== ignoreRelationshipId)
+          .filter((relationship) => relationship.type === 'spouse')
+          .filter((relationship) => isCurrentSpouseStatus(relationship.relationshipStatus))
+          .some((relationship) => {
+            const firstPeer = getRelationshipPeerId(relationship, fromPersonId);
+            const secondPeer = getRelationshipPeerId(relationship, toPersonId);
+            return (firstPeer && firstPeer !== toPersonId)
+              || (secondPeer && secondPeer !== fromPersonId);
+          });
+
+        if (currentSpouseExists) {
+          warnings.push(translate('One of these family members already has another current spouse or partner recorded. Please review before saving.'));
+        }
+      }
     }
   }
 
   if (findDuplicateRelationship(relationships, type, fromPersonId, toPersonId, ignoreRelationshipId)) {
-    errors.push(translate('That relationship already exists.'));
+    errors.push(type === 'spouse'
+      ? translate('That spouse relationship already exists. Update its status instead of creating another one.')
+      : translate('That relationship already exists.'));
     return { errors, warnings };
   }
 

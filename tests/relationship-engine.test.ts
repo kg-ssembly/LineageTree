@@ -202,10 +202,31 @@ test('warns on near-duplicate names including nickname variants', () => {
       maidenName: '',
       birthDate: '',
       deathDate: '',
+      notes: '',
+      lifeEvents: [],
     },
   });
 
   assert.ok(feedback.warnings.includes('This looks very similar to an existing family member name. Please check for a near-duplicate before saving.'));
+});
+
+test('blocks future birth dates', () => {
+  const nextYear = new Date().getFullYear() + 1;
+  const feedback = getPersonValidationFeedback({
+    people: [],
+    person: {
+      firstName: 'Jordan',
+      middleNames: '',
+      lastName: 'Example',
+      maidenName: '',
+      birthDate: `${nextYear}-01-01`,
+      deathDate: '',
+      notes: '',
+      lifeEvents: [],
+    },
+  });
+
+  assert.ok(feedback.errors.includes('Birth date cannot be in the future.'));
 });
 
 test('warns when child surname differs from both biological parents without context', () => {
@@ -226,4 +247,156 @@ test('warns when child surname differs from both biological parents without cont
   });
 
   assert.ok(feedback.warnings.includes('This child surname differs from both biological parents and there is no maiden-name or non-biological context recorded.'));
+});
+
+test('blocks future death dates', () => {
+  const nextYear = new Date().getFullYear() + 1;
+  const feedback = getPersonValidationFeedback({
+    people: [],
+    person: {
+      firstName: 'Jordan',
+      middleNames: '',
+      lastName: 'Example',
+      maidenName: '',
+      birthDate: '2000-01-01',
+      deathDate: `${nextYear}-01-01`,
+      notes: '',
+      lifeEvents: [],
+    },
+  });
+
+  assert.ok(feedback.errors.includes('Death date cannot be in the future.'));
+});
+
+test('blocks life events outside the recorded lifespan', () => {
+  const feedback = getPersonValidationFeedback({
+    people: [],
+    person: {
+      firstName: 'Jordan',
+      middleNames: '',
+      lastName: 'Example',
+      maidenName: '',
+      birthDate: '2000-01-01',
+      deathDate: '2020-01-01',
+      notes: '',
+      lifeEvents: [
+        { id: 'event-1', type: 'moved', title: 'Moved', date: '2021-01-01', description: '' },
+      ],
+    },
+  });
+
+  assert.ok(feedback.errors.includes('Life events cannot be later than the death date.'));
+  assert.ok(feedback.warnings.includes('This deceased person has present-day life events recorded after death. Please review those dates.'));
+});
+
+test('warns when adding another current spouse or partner', () => {
+  const people = [
+    makePerson('a', 'Alex', 'male'),
+    makePerson('b', 'Blair', 'female'),
+    makePerson('c', 'Casey', 'female'),
+  ];
+  const relationships = [
+    { ...makeRelationship('a-b', 'spouse', 'a', 'b'), relationshipStatus: 'married' as const },
+  ];
+
+  const feedback = getRelationshipValidationFeedback({
+    people,
+    relationships,
+    type: 'spouse',
+    fromPersonId: 'a',
+    toPersonId: 'c',
+    relationshipStatus: 'partner',
+  });
+
+  assert.ok(feedback.warnings.includes('One of these family members already has another current spouse or partner recorded. Please review before saving.'));
+});
+
+test('warns when sibling birth dates are implausibly close without twin context', () => {
+  const parent = { ...makePerson('parent', 'Alex', 'male'), birthDate: '1980-01-01' };
+  const sibling = { ...makePerson('sibling', 'Taylor', 'female'), birthDate: '2010-01-01', notes: '' };
+  const child = { ...makePerson('child', 'Jordan', 'male'), birthDate: '2010-05-01', notes: '' };
+  const relationships = [
+    { ...makeRelationship('p-s', 'parent-child', 'parent', 'sibling'), parentChildKind: 'biological' as const },
+  ];
+
+  const feedback = getRelationshipValidationFeedback({
+    people: [parent, sibling, child],
+    relationships,
+    type: 'parent-child',
+    fromPersonId: 'parent',
+    toPersonId: 'child',
+    parentChildKind: 'biological',
+  });
+
+  assert.ok(feedback.warnings.includes('This child birth date is unusually close to a sibling. If they were twins or triplets, add that context in notes.'));
+});
+
+test('requires at least one additional identity detail when creating a person', () => {
+  const feedback = getPersonValidationFeedback({
+    people: [],
+    person: {
+      firstName: 'Jordan',
+      middleNames: '',
+      lastName: '',
+      maidenName: '',
+      birthDate: '',
+      deathDate: '',
+      notes: '',
+      lifeEvents: [],
+    },
+    pendingRelationships: [],
+    requireIdentityContext: true,
+  });
+
+  assert.ok(feedback.errors.includes('Add at least one identifying detail: surname, birth date, or a relationship.'));
+});
+
+test('blocks duplicate photos before saving', () => {
+  const feedback = getPersonValidationFeedback({
+    people: [],
+    person: {
+      firstName: 'Jordan',
+      middleNames: '',
+      lastName: 'Example',
+      maidenName: '',
+      birthDate: '',
+      deathDate: '',
+      notes: '',
+      lifeEvents: [],
+    },
+    existingPhotos: [],
+    removedPhotos: [],
+    newPhotoUris: ['file:///photo-a.jpg', 'file:///photo-a.jpg'],
+  });
+
+  assert.ok(feedback.errors.includes('Remove duplicate photos before saving.'));
+});
+
+test('blocks duplicate imported people with same attached relationships', () => {
+  const existing = { ...makePerson('existing', 'Jordan', 'male'), lastName: 'Example' };
+  const parent = makePerson('parent', 'Alex', 'male');
+  const relationships = [
+    { ...makeRelationship('p-existing', 'parent-child', 'parent', 'existing'), parentChildKind: 'biological' as const },
+  ];
+
+  const feedback = getPersonValidationFeedback({
+    people: [existing, parent],
+    relationships,
+    person: {
+      firstName: 'Jordan',
+      middleNames: '',
+      lastName: 'Example',
+      maidenName: '',
+      birthDate: '',
+      deathDate: '',
+      notes: '',
+      lifeEvents: [],
+    },
+    pendingRelationships: [
+      { mode: 'child-of', relatedPersonId: 'parent', parentChildKind: 'biological' },
+    ],
+    requireIdentityContext: true,
+  });
+
+  assert.ok(feedback.errors.includes('A family member with the same name and attached relationships already exists. Please review before importing a duplicate.'));
 });

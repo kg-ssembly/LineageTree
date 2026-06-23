@@ -75,6 +75,9 @@ function formatIsoDate(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
+const todayDate = new Date();
+todayDate.setHours(0, 0, 0, 0);
+
 function parseIsoDate(value: string) {
   if (!value) {
     return undefined;
@@ -205,6 +208,7 @@ export default function PersonFormDialog({
   const [newPhotoUris, setNewPhotoUris] = useState<string[]>([]);
   const [firstNameError, setFirstNameError] = useState<string | null>(null);
   const [relationshipError, setRelationshipError] = useState<string | null>(null);
+  const [birthDateError, setBirthDateError] = useState<string | null>(null);
   const [deathDateError, setDeathDateError] = useState<string | null>(null);
   const [birthDatePickerVisible, setBirthDatePickerVisible] = useState(false);
   const [deathDatePickerVisible, setDeathDatePickerVisible] = useState(false);
@@ -251,6 +255,7 @@ export default function PersonFormDialog({
     setNewPhotoUris(initialValues?.newPhotoUris ?? []);
     setFirstNameError(null);
     setRelationshipError(null);
+    setBirthDateError(null);
     setDeathDateError(null);
     setBirthDatePickerVisible(false);
     setDeathDatePickerVisible(false);
@@ -290,9 +295,11 @@ export default function PersonFormDialog({
     }),
     [birthDate, deathDate, firstName, gender, isPresent, lastName, lifeEvents, maidenName, middleNames, notes, person],
   );
+  const pendingValidationRelationships = useMemo(() => createPendingValidationRelationships(pendingRelationships), [pendingRelationships]);
   const personValidationFeedback = useMemo(
     () => getPersonValidationFeedback({
       people: relationshipCandidates,
+      relationships: [...relationships, ...pendingValidationRelationships],
       person: {
         firstName,
         middleNames,
@@ -300,14 +307,17 @@ export default function PersonFormDialog({
         maidenName,
         birthDate,
         deathDate: isPresent ? '' : deathDate,
+        notes,
+        lifeEvents,
       },
+      pendingRelationships,
+      existingPhotos,
+      removedPhotos,
+      newPhotoUris,
+      requireIdentityContext: mode === 'create',
       ignorePersonId: person?.id,
     }),
-    [birthDate, deathDate, firstName, isPresent, lastName, maidenName, middleNames, person?.id, relationshipCandidates],
-  );
-  const pendingValidationRelationships = useMemo(
-    () => createPendingValidationRelationships(pendingRelationships),
-    [pendingRelationships],
+    [birthDate, deathDate, existingPhotos, firstName, isPresent, lastName, lifeEvents, maidenName, middleNames, mode, newPhotoUris, notes, pendingRelationships, pendingValidationRelationships, person?.id, relationshipCandidates, relationships, removedPhotos],
   );
   const validationPeople = useMemo(
     () => [
@@ -431,6 +441,16 @@ export default function PersonFormDialog({
       setFirstNameError(firstError);
       return;
     }
+    const futureBirthDateError = personValidationFeedback.errors.find((message) => message === t('Birth date cannot be in the future.'));
+    if (futureBirthDateError) {
+      setBirthDateError(futureBirthDateError);
+      return;
+    }
+    const futureDeathDateError = personValidationFeedback.errors.find((message) => message === t('Death date cannot be in the future.'));
+    if (futureDeathDateError) {
+      setDeathDateError(futureDeathDateError);
+      return;
+    }
     const deathError = personValidationFeedback.errors.find((message) => message === t('Death date cannot be earlier than birth date.'));
     if (deathError) {
       setDeathDateError(deathError);
@@ -443,6 +463,16 @@ export default function PersonFormDialog({
     const firstError = personValidationFeedback.errors.find((message) => message === t('First name is required.'));
     if (firstError) {
       setFirstNameError(firstError);
+      return;
+    }
+    const futureBirthDateError = personValidationFeedback.errors.find((message) => message === t('Birth date cannot be in the future.'));
+    if (futureBirthDateError) {
+      setBirthDateError(futureBirthDateError);
+      return;
+    }
+    const futureDeathDateError = personValidationFeedback.errors.find((message) => message === t('Death date cannot be in the future.'));
+    if (futureDeathDateError) {
+      setDeathDateError(futureDeathDateError);
       return;
     }
 
@@ -701,11 +731,19 @@ export default function PersonFormDialog({
                     {formatDateButtonLabel(birthDate, t)}
                   </Button>
                   {birthDate ? (
-                    <Button onPress={() => setBirthDate('')} disabled={loading}>
+                    <Button onPress={() => {
+                      setBirthDate('');
+                      if (birthDateError) {
+                        setBirthDateError(null);
+                      }
+                    }} disabled={loading}>
                       {t('Clear')}
                     </Button>
                   ) : null}
                 </View>
+                <HelperText type="error" visible={!!birthDateError}>
+                  {birthDateError}
+                </HelperText>
               </View>
 
               <View style={styles.sectionSpacing}>
@@ -1002,11 +1040,15 @@ export default function PersonFormDialog({
         mode="single"
         visible={birthDatePickerVisible}
         date={selectedBirthDate}
+        validRange={{ endDate: todayDate }}
         onDismiss={() => setBirthDatePickerVisible(false)}
         onConfirm={({ date }) => {
           setBirthDatePickerVisible(false);
           if (date) {
             setBirthDate(formatIsoDate(date));
+            if (birthDateError) {
+              setBirthDateError(null);
+            }
           }
         }}
         saveLabel={t('Save')}
@@ -1018,6 +1060,7 @@ export default function PersonFormDialog({
         mode="single"
         visible={deathDatePickerVisible}
         date={selectedDeathDate}
+        validRange={{ endDate: todayDate }}
         onDismiss={() => setDeathDatePickerVisible(false)}
         onConfirm={({ date }) => {
           setDeathDatePickerVisible(false);
