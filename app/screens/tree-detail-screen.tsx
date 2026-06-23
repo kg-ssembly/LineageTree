@@ -101,6 +101,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     createMergeRequest,
     loadMergePreview,
     approveMergeRequest,
+    grantMergeViewerAccess,
     rejectMergeRequest,
     requestMergeChanges,
     undoMerge,
@@ -450,22 +451,26 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     if (!selectedTree) return;
     await loadMergePreview(selectedTree.id, targetTreeId);
   }, [loadMergePreview, selectedTree]);
-  const onApproveMergeRequest = useCallback(async (requestId: string, comment?: string) => {
+  const onApproveMergeRequest = useCallback(async (requestId: string, comment?: string, selectedMatchIds?: string[]) => {
     if (!user?.id) return;
-    await approveMergeRequest(user.id, requestId, comment);
+    await approveMergeRequest(user.id, requestId, comment, selectedMatchIds);
   }, [approveMergeRequest, user?.id]);
   const onRejectMergeRequest = useCallback(async (requestId: string, comment?: string) => {
     if (!user?.id) return;
     await rejectMergeRequest(user.id, requestId, comment);
   }, [rejectMergeRequest, user?.id]);
-  const onRequestMergeChanges = useCallback(async (requestId: string, comment?: string) => {
+  const onRequestMergeChanges = useCallback(async (requestId: string, comment?: string, selectedMatchIds?: string[]) => {
     if (!user?.id) return;
-    await requestMergeChanges(user.id, requestId, comment);
+    await requestMergeChanges(user.id, requestId, comment, selectedMatchIds);
   }, [requestMergeChanges, user?.id]);
   const onUndoMerge = useCallback(async (requestId: string) => {
     if (!user?.id) return;
     await undoMerge(user.id, requestId);
   }, [undoMerge, user?.id]);
+  const onGrantMergeViewerAccess = useCallback(async (requestId: string, treeId: string) => {
+    if (!user?.id) return;
+    await grantMergeViewerAccess(user.id, requestId, treeId);
+  }, [grantMergeViewerAccess, user?.id]);
 
   const sharedTabProps: SharedTabProps | null = useMemo(() => {
     if (!selectedTree) return null;
@@ -513,6 +518,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
       onRejectMergeRequest,
       onRequestMergeChanges,
       onUndoMerge,
+      onGrantMergeViewerAccess,
     };
   }, [
     selectedTree, people, relationships, approvalRequests, mergeRequests, mergeHistory, mergePreview, peopleById, canEdit, isOwner, role,
@@ -522,7 +528,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     onOpenCollaboratorDialog, onOpenAddSelf, onEditPerson, onDeletePerson, onRemoveCollaborator,
     handleAssignPersonToUser, handleClearSelfAssignment, onApproveApprovalRequest, onRejectApprovalRequest,
     onSetApprovalWindowHours, onSetSurnameVariantGroups, onCreateMergeRequest, onLoadTreeMergePreview,
-    onApproveMergeRequest, onRejectMergeRequest, onRequestMergeChanges, onUndoMerge,
+    onApproveMergeRequest, onRejectMergeRequest, onRequestMergeChanges, onUndoMerge, onGrantMergeViewerAccess,
   ]);
 
   if (!selectedTree || !sharedTabProps) {

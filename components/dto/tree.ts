@@ -66,6 +66,11 @@ export function canEditTreeContent(tree: FamilyTree, userId?: string | null) {
   return !!userId && tree.editorIds.includes(userId);
 }
 
+export function canSetDefaultTree(tree: FamilyTree, userId?: string | null) {
+  const role = getTreeRole(tree, userId);
+  return role !== null && role !== 'viewer';
+}
+
 export function getAssignedPersonId(tree: FamilyTree, userId?: string | null) {
   if (!userId) {
     return null;

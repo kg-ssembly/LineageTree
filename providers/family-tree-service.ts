@@ -424,6 +424,7 @@ function mapMergeRequest(snapshot: QueryDocumentSnapshot): MergeRequestRecord {
     suggestedByLabel: data.suggestedByLabel ?? '',
     status: data.status ?? 'pending',
     preview: mapMergePreview(data.preview ?? {}),
+    selectedMatchIds: Array.isArray(data.selectedMatchIds) ? data.selectedMatchIds.filter((value) => typeof value === 'string') : [],
     approvals: Array.isArray(data.approvals) ? data.approvals.map(mapMergeApproval).filter(Boolean) as MergeApproval[] : [],
     reviewerComments: Array.isArray(data.reviewerComments) ? data.reviewerComments.filter((value) => typeof value === 'string') : [],
     conflictChoices: Array.isArray(data.conflictChoices) ? data.conflictChoices as MergeConflictChoice[] : [],
@@ -992,11 +993,11 @@ function buildSurnameCanonicalLookup(tree: FamilyTree) {
 }
 
 function getCanonicalSurnameKeysForPerson(
-  person: Pick<PersonRecord, 'lastName' | 'maidenName'> | null | undefined,
+  person: Pick<PersonRecord, 'lastName'> | null | undefined,
   surnameLookup: Map<string, string>,
 ) {
   const keys = new Set<string>();
-  [person?.lastName, person?.maidenName].forEach((value) => {
+  [person?.lastName].forEach((value) => {
     const rawKey = normaliseSurnameKey(value);
     if (!rawKey) {
       return;
@@ -1770,7 +1771,7 @@ async function applyMergeRequest(mergeRequestId: string, request: MergeRequestRe
   const relationships = [...sourceRelationships, ...targetRelationships];
 
   request.preview.matches
-    .filter((match) => match.confidenceScore >= 65)
+    .filter((match) => request.selectedMatchIds.includes(match.id))
     .forEach((match) => {
       const sourcePersonRef = doc(db, PEOPLE_COLLECTION, match.sourcePersonId);
       const targetPersonRef = doc(db, PEOPLE_COLLECTION, match.targetPersonId);
@@ -1836,6 +1837,7 @@ async function applyMergeRequest(mergeRequestId: string, request: MergeRequestRe
   });
   batch.update(doc(db, MERGE_REQUESTS_COLLECTION, mergeRequestId), {
     status: 'applied',
+    selectedMatchIds: request.selectedMatchIds,
     snapshotBeforeMerge,
     appliedAt: timestamp,
     updatedAt: timestamp,
@@ -1857,6 +1859,91 @@ async function applyMergeRequest(mergeRequestId: string, request: MergeRequestRe
   await batch.commit();
 }
 
+async function getUserProfileById(userId: string) {
+  const userSnapshot = await getDoc(doc(db, USERS_COLLECTION, userId));
+  if (!userSnapshot.exists()) {
+    throw new Error('That user account no longer exists.');
+  }
+
+  const userData = userSnapshot.data();
+  return {
+    id: userSnapshot.id,
+    email: userData.email ?? '',
+    displayName: userData.displayName ?? '',
+  };
+}
+
+export async function grantMergeRequesterViewerAccess(
+  actorUserId: string,
+  requestId: string,
+  treeId: string,
+) {
+  const requestRef = doc(db, MERGE_REQUESTS_COLLECTION, requestId);
+  const requestSnapshot = await getDoc(requestRef);
+  if (!requestSnapshot.exists()) {
+    throw new Error('That merge request no longer exists.');
+  }
+
+  const request = mapMergeRequest(requestSnapshot as QueryDocumentSnapshot);
+  if (request.status !== 'applied') {
+    throw new Error('Viewer access can only be granted after a merge is applied.');
+  }
+
+  if (!request.involvedTreeIds.includes(treeId)) {
+    throw new Error('That tree was not part of the selected merge.');
+  }
+
+  const treeRef = doc(db, TREES_COLLECTION, treeId);
+  const requester = await getUserProfileById(request.suggestedByUserId);
+
+  await runTransaction(db, async (transaction) => {
+    const treeSnapshot = await transaction.get(treeRef);
+    if (!treeSnapshot.exists()) {
+      throw new Error('That family tree no longer exists.');
+    }
+
+    const tree = mapTreeData(treeSnapshot.id, treeSnapshot.data());
+    if (!canApproveMergeForTree(tree, actorUserId)) {
+      throw new Error('Only an editor from this tree can grant viewer access.');
+    }
+
+    if (requester.id === tree.ownerId) {
+      return;
+    }
+
+    if (tree.memberIds.includes(requester.id)) {
+      return;
+    }
+
+    const collaborators = sortCollaborators([
+      ...tree.collaborators,
+      {
+        userId: requester.id,
+        email: requester.email,
+        displayName: requester.displayName,
+        role: 'viewer',
+      },
+    ]);
+
+    transaction.update(treeRef, {
+      collaborators,
+      memberIds: [...tree.memberIds, requester.id],
+      membershipHistory: [
+        ...tree.membershipHistory,
+        {
+          id: `${tree.id}-${requester.id}-${Date.now()}`,
+          userId: requester.id,
+          role: 'viewer',
+          action: 'joined',
+          note: `Granted viewer access after merge ${requestId}`,
+          createdAt: nowIso(),
+        },
+      ],
+      updatedAt: nowIso(),
+    });
+  });
+}
+
 export async function createMergeRequest(
   actorUserId: string,
   sourceTreeId: string,
@@ -1871,6 +1958,9 @@ export async function createMergeRequest(
   const mergeRequestRef = doc(collection(db, MERGE_REQUESTS_COLLECTION));
   const timestamp = nowIso();
   const suggestedByLabel = buildMergeApprovalLabel(source.tree, actorUserId);
+  const selectedMatchIds = preview.matches
+    .filter((match) => match.confidenceScore >= 65)
+    .map((match) => match.id);
 
   await setDoc(mergeRequestRef, {
     sourceTreeId,
@@ -1880,6 +1970,7 @@ export async function createMergeRequest(
     suggestedByLabel,
     status: 'pending',
     preview,
+    selectedMatchIds,
     approvals: [],
     reviewerComments: [],
     conflictChoices: [],
@@ -1896,6 +1987,7 @@ export async function reviewMergeRequest(
   decision: MergeReviewDecision,
   comment = '',
   conflictChoices: MergeConflictChoice[] = [],
+  selectedMatchIds?: string[],
 ) {
   const requestRef = doc(db, MERGE_REQUESTS_COLLECTION, requestId);
   const requestSnapshot = await getDoc(requestRef);
@@ -1933,6 +2025,12 @@ export async function reviewMergeRequest(
     ...nextApprovals,
   ];
   const reviewerComments = comment.trim() ? [...request.reviewerComments, comment.trim()] : request.reviewerComments;
+  const nextSelectedMatchIds = selectedMatchIds
+    ? [...new Set(selectedMatchIds.filter((matchId) => request.preview.matches.some((match) => match.id === matchId)))]
+    : request.selectedMatchIds;
+  if (decision === 'approve' && nextSelectedMatchIds.length === 0) {
+    throw new Error('Select at least one person match before approving this merge.');
+  }
 
   let status: MergeRequestRecord['status'] = request.status;
   if (decision === 'reject') {
@@ -1948,12 +2046,20 @@ export async function reviewMergeRequest(
     approvals,
     reviewerComments,
     conflictChoices,
+    selectedMatchIds: nextSelectedMatchIds,
     status,
     updatedAt: nowIso(),
   });
 
   if (status === 'approved') {
-    await applyMergeRequest(requestId, { ...request, approvals, reviewerComments, conflictChoices, status });
+    await applyMergeRequest(requestId, {
+      ...request,
+      approvals,
+      reviewerComments,
+      conflictChoices,
+      selectedMatchIds: nextSelectedMatchIds,
+      status,
+    });
   }
 }
 

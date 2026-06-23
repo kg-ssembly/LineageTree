@@ -34,6 +34,7 @@ import {
   extractSurname,
 } from '../../components/family-tree-surname-clusters';
 import {
+  canSetDefaultTree,
   canEditTreeContent,
   canManageTree,
   getAssignedPersonId,
@@ -174,6 +175,7 @@ export default function MainScreen({ navigation }: Props) {
     createMergeRequest,
     loadMergePreview,
     approveMergeRequest,
+    grantMergeViewerAccess,
     rejectMergeRequest,
     requestMergeChanges,
     undoMerge,
@@ -285,7 +287,9 @@ export default function MainScreen({ navigation }: Props) {
 
   useEffect(() => {
     if (loadingTrees || selectedTreeId || hasAutoSelectedRef.current) return;
-    const target = trees.find((t) => t.id === user?.defaultTreeId) ?? trees[0];
+    const target = trees.find((t) => t.id === user?.defaultTreeId && canSetDefaultTree(t, user?.id))
+      ?? trees.find((tree) => canSetDefaultTree(tree, user?.id))
+      ?? trees[0];
     if (target) {
       hasAutoSelectedRef.current = true;
       selectTree(target.id);
@@ -493,22 +497,26 @@ export default function MainScreen({ navigation }: Props) {
     if (!selectedTree) return;
     await loadMergePreview(selectedTree.id, targetTreeId);
   }, [loadMergePreview, selectedTree]);
-  const onApproveMergeRequest = useCallback(async (requestId: string, comment?: string) => {
+  const onApproveMergeRequest = useCallback(async (requestId: string, comment?: string, selectedMatchIds?: string[]) => {
     if (!user?.id) return;
-    await approveMergeRequest(user.id, requestId, comment);
+    await approveMergeRequest(user.id, requestId, comment, selectedMatchIds);
   }, [approveMergeRequest, user?.id]);
   const onRejectMergeRequest = useCallback(async (requestId: string, comment?: string) => {
     if (!user?.id) return;
     await rejectMergeRequest(user.id, requestId, comment);
   }, [rejectMergeRequest, user?.id]);
-  const onRequestMergeChanges = useCallback(async (requestId: string, comment?: string) => {
+  const onRequestMergeChanges = useCallback(async (requestId: string, comment?: string, selectedMatchIds?: string[]) => {
     if (!user?.id) return;
-    await requestMergeChanges(user.id, requestId, comment);
+    await requestMergeChanges(user.id, requestId, comment, selectedMatchIds);
   }, [requestMergeChanges, user?.id]);
   const onUndoMerge = useCallback(async (requestId: string) => {
     if (!user?.id) return;
     await undoMerge(user.id, requestId);
   }, [undoMerge, user?.id]);
+  const onGrantMergeViewerAccess = useCallback(async (requestId: string, treeId: string) => {
+    if (!user?.id) return;
+    await grantMergeViewerAccess(user.id, requestId, treeId);
+  }, [grantMergeViewerAccess, user?.id]);
 
   const personDialogRelationshipCandidates = useMemo(
     () => people.filter((p) => p.id !== personDialog.person?.id),
@@ -568,6 +576,7 @@ export default function MainScreen({ navigation }: Props) {
       onRejectMergeRequest,
       onRequestMergeChanges,
       onUndoMerge,
+      onGrantMergeViewerAccess,
       // Tree management
       trees,
       defaultTreeId: user?.defaultTreeId,
@@ -588,7 +597,7 @@ export default function MainScreen({ navigation }: Props) {
     onOpenCollaboratorDialog, onOpenAddSelf, onEditPerson, onDeletePerson, onRemoveCollaborator,
     handleAssignPersonToUser, handleClearSelfAssignment, onApproveApprovalRequest, onRejectApprovalRequest,
     onSetApprovalWindowHours, onSetSurnameVariantGroups, onCreateMergeRequest, onLoadTreeMergePreview,
-    onApproveMergeRequest, onRejectMergeRequest, onRequestMergeChanges, onUndoMerge,
+    onApproveMergeRequest, onRejectMergeRequest, onRequestMergeChanges, onUndoMerge, onGrantMergeViewerAccess,
     trees, loadingTrees, handleConfirmDeleteTree, handleToggleDefaultTree, handleSwitchTree,
   ]);
 

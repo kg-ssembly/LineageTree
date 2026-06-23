@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { ApprovalRequest } from '../components/dto/approval';
-import type { MergeHistoryRecord, MergeRequestRecord } from '../components/dto/merge';
+import type { MergeConflictChoice, MergeHistoryRecord, MergeRequestRecord } from '../components/dto/merge';
 import type { PersonInput, PersonMutationPayload, PersonRecord } from '../components/dto/person';
 import type { ParentChildRelationshipKind, RelationshipRecord, SpouseRelationshipStatus } from '../components/dto/relationship';
 import type { CollaboratorRole, FamilyTree, SurnameVariantGroup } from '../components/dto/tree';
@@ -19,6 +19,7 @@ import {
   deleteRelationship,
   deleteTree,
   getMergePreview,
+  grantMergeRequesterViewerAccess,
   processExpiredApprovalRequests,
   removeCollaboratorFromTree,
   reviewMergeRequest,
@@ -111,10 +112,11 @@ interface TreeState {
   rejectApprovalRequest: (actorUserId: string, requestId: string) => Promise<void>;
   createMergeRequest: (actorUserId: string, sourceTreeId: string, targetTreeId: string) => Promise<void>;
   loadMergePreview: (sourceTreeId: string, targetTreeId: string) => Promise<void>;
-  approveMergeRequest: (actorUserId: string, requestId: string, comment?: string) => Promise<void>;
+  approveMergeRequest: (actorUserId: string, requestId: string, comment?: string, selectedMatchIds?: string[], conflictChoices?: MergeConflictChoice[]) => Promise<void>;
   rejectMergeRequest: (actorUserId: string, requestId: string, comment?: string) => Promise<void>;
-  requestMergeChanges: (actorUserId: string, requestId: string, comment?: string) => Promise<void>;
+  requestMergeChanges: (actorUserId: string, requestId: string, comment?: string, selectedMatchIds?: string[], conflictChoices?: MergeConflictChoice[]) => Promise<void>;
   undoMerge: (actorUserId: string, requestId: string) => Promise<void>;
+  grantMergeViewerAccess: (actorUserId: string, requestId: string, treeId: string) => Promise<void>;
   assignPersonToUser: (actorUserId: string, treeId: string, targetUserId: string, personId: string) => Promise<void>;
   assignSelfToPerson: (treeId: string, userId: string, personId: string) => Promise<void>;
   clearSelfAssignment: (treeId: string, userId: string) => Promise<void>;
@@ -479,10 +481,10 @@ export const useTreeStore = create<TreeState>((set, get) => {
       }
     },
 
-    approveMergeRequest: async (actorUserId, requestId, comment) => {
+    approveMergeRequest: async (actorUserId, requestId, comment, selectedMatchIds, conflictChoices) => {
       set({ mutating: true, error: null });
       try {
-        await reviewMergeRequest(actorUserId, requestId, 'approve', comment);
+        await reviewMergeRequest(actorUserId, requestId, 'approve', comment, conflictChoices, selectedMatchIds);
         set({ mutating: false, notice: 'Merge request approved.' });
       } catch (error) {
         set({ mutating: false, error: normaliseError(error) });
@@ -501,10 +503,10 @@ export const useTreeStore = create<TreeState>((set, get) => {
       }
     },
 
-    requestMergeChanges: async (actorUserId, requestId, comment) => {
+    requestMergeChanges: async (actorUserId, requestId, comment, selectedMatchIds, conflictChoices) => {
       set({ mutating: true, error: null });
       try {
-        await reviewMergeRequest(actorUserId, requestId, 'request-changes', comment);
+        await reviewMergeRequest(actorUserId, requestId, 'request-changes', comment, conflictChoices, selectedMatchIds);
         set({ mutating: false, notice: 'Changes requested for merge.' });
       } catch (error) {
         set({ mutating: false, error: normaliseError(error) });
@@ -517,6 +519,17 @@ export const useTreeStore = create<TreeState>((set, get) => {
       try {
         await undoMergeRequest(actorUserId, requestId);
         set({ mutating: false, notice: 'Merge undo applied.' });
+      } catch (error) {
+        set({ mutating: false, error: normaliseError(error) });
+        throw error;
+      }
+    },
+
+    grantMergeViewerAccess: async (actorUserId, requestId, treeId) => {
+      set({ mutating: true, error: null });
+      try {
+        await grantMergeRequesterViewerAccess(actorUserId, requestId, treeId);
+        set({ mutating: false, notice: 'Viewer access granted.' });
       } catch (error) {
         set({ mutating: false, error: normaliseError(error) });
         throw error;

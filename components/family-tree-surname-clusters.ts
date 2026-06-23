@@ -42,10 +42,9 @@ export function extractSurname(person: PersonRecord): string {
 
 /**
  * Build surname clusters from a list of people.
- * Each person is assigned to their lastName cluster.
- * People with a maiden name are ALSO counted in their maiden surname cluster
- * (so the chip appears in the family selector), but they render as ghost nodes
- * when a non-current-name family is viewed.
+ * Each person is assigned only to their current lastName cluster.
+ * Maiden surnames remain profile data and do not create a second in-tree
+ * surname cluster. They can instead connect to a separate tree by merge/access.
  */
 export function buildSurnameClusters(
   people: PersonRecord[],
@@ -59,14 +58,6 @@ export function buildSurnameClusters(
     }
     clusters.get(surname)!.memberIds.add(person.id);
 
-    // Also register in maiden-name cluster so the chip appears.
-    const maiden = person.maidenName?.trim();
-    if (maiden && maiden !== surname) {
-      if (!clusters.has(maiden)) {
-        clusters.set(maiden, { surname: maiden, memberIds: new Set() });
-      }
-      clusters.get(maiden)!.memberIds.add(person.id);
-    }
   }
 
   return clusters;
@@ -162,15 +153,6 @@ export function filterForActiveSurnames(
     }
   }
 
-  // People whose MAIDEN name matches the active surname (but current lastName does not)
-  // appear as ghost nodes in that family's view — they "originally belonged" to this family.
-  for (const person of people) {
-    const maiden = person.maidenName?.trim();
-    if (maiden && activeSet.has(maiden) && !activePersonIds.has(person.id)) {
-      ghostPersonIds.add(person.id);
-    }
-  }
-
   // Include active people + ghost people.
   const includedIds = new Set([...activePersonIds, ...ghostPersonIds]);
   const filteredPeople = people.filter((p) => includedIds.has(p.id));
@@ -261,4 +243,3 @@ export function getConnectedSurnames(
   }
   return [...connected].sort();
 }
-

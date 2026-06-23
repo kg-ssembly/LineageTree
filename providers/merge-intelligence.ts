@@ -37,7 +37,6 @@ function buildSurnameSet(person: PersonRecord, groups: SurnameVariantGroup[]) {
   const values = new Set<string>();
   const rawValues = [
     person.lastName,
-    person.maidenName ?? '',
     ...(person.surnameVariantHints ?? []),
   ];
 

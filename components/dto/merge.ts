@@ -83,6 +83,7 @@ export interface MergeRequestRecord {
   suggestedByLabel: string;
   status: MergeRequestStatus;
   preview: MergePreview;
+  selectedMatchIds: string[];
   approvals: MergeApproval[];
   reviewerComments: string[];
   conflictChoices: MergeConflictChoice[];

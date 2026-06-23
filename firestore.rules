@@ -104,6 +104,7 @@ service cloud.firestore {
           'update-person',
           'delete-person',
           'create-relationship',
+          'update-relationship',
           'delete-relationship'
         ]
         && request.resource.data.targetId is string
@@ -139,6 +140,51 @@ service cloud.firestore {
         && request.resource.data.appliedAt is string;
     }
 
+    function canReadMergeRecord(data) {
+      return isTreeMember(data.sourceTreeId) || isTreeMember(data.targetTreeId);
+    }
+
+    function canReviewMergeRecord(data) {
+      return isTreeEditor(data.sourceTreeId) || isTreeEditor(data.targetTreeId);
+    }
+
+    function canReadMergeHistory(data) {
+      return (
+        data.involvedTreeIds is list
+        && data.involvedTreeIds.size() > 0
+        && isTreeMember(data.involvedTreeIds[0])
+      )
+      || (
+        data.involvedTreeIds is list
+        && data.involvedTreeIds.size() > 1
+        && isTreeMember(data.involvedTreeIds[1])
+      );
+    }
+
+    function canCreateMergeHistory(data) {
+      return (
+        data.involvedTreeIds is list
+        && data.involvedTreeIds.size() > 0
+        && isTreeEditor(data.involvedTreeIds[0])
+      )
+      || (
+        data.involvedTreeIds is list
+        && data.involvedTreeIds.size() > 1
+        && isTreeEditor(data.involvedTreeIds[1])
+      );
+    }
+
+    function isEditorCollaboratorGrantUpdate(treeId) {
+      return signedIn()
+        && isTreeEditor(treeId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'collaborators',
+          'memberIds',
+          'membershipHistory',
+          'updatedAt'
+        ]);
+    }
+
     match /users/{userId} {
       allow read: if signedIn();
       allow create, update, delete: if isOwner(userId);
@@ -162,8 +208,36 @@ service cloud.firestore {
           && request.resource.data.collaborators is list
           && (!('approvalWindowHours' in request.resource.data) || request.resource.data.approvalWindowHours is number)
         )
+        || isEditorCollaboratorGrantUpdate(treeId)
         || isOwnPersonAssignmentUpdate(treeId);
       allow delete: if isTreeOwner(treeId);
+    }
+
+    match /mergeRequests/{requestId} {
+      allow create: if signedIn()
+        && request.resource.data.sourceTreeId is string
+        && request.resource.data.targetTreeId is string
+        && request.resource.data.involvedTreeIds is list
+        && request.resource.data.suggestedByUserId == request.auth.uid
+        && request.resource.data.suggestedByLabel is string
+        && request.resource.data.status in ['pending', 'changes-requested', 'approved', 'applied', 'rejected']
+        && request.resource.data.preview is map
+        && request.resource.data.selectedMatchIds is list
+        && request.resource.data.approvals is list
+        && request.resource.data.reviewerComments is list
+        && request.resource.data.conflictChoices is list
+        && request.resource.data.createdAt is string
+        && request.resource.data.updatedAt is string
+        && isTreeEditor(request.resource.data.sourceTreeId);
+      allow read: if canReadMergeRecord(resource.data);
+      allow update: if canReviewMergeRecord(resource.data);
+      allow delete: if false;
+    }
+
+    match /mergeHistory/{historyId} {
+      allow read: if canReadMergeHistory(resource.data);
+      allow create: if canCreateMergeHistory(request.resource.data);
+      allow update, delete: if false;
     }
 
     match /approvalRequests/{requestId} {

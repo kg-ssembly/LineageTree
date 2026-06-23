@@ -36,6 +36,7 @@ import { getUserNameParts, type UserProfile } from '../../components/dto/user';
 import { formatPersonGender, formatPersonName } from '../../components/person-formatting';
 import { DatePickerModal } from 'react-native-paper-dates';
 import {
+  canSetDefaultTree,
   getTreeApprovalWindowHours,
   getTreeRole,
   getUnlinkedCollaborators,
@@ -146,10 +147,11 @@ export interface SharedTabProps {
   onSetSurnameVariantGroups: (groups: SurnameVariantGroup[]) => Promise<void>;
   onCreateMergeRequest: (targetTreeId: string) => Promise<void>;
   onLoadMergePreview: (targetTreeId: string) => Promise<void>;
-  onApproveMergeRequest: (requestId: string, comment?: string) => Promise<void>;
+  onApproveMergeRequest: (requestId: string, comment?: string, selectedMatchIds?: string[]) => Promise<void>;
   onRejectMergeRequest: (requestId: string, comment?: string) => Promise<void>;
-  onRequestMergeChanges: (requestId: string, comment?: string) => Promise<void>;
+  onRequestMergeChanges: (requestId: string, comment?: string, selectedMatchIds?: string[]) => Promise<void>;
   onUndoMerge: (requestId: string) => Promise<void>;
+  onGrantMergeViewerAccess: (requestId: string, treeId: string) => Promise<void>;
   trees?: FamilyTree[];
   defaultTreeId?: string | null;
   loadingTrees?: boolean;
@@ -170,6 +172,10 @@ function formatRole(role: string | null | undefined) {
   }
 
   return role.charAt(0).toUpperCase() + role.slice(1);
+}
+
+function arraysEqual(left: string[], right: string[]) {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
 }
 
 function normaliseComparableName(value: string) {
@@ -972,6 +978,7 @@ function ProfileTabContent({
   onRejectMergeRequest,
   onRequestMergeChanges,
   onUndoMerge,
+  onGrantMergeViewerAccess,
   trees,
   defaultTreeId,
   loadingTrees,
@@ -997,6 +1004,7 @@ function ProfileTabContent({
   const [surnameVariantDrafts, setSurnameVariantDrafts] = useState<string[]>([]);
   const [surnameVariantDialogVisible, setSurnameVariantDialogVisible] = useState(false);
   const [previewApprovalRequest, setPreviewApprovalRequest] = useState<ApprovalRequest | null>(null);
+  const [mergeSelectionDrafts, setMergeSelectionDrafts] = useState<Record<string, string[]>>({});
 
   const treeSurnameVariants = useMemo(
     () => [...new Set(selectedTree.surnameVariantGroups.flatMap((group) => [group.primarySurname, ...group.variants]).map((value) => value.trim()).filter(Boolean))],
@@ -1087,9 +1095,48 @@ function ProfileTabContent({
     return '48';
   }, [approvalWindowHours]);
 
+  const pendingMergeRequests = useMemo(
+    () => mergeRequests.filter((request) => request.status === 'pending' || request.status === 'changes-requested'),
+    [mergeRequests],
+  );
+  const mergeRequestsById = useMemo(
+    () => new Map(mergeRequests.map((request) => [request.id, request])),
+    [mergeRequests],
+  );
+
   useEffect(() => {
     setSurnameVariantDrafts(treeSurnameVariants);
   }, [treeSurnameVariants]);
+
+  useEffect(() => {
+    setMergeSelectionDrafts((current) => {
+      const next = { ...current };
+      let changed = false;
+      const activeRequestIds = new Set(pendingMergeRequests.map((request) => request.id));
+
+      Object.keys(next).forEach((requestId) => {
+        if (!activeRequestIds.has(requestId)) {
+          delete next[requestId];
+          changed = true;
+        }
+      });
+
+      pendingMergeRequests.forEach((request) => {
+        const validMatchIds = new Set(request.preview.matches.map((match) => match.id));
+        const existing = next[request.id];
+        const normalized = existing
+          ? existing.filter((matchId) => validMatchIds.has(matchId))
+          : request.selectedMatchIds.filter((matchId) => validMatchIds.has(matchId));
+
+        if (!existing || !arraysEqual(existing, normalized)) {
+          next[request.id] = normalized;
+          changed = true;
+        }
+      });
+
+      return changed ? next : current;
+    });
+  }, [pendingMergeRequests]);
 
   const handleSelfLink = async (personId: string) => {
     if (!userId || currentAssignedPerson) {
@@ -1154,7 +1201,6 @@ function ProfileTabContent({
     setSurnameVariantDrafts((current) => current.filter((variant) => variant !== variantToRemove));
   };
 
-  const pendingMergeRequests = mergeRequests.filter((request) => request.status === 'pending' || request.status === 'changes-requested');
   const previewRelationshipBefore = previewApprovalRequest
     ? relationships.find((relationship) => relationship.id === previewApprovalRequest.targetId) ?? null
     : null;
@@ -1171,6 +1217,19 @@ function ProfileTabContent({
       peopleById,
     )
     : [];
+
+  const toggleMergeSelection = (requestId: string, matchId: string) => {
+    setMergeSelectionDrafts((current) => {
+      const selectedIds = current[requestId] ?? [];
+      const nextSelectedIds = selectedIds.includes(matchId)
+        ? selectedIds.filter((currentId) => currentId !== matchId)
+        : [...selectedIds, matchId];
+      return {
+        ...current,
+        [requestId]: nextSelectedIds,
+      };
+    });
+  };
 
   return (
     <ScrollView contentContainerStyle={styles.content}>
@@ -1794,6 +1853,10 @@ function ProfileTabContent({
                 {pendingMergeRequests.map((request) => (
                   <Card key={request.id} mode="elevated" style={[styles.collaboratorCard, { backgroundColor: theme.colors.surface }]}>
                     <Card.Content>
+                      {(() => {
+                        const selectedMatchIds = mergeSelectionDrafts[request.id] ?? request.selectedMatchIds;
+                        return (
+                          <>
                       <Text variant="titleMedium">{request.preview.sourceTree.treeName} ↔ {request.preview.targetTree.treeName}</Text>
                       <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>
                         {t('Suggested by {name}. {duplicates} strong duplicate candidates, {conflicts} conflicts.', {
@@ -1810,18 +1873,33 @@ function ProfileTabContent({
                         ))}
                       </View>
                       <View style={{ marginTop: 8 }}>
-                        {request.preview.matches.slice(0, 3).map((match) => (
+                        {request.preview.matches.slice(0, 6).map((match) => {
+                          const selected = selectedMatchIds.includes(match.id);
+                          return (
                           <View key={`${request.id}-${match.id}`} style={{ marginBottom: 8 }}>
-                            <Text variant="bodySmall">{match.confidenceScore}% · {match.confidenceLabel}</Text>
+                            <Pressable onPress={() => toggleMergeSelection(request.id, match.id)}>
+                              <View style={[styles.collaboratorChipRow, { justifyContent: 'space-between' }]}>
+                                <Text variant="bodySmall">{match.confidenceScore}% · {match.confidenceLabel}</Text>
+                                <Chip compact icon={selected ? 'check-circle-outline' : 'circle-outline'}>
+                                  {selected ? t('Merge') : t('Skip')}
+                                </Chip>
+                              </View>
+                            </Pressable>
                             <ProgressBar progress={match.confidenceScore / 100} style={{ marginTop: 4, height: 8, borderRadius: 999 }} />
                           </View>
-                        ))}
+                        )})}
+                        <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>
+                          {t('{count} match(es) selected to merge', { count: selectedMatchIds.length })}
+                        </Text>
                       </View>
                       <View style={{ flexDirection: 'row', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
-                        <Button mode="contained" onPress={() => onApproveMergeRequest(request.id)} disabled={mutating}>{t('Approve')}</Button>
-                        <Button mode="outlined" onPress={() => onRequestMergeChanges(request.id, t('Please review the highlighted conflicts before merging.'))} disabled={mutating}>{t('Request changes')}</Button>
+                        <Button mode="contained" onPress={() => onApproveMergeRequest(request.id, undefined, selectedMatchIds)} disabled={mutating || selectedMatchIds.length === 0}>{t('Approve')}</Button>
+                        <Button mode="outlined" onPress={() => onRequestMergeChanges(request.id, t('Please review the selected merge matches and highlighted conflicts before merging.'), selectedMatchIds)} disabled={mutating}>{t('Request changes')}</Button>
                         <Button mode="text" textColor={theme.colors.error} onPress={() => onRejectMergeRequest(request.id)} disabled={mutating}>{t('Reject')}</Button>
                       </View>
+                          </>
+                        );
+                      })()}
                     </Card.Content>
                   </Card>
                 ))}
@@ -1851,6 +1929,18 @@ function ProfileTabContent({
                 {mergeHistory.map((entry) => (
                   <Card key={entry.id} mode="elevated" style={[styles.collaboratorCard, { backgroundColor: theme.colors.surface }]}>
                     <Card.Content>
+                      {(() => {
+                        const mergeRequest = mergeRequestsById.get(entry.mergeRequestId);
+                        const canGrantViewerAccess = Boolean(
+                          mergeRequest
+                          && userId
+                          && mergeRequest.status === 'applied'
+                          && mergeRequest.suggestedByUserId !== userId
+                          && getTreeRole(selectedTree, userId) !== 'viewer'
+                          && !selectedTree.memberIds.includes(mergeRequest.suggestedByUserId),
+                        );
+                        return (
+                          <>
                       <Text variant="titleMedium">{entry.summary}</Text>
                       <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>
                         {t('{matches} reviewed matches · {approvals} approval actions · {people} people changed', {
@@ -1866,6 +1956,14 @@ function ProfileTabContent({
                       <Button mode="outlined" icon="undo" onPress={() => onUndoMerge(entry.mergeRequestId)} disabled={mutating || entry.status !== 'applied'} style={{ marginTop: 8 }}>
                         {t('Preview and undo merge')}
                       </Button>
+                      {canGrantViewerAccess ? (
+                        <Button mode="contained-tonal" icon="account-eye-outline" onPress={() => onGrantMergeViewerAccess(entry.mergeRequestId, selectedTree.id)} disabled={mutating} style={{ marginTop: 8 }}>
+                          {t('Grant viewer access to {name}', { name: mergeRequest?.suggestedByLabel ?? t('requester') })}
+                        </Button>
+                      ) : null}
+                          </>
+                        );
+                      })()}
                     </Card.Content>
                   </Card>
                 ))}
@@ -1912,6 +2010,7 @@ function ProfileTabContent({
                 const isDefault = tree.id === defaultTreeId;
                 const isSelected = tree.id === selectedTree.id;
                 const treeRole = getTreeRole(tree, userId);
+                const canUseAsDefault = canSetDefaultTree(tree, userId);
 
                 return (
                   <Card
@@ -1939,7 +2038,7 @@ function ProfileTabContent({
                           </Text>
                         </View>
                         <View style={{ flexDirection: 'row', gap: 4 }}>
-                          {onToggleDefaultTree ? (
+                          {onToggleDefaultTree && canUseAsDefault ? (
                             <IconButton
                               icon={isDefault ? 'star' : 'star-outline'}
                               size={20}

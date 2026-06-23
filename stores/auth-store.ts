@@ -10,6 +10,7 @@ import {
 import { deleteField, doc, getDoc, setDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { auth, db } from '../providers/firebase-provider';
 import type { UserProfile } from '../components/dto/user';
+import type { TreeRole } from '../components/dto/tree';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -131,6 +132,19 @@ async function fetchUserProfile(uid: string, fallbackUser?: FirebaseUser | null)
   };
 }
 
+function getTreeRoleForUser(data: Record<string, any>, userId: string): TreeRole | null {
+  if (data.ownerId === userId) {
+    return 'owner';
+  }
+
+  if (!Array.isArray(data.collaborators)) {
+    return null;
+  }
+
+  const collaborator = data.collaborators.find((entry: any) => entry?.userId === userId && typeof entry?.role === 'string');
+  return collaborator?.role ?? null;
+}
+
 // ─── Store ────────────────────────────────────────────────────────────────────
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -187,15 +201,33 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return;
     }
 
+    const trimmedTreeId = treeId?.trim();
+    if (trimmedTreeId) {
+      const treeSnapshot = await getDoc(doc(db, 'trees', trimmedTreeId));
+      if (!treeSnapshot.exists()) {
+        throw new Error('That family tree no longer exists.');
+      }
+
+      const treeData = treeSnapshot.data() as Record<string, any>;
+      const role = getTreeRoleForUser(treeData, currentUser.id);
+      if (!role) {
+        throw new Error('You do not have access to that family tree.');
+      }
+
+      if (role === 'viewer') {
+        throw new Error('Viewer trees cannot be set as your default tree.');
+      }
+    }
+
     await setDoc(doc(db, 'users', currentUser.id), {
-      defaultTreeId: treeId ? treeId.trim() : deleteField(),
+      defaultTreeId: trimmedTreeId ? trimmedTreeId : deleteField(),
     }, { merge: true });
 
     set((state) => ({
       user: state.user
         ? {
           ...state.user,
-          defaultTreeId: treeId ? treeId.trim() : undefined,
+          defaultTreeId: trimmedTreeId || undefined,
         }
         : null,
     }));
@@ -231,4 +263,3 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }));
   },
 }));
-
