@@ -479,7 +479,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     if (!user?.id) return;
     await markNotificationOpened(user.id, notificationId);
   }, [markNotificationOpened, user?.id]);
-  const onMarkNotificationActivityActioned = useCallback(async (sourceKind: 'approval' | 'merge-request' | 'merge-history', sourceId: string) => {
+  const onMarkNotificationActivityActioned = useCallback(async (sourceKind: 'approval' | 'merge-request' | 'merge-history' | 'membership', sourceId: string) => {
     if (!user?.id) return;
     await markNotificationActivityActioned(user.id, sourceKind, sourceId);
   }, [markNotificationActivityActioned, user?.id]);

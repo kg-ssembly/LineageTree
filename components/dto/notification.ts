@@ -22,7 +22,7 @@ export interface AppNotification {
 export interface NotificationActivityState {
   id: string;
   userId: string;
-  sourceKind: 'approval' | 'merge-request' | 'merge-history';
+  sourceKind: 'approval' | 'merge-request' | 'merge-history' | 'membership';
   sourceId: string;
   actionedAt?: string;
   createdAt: string;

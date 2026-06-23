@@ -1,3 +1,5 @@
+import type { NavigatorScreenParams } from '@react-navigation/native';
+
 export type MainTabParamList = {
   tree: undefined;
   members: undefined;
@@ -17,7 +19,7 @@ export type TreeDetailTabParamList = {
 export type RootStackParamList = {
   Login: undefined;
   SignUp: undefined;
-  Main: undefined;
+  Main: NavigatorScreenParams<MainTabParamList> | undefined;
   // Legacy — tree-detail-screen.tsx kept for reference; no longer in the navigator
   TreeDetail: { treeId: string; initialTab?: keyof TreeDetailTabParamList };
   PersonProfile: {

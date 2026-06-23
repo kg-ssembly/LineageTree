@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { FlatList, Image, Pressable, ScrollView, Share, StyleSheet, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   ActivityIndicator,
@@ -22,7 +23,7 @@ import {
 import { HorizontalTabStrip } from '../../components';
 import { canUserReviewApprovalRequest, isApprovalExpired, type ApprovalRequest } from '../../components/dto/approval';
 import type { MergeHistoryRecord, MergeRequestRecord } from '../../components/dto/merge';
-import type { AppNotification } from '../../components/dto/notification';
+import type { AppNotification, NotificationActivityState } from '../../components/dto/notification';
 import { FamilyTreeCanvas } from '../../components';
 import type { PersonGender, PersonRecord } from '../../components/dto/person';
 import {
@@ -37,6 +38,7 @@ import type { RelationshipRecord } from '../../components/dto/relationship';
 import { getUserNameParts, type UserProfile } from '../../components/dto/user';
 import { formatPersonGender, formatPersonName } from '../../components/person-formatting';
 import { DatePickerModal } from 'react-native-paper-dates';
+import type { MainTabParamList } from '../../components/dto/navigation';
 import {
   getTreeApprovalWindowHours,
   getTreeRole,
@@ -66,7 +68,12 @@ type NotificationFeedItem = {
   status?: string;
   treeName?: string;
   notificationId?: string;
+  sourceKind?: NotificationActivityState['sourceKind'];
+  sourceId?: string;
   requestId?: string;
+  seen?: boolean;
+  opened?: boolean;
+  actioned?: boolean;
 };
 
 type TreeManagementTabKey = 'overview' | 'collaborators' | 'approvals' | 'merges' | 'trees';
@@ -140,6 +147,7 @@ export interface SharedTabProps {
   currentSelfAssignmentSuggestions: SelfAssignmentSuggestion[];
   availableSelfLinkPeople: PersonRecord[];
   notifications: AppNotification[];
+  notificationActivityStates: NotificationActivityState[];
   assignedPersonByUserId: Map<string, PersonRecord>;
   assignedUserIdByPersonId: Map<string, string>;
   canCreateSelfProfile: boolean;
@@ -164,6 +172,9 @@ export interface SharedTabProps {
   onCreateMergeRequest: (targetTreeId: string) => Promise<void>;
   onSendMergeInvite: (identifier: string) => Promise<void>;
   onRespondToMergeInvite: (notificationId: string, status: 'accepted' | 'dismissed') => Promise<void>;
+  onMarkNotificationSeen: (notificationId: string) => Promise<void>;
+  onMarkNotificationOpened: (notificationId: string) => Promise<void>;
+  onMarkNotificationActivityActioned: (sourceKind: NotificationActivityState['sourceKind'], sourceId: string) => Promise<void>;
   onLoadMergePreview: (targetTreeId: string) => Promise<void>;
   onApproveMergeRequest: (requestId: string, comment?: string, selectedMatchIds?: string[]) => Promise<void>;
   onRejectMergeRequest: (requestId: string, comment?: string) => Promise<void>;
@@ -171,6 +182,8 @@ export interface SharedTabProps {
   onUndoMerge: (requestId: string) => Promise<void>;
   onGrantMergeViewerAccess: (requestId: string, treeId: string) => Promise<void>;
   onCreateSurnameTree: (surname: string) => Promise<void>;
+  treeSettingsFocus?: { tab: 'approvals' | 'merges'; itemId: string; mode: 'approval' | 'merge'; token: number } | null;
+  onOpenTreeSettingsTarget?: (target: { tab: 'approvals' | 'merges'; itemId: string; mode: 'approval' | 'merge' }) => void;
   trees?: FamilyTree[];
   defaultTreeId?: string | null;
   loadingTrees?: boolean;
@@ -253,13 +266,25 @@ export function NotificationsTabContent({
   mergeRequests,
   mergeHistory,
   notifications,
+  notificationActivityStates,
   trees,
   userId,
   mutating,
   onRespondToMergeInvite,
+  onMarkNotificationSeen,
+  onMarkNotificationOpened,
+  onMarkNotificationActivityActioned,
+  onOpenTreeSettingsTarget,
 }: SharedTabProps) {
   const theme = useTheme();
   const { t } = useI18n();
+  const navigation = useNavigation<any>();
+  const [selectedNotification, setSelectedNotification] = useState<NotificationFeedItem | null>(null);
+
+  const activityStateByKey = useMemo(
+    () => new Map(notificationActivityStates.map((state) => [`${state.sourceKind}:${state.sourceId}`, state])),
+    [notificationActivityStates],
+  );
 
   const notificationFeed = useMemo<NotificationFeedItem[]>(() => {
     const directNotifications = notifications.map<NotificationFeedItem>((notification) => ({
@@ -271,6 +296,8 @@ export function NotificationsTabContent({
       status: notification.status,
       treeName: notification.sourceTreeName,
       notificationId: notification.id,
+      seen: Boolean(notification.seenAt),
+      opened: Boolean(notification.openedAt),
     }));
 
     const approvalNotifications = approvalRequests.map<NotificationFeedItem>((request) => ({
@@ -282,6 +309,9 @@ export function NotificationsTabContent({
       status: request.status,
       treeName: selectedTree.name,
       requestId: request.id,
+      sourceKind: 'approval',
+      sourceId: request.id,
+      actioned: Boolean(activityStateByKey.get(`approval:${request.id}`)?.actionedAt),
     }));
 
     const mergeRequestNotifications = mergeRequests.map<NotificationFeedItem>((request) => ({
@@ -293,6 +323,9 @@ export function NotificationsTabContent({
       status: request.status,
       treeName: selectedTree.name,
       requestId: request.id,
+      sourceKind: 'merge-request',
+      sourceId: request.id,
+      actioned: Boolean(activityStateByKey.get(`merge-request:${request.id}`)?.actionedAt),
     }));
 
     const mergeHistoryNotifications = mergeHistory.map<NotificationFeedItem>((entry) => ({
@@ -304,6 +337,9 @@ export function NotificationsTabContent({
       status: entry.status,
       treeName: selectedTree.name,
       requestId: entry.mergeRequestId,
+      sourceKind: 'merge-history',
+      sourceId: entry.id,
+      actioned: Boolean(activityStateByKey.get(`merge-history:${entry.id}`)?.actionedAt),
     }));
 
     const membershipNotifications = (trees ?? [])
@@ -319,6 +355,9 @@ export function NotificationsTabContent({
         createdAt: entry.createdAt,
         status: entry.action,
         treeName: tree.name,
+        sourceKind: 'membership',
+        sourceId: `${tree.id}-${entry.id}`,
+        actioned: Boolean(activityStateByKey.get(`membership:${tree.id}-${entry.id}`)?.actionedAt),
       }));
 
     return [
@@ -328,7 +367,99 @@ export function NotificationsTabContent({
       ...mergeHistoryNotifications,
       ...membershipNotifications,
     ].sort((left, right) => right.createdAt.localeCompare(left.createdAt));
-  }, [approvalRequests, mergeHistory, mergeRequests, notifications, selectedTree.name, t, trees, userId]);
+  }, [activityStateByKey, approvalRequests, mergeHistory, mergeRequests, notifications, selectedTree.name, t, trees, userId]);
+
+  const openNotification = async (item: NotificationFeedItem) => {
+    setSelectedNotification(item);
+    if (item.notificationId && userId) {
+      await onMarkNotificationOpened(item.notificationId);
+    }
+  };
+
+  const unseenDirectNotifications = useMemo(
+    () => notificationFeed.filter((item) => item.notificationId && !item.seen).map((item) => item.notificationId as string),
+    [notificationFeed],
+  );
+
+  const unopenedDirectNotifications = useMemo(
+    () => notificationFeed.filter((item) => item.notificationId && !item.opened).map((item) => item.notificationId as string),
+    [notificationFeed],
+  );
+
+  const unactionedDerivedNotifications = useMemo(
+    () => notificationFeed
+      .filter((item) => item.sourceKind && item.sourceId && !item.actioned)
+      .map((item) => ({ sourceKind: item.sourceKind as NotificationActivityState['sourceKind'], sourceId: item.sourceId as string })),
+    [notificationFeed],
+  );
+
+  const handleMarkAllSeen = async () => {
+    for (const notificationId of unseenDirectNotifications) {
+      await onMarkNotificationSeen(notificationId);
+    }
+  };
+
+  const handleMarkAllOpened = async () => {
+    for (const notificationId of unopenedDirectNotifications) {
+      await onMarkNotificationOpened(notificationId);
+    }
+  };
+
+  const handleMarkAllActioned = async () => {
+    for (const item of unactionedDerivedNotifications) {
+      await onMarkNotificationActivityActioned(item.sourceKind, item.sourceId);
+    }
+  };
+
+  const handleMarkActioned = async (item: NotificationFeedItem) => {
+    if (!item.sourceKind || !item.sourceId) {
+      return;
+    }
+
+    await onMarkNotificationActivityActioned(item.sourceKind, item.sourceId);
+  };
+
+  const handleOpenTarget = async (item: NotificationFeedItem) => {
+    if (!onOpenTreeSettingsTarget) {
+      return;
+    }
+
+    if (item.kind === 'approval' && item.requestId) {
+      await onMarkNotificationActivityActioned('approval', item.requestId);
+      onOpenTreeSettingsTarget({ tab: 'approvals', itemId: item.requestId, mode: 'approval' });
+      navigation.navigate('treeSettings' satisfies keyof MainTabParamList);
+      setSelectedNotification(null);
+      return;
+    }
+
+    if ((item.kind === 'merge-request' || item.kind === 'merge-history') && item.requestId) {
+      const sourceKind = item.kind === 'merge-request' ? 'merge-request' : 'merge-history';
+      await onMarkNotificationActivityActioned(sourceKind, item.sourceId ?? item.requestId);
+      onOpenTreeSettingsTarget({ tab: 'merges', itemId: item.requestId, mode: 'merge' });
+      navigation.navigate('treeSettings' satisfies keyof MainTabParamList);
+      setSelectedNotification(null);
+    }
+  };
+
+  useEffect(() => {
+    if (!selectedNotification) {
+      return;
+    }
+
+    const refreshed = notificationFeed.find((item) => item.id === selectedNotification.id);
+    if (
+      refreshed
+      && (
+        refreshed.seen !== selectedNotification.seen
+        || refreshed.opened !== selectedNotification.opened
+        || refreshed.actioned !== selectedNotification.actioned
+        || refreshed.status !== selectedNotification.status
+        || refreshed.message !== selectedNotification.message
+      )
+    ) {
+      setSelectedNotification(refreshed);
+    }
+  }, [notificationFeed, selectedNotification]);
 
   return (
     <ScrollView contentContainerStyle={styles.content}>
@@ -343,29 +474,77 @@ export function NotificationsTabContent({
         </View>
 
         {notificationFeed.length > 0 ? (
+          <Card mode="outlined" style={{ marginBottom: 16, backgroundColor: theme.colors.surface, borderRadius: 16 }}>
+            <Card.Content style={{ gap: 12 }}>
+              <View style={[styles.collaboratorChipRow, { justifyContent: 'space-between' }]}>
+                <Chip compact icon="bell-ring-outline">{t('{count} unseen', { count: unseenDirectNotifications.length })}</Chip>
+                <Chip compact icon="email-open-outline">{t('{count} unopened', { count: unopenedDirectNotifications.length })}</Chip>
+                <Chip compact icon="check-decagram-outline">{t('{count} unactioned', { count: unactionedDerivedNotifications.length })}</Chip>
+              </View>
+              <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                <Button mode="outlined" onPress={() => { void handleMarkAllSeen(); }} disabled={mutating || unseenDirectNotifications.length === 0}>
+                  {t('Mark all seen')}
+                </Button>
+                <Button mode="outlined" onPress={() => { void handleMarkAllOpened(); }} disabled={mutating || unopenedDirectNotifications.length === 0}>
+                  {t('Mark all opened')}
+                </Button>
+                <Button mode="outlined" onPress={() => { void handleMarkAllActioned(); }} disabled={mutating || unactionedDerivedNotifications.length === 0}>
+                  {t('Mark all actioned')}
+                </Button>
+              </View>
+            </Card.Content>
+          </Card>
+        ) : null}
+
+        {notificationFeed.length > 0 ? (
           <View style={styles.collaboratorList}>
             {notificationFeed.map((item) => (
               <Card key={item.id} mode="elevated" style={[styles.collaboratorCard, { backgroundColor: theme.colors.surface }]}>
                 <Card.Content>
-                  <Text variant="titleMedium">{item.title}</Text>
-                  <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>
-                    {item.message}
-                  </Text>
+                  <Pressable onPress={() => { void openNotification(item); }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+                      <View style={{ flex: 1 }}>
+                        <Text variant="titleMedium">{item.title}</Text>
+                        <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>
+                          {item.createdAt.slice(0, 16).replace('T', ' ')}
+                        </Text>
+                      </View>
+                      <View style={styles.collaboratorChipRow}>
+                        {item.notificationId && !item.opened && !item.seen ? <Chip compact icon="bell-ring-outline">{t('New')}</Chip> : null}
+                        {item.notificationId && item.seen && !item.opened ? <Chip compact icon="eye-check-outline">{t('Seen')}</Chip> : null}
+                        {item.actioned ? <Chip compact icon="check-circle-outline">{t('Actioned')}</Chip> : null}
+                        {item.status ? <Chip compact icon="bell-outline">{item.status}</Chip> : null}
+                      </View>
+                    </View>
+                  </Pressable>
                   <View style={[styles.collaboratorChipRow, { marginTop: 8 }]}>
                     {item.treeName ? <Chip compact icon="family-tree">{item.treeName}</Chip> : null}
-                    {item.status ? <Chip compact icon="bell-outline">{item.status}</Chip> : null}
-                    <Chip compact icon="calendar-clock">{item.createdAt.slice(0, 16).replace('T', ' ')}</Chip>
+                    {item.kind === 'approval' ? <Chip compact icon="clipboard-check-outline">{t('Approval')}</Chip> : null}
+                    {item.kind === 'merge-request' || item.kind === 'merge-history' || item.kind === 'merge-invite' ? <Chip compact icon="source-merge">{t('Merge')}</Chip> : null}
+                    {item.kind === 'membership' ? <Chip compact icon="account-key-outline">{t('Access')}</Chip> : null}
                   </View>
-                  {item.kind === 'merge-invite' && item.notificationId && item.status === 'pending' ? (
-                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
-                      <Button mode="contained-tonal" onPress={() => onRespondToMergeInvite(item.notificationId!, 'accepted')} disabled={mutating}>
-                        {t('Accept')}
+                  <View style={{ flexDirection: 'row', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+                    {item.notificationId && !item.seen && !item.opened ? (
+                      <Button mode="text" onPress={() => onMarkNotificationSeen(item.notificationId!)} disabled={mutating}>
+                        {t('Mark seen')}
                       </Button>
-                      <Button mode="text" onPress={() => onRespondToMergeInvite(item.notificationId!, 'dismissed')} disabled={mutating}>
-                        {t('Dismiss')}
+                    ) : null}
+                    {item.notificationId && !item.opened ? (
+                      <Button mode="text" onPress={() => onMarkNotificationOpened(item.notificationId!)} disabled={mutating}>
+                        {t('Mark opened')}
                       </Button>
-                    </View>
-                  ) : null}
+                    ) : null}
+                    {item.sourceKind && item.sourceId && !item.actioned ? (
+                      <Button mode="text" onPress={() => { void handleMarkActioned(item); }} disabled={mutating}>
+                        {t('Mark actioned')}
+                      </Button>
+                    ) : null}
+                    {(item.kind === 'approval' || item.kind === 'merge-request' || item.kind === 'merge-history') ? (
+                      <Button mode="text" onPress={() => { void handleOpenTarget(item); }} disabled={mutating}>
+                        {item.kind === 'approval' ? t('Open approval') : t('Open merge')}
+                      </Button>
+                    ) : null}
+                  </View>
                 </Card.Content>
               </Card>
             ))}
@@ -379,6 +558,68 @@ export function NotificationsTabContent({
           </View>
         )}
       </View>
+
+      <Portal>
+        <Dialog
+          visible={!!selectedNotification}
+          onDismiss={() => setSelectedNotification(null)}
+          style={[dialogChrome.dialog, { backgroundColor: theme.colors.surface }]}
+        >
+          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>
+            {selectedNotification?.title ?? t('Notification')}
+          </Dialog.Title>
+          <IconButton icon="close" onPress={() => setSelectedNotification(null)} style={dialogChrome.closeButton} />
+          <Dialog.Content style={dialogChrome.content}>
+            {selectedNotification ? (
+              <>
+                <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                  {selectedNotification.createdAt.slice(0, 16).replace('T', ' ')}
+                </Text>
+                {selectedNotification.treeName ? (
+                  <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
+                    {selectedNotification.treeName}
+                  </Text>
+                ) : null}
+                <Text variant="bodyMedium" style={{ marginTop: 12 }}>
+                  {selectedNotification.message}
+                </Text>
+              </>
+            ) : null}
+          </Dialog.Content>
+          <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
+            {selectedNotification?.notificationId && !selectedNotification.seen && !selectedNotification.opened ? (
+              <Button mode="text" onPress={() => onMarkNotificationSeen(selectedNotification.notificationId!)} disabled={mutating}>
+                {t('Mark seen')}
+              </Button>
+            ) : null}
+            {selectedNotification?.notificationId && !selectedNotification.opened ? (
+              <Button mode="text" onPress={() => onMarkNotificationOpened(selectedNotification.notificationId!)} disabled={mutating}>
+                {t('Mark opened')}
+              </Button>
+            ) : null}
+            {selectedNotification?.sourceKind && selectedNotification.sourceId && !selectedNotification.actioned ? (
+              <Button mode="text" onPress={() => { void handleMarkActioned(selectedNotification); }} disabled={mutating}>
+                {t('Mark actioned')}
+              </Button>
+            ) : null}
+            {selectedNotification?.kind === 'merge-invite' && selectedNotification.notificationId && selectedNotification.status === 'pending' ? (
+              <>
+                <Button mode="contained-tonal" onPress={() => onRespondToMergeInvite(selectedNotification.notificationId!, 'accepted')} disabled={mutating}>
+                  {t('Accept')}
+                </Button>
+                <Button mode="text" onPress={() => onRespondToMergeInvite(selectedNotification.notificationId!, 'dismissed')} disabled={mutating}>
+                  {t('Dismiss')}
+                </Button>
+              </>
+            ) : null}
+            {selectedNotification && (selectedNotification.kind === 'approval' || selectedNotification.kind === 'merge-request' || selectedNotification.kind === 'merge-history') ? (
+              <Button mode="contained" onPress={() => { void handleOpenTarget(selectedNotification); }} disabled={mutating}>
+                {selectedNotification.kind === 'approval' ? t('Open approval') : t('Open merge')}
+              </Button>
+            ) : null}
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
     </ScrollView>
   );
 }
@@ -1143,6 +1384,7 @@ function ProfileTabContent({
   onUndoMerge,
   onGrantMergeViewerAccess,
   onCreateSurnameTree,
+  treeSettingsFocus,
   trees,
   defaultTreeId,
   loadingTrees,
@@ -1172,6 +1414,7 @@ function ProfileTabContent({
   const [mergeSelectionDrafts, setMergeSelectionDrafts] = useState<Record<string, string[]>>({});
   const [copyNoticeVisible, setCopyNoticeVisible] = useState(false);
   const [copyNoticeMessage, setCopyNoticeMessage] = useState('');
+  const [highlightedMergeRequestId, setHighlightedMergeRequestId] = useState<string | null>(null);
 
   const treeSurnameVariants = useMemo(
     () => [...new Set(selectedTree.surnameVariantGroups.flatMap((group) => [group.primarySurname, ...group.variants]).map((value) => value.trim()).filter(Boolean))],
@@ -1356,6 +1599,24 @@ function ProfileTabContent({
       return changed ? next : current;
     });
   }, [pendingMergeRequests]);
+
+  useEffect(() => {
+    if (!treeSettingsFocus) {
+      return;
+    }
+
+    if (treeSettingsFocus.mode === 'approval') {
+      setActiveManagementTab('approvals');
+      const request = approvalRequests.find((entry) => entry.id === treeSettingsFocus.itemId) ?? null;
+      if (request) {
+        setPreviewApprovalRequest(request);
+      }
+      return;
+    }
+
+    setActiveManagementTab('merges');
+    setHighlightedMergeRequestId(treeSettingsFocus.itemId);
+  }, [approvalRequests, treeSettingsFocus]);
 
   const handleSelfLink = async (personId: string) => {
     if (!userId || currentAssignedPerson) {
@@ -2153,7 +2414,9 @@ function ProfileTabContent({
             {pendingMergeRequests.length > 0 ? (
               <View style={styles.collaboratorList}>
                 {pendingMergeRequests.map((request) => (
-                  <Card key={request.id} mode="elevated" style={[styles.collaboratorCard, { backgroundColor: theme.colors.surface }]}>
+                  <Card key={request.id} mode="elevated" style={[styles.collaboratorCard, {
+                    backgroundColor: request.id === highlightedMergeRequestId ? theme.colors.surfaceVariant : theme.colors.surface,
+                  }]}>
                     <Card.Content>
                       {(() => {
                         const selectedMatchIds = mergeSelectionDrafts[request.id] ?? request.selectedMatchIds;

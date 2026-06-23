@@ -271,6 +271,30 @@ export default function MainScreen({ navigation }: Props) {
     [currentAssignedPersonId, peopleById],
   );
 
+  const notificationBadgeCount = useMemo(() => {
+    const unseenDirectCount = notifications.filter((notification) => !notification.seenAt).length;
+    const actionedStateKeys = new Set(
+      notificationActivityStates
+        .filter((state) => Boolean(state.actionedAt))
+        .map((state) => `${state.sourceKind}:${state.sourceId}`),
+    );
+
+    const unactionedApprovalCount = approvalRequests.filter((request) => !actionedStateKeys.has(`approval:${request.id}`)).length;
+    const unactionedMergeRequestCount = mergeRequests.filter((request) => !actionedStateKeys.has(`merge-request:${request.id}`)).length;
+    const unactionedMergeHistoryCount = mergeHistory.filter((entry) => !actionedStateKeys.has(`merge-history:${entry.id}`)).length;
+    const unactionedMembershipCount = trees
+      .flatMap((tree) => tree.membershipHistory.map((entry) => ({ tree, entry })))
+      .filter(({ entry }) => !user?.id || entry.userId === user.id || entry.action === 'invited' || entry.action === 'role-changed')
+      .filter(({ tree, entry }) => !actionedStateKeys.has(`membership:${tree.id}-${entry.id}`))
+      .length;
+
+    return unseenDirectCount
+      + unactionedApprovalCount
+      + unactionedMergeRequestCount
+      + unactionedMergeHistoryCount
+      + unactionedMembershipCount;
+  }, [approvalRequests, mergeHistory, mergeRequests, notificationActivityStates, notifications, trees, user?.id]);
+
   const availableSelfLinkPeople = useMemo(
     () => people
       .filter((p) => { const uid = assignedUserIdByPersonId.get(p.id); return !uid || uid === user?.id; })
@@ -527,7 +551,7 @@ export default function MainScreen({ navigation }: Props) {
     if (!user?.id) return;
     await markNotificationOpened(user.id, notificationId);
   }, [markNotificationOpened, user?.id]);
-  const onMarkNotificationActivityActioned = useCallback(async (sourceKind: 'approval' | 'merge-request' | 'merge-history', sourceId: string) => {
+  const onMarkNotificationActivityActioned = useCallback(async (sourceKind: 'approval' | 'merge-request' | 'merge-history' | 'membership', sourceId: string) => {
     if (!user?.id) return;
     await markNotificationActivityActioned(user.id, sourceKind, sourceId);
   }, [markNotificationActivityActioned, user?.id]);
@@ -690,12 +714,18 @@ export default function MainScreen({ navigation }: Props) {
           {() => (sharedTabProps ? <PeopleRelationshipsTabContent {...sharedTabProps} /> : noTreeGate)}
         </Tab.Screen>
 
-        <Tab.Screen name="notifications" options={{ title: t('Notifications') }}>
-          {() => (sharedTabProps ? <NotificationsTabContent {...sharedTabProps} /> : noTreeGate)}
-        </Tab.Screen>
-
         <Tab.Screen name="treeSettings" options={{ title: t('Settings') }}>
           {() => (sharedTabProps ? <TreeSettingsTabContent {...sharedTabProps} /> : noTreeGate)}
+        </Tab.Screen>
+
+        <Tab.Screen
+          name="notifications"
+          options={{
+            title: t('Notifications'),
+            tabBarBadge: notificationBadgeCount > 0 ? notificationBadgeCount : undefined,
+          }}
+        >
+          {() => (sharedTabProps ? <NotificationsTabContent {...sharedTabProps} /> : noTreeGate)}
         </Tab.Screen>
 
         <Tab.Screen name="myProfile" options={{ title: t('Profile') }}>
