@@ -14,6 +14,7 @@ interface TreeFormDialogProps {
   loading?: boolean;
   onDismiss: () => void;
   onSubmit: (name: string) => void | Promise<void>;
+  onDelete?: (() => void | Promise<void>) | null;
 }
 
 export default function TreeFormDialog({
@@ -23,6 +24,7 @@ export default function TreeFormDialog({
   loading = false,
   onDismiss,
   onSubmit,
+  onDelete,
 }: TreeFormDialogProps) {
   const theme = useTheme();
   const { t } = useI18n();
@@ -55,7 +57,7 @@ export default function TreeFormDialog({
         onDismiss={loading ? undefined : onDismiss}
         style={[dialogChrome.dialog, styles.dialog, { backgroundColor: theme.colors.surface }]}
       >
-        <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{mode === 'create' ? t('Create family tree') : t('Rename family tree')}</Dialog.Title>
+        <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{mode === 'create' ? t('Create family tree') : t('Edit family tree')}</Dialog.Title>
         <IconButton icon="close" onPress={onDismiss} disabled={loading} accessibilityLabel={t('Cancel')} style={dialogChrome.closeButton} />
         <Dialog.Content style={dialogChrome.content}>
           <TextInput
@@ -77,6 +79,11 @@ export default function TreeFormDialog({
           </HelperText>
         </Dialog.Content>
         <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
+          {mode === 'edit' && onDelete ? (
+            <Button mode="text" textColor={theme.colors.error} onPress={onDelete} disabled={loading}>
+              {t('Delete tree')}
+            </Button>
+          ) : null}
           <Button mode="contained" onPress={handleSubmit} disabled={loading}>
             {mode === 'create' ? t('Create') : t('Save')}
           </Button>

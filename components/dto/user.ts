@@ -3,6 +3,8 @@ export interface UserProfile {
   email: string;
   normalizedEmail?: string;
   displayName: string;
+  normalizedDisplayName?: string;
+  username?: string;
   defaultTreeId?: string;
   createdAt: string;
 }
@@ -34,4 +36,3 @@ export function getUserNameParts(user?: Pick<UserProfile, 'displayName' | 'email
     lastName: parts.slice(1).join(' '),
   };
 }
-

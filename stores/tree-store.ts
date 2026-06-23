@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { ApprovalRequest } from '../components/dto/approval';
 import type { MergeConflictChoice, MergeHistoryRecord, MergeRequestRecord } from '../components/dto/merge';
+import type { AppNotification, NotificationActivityState } from '../components/dto/notification';
 import type { PersonInput, PersonMutationPayload, PersonRecord } from '../components/dto/person';
 import type { ParentChildRelationshipKind, RelationshipRecord, SpouseRelationshipStatus } from '../components/dto/relationship';
 import type { CollaboratorRole, FamilyTree, SurnameVariantGroup } from '../components/dto/tree';
@@ -9,6 +10,7 @@ import {
   addCollaboratorToTree,
   assignTreePersonToUser,
   clearTreePersonAssignment,
+  createTreeWithPrimarySurname,
   createMergeRequest,
   createParentChildRelationship,
   createPerson,
@@ -20,12 +22,19 @@ import {
   deleteTree,
   getMergePreview,
   grantMergeRequesterViewerAccess,
+  markNotificationActivityActioned,
+  markNotificationOpened,
+  markNotificationSeen,
   processExpiredApprovalRequests,
   removeCollaboratorFromTree,
+  respondToMergeInvite,
   reviewMergeRequest,
+  sendMergeInviteByIdentifier,
   subscribeToApprovalRequests,
   subscribeToMergeHistory,
   subscribeToMergeRequests,
+  subscribeToNotifications,
+  subscribeToNotificationActivityStates,
   subscribeToPeople,
   subscribeToRelationships,
   subscribeToTrees,
@@ -43,6 +52,8 @@ let unsubscribeRelationships: (() => void) | null = null;
 let unsubscribeApprovalRequests: (() => void) | null = null;
 let unsubscribeMergeRequests: (() => void) | null = null;
 let unsubscribeMergeHistory: (() => void) | null = null;
+let unsubscribeNotifications: (() => void) | null = null;
+let unsubscribeNotificationActivity: (() => void) | null = null;
 let subscribedTreeId: string | null = null;
 const expiryProcessingTreeIds = new Set<string>();
 
@@ -74,6 +85,10 @@ function stopTreeSubscriptions() {
 function stopAllSubscriptions() {
   unsubscribeTrees?.();
   unsubscribeTrees = null;
+  unsubscribeNotifications?.();
+  unsubscribeNotifications = null;
+  unsubscribeNotificationActivity?.();
+  unsubscribeNotificationActivity = null;
   stopTreeSubscriptions();
 }
 
@@ -86,6 +101,8 @@ interface TreeState {
   approvalRequests: ApprovalRequest[];
   mergeRequests: MergeRequestRecord[];
   mergeHistory: MergeHistoryRecord[];
+  notifications: AppNotification[];
+  notificationActivityStates: NotificationActivityState[];
   mergePreview: Awaited<ReturnType<typeof getMergePreview>> | null;
   loadingTrees: boolean;
   loadingTreeData: boolean;
@@ -95,6 +112,7 @@ interface TreeState {
   syncFamilyData: (userId: string | null) => void;
   selectTree: (treeId: string | null) => void;
   createTree: (owner: Pick<UserProfile, 'id' | 'email' | 'displayName'>, name: string) => Promise<FamilyTree>;
+  createTreeFromSurname: (owner: Pick<UserProfile, 'id' | 'email' | 'displayName'>, surname: string) => Promise<FamilyTree>;
   renameTree: (treeId: string, name: string) => Promise<void>;
   setApprovalWindowHours: (treeId: string, hours: number) => Promise<void>;
   setSurnameVariantGroups: (treeId: string, groups: SurnameVariantGroup[]) => Promise<void>;
@@ -111,6 +129,11 @@ interface TreeState {
   approveApprovalRequest: (actorUserId: string, requestId: string) => Promise<void>;
   rejectApprovalRequest: (actorUserId: string, requestId: string) => Promise<void>;
   createMergeRequest: (actorUserId: string, sourceTreeId: string, targetTreeId: string) => Promise<void>;
+  sendMergeInvite: (actorUserId: string, sourceTreeId: string, identifier: string) => Promise<void>;
+  respondToMergeInvite: (actorUserId: string, notificationId: string, status: 'accepted' | 'dismissed') => Promise<void>;
+  markNotificationSeen: (actorUserId: string, notificationId: string) => Promise<void>;
+  markNotificationOpened: (actorUserId: string, notificationId: string) => Promise<void>;
+  markNotificationActivityActioned: (actorUserId: string, sourceKind: NotificationActivityState['sourceKind'], sourceId: string) => Promise<void>;
   loadMergePreview: (sourceTreeId: string, targetTreeId: string) => Promise<void>;
   approveMergeRequest: (actorUserId: string, requestId: string, comment?: string, selectedMatchIds?: string[], conflictChoices?: MergeConflictChoice[]) => Promise<void>;
   rejectMergeRequest: (actorUserId: string, requestId: string, comment?: string) => Promise<void>;
@@ -213,6 +236,8 @@ export const useTreeStore = create<TreeState>((set, get) => {
     approvalRequests: [],
     mergeRequests: [],
     mergeHistory: [],
+    notifications: [],
+    notificationActivityStates: [],
     mergePreview: null,
     loadingTrees: true,
     loadingTreeData: false,
@@ -233,6 +258,8 @@ export const useTreeStore = create<TreeState>((set, get) => {
           approvalRequests: [],
           mergeRequests: [],
           mergeHistory: [],
+          notifications: [],
+          notificationActivityStates: [],
           mergePreview: null,
           loadingTrees: false,
           loadingTreeData: false,
@@ -261,6 +288,17 @@ export const useTreeStore = create<TreeState>((set, get) => {
         },
         (error) => set({ error: normaliseError(error), loadingTrees: false }),
       );
+
+      unsubscribeNotifications = subscribeToNotifications(
+        userId,
+        (notifications) => set({ notifications }),
+        (error) => set({ error: normaliseError(error) }),
+      );
+      unsubscribeNotificationActivity = subscribeToNotificationActivityStates(
+        userId,
+        (notificationActivityStates) => set({ notificationActivityStates }),
+        (error) => set({ error: normaliseError(error) }),
+      );
     },
 
     selectTree: (treeId) => {
@@ -281,6 +319,19 @@ export const useTreeStore = create<TreeState>((set, get) => {
       try {
         const tree = await createTree(owner, name);
         set({ selectedTreeId: tree.id, mutating: false });
+        subscribeToTreeData(tree.id);
+        return tree;
+      } catch (error) {
+        set({ mutating: false, error: normaliseError(error) });
+        throw error;
+      }
+    },
+
+    createTreeFromSurname: async (owner, surname) => {
+      set({ mutating: true, error: null });
+      try {
+        const tree = await createTreeWithPrimarySurname(owner, surname);
+        set({ selectedTreeId: tree.id, mutating: false, notice: 'Surname tree created.' });
         subscribeToTreeData(tree.id);
         return tree;
       } catch (error) {
@@ -470,6 +521,61 @@ export const useTreeStore = create<TreeState>((set, get) => {
       }
     },
 
+    sendMergeInvite: async (actorUserId, sourceTreeId, identifier) => {
+      set({ mutating: true, error: null });
+      try {
+        await sendMergeInviteByIdentifier(actorUserId, sourceTreeId, identifier);
+        set({ mutating: false, notice: 'Merge invitation sent.' });
+      } catch (error) {
+        set({ mutating: false, error: normaliseError(error) });
+        throw error;
+      }
+    },
+
+    respondToMergeInvite: async (actorUserId, notificationId, status) => {
+      set({ mutating: true, error: null });
+      try {
+        await respondToMergeInvite(actorUserId, notificationId, status);
+        set({ mutating: false, notice: status === 'accepted' ? 'Merge invitation accepted.' : 'Merge invitation dismissed.' });
+      } catch (error) {
+        set({ mutating: false, error: normaliseError(error) });
+        throw error;
+      }
+    },
+
+    markNotificationSeen: async (actorUserId, notificationId) => {
+      set({ mutating: true, error: null });
+      try {
+        await markNotificationSeen(actorUserId, notificationId);
+        set({ mutating: false });
+      } catch (error) {
+        set({ mutating: false, error: normaliseError(error) });
+        throw error;
+      }
+    },
+
+    markNotificationOpened: async (actorUserId, notificationId) => {
+      set({ mutating: true, error: null });
+      try {
+        await markNotificationOpened(actorUserId, notificationId);
+        set({ mutating: false });
+      } catch (error) {
+        set({ mutating: false, error: normaliseError(error) });
+        throw error;
+      }
+    },
+
+    markNotificationActivityActioned: async (actorUserId, sourceKind, sourceId) => {
+      set({ mutating: true, error: null });
+      try {
+        await markNotificationActivityActioned(actorUserId, sourceKind, sourceId);
+        set({ mutating: false });
+      } catch (error) {
+        set({ mutating: false, error: normaliseError(error) });
+        throw error;
+      }
+    },
+
     loadMergePreview: async (sourceTreeId, targetTreeId) => {
       set({ mutating: true, error: null });
       try {
@@ -577,6 +683,8 @@ export const useTreeStore = create<TreeState>((set, get) => {
         approvalRequests: [],
         mergeRequests: [],
         mergeHistory: [],
+        notifications: [],
+        notificationActivityStates: [],
         mergePreview: null,
         loadingTrees: false,
         loadingTreeData: false,

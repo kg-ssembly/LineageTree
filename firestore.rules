@@ -240,6 +240,32 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    match /notifications/{notificationId} {
+      allow create: if signedIn()
+        && request.resource.data.userId is string
+        && request.resource.data.type == 'merge-invite'
+        && request.resource.data.status == 'pending'
+        && request.resource.data.requestedByUserId == request.auth.uid
+        && request.resource.data.requestedByLabel is string
+        && request.resource.data.sourceTreeId is string
+        && request.resource.data.sourceTreeName is string
+        && request.resource.data.targetIdentifier is string
+        && request.resource.data.message is string
+        && request.resource.data.createdAt is string
+        && request.resource.data.updatedAt is string
+        && isTreeEditor(request.resource.data.sourceTreeId);
+      allow read: if signedIn() && resource.data.userId == request.auth.uid;
+      allow update: if signedIn()
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == resource.data.userId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'status',
+          'respondedAt',
+          'updatedAt'
+        ]);
+      allow delete: if false;
+    }
+
     match /approvalRequests/{requestId} {
       allow create: if signedIn()
         && isApprovalRequestBaseCreate()

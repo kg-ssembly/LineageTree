@@ -24,6 +24,7 @@ import {
 import { db, storage } from './firebase-provider';
 import type { ApprovalRequest, ApprovalRequestPayload, ApprovalSubmissionResult } from '../components/dto/approval';
 import type { MergeApproval, MergeConflictChoice, MergeHistoryRecord, MergePreview, MergeRequestRecord, MergeRequestSnapshot, MergeReviewDecision } from '../components/dto/merge';
+import type { AppNotification, NotificationActivityState } from '../components/dto/notification';
 import type { PersonInput, PersonLifeEvent, PersonMutationPayload, PersonPhoto, PersonRecord } from '../components/dto/person';
 import type { ParentChildRelationshipKind, RelationshipRecord, SpouseRelationshipStatus } from '../components/dto/relationship';
 import { DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND, DEFAULT_SPOUSE_RELATIONSHIP_STATUS } from '../components/dto/relationship';
@@ -38,6 +39,8 @@ const RELATIONSHIPS_COLLECTION = 'relationships';
 const APPROVAL_REQUESTS_COLLECTION = 'approvalRequests';
 const MERGE_REQUESTS_COLLECTION = 'mergeRequests';
 const MERGE_HISTORY_COLLECTION = 'mergeHistory';
+const NOTIFICATIONS_COLLECTION = 'notifications';
+const NOTIFICATION_ACTIVITY_COLLECTION = 'notificationActivity';
 const USERS_COLLECTION = 'users';
 
 function nowIso() {
@@ -46,6 +49,14 @@ function nowIso() {
 
 function normaliseEmail(email: string) {
   return email.trim().toLowerCase();
+}
+
+function normaliseDisplayName(displayName: string) {
+  return displayName
+    .trim()
+    .toLowerCase()
+    .replace(/[._-]+/g, ' ')
+    .replace(/\s+/g, ' ');
 }
 
 function asSafeString(value: unknown) {
@@ -452,6 +463,40 @@ function mapMergeHistory(snapshot: QueryDocumentSnapshot): MergeHistoryRecord {
   };
 }
 
+function mapNotification(snapshot: QueryDocumentSnapshot): AppNotification {
+  const data = snapshot.data();
+  return {
+    id: snapshot.id,
+    userId: data.userId ?? '',
+    type: data.type ?? 'merge-invite',
+    status: data.status ?? 'pending',
+    requestedByUserId: data.requestedByUserId ?? '',
+    requestedByLabel: data.requestedByLabel ?? '',
+    sourceTreeId: data.sourceTreeId ?? '',
+    sourceTreeName: data.sourceTreeName ?? '',
+    targetIdentifier: data.targetIdentifier ?? '',
+    message: data.message ?? '',
+    createdAt: data.createdAt ?? nowIso(),
+    updatedAt: data.updatedAt ?? data.createdAt ?? nowIso(),
+    respondedAt: data.respondedAt ?? undefined,
+    seenAt: data.seenAt ?? undefined,
+    openedAt: data.openedAt ?? undefined,
+  };
+}
+
+function mapNotificationActivityState(snapshot: QueryDocumentSnapshot): NotificationActivityState {
+  const data = snapshot.data();
+  return {
+    id: snapshot.id,
+    userId: data.userId ?? '',
+    sourceKind: data.sourceKind ?? 'approval',
+    sourceId: data.sourceId ?? '',
+    actionedAt: data.actionedAt ?? undefined,
+    createdAt: data.createdAt ?? nowIso(),
+    updatedAt: data.updatedAt ?? data.createdAt ?? nowIso(),
+  };
+}
+
 function sortByNewest<T extends { updatedAt?: string; createdAt?: string }>(items: T[]) {
   return [...items].sort((left, right) => {
     const leftValue = left.updatedAt ?? left.createdAt ?? '';
@@ -583,6 +628,53 @@ async function findUserByEmail(email: string) {
   };
 }
 
+async function findUserByIdentifier(identifier: string) {
+  const trimmedIdentifier = identifier.trim();
+  const normalizedEmail = normaliseEmail(trimmedIdentifier);
+  const normalizedDisplayName = normaliseDisplayName(trimmedIdentifier);
+  const normalizedUsername = trimmedIdentifier.trim().toLowerCase().replace(/\s+/g, '');
+
+  let userSnapshot = await getDocs(
+    query(collection(db, USERS_COLLECTION), where('normalizedEmail', '==', normalizedEmail), limit(1)),
+  );
+
+  if (!userSnapshot.empty) {
+    const userDoc = userSnapshot.docs[0];
+    const userData = userDoc.data();
+    return {
+      id: userDoc.id,
+      email: userData.email,
+      displayName: userData.displayName ?? '',
+    };
+  }
+
+  userSnapshot = await getDocs(
+    query(collection(db, USERS_COLLECTION), where('username', '==', normalizedUsername), limit(2)),
+  );
+
+  if (userSnapshot.empty) {
+    userSnapshot = await getDocs(
+      query(collection(db, USERS_COLLECTION), where('normalizedDisplayName', '==', normalizedDisplayName), limit(2)),
+    );
+  }
+
+  if (userSnapshot.empty) {
+    throw new Error('No registered account was found with that email address or username.');
+  }
+
+  if (userSnapshot.docs.length > 1) {
+    throw new Error('More than one user matches that username. Ask them for their tree ID or email address instead.');
+  }
+
+  const userDoc = userSnapshot.docs[0];
+  const userData = userDoc.data();
+  return {
+    id: userDoc.id,
+    email: userData.email,
+    displayName: userData.displayName ?? '',
+  };
+}
+
 export function subscribeToTrees(
   userId: string,
   onChange: (trees: FamilyTree[]) => void,
@@ -692,6 +784,32 @@ export function subscribeToMergeHistory(
   );
 }
 
+export function subscribeToNotifications(
+  userId: string,
+  onChange: (notifications: AppNotification[]) => void,
+  onError?: (error: Error) => void,
+) {
+  const notificationsQuery = query(collection(db, NOTIFICATIONS_COLLECTION), where('userId', '==', userId));
+  return onSnapshot(
+    notificationsQuery,
+    (snapshot) => onChange(snapshot.docs.map(mapNotification).sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))),
+    onError,
+  );
+}
+
+export function subscribeToNotificationActivityStates(
+  userId: string,
+  onChange: (states: NotificationActivityState[]) => void,
+  onError?: (error: Error) => void,
+) {
+  const activityQuery = query(collection(db, NOTIFICATION_ACTIVITY_COLLECTION), where('userId', '==', userId));
+  return onSnapshot(
+    activityQuery,
+    (snapshot) => onChange(snapshot.docs.map(mapNotificationActivityState).sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))),
+    onError,
+  );
+}
+
 export async function createTree(
   owner: Pick<UserProfile, 'id' | 'email' | 'displayName'>,
   name: string,
@@ -733,6 +851,28 @@ export async function updateTreeName(treeId: string, name: string) {
     name: name.trim(),
     updatedAt: nowIso(),
   });
+}
+
+export async function createTreeWithPrimarySurname(
+  owner: Pick<UserProfile, 'id' | 'email' | 'displayName'>,
+  surname: string,
+) {
+  const trimmedSurname = surname.trim();
+  if (!trimmedSurname) {
+    throw new Error('Surname is required.');
+  }
+
+  const tree = await createTree(owner, trimmedSurname);
+  await updateSurnameVariantGroups(tree.id, [{
+    id: `${tree.id}-surname-variants`,
+    primarySurname: trimmedSurname,
+    variants: [],
+    notes: '',
+    createdAt: nowIso(),
+    updatedAt: nowIso(),
+  }]);
+
+  return tree;
 }
 
 export async function updateTreeApprovalWindow(treeId: string, approvalWindowHours: number) {
@@ -1941,6 +2081,130 @@ export async function grantMergeRequesterViewerAccess(
       ],
       updatedAt: nowIso(),
     });
+  });
+}
+
+export async function sendMergeInviteByIdentifier(
+  actorUserId: string,
+  sourceTreeId: string,
+  identifier: string,
+) {
+  const [sourceTree, targetUser] = await Promise.all([
+    getTreeById(sourceTreeId),
+    findUserByIdentifier(identifier),
+  ]);
+
+  if (!sourceTree.editorIds.includes(actorUserId)) {
+    throw new Error('Only an editor can send merge invitations for this tree.');
+  }
+
+  if (targetUser.id === actorUserId) {
+    throw new Error('You already have access to this account. Use tree IDs to merge your own trees directly.');
+  }
+
+  const notificationRef = doc(collection(db, NOTIFICATIONS_COLLECTION));
+  const timestamp = nowIso();
+  const requestedByLabel = buildMergeApprovalLabel(sourceTree, actorUserId);
+
+  await setDoc(notificationRef, {
+    userId: targetUser.id,
+    type: 'merge-invite',
+    status: 'pending',
+    requestedByUserId: actorUserId,
+    requestedByLabel,
+    sourceTreeId: sourceTree.id,
+    sourceTreeName: sourceTree.name,
+    targetIdentifier: identifier.trim(),
+    message: `${requestedByLabel} asked you to review a tree merge with ${sourceTree.name}.`,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  });
+}
+
+export async function respondToMergeInvite(
+  actorUserId: string,
+  notificationId: string,
+  status: 'accepted' | 'dismissed',
+) {
+  const notificationRef = doc(db, NOTIFICATIONS_COLLECTION, notificationId);
+  const notificationSnapshot = await getDoc(notificationRef);
+  if (!notificationSnapshot.exists()) {
+    throw new Error('That merge invitation no longer exists.');
+  }
+
+  const notification = mapNotification(notificationSnapshot as QueryDocumentSnapshot);
+  if (notification.userId !== actorUserId) {
+    throw new Error('That merge invitation belongs to another user.');
+  }
+
+  await updateDoc(notificationRef, {
+    status,
+    respondedAt: nowIso(),
+    updatedAt: nowIso(),
+  });
+}
+
+export async function markNotificationSeen(actorUserId: string, notificationId: string) {
+  const notificationRef = doc(db, NOTIFICATIONS_COLLECTION, notificationId);
+  const notificationSnapshot = await getDoc(notificationRef);
+  if (!notificationSnapshot.exists()) {
+    throw new Error('That notification no longer exists.');
+  }
+
+  const notification = mapNotification(notificationSnapshot as QueryDocumentSnapshot);
+  if (notification.userId !== actorUserId) {
+    throw new Error('That notification belongs to another user.');
+  }
+
+  await updateDoc(notificationRef, {
+    seenAt: notification.seenAt ?? nowIso(),
+    updatedAt: nowIso(),
+  });
+}
+
+export async function markNotificationOpened(actorUserId: string, notificationId: string) {
+  const notificationRef = doc(db, NOTIFICATIONS_COLLECTION, notificationId);
+  const notificationSnapshot = await getDoc(notificationRef);
+  if (!notificationSnapshot.exists()) {
+    throw new Error('That notification no longer exists.');
+  }
+
+  const notification = mapNotification(notificationSnapshot as QueryDocumentSnapshot);
+  if (notification.userId !== actorUserId) {
+    throw new Error('That notification belongs to another user.');
+  }
+
+  await updateDoc(notificationRef, {
+    seenAt: notification.seenAt ?? nowIso(),
+    openedAt: notification.openedAt ?? nowIso(),
+    updatedAt: nowIso(),
+  });
+}
+
+export async function markNotificationActivityActioned(
+  actorUserId: string,
+  sourceKind: NotificationActivityState['sourceKind'],
+  sourceId: string,
+) {
+  const activityRef = doc(db, NOTIFICATION_ACTIVITY_COLLECTION, `${actorUserId}-${sourceKind}-${sourceId}`);
+  const snapshot = await getDoc(activityRef);
+  const timestamp = nowIso();
+
+  if (snapshot.exists()) {
+    await updateDoc(activityRef, {
+      actionedAt: timestamp,
+      updatedAt: timestamp,
+    });
+    return;
+  }
+
+  await setDoc(activityRef, {
+    userId: actorUserId,
+    sourceKind,
+    sourceId,
+    actionedAt: timestamp,
+    createdAt: timestamp,
+    updatedAt: timestamp,
   });
 }
 

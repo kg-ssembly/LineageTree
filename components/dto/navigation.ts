@@ -1,6 +1,7 @@
 export type MainTabParamList = {
   tree: undefined;
   members: undefined;
+  notifications: undefined;
   treeSettings: undefined;
   myProfile: undefined;
 };

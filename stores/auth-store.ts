@@ -57,6 +57,18 @@ function normaliseEmail(email: string) {
   return email.trim().toLowerCase();
 }
 
+function normaliseDisplayName(displayName: string) {
+  return displayName
+    .trim()
+    .toLowerCase()
+    .replace(/[._-]+/g, ' ')
+    .replace(/\s+/g, ' ');
+}
+
+function deriveUsername(email: string) {
+  return email.split('@')[0]?.trim().toLowerCase() ?? '';
+}
+
 function buildUserProfileDocument(user: Pick<FirebaseUser, 'uid' | 'email' | 'displayName'>, createdAt?: string) {
   const email = user.email ?? '';
   const displayName = user.displayName ?? '';
@@ -66,6 +78,8 @@ function buildUserProfileDocument(user: Pick<FirebaseUser, 'uid' | 'email' | 'di
     email,
     normalizedEmail: normaliseEmail(email),
     displayName,
+    normalizedDisplayName: normaliseDisplayName(displayName),
+    username: deriveUsername(email),
     ...(createdAt ? { createdAt } : {}),
   };
 }
@@ -91,12 +105,22 @@ async function ensureUserProfileDocument(fbUser: Pick<FirebaseUser, 'uid' | 'ema
   const email = data.email ?? fallbackProfile.email;
   const displayName = data.displayName ?? fallbackProfile.displayName;
   const normalizedEmail = data.normalizedEmail ?? normaliseEmail(email);
+  const normalizedDisplayName = data.normalizedDisplayName ?? normaliseDisplayName(displayName);
+  const username = data.username ?? deriveUsername(email);
 
-  if ((data.email == null && email) || (data.displayName == null && displayName) || (data.normalizedEmail == null && normalizedEmail)) {
+  if (
+    (data.email == null && email)
+    || (data.displayName == null && displayName)
+    || (data.normalizedEmail == null && normalizedEmail)
+    || (data.normalizedDisplayName == null && normalizedDisplayName)
+    || (data.username == null && username)
+  ) {
     await setDoc(userRef, {
       email,
       displayName,
       normalizedEmail,
+      normalizedDisplayName,
+      username,
     }, { merge: true });
   }
 
@@ -105,6 +129,8 @@ async function ensureUserProfileDocument(fbUser: Pick<FirebaseUser, 'uid' | 'ema
     email,
     normalizedEmail,
     displayName,
+    normalizedDisplayName,
+    username,
     defaultTreeId: typeof data.defaultTreeId === 'string' && data.defaultTreeId.trim() ? data.defaultTreeId.trim() : undefined,
     createdAt: data.createdAt?.toDate?.().toISOString() ?? data.createdAt ?? fallbackProfile.createdAt,
   };
@@ -127,6 +153,8 @@ async function fetchUserProfile(uid: string, fallbackUser?: FirebaseUser | null)
     email,
     normalizedEmail: data.normalizedEmail ?? normaliseEmail(email),
     displayName,
+    normalizedDisplayName: data.normalizedDisplayName ?? normaliseDisplayName(displayName),
+    username: data.username ?? deriveUsername(email),
     defaultTreeId: typeof data.defaultTreeId === 'string' && data.defaultTreeId.trim() ? data.defaultTreeId.trim() : undefined,
     createdAt: data.createdAt?.toDate?.().toISOString() ?? data.createdAt,
   };
@@ -256,10 +284,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
 
     await updateProfile(firebaseUser, { displayName: trimmed });
-    await updateDoc(doc(db, 'users', user.id), { displayName: trimmed });
+    await updateDoc(doc(db, 'users', user.id), {
+      displayName: trimmed,
+      normalizedDisplayName: normaliseDisplayName(trimmed),
+    });
 
     set((state) => ({
-      user: state.user ? { ...state.user, displayName: trimmed } : null,
+      user: state.user ? { ...state.user, displayName: trimmed, normalizedDisplayName: normaliseDisplayName(trimmed) } : null,
     }));
   },
 }));

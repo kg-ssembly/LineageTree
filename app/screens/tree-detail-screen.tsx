@@ -63,6 +63,13 @@ type ConfirmState = {
   action: (() => Promise<void>) | null;
 };
 
+type TreeSettingsFocus = {
+  tab: 'approvals' | 'merges';
+  itemId: string;
+  mode: 'approval' | 'merge';
+  token: number;
+} | null;
+
 const Tab = createBottomTabNavigator<TreeDetailTabParamList>();
 const styles = GlobalStyles.treeDetail;
 
@@ -78,6 +85,8 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     approvalRequests,
     mergeRequests,
     mergeHistory,
+    notifications,
+    notificationActivityStates,
     mergePreview,
     loadingTrees,
     loadingTreeData,
@@ -88,6 +97,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     addCollaborator,
     removeCollaborator,
     createPerson,
+    createTreeFromSurname,
     assignPersonToUser,
     clearSelfAssignment,
     updatePerson,
@@ -99,6 +109,11 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     setApprovalWindowHours,
     setSurnameVariantGroups,
     createMergeRequest,
+    sendMergeInvite,
+    respondToMergeInvite,
+    markNotificationSeen,
+    markNotificationOpened,
+    markNotificationActivityActioned,
     loadMergePreview,
     approveMergeRequest,
     grantMergeViewerAccess,
@@ -127,6 +142,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     confirmLabel: t('Confirm'),
     action: null,
   });
+  const [treeSettingsFocus, setTreeSettingsFocus] = useState<TreeSettingsFocus>(null);
 
   const selectedTree = useMemo(
     () => trees.find((tree) => tree.id === route.params.treeId) ?? null,
@@ -447,6 +463,26 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     if (!user?.id || !selectedTree) return;
     await createMergeRequest(user.id, selectedTree.id, targetTreeId);
   }, [createMergeRequest, selectedTree, user?.id]);
+  const onSendMergeInvite = useCallback(async (identifier: string) => {
+    if (!user?.id || !selectedTree) return;
+    await sendMergeInvite(user.id, selectedTree.id, identifier);
+  }, [selectedTree, sendMergeInvite, user?.id]);
+  const onRespondToMergeInvite = useCallback(async (notificationId: string, status: 'accepted' | 'dismissed') => {
+    if (!user?.id) return;
+    await respondToMergeInvite(user.id, notificationId, status);
+  }, [respondToMergeInvite, user?.id]);
+  const onMarkNotificationSeen = useCallback(async (notificationId: string) => {
+    if (!user?.id) return;
+    await markNotificationSeen(user.id, notificationId);
+  }, [markNotificationSeen, user?.id]);
+  const onMarkNotificationOpened = useCallback(async (notificationId: string) => {
+    if (!user?.id) return;
+    await markNotificationOpened(user.id, notificationId);
+  }, [markNotificationOpened, user?.id]);
+  const onMarkNotificationActivityActioned = useCallback(async (sourceKind: 'approval' | 'merge-request' | 'merge-history', sourceId: string) => {
+    if (!user?.id) return;
+    await markNotificationActivityActioned(user.id, sourceKind, sourceId);
+  }, [markNotificationActivityActioned, user?.id]);
   const onLoadTreeMergePreview = useCallback(async (targetTreeId: string) => {
     if (!selectedTree) return;
     await loadMergePreview(selectedTree.id, targetTreeId);
@@ -471,6 +507,13 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     if (!user?.id) return;
     await grantMergeViewerAccess(user.id, requestId, treeId);
   }, [grantMergeViewerAccess, user?.id]);
+  const onCreateSurnameTree = useCallback(async (surname: string) => {
+    if (!user) return;
+    await createTreeFromSurname({ id: user.id, email: user.email, displayName: user.displayName }, surname);
+  }, [createTreeFromSurname, user]);
+  const onOpenTreeSettingsTarget = useCallback((target: Omit<NonNullable<TreeSettingsFocus>, 'token'>) => {
+    setTreeSettingsFocus({ ...target, token: Date.now() });
+  }, []);
 
   const sharedTabProps: SharedTabProps | null = useMemo(() => {
     if (!selectedTree) return null;
@@ -491,6 +534,8 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
       currentAssignedPerson,
       currentSelfAssignmentSuggestions,
       availableSelfLinkPeople,
+      notifications,
+      notificationActivityStates,
       assignedPersonByUserId,
       assignedUserIdByPersonId,
       canCreateSelfProfile: canEdit,
@@ -513,22 +558,30 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
       onSetApprovalWindowHours,
       onSetSurnameVariantGroups,
       onCreateMergeRequest,
+      onSendMergeInvite,
+      onRespondToMergeInvite,
+      onMarkNotificationSeen,
+      onMarkNotificationOpened,
+      onMarkNotificationActivityActioned,
       onLoadMergePreview: onLoadTreeMergePreview,
       onApproveMergeRequest,
       onRejectMergeRequest,
       onRequestMergeChanges,
       onUndoMerge,
       onGrantMergeViewerAccess,
+      onCreateSurnameTree,
+      treeSettingsFocus,
+      onOpenTreeSettingsTarget,
     };
   }, [
     selectedTree, people, relationships, approvalRequests, mergeRequests, mergeHistory, mergePreview, peopleById, canEdit, isOwner, role,
     user?.id, currentUserLabel, currentAssignedPerson, currentSelfAssignmentSuggestions,
-    availableSelfLinkPeople, assignedPersonByUserId, assignedUserIdByPersonId, mutating, loadingTreeData,
+    availableSelfLinkPeople, notifications, notificationActivityStates, assignedPersonByUserId, assignedUserIdByPersonId, mutating, loadingTreeData,
     openConfirm, openPersonProfile, onOpenAddPerson, onOpenRelationshipDialog, onOpenPersonQuickActions,
     onOpenCollaboratorDialog, onOpenAddSelf, onEditPerson, onDeletePerson, onRemoveCollaborator,
     handleAssignPersonToUser, handleClearSelfAssignment, onApproveApprovalRequest, onRejectApprovalRequest,
-    onSetApprovalWindowHours, onSetSurnameVariantGroups, onCreateMergeRequest, onLoadTreeMergePreview,
-    onApproveMergeRequest, onRejectMergeRequest, onRequestMergeChanges, onUndoMerge, onGrantMergeViewerAccess,
+    onSetApprovalWindowHours, onSetSurnameVariantGroups, onCreateMergeRequest, onSendMergeInvite, onRespondToMergeInvite, onMarkNotificationSeen, onMarkNotificationOpened, onMarkNotificationActivityActioned, onLoadTreeMergePreview,
+    onApproveMergeRequest, onRejectMergeRequest, onRequestMergeChanges, onUndoMerge, onGrantMergeViewerAccess, onCreateSurnameTree, treeSettingsFocus, onOpenTreeSettingsTarget,
   ]);
 
   if (!selectedTree || !sharedTabProps) {

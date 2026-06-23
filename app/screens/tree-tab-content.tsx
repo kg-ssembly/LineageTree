@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { FlatList, Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { FlatList, Image, Pressable, ScrollView, Share, StyleSheet, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   ActivityIndicator,
@@ -11,6 +11,7 @@ import {
   IconButton,
   ProgressBar,
   Portal,
+  Snackbar,
   Searchbar,
   SegmentedButtons,
   Surface,
@@ -21,6 +22,7 @@ import {
 import { HorizontalTabStrip } from '../../components';
 import { canUserReviewApprovalRequest, isApprovalExpired, type ApprovalRequest } from '../../components/dto/approval';
 import type { MergeHistoryRecord, MergeRequestRecord } from '../../components/dto/merge';
+import type { AppNotification } from '../../components/dto/notification';
 import { FamilyTreeCanvas } from '../../components';
 import type { PersonGender, PersonRecord } from '../../components/dto/person';
 import {
@@ -36,7 +38,6 @@ import { getUserNameParts, type UserProfile } from '../../components/dto/user';
 import { formatPersonGender, formatPersonName } from '../../components/person-formatting';
 import { DatePickerModal } from 'react-native-paper-dates';
 import {
-  canSetDefaultTree,
   getTreeApprovalWindowHours,
   getTreeRole,
   getUnlinkedCollaborators,
@@ -52,6 +53,20 @@ type SelfAssignmentSuggestion = {
   person: PersonRecord;
   tone: 'exact' | 'likely';
   reason: string;
+};
+
+type NotificationFeedKind = 'merge-invite' | 'approval' | 'merge-request' | 'merge-history' | 'membership';
+
+type NotificationFeedItem = {
+  id: string;
+  kind: NotificationFeedKind;
+  title: string;
+  message: string;
+  createdAt: string;
+  status?: string;
+  treeName?: string;
+  notificationId?: string;
+  requestId?: string;
 };
 
 type TreeManagementTabKey = 'overview' | 'collaborators' | 'approvals' | 'merges' | 'trees';
@@ -124,6 +139,7 @@ export interface SharedTabProps {
   currentAssignedPerson: PersonRecord | null;
   currentSelfAssignmentSuggestions: SelfAssignmentSuggestion[];
   availableSelfLinkPeople: PersonRecord[];
+  notifications: AppNotification[];
   assignedPersonByUserId: Map<string, PersonRecord>;
   assignedUserIdByPersonId: Map<string, string>;
   canCreateSelfProfile: boolean;
@@ -146,12 +162,15 @@ export interface SharedTabProps {
   onSetApprovalWindowHours: (hours: number) => Promise<void>;
   onSetSurnameVariantGroups: (groups: SurnameVariantGroup[]) => Promise<void>;
   onCreateMergeRequest: (targetTreeId: string) => Promise<void>;
+  onSendMergeInvite: (identifier: string) => Promise<void>;
+  onRespondToMergeInvite: (notificationId: string, status: 'accepted' | 'dismissed') => Promise<void>;
   onLoadMergePreview: (targetTreeId: string) => Promise<void>;
   onApproveMergeRequest: (requestId: string, comment?: string, selectedMatchIds?: string[]) => Promise<void>;
   onRejectMergeRequest: (requestId: string, comment?: string) => Promise<void>;
   onRequestMergeChanges: (requestId: string, comment?: string, selectedMatchIds?: string[]) => Promise<void>;
   onUndoMerge: (requestId: string) => Promise<void>;
   onGrantMergeViewerAccess: (requestId: string, treeId: string) => Promise<void>;
+  onCreateSurnameTree: (surname: string) => Promise<void>;
   trees?: FamilyTree[];
   defaultTreeId?: string | null;
   loadingTrees?: boolean;
@@ -176,6 +195,10 @@ function formatRole(role: string | null | undefined) {
 
 function arraysEqual(left: string[], right: string[]) {
   return left.length === right.length && left.every((value, index) => value === right[index]);
+}
+
+function normaliseSurnameKey(value: string) {
+  return value.trim().toLowerCase().replace(/\s+/g, ' ');
 }
 
 function normaliseComparableName(value: string) {
@@ -222,6 +245,142 @@ function formatApprovalPhotos(person?: PersonRecord | null) {
   }
 
   return translate('{count} photo(s)', { count: person.photos.length });
+}
+
+export function NotificationsTabContent({
+  selectedTree,
+  approvalRequests,
+  mergeRequests,
+  mergeHistory,
+  notifications,
+  trees,
+  userId,
+  mutating,
+  onRespondToMergeInvite,
+}: SharedTabProps) {
+  const theme = useTheme();
+  const { t } = useI18n();
+
+  const notificationFeed = useMemo<NotificationFeedItem[]>(() => {
+    const directNotifications = notifications.map<NotificationFeedItem>((notification) => ({
+      id: `direct-${notification.id}`,
+      kind: 'merge-invite',
+      title: t('Merge invitation'),
+      message: notification.message,
+      createdAt: notification.createdAt,
+      status: notification.status,
+      treeName: notification.sourceTreeName,
+      notificationId: notification.id,
+    }));
+
+    const approvalNotifications = approvalRequests.map<NotificationFeedItem>((request) => ({
+      id: `approval-${request.id}`,
+      kind: 'approval',
+      title: request.status === 'pending' ? t('Approval request') : t('Approval update'),
+      message: `${request.title} · ${request.description}`,
+      createdAt: request.updatedAt,
+      status: request.status,
+      treeName: selectedTree.name,
+      requestId: request.id,
+    }));
+
+    const mergeRequestNotifications = mergeRequests.map<NotificationFeedItem>((request) => ({
+      id: `merge-request-${request.id}`,
+      kind: 'merge-request',
+      title: t('Merge request'),
+      message: `${request.preview.sourceTree.treeName} ↔ ${request.preview.targetTree.treeName}`,
+      createdAt: request.updatedAt,
+      status: request.status,
+      treeName: selectedTree.name,
+      requestId: request.id,
+    }));
+
+    const mergeHistoryNotifications = mergeHistory.map<NotificationFeedItem>((entry) => ({
+      id: `merge-history-${entry.id}`,
+      kind: 'merge-history',
+      title: t('Merge activity'),
+      message: entry.summary,
+      createdAt: entry.updatedAt,
+      status: entry.status,
+      treeName: selectedTree.name,
+      requestId: entry.mergeRequestId,
+    }));
+
+    const membershipNotifications = (trees ?? [])
+      .flatMap((tree) => tree.membershipHistory.map((entry) => ({ tree, entry })))
+      .filter(({ entry }) => !userId || entry.userId === userId || entry.action === 'invited' || entry.action === 'role-changed')
+      .map<NotificationFeedItem>(({ tree, entry }) => ({
+        id: `membership-${tree.id}-${entry.id}`,
+        kind: 'membership',
+        title: t('Tree access update'),
+        message: entry.note?.trim()
+          ? `${tree.name} · ${entry.note}`
+          : `${tree.name} · ${entry.action}`,
+        createdAt: entry.createdAt,
+        status: entry.action,
+        treeName: tree.name,
+      }));
+
+    return [
+      ...directNotifications,
+      ...approvalNotifications,
+      ...mergeRequestNotifications,
+      ...mergeHistoryNotifications,
+      ...membershipNotifications,
+    ].sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+  }, [approvalRequests, mergeHistory, mergeRequests, notifications, selectedTree.name, t, trees, userId]);
+
+  return (
+    <ScrollView contentContainerStyle={styles.content}>
+      <View>
+        <View style={styles.sectionHeader}>
+          <View style={styles.titleWrap}>
+            <Text variant="headlineSmall">{t('Notifications')}</Text>
+            <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
+              {t('Review merge invites, approvals, merge activity, and tree access updates in one place.')}
+            </Text>
+          </View>
+        </View>
+
+        {notificationFeed.length > 0 ? (
+          <View style={styles.collaboratorList}>
+            {notificationFeed.map((item) => (
+              <Card key={item.id} mode="elevated" style={[styles.collaboratorCard, { backgroundColor: theme.colors.surface }]}>
+                <Card.Content>
+                  <Text variant="titleMedium">{item.title}</Text>
+                  <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>
+                    {item.message}
+                  </Text>
+                  <View style={[styles.collaboratorChipRow, { marginTop: 8 }]}>
+                    {item.treeName ? <Chip compact icon="family-tree">{item.treeName}</Chip> : null}
+                    {item.status ? <Chip compact icon="bell-outline">{item.status}</Chip> : null}
+                    <Chip compact icon="calendar-clock">{item.createdAt.slice(0, 16).replace('T', ' ')}</Chip>
+                  </View>
+                  {item.kind === 'merge-invite' && item.notificationId && item.status === 'pending' ? (
+                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+                      <Button mode="contained-tonal" onPress={() => onRespondToMergeInvite(item.notificationId!, 'accepted')} disabled={mutating}>
+                        {t('Accept')}
+                      </Button>
+                      <Button mode="text" onPress={() => onRespondToMergeInvite(item.notificationId!, 'dismissed')} disabled={mutating}>
+                        {t('Dismiss')}
+                      </Button>
+                    </View>
+                  ) : null}
+                </Card.Content>
+              </Card>
+            ))}
+          </View>
+        ) : (
+          <View style={styles.emptyState}>
+            <Text variant="titleMedium">{t('No notifications yet')}</Text>
+            <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
+              {t('Merge invites, approval activity, collaborator access updates, and tree changes will appear here.')}
+            </Text>
+          </View>
+        )}
+      </View>
+    </ScrollView>
+  );
 }
 
 function buildPersonApprovalPreviewFields(beforePerson?: PersonRecord | null, afterPerson?: PersonRecord | null): ApprovalPreviewField[] {
@@ -950,6 +1109,7 @@ function ProfileTabContent({
   mergeHistory,
   mergePreview,
   peopleById,
+  canEdit,
   role,
   isOwner,
   userId,
@@ -957,6 +1117,7 @@ function ProfileTabContent({
   currentAssignedPerson,
   currentSelfAssignmentSuggestions,
   availableSelfLinkPeople,
+  notifications,
   assignedPersonByUserId,
   assignedUserIdByPersonId,
   canCreateSelfProfile,
@@ -973,12 +1134,15 @@ function ProfileTabContent({
   onSetApprovalWindowHours,
   onSetSurnameVariantGroups,
   onCreateMergeRequest,
+  onSendMergeInvite,
+  onRespondToMergeInvite,
   onLoadMergePreview,
   onApproveMergeRequest,
   onRejectMergeRequest,
   onRequestMergeChanges,
   onUndoMerge,
   onGrantMergeViewerAccess,
+  onCreateSurnameTree,
   trees,
   defaultTreeId,
   loadingTrees,
@@ -1000,11 +1164,14 @@ function ProfileTabContent({
   const [ownerLinkTargetUserId, setOwnerLinkTargetUserId] = useState<string | null>(null);
   const [ownerLinkSearchQuery, setOwnerLinkSearchQuery] = useState('');
   const [mergeTargetTreeId, setMergeTargetTreeId] = useState('');
+  const [mergeInviteIdentifier, setMergeInviteIdentifier] = useState('');
   const [surnameVariantDraft, setSurnameVariantDraft] = useState('');
   const [surnameVariantDrafts, setSurnameVariantDrafts] = useState<string[]>([]);
   const [surnameVariantDialogVisible, setSurnameVariantDialogVisible] = useState(false);
   const [previewApprovalRequest, setPreviewApprovalRequest] = useState<ApprovalRequest | null>(null);
   const [mergeSelectionDrafts, setMergeSelectionDrafts] = useState<Record<string, string[]>>({});
+  const [copyNoticeVisible, setCopyNoticeVisible] = useState(false);
+  const [copyNoticeMessage, setCopyNoticeMessage] = useState('');
 
   const treeSurnameVariants = useMemo(
     () => [...new Set(selectedTree.surnameVariantGroups.flatMap((group) => [group.primarySurname, ...group.variants]).map((value) => value.trim()).filter(Boolean))],
@@ -1075,6 +1242,58 @@ function ProfileTabContent({
     () => (trees ?? []).filter((tree) => tree.id !== selectedTree.id),
     [selectedTree.id, trees],
   );
+  const pendingMergeInvites = useMemo(
+    () => notifications.filter((notification) => notification.type === 'merge-invite' && notification.status === 'pending'),
+    [notifications],
+  );
+  const maidenSurnameSuggestions = useMemo(() => {
+    const currentTreeSurnameKeys = new Set(
+      selectedTree.surnameVariantGroups
+        .flatMap((group) => [group.primarySurname, ...group.variants])
+        .map(normaliseSurnameKey)
+        .filter(Boolean),
+    );
+    const existingTreeLookup = new Map<string, FamilyTree>();
+
+    (trees ?? []).forEach((tree) => {
+      const values = tree.surnameVariantGroups.length > 0
+        ? tree.surnameVariantGroups.flatMap((group) => [group.primarySurname, ...group.variants])
+        : [tree.name];
+      values
+        .map(normaliseSurnameKey)
+        .filter(Boolean)
+        .forEach((key) => {
+          if (!existingTreeLookup.has(key)) {
+            existingTreeLookup.set(key, tree);
+          }
+        });
+    });
+
+    const counts = new Map<string, { surname: string; count: number }>();
+    people.forEach((person) => {
+      const maidenSurname = person.maidenName?.trim();
+      if (!maidenSurname) {
+        return;
+      }
+      const key = normaliseSurnameKey(maidenSurname);
+      if (!key || currentTreeSurnameKeys.has(key)) {
+        return;
+      }
+      const current = counts.get(key);
+      counts.set(key, {
+        surname: maidenSurname,
+        count: (current?.count ?? 0) + 1,
+      });
+    });
+
+    return [...counts.entries()]
+      .map(([key, value]) => ({
+        surname: value.surname,
+        count: value.count,
+        existingTree: existingTreeLookup.get(key) ?? null,
+      }))
+      .sort((left, right) => right.count - left.count || left.surname.localeCompare(right.surname));
+  }, [people, selectedTree.surnameVariantGroups, trees]);
 
   const approvalWindowHours = useMemo(
     () => getTreeApprovalWindowHours(selectedTree),
@@ -1229,6 +1448,36 @@ function ProfileTabContent({
         [requestId]: nextSelectedIds,
       };
     });
+  };
+
+  const handleCreateSuggestedSurnameTree = async (surname: string) => {
+    await onCreateSurnameTree(surname);
+  };
+
+  const handleUseMergeInvite = async (notification: AppNotification) => {
+    await onLoadMergePreview(notification.sourceTreeId);
+    setMergeTargetTreeId(notification.sourceTreeId);
+    await onRespondToMergeInvite(notification.id, 'accepted');
+    setActiveManagementTab('merges');
+  };
+
+  const handleSendMergeInvite = async () => {
+    await onSendMergeInvite(mergeInviteIdentifier);
+    setMergeInviteIdentifier('');
+  };
+
+  const handleCopyTreeId = async (treeId: string) => {
+    const clipboard = (globalThis as { navigator?: { clipboard?: { writeText?: (value: string) => Promise<void> } } }).navigator?.clipboard;
+    if (clipboard?.writeText) {
+      await clipboard.writeText(treeId);
+      setCopyNoticeMessage(t('Tree ID copied'));
+      setCopyNoticeVisible(true);
+      return;
+    }
+
+    await Share.share({ message: treeId });
+    setCopyNoticeMessage(t('Tree ID ready to share'));
+    setCopyNoticeVisible(true);
   };
 
   return (
@@ -1767,6 +2016,40 @@ function ProfileTabContent({
               </View>
             </View>
 
+            {pendingMergeInvites.length > 0 ? (
+              <Card mode="elevated" style={[styles.collaboratorCard, { backgroundColor: theme.colors.surface, marginBottom: 16 }]}>
+                <Card.Content>
+                  <Text variant="titleMedium">{t('Merge invitations')}</Text>
+                  <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
+                    {t('Choose the tree you want to use, then load the invitation into the merge review flow.')}
+                  </Text>
+                  <View style={{ marginTop: 8 }}>
+                    {pendingMergeInvites.map((notification) => (
+                      <Card key={notification.id} mode="contained" style={{ marginTop: 8 }}>
+                        <Card.Content>
+                          <Text variant="titleSmall">{notification.sourceTreeName}</Text>
+                          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                            {notification.message}
+                          </Text>
+                          <View style={[styles.collaboratorChipRow, { marginTop: 8 }]}>
+                            <Chip compact icon="calendar-clock">{notification.createdAt.slice(0, 16).replace('T', ' ')}</Chip>
+                          </View>
+                          <View style={{ flexDirection: 'row', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+                            <Button mode="contained" onPress={() => handleUseMergeInvite(notification)} disabled={mutating || !canEdit || notification.sourceTreeId === selectedTree.id}>
+                              {t('Use this tree')}
+                            </Button>
+                            <Button mode="text" onPress={() => onRespondToMergeInvite(notification.id, 'dismissed')} disabled={mutating}>
+                              {t('Dismiss')}
+                            </Button>
+                          </View>
+                        </Card.Content>
+                      </Card>
+                    ))}
+                  </View>
+                </Card.Content>
+              </Card>
+            ) : null}
+
             <Card mode="elevated" style={[styles.selfAssignmentCard, { backgroundColor: theme.colors.surface, marginBottom: 16 }]}>
               <Card.Content>
                 <Text variant="titleMedium" style={{ marginBottom: 8 }}>{t('Start a merge review')}</Text>
@@ -1786,6 +2069,25 @@ function ProfileTabContent({
                   </Button>
                   <Button mode="contained" onPress={() => onCreateMergeRequest(mergeTargetTreeId)} disabled={mutating || !mergeTargetTreeId.trim()}>
                     {t('Submit merge')}
+                  </Button>
+                </View>
+
+                <Divider style={{ marginVertical: 12 }} />
+
+                <Text variant="titleSmall">{t('Ask by email or username')}</Text>
+                <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
+                  {t('Send a merge invitation to a registered user when you do not have their tree ID yet.')}
+                </Text>
+                <TextInput
+                  mode="outlined"
+                  label={t('Registered email or username')}
+                  value={mergeInviteIdentifier}
+                  onChangeText={setMergeInviteIdentifier}
+                  style={{ marginTop: 8 }}
+                />
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                  <Button mode="contained-tonal" onPress={handleSendMergeInvite} disabled={mutating || !mergeInviteIdentifier.trim()}>
+                    {t('Send invitation')}
                   </Button>
                 </View>
 
@@ -1981,6 +2283,48 @@ function ProfileTabContent({
 
         {activeManagementTab === 'trees' ? (
           <View>
+            {maidenSurnameSuggestions.length > 0 ? (
+              <Card mode="elevated" style={[styles.collaboratorCard, { backgroundColor: theme.colors.surface, marginBottom: 16 }]}>
+                <Card.Content>
+                  <Text variant="titleMedium">{t('Suggested maiden surname trees')}</Text>
+                  <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
+                    {t('These maiden surnames appear in this tree but are not part of its surname identity. Create a separate tree or use an existing one for later merge review.')}
+                  </Text>
+                  <View style={{ marginTop: 8 }}>
+                    {maidenSurnameSuggestions.map((suggestion) => (
+                      <Card key={suggestion.surname} mode="contained" style={{ marginTop: 8, borderRadius: 12 }}>
+                        <Card.Content>
+                          <Text variant="titleSmall">{suggestion.surname}</Text>
+                          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                            {t('{count} member(s) reference this as a maiden surname.', { count: suggestion.count })}
+                          </Text>
+                          {suggestion.existingTree ? (
+                            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
+                              {t('Existing tree found: {name}', { name: suggestion.existingTree.name })}
+                            </Text>
+                          ) : null}
+                          <View style={{ flexDirection: 'row', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+                            {suggestion.existingTree ? (
+                              <Button mode="outlined" onPress={() => {
+                                setMergeTargetTreeId(suggestion.existingTree?.id ?? '');
+                                setActiveManagementTab('merges');
+                              }}>
+                                {t('Use existing tree')}
+                              </Button>
+                            ) : (
+                              <Button mode="contained-tonal" onPress={() => handleCreateSuggestedSurnameTree(suggestion.surname)} disabled={mutating}>
+                                {t('Create tree')}
+                              </Button>
+                            )}
+                          </View>
+                        </Card.Content>
+                      </Card>
+                    ))}
+                  </View>
+                </Card.Content>
+              </Card>
+            ) : null}
+
             <View style={styles.sectionHeader}>
               <View style={styles.titleWrap}>
                 <Text variant="titleMedium">{t('My Family Trees')}</Text>
@@ -2010,7 +2354,6 @@ function ProfileTabContent({
                 const isDefault = tree.id === defaultTreeId;
                 const isSelected = tree.id === selectedTree.id;
                 const treeRole = getTreeRole(tree, userId);
-                const canUseAsDefault = canSetDefaultTree(tree, userId);
 
                 return (
                   <Card
@@ -2030,23 +2373,23 @@ function ProfileTabContent({
                             <Text variant="titleMedium" style={isSelected ? { color: theme.colors.onPrimaryContainer } : undefined}>
                               {tree.name}
                             </Text>
-                            {isDefault ? <Chip compact icon="star" style={{ backgroundColor: theme.colors.secondaryContainer }}>{t('Default')}</Chip> : null}
+                            {isDefault ? <Chip compact style={{ backgroundColor: theme.colors.secondaryContainer }}>{t('Default')}</Chip> : null}
                             {isSelected ? <Chip compact icon="check-circle" style={{ backgroundColor: theme.colors.primaryContainer }}>{t('Active')}</Chip> : null}
                           </View>
                           <Text variant="bodySmall" style={{ color: isSelected ? theme.colors.onPrimaryContainer : theme.colors.onSurfaceVariant, marginTop: 2 }}>
                             {t('{count} member(s) · {role}', { count: tree.memberIds?.length ?? 0, role: formatRole(treeRole) })}
                           </Text>
+                          <Text selectable variant="bodySmall" style={{ color: isSelected ? theme.colors.onPrimaryContainer : theme.colors.onSurfaceVariant, marginTop: 4 }}>
+                            {t('Tree ID: {id}', { id: tree.id })}
+                          </Text>
                         </View>
                         <View style={{ flexDirection: 'row', gap: 4 }}>
-                          {onToggleDefaultTree && canUseAsDefault ? (
-                            <IconButton
-                              icon={isDefault ? 'star' : 'star-outline'}
-                              size={20}
-                              iconColor={isDefault ? theme.colors.secondary : theme.colors.onSurfaceVariant}
-                              onPress={() => onToggleDefaultTree(tree)}
-                              disabled={mutating}
-                            />
-                          ) : null}
+                          <IconButton
+                            icon="content-copy"
+                            size={20}
+                            onPress={() => handleCopyTreeId(tree.id)}
+                            disabled={mutating}
+                          />
                           {!isSelected && onSwitchTree ? (
                             <IconButton
                               icon="swap-horizontal"
@@ -2060,15 +2403,6 @@ function ProfileTabContent({
                               icon="pencil-outline"
                               size={20}
                               onPress={() => onEditTree(tree)}
-                              disabled={mutating}
-                            />
-                          ) : null}
-                          {onConfirmDeleteTree && treeRole === 'owner' ? (
-                            <IconButton
-                              icon="delete-outline"
-                              size={20}
-                              iconColor={theme.colors.error}
-                              onPress={() => onConfirmDeleteTree(tree)}
                               disabled={mutating}
                             />
                           ) : null}
@@ -2231,6 +2565,18 @@ function ProfileTabContent({
           </Dialog.ScrollArea>
         </Dialog>
       </Portal>
+
+      <Snackbar
+        visible={copyNoticeVisible}
+        onDismiss={() => setCopyNoticeVisible(false)}
+        duration={2200}
+        action={{
+          label: t('Dismiss'),
+          onPress: () => setCopyNoticeVisible(false),
+        }}
+      >
+        {copyNoticeMessage}
+      </Snackbar>
     </ScrollView>
   );
 }
