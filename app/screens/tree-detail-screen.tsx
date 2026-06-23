@@ -9,12 +9,12 @@ import {
   Card,
   Chip,
   Dialog,
-  Searchbar,
   IconButton,
   List,
   Portal,
   Snackbar,
   Text,
+  TextInput,
   useTheme,
 } from 'react-native-paper';
 import {
@@ -657,10 +657,10 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     if (!user?.id || !selectedTree) return;
     await createMergeRequest(user.id, selectedTree.id, targetTreeId);
   }, [createMergeRequest, selectedTree, user?.id]);
-  const onSendMergeInvite = useCallback(async (identifier: string) => {
-    if (!user?.id || !selectedTree) return;
-    await sendMergeInvite(user.id, selectedTree.id, identifier);
-  }, [selectedTree, sendMergeInvite, user?.id]);
+  const onSendMergeInvite = useCallback(async (sourceTreeId: string, identifier: string) => {
+    if (!user?.id || !sourceTreeId) return;
+    await sendMergeInvite(user.id, sourceTreeId, identifier);
+  }, [sendMergeInvite, user?.id]);
   const onRespondToMergeInvite = useCallback(async (notificationId: string, status: 'accepted' | 'dismissed') => {
     if (!user?.id) return;
     await respondToMergeInvite(user.id, notificationId, status);
@@ -855,16 +855,14 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
             <Dialog.ScrollArea style={dialogChrome.content}>
               <View style={{ gap: 12, paddingBottom: 8 }}>
                 <View style={styles.searchRow}>
-                  <Searchbar
-                    placeholder={t('Search family members')}
+                  <TextInput
+                    mode="outlined"
+                    label={t('Search family members')}
                     value={maidenMemberSearchQuery}
                     onChangeText={setMaidenMemberSearchQuery}
                     style={styles.searchBar}
-                    inputStyle={{ minHeight: 0 }}
-                    elevation={0}
-                    iconColor={theme.colors.onSurfaceVariant}
-                    clearIcon="close"
-                    onClearIconPress={() => setMaidenMemberSearchQuery('')}
+                    left={<TextInput.Icon icon="magnify" />}
+                    right={maidenMemberSearchQuery ? <TextInput.Icon icon="close" onPress={() => setMaidenMemberSearchQuery('')} /> : undefined}
                   />
                 </View>
                 {filteredMaidenViewerPeople.length === 0 ? (

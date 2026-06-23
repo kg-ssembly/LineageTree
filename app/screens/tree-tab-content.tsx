@@ -13,7 +13,6 @@ import {
   ProgressBar,
   Portal,
   Snackbar,
-  Searchbar,
   SegmentedButtons,
   Surface,
   Text,
@@ -40,6 +39,7 @@ import { formatPersonGender, formatPersonName } from '../../components/person-fo
 import { DatePickerModal } from 'react-native-paper-dates';
 import type { MainTabParamList } from '../../components/dto/navigation';
 import {
+  canEditTreeContent,
   getTreeApprovalWindowHours,
   getTreeRole,
   getUnlinkedCollaborators,
@@ -78,7 +78,18 @@ type NotificationFeedItem = {
 };
 
 type TreeManagementTabKey = 'overview' | 'collaborators' | 'approvals' | 'merges' | 'trees';
-type TreeHelperDialogKey = 'tree-management' | 'surname-variants' | 'my-place' | 'approval-settings';
+type TreeHelperDialogKey =
+  | 'tree-management'
+  | 'surname-variants'
+  | 'my-place'
+  | 'approval-settings'
+  | 'collaborators'
+  | 'pending-approvals'
+  | 'merge-guidance'
+  | 'merge-invitations'
+  | 'maiden-surname-trees'
+  | 'my-trees'
+  | 'notifications';
 
 const TREE_MANAGEMENT_TABS: Array<{ key: TreeManagementTabKey; label: string }> = [
   { key: 'overview', label: 'Overview' },
@@ -99,11 +110,39 @@ const TREE_HELPER_COPY: Record<TreeHelperDialogKey, { title: string; message: st
   },
   'my-place': {
     title: 'My place in this tree',
-    message: 'Link your account to the family member profile that represents you in this tree. Once linked, you can open that profile quickly and the app can show you where you appear in the family network.',
+    message: 'Link your account to the family member profile that represents you in this tree. This linked family member represents you in the tree, and once linked you can open that profile quickly and see where you appear in the family network.',
   },
   'approval-settings': {
     title: 'Approval settings',
     message: 'Choose how collaborator profile and relationship edits are handled in this tree. Off applies changes immediately. 12, 24, and 48 hours create an approval window, and pending edits auto-approve if nobody reviews them before the deadline. Single-collaborator trees still apply changes immediately.',
+  },
+  collaborators: {
+    title: 'Collaborators',
+    message: 'Owners manage access. Editors can update content. Viewers can browse. Owners can also help collaborators get started by linking them to the matching family member profile in the tree.',
+  },
+  'pending-approvals': {
+    title: 'Pending approvals',
+    message: 'Any collaborator-submitted family member or relationship edits waiting for review appear here. When approvals are enabled, they auto-approve if nobody acts before the deadline.',
+  },
+  'merge-guidance': {
+    title: 'Collaborative merges',
+    message: 'Choose which of your trees to offer for merge, then invite a registered user by email or username. They will preview the merge after choosing their own tree. Each merge needs at least one editor approval from each affected tree before anything is applied.',
+  },
+  'merge-invitations': {
+    title: 'Merge invitations',
+    message: 'When another user invites you to merge, choose which of your trees should participate, then load that invitation into the merge review flow.',
+  },
+  'maiden-surname-trees': {
+    title: 'Suggested maiden surname trees',
+    message: 'These maiden surnames appear in this tree but are not part of its surname identity. Create a separate tree for later merge review.',
+  },
+  'my-trees': {
+    title: 'My family trees',
+    message: 'Switch between your trees here, copy a tree ID for sharing or merge coordination, and manage the tree you are currently working in.',
+  },
+  notifications: {
+    title: 'Notifications',
+    message: 'Review merge invites, approvals, merge activity, and tree access updates in one place. Use the notification actions to mark items as seen, opened, or actioned as needed.',
   },
 };
 
@@ -171,7 +210,7 @@ export interface SharedTabProps {
   onSetApprovalWindowHours: (hours: number) => Promise<void>;
   onSetSurnameVariantGroups: (groups: SurnameVariantGroup[]) => Promise<void>;
   onCreateMergeRequest: (targetTreeId: string) => Promise<void>;
-  onSendMergeInvite: (identifier: string) => Promise<void>;
+  onSendMergeInvite: (sourceTreeId: string, identifier: string) => Promise<void>;
   onRespondToMergeInvite: (notificationId: string, status: 'accepted' | 'dismissed') => Promise<void>;
   onMarkNotificationSeen: (notificationId: string) => Promise<void>;
   onMarkNotificationOpened: (notificationId: string) => Promise<void>;
@@ -277,6 +316,7 @@ export function NotificationsTabContent({
   const { t } = useI18n();
   const navigation = useNavigation<any>();
   const [selectedNotification, setSelectedNotification] = useState<NotificationFeedItem | null>(null);
+  const [helperVisible, setHelperVisible] = useState(false);
 
   const activityStateByKey = useMemo(
     () => new Map(notificationActivityStates.map((state) => [`${state.sourceKind}:${state.sourceId}`, state])),
@@ -463,10 +503,16 @@ export function NotificationsTabContent({
       <View>
         <View style={styles.sectionHeader}>
           <View style={styles.titleWrap}>
-            <Text variant="headlineSmall">{t('Notifications')}</Text>
-            <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-              {t('Review merge invites, approvals, merge activity, and tree access updates in one place.')}
-            </Text>
+            <View style={styles.titleWithHelperRow}>
+              <Text variant="headlineSmall">{t('Notifications')}</Text>
+              <IconButton
+                icon="information-outline"
+                size={18}
+                style={styles.helperIconButton}
+                onPress={() => setHelperVisible(true)}
+                accessibilityLabel={t('About notifications')}
+              />
+            </View>
           </View>
         </View>
 
@@ -555,6 +601,24 @@ export function NotificationsTabContent({
           </View>
         )}
       </View>
+
+      <Portal>
+        <Dialog
+          visible={helperVisible}
+          onDismiss={() => setHelperVisible(false)}
+          style={[dialogChrome.dialog, { backgroundColor: theme.colors.surface }]}
+        >
+          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>
+            {t('Notifications')}
+          </Dialog.Title>
+          <IconButton icon="close" onPress={() => setHelperVisible(false)} style={dialogChrome.closeButton} />
+          <Dialog.Content style={dialogChrome.content}>
+            <Text variant="bodyMedium">
+              {t('Review merge invites, approvals, merge activity, and tree access updates in one place. Use the notification actions to mark items as seen, opened, or actioned as needed.')}
+            </Text>
+          </Dialog.Content>
+        </Dialog>
+      </Portal>
 
       <Portal>
         <Dialog
@@ -1064,26 +1128,30 @@ export function PeopleRelationshipsTabContent({
         </View>
 
         <View style={styles.searchRow}>
-          <Searchbar
-            placeholder={t('Search family members')}
+          <TextInput
+            mode="outlined"
+            label={t('Search family members')}
             value={searchQuery}
             onChangeText={setSearchQuery}
             style={styles.searchBar}
-            inputStyle={{ minHeight: 0 }}
-            elevation={0}
-            iconColor={theme.colors.onSurfaceVariant}
-            clearIcon="close"
-            onClearIconPress={() => setSearchQuery('')}
+            left={<TextInput.Icon icon="magnify" />}
+            right={searchQuery ? <TextInput.Icon icon="close" onPress={() => setSearchQuery('')} /> : undefined}
           />
           <Button
             mode={activeFilterCount > 0 ? 'contained' : 'outlined'}
-            icon="tune"
             onPress={openFilterModal}
             style={styles.filterButton}
             contentStyle={styles.filterButtonContent}
-            labelStyle={styles.filterButtonLabel}
+            compact
           >
-            {activeFilterCount > 0 ? `(${activeFilterCount})` : null}
+            <View style={styles.filterButtonInner}>
+              <MaterialCommunityIcons name="tune" size={18} color={activeFilterCount > 0 ? theme.colors.onPrimary : theme.colors.primary} />
+              {activeFilterCount > 0 ? (
+                <Text variant="labelLarge" style={{ color: theme.colors.onPrimary }}>
+                  ({activeFilterCount})
+                </Text>
+              ) : null}
+            </View>
           </Button>
         </View>
 
@@ -1404,12 +1472,14 @@ function ProfileTabContent({
   const [linkSearchQuery, setLinkSearchQuery] = useState('');
   const [ownerLinkTargetUserId, setOwnerLinkTargetUserId] = useState<string | null>(null);
   const [ownerLinkSearchQuery, setOwnerLinkSearchQuery] = useState('');
-  const [mergeTargetTreeId, setMergeTargetTreeId] = useState('');
   const [mergeInviteIdentifier, setMergeInviteIdentifier] = useState('');
+  const [mergeInviteSourceTreeId, setMergeInviteSourceTreeId] = useState(selectedTree.id);
   const [surnameVariantDraft, setSurnameVariantDraft] = useState('');
   const [surnameVariantDrafts, setSurnameVariantDrafts] = useState<string[]>([]);
   const [surnameVariantDialogVisible, setSurnameVariantDialogVisible] = useState(false);
   const [previewApprovalRequest, setPreviewApprovalRequest] = useState<ApprovalRequest | null>(null);
+  const [mergePreviewVisible, setMergePreviewVisible] = useState(false);
+  const [mergeHistoryVisible, setMergeHistoryVisible] = useState(false);
   const [mergeSelectionDrafts, setMergeSelectionDrafts] = useState<Record<string, string[]>>({});
   const [copyNoticeVisible, setCopyNoticeVisible] = useState(false);
   const [copyNoticeMessage, setCopyNoticeMessage] = useState('');
@@ -1480,9 +1550,9 @@ function ProfileTabContent({
     [approvalRequests],
   );
 
-  const availableMergeTargetTrees = useMemo(
-    () => (trees ?? []).filter((tree) => tree.id !== selectedTree.id),
-    [selectedTree.id, trees],
+  const availableMergeSourceTrees = useMemo(
+    () => (trees ?? []).filter((tree) => canEditTreeContent(tree, userId)),
+    [trees, userId],
   );
   const pendingMergeInvites = useMemo(
     () => notifications.filter((notification) => notification.type === 'merge-invite' && notification.status === 'pending'),
@@ -1561,6 +1631,20 @@ function ProfileTabContent({
     () => mergeRequests.filter((request) => request.status === 'pending' || request.status === 'changes-requested'),
     [mergeRequests],
   );
+
+  useEffect(() => {
+    if (mergePreview) {
+      setMergePreviewVisible(true);
+    }
+  }, [mergePreview]);
+
+  useEffect(() => {
+    if (availableMergeSourceTrees.some((tree) => tree.id === mergeInviteSourceTreeId)) {
+      return;
+    }
+
+    setMergeInviteSourceTreeId(availableMergeSourceTrees[0]?.id ?? selectedTree.id);
+  }, [availableMergeSourceTrees, mergeInviteSourceTreeId, selectedTree.id]);
   const mergeRequestsById = useMemo(
     () => new Map(mergeRequests.map((request) => [request.id, request])),
     [mergeRequests],
@@ -1717,13 +1801,12 @@ function ProfileTabContent({
 
   const handleUseMergeInvite = async (notification: AppNotification) => {
     await onLoadMergePreview(notification.sourceTreeId);
-    setMergeTargetTreeId(notification.sourceTreeId);
     await onRespondToMergeInvite(notification.id, 'accepted');
     setActiveManagementTab('merges');
   };
 
   const handleSendMergeInvite = async () => {
-    await onSendMergeInvite(mergeInviteIdentifier);
+    await onSendMergeInvite(mergeInviteSourceTreeId, mergeInviteIdentifier);
     setMergeInviteIdentifier('');
   };
 
@@ -1769,9 +1852,7 @@ function ProfileTabContent({
             <View style={styles.summaryChipRow}>
               <Chip icon="account-key">{formatRole(role)}</Chip>
               <Chip icon="account-group">{t('{count} family members', { count: people.length })}</Chip>
-              <Chip icon="graph-outline">{t('{count} relationships', { count: relationships.length })}</Chip>
               <Chip icon="account-multiple">{t('{count} collaborators', { count: selectedTree.collaborators.length })}</Chip>
-              <Chip icon="link-variant">{t('{count} linked', { count: assignedPersonByUserId.size })}</Chip>
               {unlinkedCollaboratorCount > 0 ? <Chip icon="account-clock">{t('{count} awaiting link', { count: unlinkedCollaboratorCount })}</Chip> : null}
             </View>
 
@@ -1796,11 +1877,7 @@ function ProfileTabContent({
                   <View style={styles.collaboratorChipRow}>
                     {treeSurnameVariants.map((variant) => <Chip key={`tree-variant-${variant}`} compact>{variant}</Chip>)}
                   </View>
-                ) : (
-                  <Text variant="bodySmall" style={[styles.assignmentHelperText, { color: theme.colors.onSurfaceVariant }]}>
-                    {t('No surname variants have been added yet. Add them below so searches and merge suggestions can recognize related spellings.')}
-                  </Text>
-                )}
+                ) : null}
 
                 {isOwner || role === 'editor' ? (
                   <View style={{ marginTop: 8 }}>
@@ -1816,16 +1893,6 @@ function ProfileTabContent({
                     >
                       {treeSurnameVariants.length > 0 ? t('Manage variants ({count})', { count: treeSurnameVariants.length }) : t('Manage variants')}
                     </Button>
-                    <View style={[styles.collaboratorChipRow, styles.surnameVariantDraftsRow]}>
-                      {treeSurnameVariants.length > 0 ? treeSurnameVariants.map((variant) => (
-                        <Chip
-                          key={`saved-${variant}`}
-                          compact
-                        >
-                          {variant}
-                        </Chip>
-                      )) : <Chip compact icon="information-outline">{t('No variants added yet')}</Chip>}
-                    </View>
                   </View>
                 ) : null}
               </Card.Content>
@@ -1867,7 +1934,7 @@ function ProfileTabContent({
                       </Text>
                       <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>
                         {currentAssignedPerson
-                          ? t('This linked family member represents you in the tree. Unlink first before claiming a different profile.')
+                          ? t('Open or unlink this family member from your account here.')
                           : t('We will suggest name matches from your sign-in profile and let you link yourself manually if needed.')}
                       </Text>
                     </View>
@@ -1906,10 +1973,6 @@ function ProfileTabContent({
                   {!canCreateSelfProfile ? (
                     <Text variant="bodySmall" style={[styles.assignmentHelperText, { color: theme.colors.onSurfaceVariant }]}>
                       {t('You can link yourself to an existing person right now. Creating a new profile still requires editor access on this tree.')}
-                    </Text>
-                  ) : currentAssignedPerson ? (
-                    <Text variant="bodySmall" style={[styles.assignmentHelperText, { color: theme.colors.onSurfaceVariant }]}>
-                      {t('To claim a different person, unlink yourself from {name} first.', { name: formatPersonName(currentAssignedPerson) })}
                     </Text>
                   ) : null}
                 </Card.Content>
@@ -2007,10 +2070,16 @@ function ProfileTabContent({
           <View style={styles.collaboratorSectionWrap}>
             <View style={styles.sectionHeader}>
               <View style={styles.titleWrap}>
-                <Text variant="titleLarge">{t('Collaborators')}</Text>
-                <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-                  {t('Owners manage access. Editors can update content. Viewers can browse.')}
-                </Text>
+                <View style={styles.titleWithHelperRow}>
+                  <Text variant="titleLarge">{t('Collaborators')}</Text>
+                  <IconButton
+                    icon="information-outline"
+                    size={18}
+                    style={styles.helperIconButton}
+                    onPress={() => setHelperDialog({ visible: true, key: 'collaborators' })}
+                    accessibilityLabel={t('About collaborators')}
+                  />
+                </View>
               </View>
               {isOwner ? (
                 <Button mode="contained" icon="account-plus" onPress={onOpenCollaboratorDialog} disabled={mutating}>
@@ -2160,15 +2229,19 @@ function ProfileTabContent({
         {activeManagementTab === 'approvals' ? (
           <View style={styles.collaboratorSectionWrap}>
             <View style={styles.treeSettingsWrap}>
-              <View style={styles.titleWithHelperRow}>
-                <Text variant="titleSmall">{t('Approval settings')}</Text>
-                <IconButton
-                  icon="information-outline"
-                  size={18}
-                  style={styles.helperIconButton}
-                  onPress={() => setHelperDialog({ visible: true, key: 'approval-settings' })}
-                  accessibilityLabel={t('About approval settings')}
-                />
+              <View style={styles.sectionHeader}>
+                <View style={styles.titleWrap}>
+                  <View style={styles.titleWithHelperRow}>
+                    <Text variant="titleLarge">{t('Approval settings')}</Text>
+                    <IconButton
+                      icon="information-outline"
+                      size={18}
+                      style={styles.helperIconButton}
+                      onPress={() => setHelperDialog({ visible: true, key: 'approval-settings' })}
+                      accessibilityLabel={t('About approval settings')}
+                    />
+                  </View>
+                </View>
               </View>
               <View style={styles.summaryChipRow}>
                 <Chip compact icon={approvalsDisabled ? 'flash-outline' : 'timer-outline'}>
@@ -2197,12 +2270,16 @@ function ProfileTabContent({
             <View style={styles.collaboratorSectionWrap}>
               <View style={styles.sectionHeader}>
                 <View style={styles.titleWrap}>
-                  <Text variant="titleLarge">{t('Pending approvals')}</Text>
-                  <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-                    {approvalsDisabled
-                      ? t('Approvals are currently off. Any requests listed here were created before that change and can still be reviewed.')
-                      : t('Collaborator edits awaiting review - they auto-approve if nobody acts before the deadline.')}
-                  </Text>
+                  <View style={styles.titleWithHelperRow}>
+                    <Text variant="titleLarge">{t('Pending approvals')}</Text>
+                    <IconButton
+                      icon="information-outline"
+                      size={18}
+                      style={styles.helperIconButton}
+                      onPress={() => setHelperDialog({ visible: true, key: 'pending-approvals' })}
+                      accessibilityLabel={t('About pending approvals')}
+                    />
+                  </View>
                 </View>
               </View>
 
@@ -2270,20 +2347,32 @@ function ProfileTabContent({
           <View style={styles.collaboratorSectionWrap}>
             <View style={styles.sectionHeader}>
               <View style={styles.titleWrap}>
-                <Text variant="titleLarge">{t('Collaborative merges')}</Text>
-                <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-                  {t('Suggest a merge only when likely relatives exist, then collect editor approvals from both trees before anything is applied.')}
-                </Text>
+                <View style={styles.titleWithHelperRow}>
+                  <Text variant="titleLarge">{t('Collaborative merges')}</Text>
+                  <IconButton
+                    icon="information-outline"
+                    size={18}
+                    style={styles.helperIconButton}
+                    onPress={() => setHelperDialog({ visible: true, key: 'merge-guidance' })}
+                    accessibilityLabel={t('About collaborative merges')}
+                  />
+                </View>
               </View>
             </View>
 
             {pendingMergeInvites.length > 0 ? (
               <Card mode="elevated" style={[styles.collaboratorCard, { backgroundColor: theme.colors.surface, marginBottom: 16 }]}>
                 <Card.Content>
-                  <Text variant="titleMedium">{t('Merge invitations')}</Text>
-                  <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-                    {t('Choose the tree you want to use, then load the invitation into the merge review flow.')}
-                  </Text>
+                  <View style={styles.titleWithHelperRow}>
+                    <Text variant="titleMedium">{t('Merge invitations')}</Text>
+                    <IconButton
+                      icon="information-outline"
+                      size={18}
+                      style={styles.helperIconButton}
+                      onPress={() => setHelperDialog({ visible: true, key: 'merge-invitations' })}
+                      accessibilityLabel={t('About merge invitations')}
+                    />
+                  </View>
                   <View style={{ marginTop: 8 }}>
                     {pendingMergeInvites.map((notification) => (
                       <Card key={notification.id} mode="contained" style={{ marginTop: 8 }}>
@@ -2313,32 +2402,21 @@ function ProfileTabContent({
 
             <Card mode="elevated" style={[styles.selfAssignmentCard, { backgroundColor: theme.colors.surface, marginBottom: 16 }]}>
               <Card.Content>
-                <Text variant="titleMedium" style={{ marginBottom: 8 }}>{t('Start a merge review')}</Text>
-                <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-                  {t('Enter another tree ID, preview likely person matches, then submit the merge suggestion for joint review.')}
-                </Text>
-                <TextInput
-                  mode="outlined"
-                  label={t('Target tree ID')}
-                  value={mergeTargetTreeId}
-                  onChangeText={setMergeTargetTreeId}
-                  style={{ marginTop: 8 }}
-                />
-                <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
-                  <Button mode="outlined" onPress={() => onLoadMergePreview(mergeTargetTreeId)} disabled={mutating || !mergeTargetTreeId.trim()}>
-                    {t('Preview')}
-                  </Button>
-                  <Button mode="contained" onPress={() => onCreateMergeRequest(mergeTargetTreeId)} disabled={mutating || !mergeTargetTreeId.trim()}>
-                    {t('Submit merge')}
-                  </Button>
+                <Text variant="titleMedium" style={{ marginBottom: 8 }}>{t('Invite another user to merge')}</Text>
+                <Text variant="labelMedium" style={{ marginTop: 12 }}>{t('Source tree')}</Text>
+                <View style={[styles.collaboratorChipRow, { marginTop: 8 }]}>
+                  {availableMergeSourceTrees.map((tree) => (
+                    <Chip
+                      key={tree.id}
+                      compact
+                      selected={tree.id === mergeInviteSourceTreeId}
+                      showSelectedOverlay
+                      onPress={() => setMergeInviteSourceTreeId(tree.id)}
+                    >
+                      {tree.name}
+                    </Chip>
+                  ))}
                 </View>
-
-                <Divider style={{ marginVertical: 12 }} />
-
-                <Text variant="titleSmall">{t('Ask by email or username')}</Text>
-                <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-                  {t('Send a merge invitation to a registered user when you do not have their tree ID yet.')}
-                </Text>
                 <TextInput
                   mode="outlined"
                   label={t('Registered email or username')}
@@ -2347,67 +2425,36 @@ function ProfileTabContent({
                   style={{ marginTop: 8 }}
                 />
                 <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
-                  <Button mode="contained-tonal" onPress={handleSendMergeInvite} disabled={mutating || !mergeInviteIdentifier.trim()}>
+                  <Button
+                    mode="contained-tonal"
+                    onPress={handleSendMergeInvite}
+                    disabled={mutating || !mergeInviteIdentifier.trim() || !mergeInviteSourceTreeId.trim()}
+                  >
                     {t('Send invitation')}
                   </Button>
                 </View>
 
-                {availableMergeTargetTrees.length > 0 ? (
-                  <View style={[styles.collaboratorChipRow, { marginTop: 12 }]}>
-                    {availableMergeTargetTrees.slice(0, 6).map((tree) => (
-                      <Chip key={tree.id} compact onPress={() => setMergeTargetTreeId(tree.id)}>
-                        {tree.name}
-                      </Chip>
-                    ))}
-                  </View>
-                ) : null}
               </Card.Content>
             </Card>
 
             {mergePreview ? (
-              <Card mode="elevated" style={[styles.collaboratorCard, { backgroundColor: theme.colors.surface, marginBottom: 16 }]}>
-                <Card.Content>
-                  <Text variant="titleMedium">{t('Merge preview')}</Text>
-                  <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>
-                    {t('{source} ({sourceCount}) to {target} ({targetCount})', {
-                      source: mergePreview.sourceTree.treeName,
-                      sourceCount: mergePreview.sourceTree.personCount,
-                      target: mergePreview.targetTree.treeName,
-                      targetCount: mergePreview.targetTree.personCount,
-                    })}
-                  </Text>
-                  <View style={styles.summaryChipRow}>
-                    <Chip compact icon="account-switch">{t('{count} possible matches', { count: mergePreview.matches.length })}</Chip>
-                    <Chip compact icon="source-branch-plus">{t('{count} new branches', { count: mergePreview.newBranchCount })}</Chip>
-                    <Chip compact icon="alert-circle-outline">{t('{count} conflicts', { count: mergePreview.conflicts.length })}</Chip>
-                  </View>
-                  {mergePreview.matches.slice(0, 6).map((match) => (
-                    <View key={match.id} style={{ marginTop: 12 }}>
-                      <View style={styles.collaboratorChipRow}>
-                        <Chip compact icon="gauge">{match.confidenceScore}%</Chip>
-                        <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>{match.confidenceLabel}</Text>
-                      </View>
-                      <ProgressBar progress={match.confidenceScore / 100} style={{ marginTop: 6, height: 8, borderRadius: 999 }} />
-                      <Text variant="bodySmall" style={{ marginTop: 6 }}>
-                        {match.guidedQuestions[0]?.prompt}
-                      </Text>
-                      {match.conflicts.length > 0 ? (
-                        <Text variant="bodySmall" style={{ color: theme.colors.error, marginTop: 4 }}>
-                          {t('Conflicts: {fields}', { fields: match.conflicts.map((conflict) => conflict.field).join(', ') })}
-                        </Text>
-                      ) : null}
-                    </View>
-                  ))}
-                </Card.Content>
-              </Card>
+              <Button mode="outlined" icon="eye-outline" onPress={() => setMergePreviewVisible(true)} style={{ marginBottom: 16, alignSelf: 'flex-start' }}>
+                {t('View merge preview')}
+              </Button>
             ) : null}
 
             <View style={styles.sectionHeader}>
               <View style={styles.titleWrap}>
-                <Text variant="titleLarge">{t('Pending merge approvals')}</Text>
-                <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-                  {t('Each merge needs at least one editor approval from each affected tree.')}
-                </Text>
+                <View style={styles.titleWithHelperRow}>
+                  <Text variant="titleLarge">{t('Pending merge approvals')}</Text>
+                  <IconButton
+                    icon="information-outline"
+                    size={18}
+                    style={styles.helperIconButton}
+                    onPress={() => setHelperDialog({ visible: true, key: 'merge-guidance' })}
+                    accessibilityLabel={t('About pending merge approvals')}
+                  />
+                </View>
               </View>
             </View>
 
@@ -2480,67 +2527,9 @@ function ProfileTabContent({
 
             <Divider style={{ marginVertical: 16 }} />
 
-            <View style={styles.sectionHeader}>
-              <View style={styles.titleWrap}>
-                <Text variant="titleLarge">{t('Merge history and undo')}</Text>
-                <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-                  {t('Undo preserves the audit trail and restores the pre-merge snapshot where possible.')}
-                </Text>
-              </View>
-            </View>
-
-            {mergeHistory.length > 0 ? (
-              <View style={styles.collaboratorList}>
-                {mergeHistory.map((entry) => (
-                  <Card key={entry.id} mode="elevated" style={[styles.collaboratorCard, { backgroundColor: theme.colors.surface }]}>
-                    <Card.Content>
-                      {(() => {
-                        const mergeRequest = mergeRequestsById.get(entry.mergeRequestId);
-                        const canGrantViewerAccess = Boolean(
-                          mergeRequest
-                          && userId
-                          && mergeRequest.status === 'applied'
-                          && mergeRequest.suggestedByUserId !== userId
-                          && getTreeRole(selectedTree, userId) !== 'viewer'
-                          && !selectedTree.memberIds.includes(mergeRequest.suggestedByUserId),
-                        );
-                        return (
-                          <>
-                      <Text variant="titleMedium">{entry.summary}</Text>
-                      <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>
-                        {t('{matches} reviewed matches · {approvals} approval actions · {people} people changed', {
-                          matches: entry.preview.matches.length,
-                          approvals: entry.approvals.length,
-                          people: entry.changedPersonIds.length,
-                        })}
-                      </Text>
-                      <View style={[styles.collaboratorChipRow, { marginTop: 8 }]}>
-                        <Chip compact icon="history">{entry.status}</Chip>
-                        <Chip compact icon="calendar-clock">{entry.createdAt.slice(0, 16).replace('T', ' ')}</Chip>
-                      </View>
-                      <Button mode="outlined" icon="undo" onPress={() => onUndoMerge(entry.mergeRequestId)} disabled={mutating || entry.status !== 'applied'} style={{ marginTop: 8 }}>
-                        {t('Preview and undo merge')}
-                      </Button>
-                      {canGrantViewerAccess ? (
-                        <Button mode="contained-tonal" icon="account-eye-outline" onPress={() => onGrantMergeViewerAccess(entry.mergeRequestId, selectedTree.id)} disabled={mutating} style={{ marginTop: 8 }}>
-                          {t('Grant viewer access to {name}', { name: mergeRequest?.suggestedByLabel ?? t('requester') })}
-                        </Button>
-                      ) : null}
-                          </>
-                        );
-                      })()}
-                    </Card.Content>
-                  </Card>
-                ))}
-              </View>
-            ) : (
-              <View style={styles.emptyState}>
-                <Text variant="titleMedium">{t('No merge history yet')}</Text>
-                <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
-                  {t('Applied or rejected merge activity, approval history, confidence scores, and undoable snapshots will appear here.')}
-                </Text>
-              </View>
-            )}
+            <Button mode="outlined" icon="history" onPress={() => setMergeHistoryVisible(true)} style={{ alignSelf: 'flex-start' }}>
+              {t('Merge history and undo')}
+            </Button>
           </View>
         ) : null}
 
@@ -2549,10 +2538,16 @@ function ProfileTabContent({
             {maidenSurnameSuggestions.length > 0 ? (
               <Card mode="elevated" style={[styles.collaboratorCard, { backgroundColor: theme.colors.surface, marginBottom: 16 }]}>
                 <Card.Content>
-                  <Text variant="titleMedium">{t('Suggested maiden surname trees')}</Text>
-                  <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-                    {t('These maiden surnames appear in this tree but are not part of its surname identity. Create a separate tree for later merge review.')}
-                  </Text>
+                  <View style={styles.titleWithHelperRow}>
+                    <Text variant="titleMedium">{t('Suggested maiden surname trees')}</Text>
+                    <IconButton
+                      icon="information-outline"
+                      size={18}
+                      style={styles.helperIconButton}
+                      onPress={() => setHelperDialog({ visible: true, key: 'maiden-surname-trees' })}
+                      accessibilityLabel={t('About suggested maiden surname trees')}
+                    />
+                  </View>
                   <View style={{ marginTop: 8 }}>
                     {maidenSurnameSuggestions.map((suggestion) => (
                       <Card key={suggestion.surname} mode="contained" style={{ marginTop: 8, borderRadius: 12 }}>
@@ -2576,10 +2571,16 @@ function ProfileTabContent({
 
             <View style={styles.sectionHeader}>
               <View style={styles.titleWrap}>
-                <Text variant="titleMedium">{t('My Family Trees')}</Text>
-                <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-                  {t('Switch between trees or manage the one you are working in now.')}
-                </Text>
+                <View style={styles.titleWithHelperRow}>
+                  <Text variant="titleMedium">{t('My Family Trees')}</Text>
+                  <IconButton
+                    icon="information-outline"
+                    size={18}
+                    style={styles.helperIconButton}
+                    onPress={() => setHelperDialog({ visible: true, key: 'my-trees' })}
+                    accessibilityLabel={t('About my family trees')}
+                  />
+                </View>
               </View>
             </View>
             {loadingTrees ? (
@@ -2810,6 +2811,138 @@ function ProfileTabContent({
                   )}
                 </View>
               ) : null}
+            </ScrollView>
+          </Dialog.ScrollArea>
+        </Dialog>
+
+        <Dialog
+          visible={mergePreviewVisible}
+          onDismiss={() => setMergePreviewVisible(false)}
+          style={[dialogChrome.dialog, { backgroundColor: theme.colors.surface }]}
+        >
+          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>
+            {t('Merge preview')}
+          </Dialog.Title>
+          <IconButton
+            icon="close"
+            size={20}
+            onPress={() => setMergePreviewVisible(false)}
+            style={dialogChrome.closeButton}
+            accessibilityLabel={t('Close')}
+          />
+          <Dialog.ScrollArea style={dialogChrome.scrollArea}>
+            <ScrollView contentContainerStyle={{ paddingBottom: 8 }} keyboardShouldPersistTaps="handled">
+              {mergePreview ? (
+                <View>
+                  <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>
+                    {t('{source} ({sourceCount}) to {target} ({targetCount})', {
+                      source: mergePreview.sourceTree.treeName,
+                      sourceCount: mergePreview.sourceTree.personCount,
+                      target: mergePreview.targetTree.treeName,
+                      targetCount: mergePreview.targetTree.personCount,
+                    })}
+                  </Text>
+                  <View style={styles.summaryChipRow}>
+                    <Chip compact icon="account-switch">{t('{count} possible matches', { count: mergePreview.matches.length })}</Chip>
+                    <Chip compact icon="source-branch-plus">{t('{count} new branches', { count: mergePreview.newBranchCount })}</Chip>
+                    <Chip compact icon="alert-circle-outline">{t('{count} conflicts', { count: mergePreview.conflicts.length })}</Chip>
+                  </View>
+                  {mergePreview.matches.slice(0, 6).map((match) => (
+                    <View key={match.id} style={{ marginTop: 12 }}>
+                      <View style={styles.collaboratorChipRow}>
+                        <Chip compact icon="gauge">{match.confidenceScore}%</Chip>
+                        <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>{match.confidenceLabel}</Text>
+                      </View>
+                      <ProgressBar progress={match.confidenceScore / 100} style={{ marginTop: 6, height: 8, borderRadius: 999 }} />
+                      <Text variant="bodySmall" style={{ marginTop: 6 }}>
+                        {match.guidedQuestions[0]?.prompt}
+                      </Text>
+                      {match.conflicts.length > 0 ? (
+                        <Text variant="bodySmall" style={{ color: theme.colors.error, marginTop: 4 }}>
+                          {t('Conflicts: {fields}', { fields: match.conflicts.map((conflict) => conflict.field).join(', ') })}
+                        </Text>
+                      ) : null}
+                    </View>
+                  ))}
+                </View>
+              ) : (
+                <View style={styles.emptyState}>
+                  <Text variant="titleMedium">{t('No merge preview loaded')}</Text>
+                </View>
+              )}
+            </ScrollView>
+          </Dialog.ScrollArea>
+        </Dialog>
+
+        <Dialog
+          visible={mergeHistoryVisible}
+          onDismiss={() => setMergeHistoryVisible(false)}
+          style={[dialogChrome.dialog, { backgroundColor: theme.colors.surface }]}
+        >
+          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>
+            {t('Merge history and undo')}
+          </Dialog.Title>
+          <IconButton
+            icon="close"
+            size={20}
+            onPress={() => setMergeHistoryVisible(false)}
+            style={dialogChrome.closeButton}
+            accessibilityLabel={t('Close')}
+          />
+          <Dialog.ScrollArea style={dialogChrome.scrollArea}>
+            <ScrollView contentContainerStyle={{ paddingBottom: 8 }} keyboardShouldPersistTaps="handled">
+              {mergeHistory.length > 0 ? (
+                <View style={styles.collaboratorList}>
+                  {mergeHistory.map((entry) => (
+                    <Card key={entry.id} mode="elevated" style={[styles.collaboratorCard, { backgroundColor: theme.colors.surface }]}>
+                      <Card.Content>
+                        {(() => {
+                          const mergeRequest = mergeRequestsById.get(entry.mergeRequestId);
+                          const canGrantViewerAccess = Boolean(
+                            mergeRequest
+                            && userId
+                            && mergeRequest.status === 'applied'
+                            && mergeRequest.suggestedByUserId !== userId
+                            && getTreeRole(selectedTree, userId) !== 'viewer'
+                            && !selectedTree.memberIds.includes(mergeRequest.suggestedByUserId),
+                          );
+                          return (
+                            <>
+                              <Text variant="titleMedium">{entry.summary}</Text>
+                              <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>
+                                {t('{matches} reviewed matches · {approvals} approval actions · {people} people changed', {
+                                  matches: entry.preview.matches.length,
+                                  approvals: entry.approvals.length,
+                                  people: entry.changedPersonIds.length,
+                                })}
+                              </Text>
+                              <View style={[styles.collaboratorChipRow, { marginTop: 8 }]}>
+                                <Chip compact icon="history">{entry.status}</Chip>
+                                <Chip compact icon="calendar-clock">{entry.createdAt.slice(0, 16).replace('T', ' ')}</Chip>
+                              </View>
+                              <Button mode="outlined" icon="undo" onPress={() => onUndoMerge(entry.mergeRequestId)} disabled={mutating || entry.status !== 'applied'} style={{ marginTop: 8 }}>
+                                {t('Preview and undo merge')}
+                              </Button>
+                              {canGrantViewerAccess ? (
+                                <Button mode="contained-tonal" icon="account-eye-outline" onPress={() => onGrantMergeViewerAccess(entry.mergeRequestId, selectedTree.id)} disabled={mutating} style={{ marginTop: 8 }}>
+                                  {t('Grant viewer access to {name}', { name: mergeRequest?.suggestedByLabel ?? t('requester') })}
+                                </Button>
+                              ) : null}
+                            </>
+                          );
+                        })()}
+                      </Card.Content>
+                    </Card>
+                  ))}
+                </View>
+              ) : (
+                <View style={styles.emptyState}>
+                  <Text variant="titleMedium">{t('No merge history yet')}</Text>
+                  <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
+                    {t('Applied or rejected merge activity, approval history, confidence scores, and undoable snapshots will appear here.')}
+                  </Text>
+                </View>
+              )}
             </ScrollView>
           </Dialog.ScrollArea>
         </Dialog>

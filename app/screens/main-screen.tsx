@@ -600,10 +600,10 @@ export default function MainScreen({ navigation }: Props) {
     if (!user?.id || !selectedTree) return;
     await createMergeRequest(user.id, selectedTree.id, targetTreeId);
   }, [createMergeRequest, selectedTree, user?.id]);
-  const onSendMergeInvite = useCallback(async (identifier: string) => {
-    if (!user?.id || !selectedTree) return;
-    await sendMergeInvite(user.id, selectedTree.id, identifier);
-  }, [selectedTree, sendMergeInvite, user?.id]);
+  const onSendMergeInvite = useCallback(async (sourceTreeId: string, identifier: string) => {
+    if (!user?.id || !sourceTreeId) return;
+    await sendMergeInvite(user.id, sourceTreeId, identifier);
+  }, [sendMergeInvite, user?.id]);
   const onRespondToMergeInvite = useCallback(async (notificationId: string, status: 'accepted' | 'dismissed') => {
     if (!user?.id) return;
     await respondToMergeInvite(user.id, notificationId, status);

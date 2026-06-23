@@ -324,10 +324,10 @@ export class GlobalStyles {
             color: F.onSurfaceVariant,
         },
         managementSegmentedButtons: {
-            marginTop: 16,
+            marginTop: 12,
         },
         treeSettingsWrap: {
-            marginTop: 16,
+            marginTop: 0,
         },
         approvalWindowRow: {
             flexDirection: 'row',
@@ -423,12 +423,14 @@ export class GlobalStyles {
             borderRadius: 20,
         },
         filterButtonContent: {
-            paddingLeft: 0,
-            paddingRight: 0,
+            minWidth: 48,
+            paddingHorizontal: 12,
         },
-        filterButtonLabel: {
-            marginLeft: 0,
-            marginRight: 0,
+        filterButtonInner: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 6,
         },
         resultsPill: {
             alignSelf: 'flex-start',
