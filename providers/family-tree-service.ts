@@ -234,6 +234,53 @@ function mapPerson(snapshot: QueryDocumentSnapshot): PersonRecord {
   };
 }
 
+function needsTreeMembershipBackfill(data: DocumentData, treeId: string) {
+  return !(Array.isArray(data.treeMembershipIds) && data.treeMembershipIds.includes(treeId));
+}
+
+function buildTreeMembershipBackfill(person: PersonRecord, treeId: string) {
+  const nextTreeMembershipIds = [...new Set([...(Array.isArray(person.treeMembershipIds) ? person.treeMembershipIds : []), treeId])];
+  const existingMemberships = Array.isArray(person.treeMemberships) ? person.treeMemberships : [];
+  const hasMembershipEntry = existingMemberships.some((membership) => membership?.treeId === treeId);
+
+  return {
+    treeMembershipIds: nextTreeMembershipIds,
+    treeMemberships: hasMembershipEntry
+      ? existingMemberships
+      : [...existingMemberships, {
+        treeId,
+        role: 'subject' as const,
+        joinedAt: person.createdAt ?? nowIso(),
+        addedByUserId: person.ownerId || undefined,
+        source: 'manual' as const,
+      }],
+  };
+}
+
+async function backfillLegacyPeopleMemberships(treeId: string, people: PersonRecord[]) {
+  if (people.length === 0) {
+    return;
+  }
+
+  for (let index = 0; index < people.length; index += 450) {
+    const batch = writeBatch(db);
+    people.slice(index, index + 450).forEach((person) => {
+      batch.update(doc(db, PEOPLE_COLLECTION, person.id), {
+        ...buildTreeMembershipBackfill(person, treeId),
+        updatedAt: person.updatedAt ?? nowIso(),
+      });
+    });
+    await batch.commit();
+  }
+}
+
+async function getLegacyPeopleNeedingBackfill(treeId: string) {
+  const snapshot = await getDocs(query(collection(db, PEOPLE_COLLECTION), where('treeId', '==', treeId)));
+  return snapshot.docs
+    .filter((docSnapshot) => needsTreeMembershipBackfill(docSnapshot.data(), treeId))
+    .map(mapPerson);
+}
+
 function formatPersonName(person: Pick<PersonRecord, 'firstName' | 'middleNames' | 'lastName'>) {
   return [person.firstName, person.middleNames ?? '', person.lastName].join(' ').replace(/\s+/g, ' ').trim() || 'A child';
 }
@@ -300,11 +347,35 @@ async function updateParentLifeEventsForChild(
 }
 
 async function getParentIdsForChild(treeId: string, childId: string) {
-  const relationshipSnapshot = await getDocs(query(collection(db, RELATIONSHIPS_COLLECTION), where('treeId', '==', treeId)));
+  const relationshipSnapshot = await getDocs(query(
+    collection(db, RELATIONSHIPS_COLLECTION),
+    where('treeId', '==', treeId),
+    where('type', '==', 'parent-child'),
+    where('toPersonId', '==', childId),
+  ));
   return relationshipSnapshot.docs
     .map(mapRelationship)
-    .filter((relationship) => relationship.type === 'parent-child' && relationship.toPersonId === childId)
     .map((relationship) => relationship.fromPersonId);
+}
+
+async function getRelationshipsTouchingPerson(treeId: string, personId: string) {
+  const [outgoingSnapshot, incomingSnapshot] = await Promise.all([
+    getDocs(query(
+      collection(db, RELATIONSHIPS_COLLECTION),
+      where('treeId', '==', treeId),
+      where('fromPersonId', '==', personId),
+    )),
+    getDocs(query(
+      collection(db, RELATIONSHIPS_COLLECTION),
+      where('treeId', '==', treeId),
+      where('toPersonId', '==', personId),
+    )),
+  ]);
+
+  return mergeUniqueById([
+    ...outgoingSnapshot.docs.map(mapRelationship),
+    ...incomingSnapshot.docs.map(mapRelationship),
+  ]);
 }
 
 function resolvePreferredPhotoId(
@@ -695,8 +766,13 @@ export function subscribeToPeople(
 ) {
   let membershipPeople: PersonRecord[] = [];
   let legacyPeople: PersonRecord[] = [];
+  let active = true;
 
   const emit = () => {
+    if (!active) {
+      return;
+    }
+
     onChange(sortByNewest(mergeUniqueById([...membershipPeople, ...legacyPeople])));
   };
 
@@ -704,23 +780,31 @@ export function subscribeToPeople(
     query(collection(db, PEOPLE_COLLECTION), where('treeMembershipIds', 'array-contains', treeId)),
     (snapshot) => {
       membershipPeople = snapshot.docs.map(mapPerson);
+      if (legacyPeople.length > 0) {
+        const membershipIds = new Set(membershipPeople.map((person) => person.id));
+        legacyPeople = legacyPeople.filter((person) => !membershipIds.has(person.id));
+      }
       emit();
     },
     onError,
   );
 
-  const unsubscribeLegacy = onSnapshot(
-    query(collection(db, PEOPLE_COLLECTION), where('treeId', '==', treeId)),
-    (snapshot) => {
-      legacyPeople = snapshot.docs.map(mapPerson);
+  void getLegacyPeopleNeedingBackfill(treeId)
+    .then((peopleNeedingBackfill) => {
+      if (!active || peopleNeedingBackfill.length === 0) {
+        return;
+      }
+
+      const membershipIds = new Set(membershipPeople.map((person) => person.id));
+      legacyPeople = peopleNeedingBackfill.filter((person) => !membershipIds.has(person.id));
       emit();
-    },
-    onError,
-  );
+      return backfillLegacyPeopleMemberships(treeId, peopleNeedingBackfill);
+    })
+    .catch((error) => onError?.(error as Error));
 
   return () => {
+    active = false;
     unsubscribeMembership();
-    unsubscribeLegacy();
   };
 }
 
@@ -1076,14 +1160,18 @@ async function getTreeById(treeId: string) {
 }
 
 async function getPeopleByTreeId(treeId: string) {
-  const [membershipSnapshot, legacySnapshot] = await Promise.all([
+  const [membershipSnapshot, legacyPeople] = await Promise.all([
     getDocs(query(collection(db, PEOPLE_COLLECTION), where('treeMembershipIds', 'array-contains', treeId))),
-    getDocs(query(collection(db, PEOPLE_COLLECTION), where('treeId', '==', treeId))),
+    getLegacyPeopleNeedingBackfill(treeId),
   ]);
+
+  if (legacyPeople.length > 0) {
+    void backfillLegacyPeopleMemberships(treeId, legacyPeople);
+  }
 
   return mergeUniqueById([
     ...membershipSnapshot.docs.map(mapPerson),
-    ...legacySnapshot.docs.map(mapPerson),
+    ...legacyPeople,
   ]);
 }
 
@@ -1834,7 +1922,11 @@ export async function decideApprovalRequest(
 }
 
 export async function processExpiredApprovalRequests(actorUserId: string, treeId: string) {
-  const snapshot = await getDocs(query(collection(db, APPROVAL_REQUESTS_COLLECTION), where('treeId', '==', treeId)));
+  const snapshot = await getDocs(query(
+    collection(db, APPROVAL_REQUESTS_COLLECTION),
+    where('treeId', '==', treeId),
+    where('status', '==', 'pending'),
+  ));
   const requests = snapshot.docs.map(mapApprovalRequest);
   const now = Date.now();
 
@@ -1875,6 +1967,7 @@ function canApproveMergeForTree(tree: FamilyTree, userId: string) {
 
 async function captureMergeSnapshot(sourceTreeId: string, targetTreeId: string, matches: MergePreview['matches']): Promise<MergeRequestSnapshot> {
   const personIds = [...new Set(matches.flatMap((match) => [match.sourcePersonId, match.targetPersonId]))];
+  const personIdSet = new Set(personIds);
   const relationshipIdsByTree = new Map<string, string[]>();
 
   const [sourceRelationships, targetRelationships] = await Promise.all([
@@ -1882,8 +1975,18 @@ async function captureMergeSnapshot(sourceTreeId: string, targetTreeId: string, 
     getRelationshipsByTreeId(targetTreeId),
   ]);
 
-  relationshipIdsByTree.set(sourceTreeId, sourceRelationships.filter((relationship) => personIds.includes(relationship.fromPersonId) || personIds.includes(relationship.toPersonId)).map((relationship) => relationship.id));
-  relationshipIdsByTree.set(targetTreeId, targetRelationships.filter((relationship) => personIds.includes(relationship.fromPersonId) || personIds.includes(relationship.toPersonId)).map((relationship) => relationship.id));
+  relationshipIdsByTree.set(
+    sourceTreeId,
+    sourceRelationships
+      .filter((relationship) => personIdSet.has(relationship.fromPersonId) || personIdSet.has(relationship.toPersonId))
+      .map((relationship) => relationship.id),
+  );
+  relationshipIdsByTree.set(
+    targetTreeId,
+    targetRelationships
+      .filter((relationship) => personIdSet.has(relationship.fromPersonId) || personIdSet.has(relationship.toPersonId))
+      .map((relationship) => relationship.id),
+  );
 
   const [treeSnapshots, personSnapshots, sourceTreeRelationshipSnapshots, targetTreeRelationshipSnapshots] = await Promise.all([
     Promise.all([getDoc(doc(db, TREES_COLLECTION, sourceTreeId)), getDoc(doc(db, TREES_COLLECTION, targetTreeId))]),
@@ -1909,14 +2012,28 @@ async function applyMergeRequest(mergeRequestId: string, request: MergeRequestRe
   const sourceRelationships = await getRelationshipsByTreeId(request.sourceTreeId);
   const targetRelationships = await getRelationshipsByTreeId(request.targetTreeId);
   const relationships = [...sourceRelationships, ...targetRelationships];
+  const snapshotPeopleById = new Map(snapshotBeforeMerge.people.map((entry) => [entry.id, entry.data] as const));
+  const relationshipsByPersonId = new Map<string, RelationshipRecord[]>();
+
+  relationships.forEach((relationship) => {
+    const fromRelationships = relationshipsByPersonId.get(relationship.fromPersonId) ?? [];
+    fromRelationships.push(relationship);
+    relationshipsByPersonId.set(relationship.fromPersonId, fromRelationships);
+
+    if (relationship.toPersonId !== relationship.fromPersonId) {
+      const toRelationships = relationshipsByPersonId.get(relationship.toPersonId) ?? [];
+      toRelationships.push(relationship);
+      relationshipsByPersonId.set(relationship.toPersonId, toRelationships);
+    }
+  });
 
   request.preview.matches
     .filter((match) => request.selectedMatchIds.includes(match.id))
     .forEach((match) => {
       const sourcePersonRef = doc(db, PEOPLE_COLLECTION, match.sourcePersonId);
       const targetPersonRef = doc(db, PEOPLE_COLLECTION, match.targetPersonId);
-      const sourceSnapshot = snapshotBeforeMerge.people.find((entry) => entry.id === match.sourcePersonId)?.data ?? {};
-      const targetSnapshot = snapshotBeforeMerge.people.find((entry) => entry.id === match.targetPersonId)?.data ?? {};
+      const sourceSnapshot = snapshotPeopleById.get(match.sourcePersonId) ?? {};
+      const targetSnapshot = snapshotPeopleById.get(match.targetPersonId) ?? {};
       const sourceTreeMembershipIds = Array.isArray(sourceSnapshot.treeMembershipIds) ? sourceSnapshot.treeMembershipIds : [sourceSnapshot.treeId].filter(Boolean);
       const targetTreeMembershipIds = Array.isArray(targetSnapshot.treeMembershipIds) ? targetSnapshot.treeMembershipIds : [targetSnapshot.treeId].filter(Boolean);
       const targetDuplicatePersonIds = Array.isArray(targetSnapshot.duplicatePersonIds) ? targetSnapshot.duplicatePersonIds : [];
@@ -1952,14 +2069,12 @@ async function applyMergeRequest(mergeRequestId: string, request: MergeRequestRe
         updatedAt: timestamp,
       });
 
-      relationships
-        .filter((relationship) => relationship.fromPersonId === match.sourcePersonId || relationship.toPersonId === match.sourcePersonId)
-        .forEach((relationship) => {
-          batch.update(doc(db, RELATIONSHIPS_COLLECTION, relationship.id), {
-            fromPersonId: relationship.fromPersonId === match.sourcePersonId ? match.targetPersonId : relationship.fromPersonId,
-            toPersonId: relationship.toPersonId === match.sourcePersonId ? match.targetPersonId : relationship.toPersonId,
-          });
+      (relationshipsByPersonId.get(match.sourcePersonId) ?? []).forEach((relationship) => {
+        batch.update(doc(db, RELATIONSHIPS_COLLECTION, relationship.id), {
+          fromPersonId: relationship.fromPersonId === match.sourcePersonId ? match.targetPersonId : relationship.fromPersonId,
+          toPersonId: relationship.toPersonId === match.sourcePersonId ? match.targetPersonId : relationship.toPersonId,
         });
+      });
     });
 
   const sourceTreeSnapshot = snapshotBeforeMerge.trees.find((entry) => entry.id === request.sourceTreeId)?.data ?? {};
@@ -2491,9 +2606,8 @@ export async function updatePerson(
 async function deletePersonDirect(person: PersonRecord) {
   await deletePhotos(person.photos);
 
-  const relationshipSnapshot = await getDocs(query(collection(db, RELATIONSHIPS_COLLECTION), where('treeId', '==', person.treeId)));
-  const parentIds = relationshipSnapshot.docs
-    .map(mapRelationship)
+  const relationships = await getRelationshipsTouchingPerson(person.treeId, person.id);
+  const parentIds = relationships
     .filter((relationship) => relationship.type === 'parent-child' && relationship.toPersonId === person.id)
     .map((relationship) => relationship.fromPersonId);
 
@@ -2505,12 +2619,7 @@ async function deletePersonDirect(person: PersonRecord) {
     birthDate: '',
   });
 
-  const refsToDelete = relationshipSnapshot.docs
-    .filter((snapshot) => {
-      const data = snapshot.data();
-      return data.fromPersonId === person.id || data.toPersonId === person.id;
-    })
-    .map((snapshot) => snapshot.ref);
+  const refsToDelete = relationships.map((relationship) => doc(db, RELATIONSHIPS_COLLECTION, relationship.id));
 
   refsToDelete.push(doc(db, PEOPLE_COLLECTION, person.id));
   await deleteDocumentRefs(refsToDelete);
