@@ -192,10 +192,17 @@ export default function LifeEventDialog({
               />
             </ScrollView>
           </Dialog.ScrollArea>
-          <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
+          <Dialog.Actions
+            style={[
+              dialogChrome.dialogActions,
+              { borderTopColor: theme.colors.outlineVariant, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+            ]}
+          >
             {event && onDelete ? (
               <IconButton icon="trash-can-outline" iconColor={theme.colors.error} onPress={onDelete} disabled={loading} accessibilityLabel={t('Delete')} />
-            ) : null}
+            ) : (
+              <View />
+            )}
             <Button mode="contained" onPress={handleSubmit} disabled={loading}>{t('Save')}</Button>
           </Dialog.Actions>
         </Dialog>

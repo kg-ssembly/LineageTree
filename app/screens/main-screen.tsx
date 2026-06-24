@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
+import { useIsFocused } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -162,6 +163,7 @@ function NoTreeGate({ onCreateTree }: { onCreateTree: () => void }) {
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export default function MainScreen({ navigation }: Props) {
+  const isFocused = useIsFocused();
   const theme = useTheme();
   const { t } = useI18n();
   const { user, signOut, loading: authLoading, setDefaultTreeId } = useAuthStore();
@@ -347,8 +349,8 @@ export default function MainScreen({ navigation }: Props) {
   // ── Error / notice ──────────────────────────────────────────────────────────
 
   useEffect(() => {
-    if (error || notice) setSnackVisible(true);
-  }, [error, notice]);
+    if (isFocused && (error || notice)) setSnackVisible(true);
+  }, [error, isFocused, notice]);
 
   // ── Shared handlers ─────────────────────────────────────────────────────────
 

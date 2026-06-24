@@ -28,7 +28,7 @@ service firebase.storage {
 
     match /treePhotos/{treeId}/{personId}/{allPaths=**} {
       allow read: if isTreeMember(treeId);
-      allow write: if isTreeEditor(treeId);
+      allow write: if isTreeMember(treeId);
     }
   }
 }

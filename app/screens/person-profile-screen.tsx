@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, Dimensions, Image, Modal, Platform, Pressable, ScrollView, View } from 'react-native';
+import { useIsFocused } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import {
@@ -241,6 +242,7 @@ const APP_TAB_ROUTES: Array<{
 ];
 
 export default function PersonProfileScreen({ navigation, route }: Props) {
+  const isFocused = useIsFocused();
   const theme = useTheme();
   const { t } = useI18n();
   const { user } = useAuthStore();
@@ -313,6 +315,17 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
   const photoEditorCount = useMemo(
     () => photoEditorExistingPhotos.length + photoEditorNewPhotoUris.length,
     [photoEditorExistingPhotos, photoEditorNewPhotoUris],
+  );
+  const canSavePhotoChanges = useMemo(
+    () => Boolean(
+      person
+      && (
+        photoEditorRemovedPhotos.length > 0
+        || photoEditorNewPhotoUris.length > 0
+        || photoEditorPreferredPhotoRef !== (person.preferredPhotoId ?? '')
+      )
+    ),
+    [person, photoEditorNewPhotoUris.length, photoEditorPreferredPhotoRef, photoEditorRemovedPhotos.length],
   );
 
   const peopleById = useMemo(
@@ -519,16 +532,16 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
   }, [loadingTreeData, navigation, person, selectedTree]);
 
   useEffect(() => {
-    if (error) {
+    if (isFocused && error) {
       setSnackVisible(true);
     }
-  }, [error]);
+  }, [error, isFocused]);
 
   useEffect(() => {
-    if (notice) {
+    if (isFocused && notice) {
       setSnackVisible(true);
     }
-  }, [notice]);
+  }, [isFocused, notice]);
 
   const openConfirm = (title: string, message: string, confirmLabel: string, action: () => Promise<void>) => {
     setConfirmState({ visible: true, title, message, confirmLabel, action });
@@ -1552,7 +1565,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
             </ScrollView>
           </Dialog.ScrollArea>
           <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
-            <Button mode="contained" onPress={handleSavePhotos} disabled={mutating || photoProcessing}>{t('Save photos')}</Button>
+            <Button mode="contained" onPress={handleSavePhotos} disabled={mutating || photoProcessing || !canSavePhotoChanges}>{t('Save photos')}</Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>

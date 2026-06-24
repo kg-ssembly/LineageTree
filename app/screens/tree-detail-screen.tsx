@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Image, Modal, Pressable, ScrollView, View } from 'react-native';
+import { useIsFocused } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -93,6 +94,7 @@ const Tab = createBottomTabNavigator<TreeDetailTabParamList>();
 const styles = GlobalStyles.treeDetail;
 
 export default function TreeDetailScreen({ navigation, route }: Props) {
+  const isFocused = useIsFocused();
   const theme = useTheme();
   const { t } = useI18n();
   const { user } = useAuthStore();
@@ -431,10 +433,10 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
   }, [loadingTrees, navigation, route.params.treeId, selectedTree, selectedTreeId]);
 
   useEffect(() => {
-    if (error || notice) {
+    if (isFocused && (error || notice)) {
       setSnackVisible(true);
     }
-  }, [error, notice]);
+  }, [error, isFocused, notice]);
 
   const openConfirm = useCallback((title: string, message: string, confirmLabel: string, action: () => Promise<void>) => {
     setConfirmState({ visible: true, title, message, confirmLabel, action });

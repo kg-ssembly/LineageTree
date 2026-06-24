@@ -583,6 +583,24 @@ function mergeUniqueById<T extends { id: string }>(items: T[]) {
   return [...new Map(items.map((item) => [item.id, item])).values()];
 }
 
+function stripUndefinedDeep<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return value
+      .filter((entry) => entry !== undefined)
+      .map((entry) => stripUndefinedDeep(entry)) as T;
+  }
+
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value)
+        .filter(([, entry]) => entry !== undefined)
+        .map(([key, entry]) => [key, stripUndefinedDeep(entry)]),
+    ) as T;
+  }
+
+  return value;
+}
+
 function buildSpouseRelationshipId(personAId: string, personBId: string) {
   const [firstId, secondId] = [personAId, personBId].sort();
   return `spouse_${firstId}_${secondId}`;
@@ -1801,7 +1819,7 @@ async function createApprovalRequest(
   request: Omit<ApprovalRequest, 'id'>,
 ) {
   const requestRef = doc(collection(db, APPROVAL_REQUESTS_COLLECTION));
-  await setDoc(requestRef, request);
+  await setDoc(requestRef, stripUndefinedDeep(request));
   return requestRef.id;
 }
 

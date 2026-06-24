@@ -14,7 +14,6 @@ import {
   IconButton,
   Portal,
   SegmentedButtons,
-  Snackbar,
   Surface,
   Text,
   TextInput,
@@ -342,8 +341,6 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
     editRelationship,
     removeRelationship,
     selectTree,
-    clearError,
-    clearNotice,
   } = useTreeStore();
 
   const [activeTab, setActiveTab] = useState<ProfileTabKey>('profile');
@@ -361,7 +358,6 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
   const [photoEditorPreferredPhotoRef, setPhotoEditorPreferredPhotoRef] = useState('');
   const [photoProcessing, setPhotoProcessing] = useState(false);
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
-  const [snackVisible, setSnackVisible] = useState(false);
   const [confirmState, setConfirmState] = useState<ConfirmState>({
     visible: false,
     title: '',
@@ -535,6 +531,17 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
     () => photoEditorExistingPhotos.length + photoEditorNewPhotoUris.length,
     [photoEditorExistingPhotos, photoEditorNewPhotoUris],
   );
+  const canSavePhotoChanges = useMemo(
+    () => Boolean(
+      linkedPerson
+      && (
+        photoEditorRemovedPhotos.length > 0
+        || photoEditorNewPhotoUris.length > 0
+        || photoEditorPreferredPhotoRef !== (linkedPerson.preferredPhotoId ?? '')
+      )
+    ),
+    [linkedPerson, photoEditorNewPhotoUris.length, photoEditorPreferredPhotoRef, photoEditorRemovedPhotos.length],
+  );
 
   const relationshipEntries = useMemo(() => {
     if (!linkedPerson) {
@@ -618,12 +625,6 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
     () => (linkedPerson ? getAscendantIds(linkedPerson.id, relationships) : []),
     [linkedPerson, relationships],
   );
-
-  useEffect(() => {
-    if (error || notice) {
-      setSnackVisible(true);
-    }
-  }, [error, notice]);
 
   useEffect(() => {
     if (!user?.defaultTreeId || selectedTreeId === user.defaultTreeId) {
@@ -1540,7 +1541,7 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
             </ScrollView>
           </Dialog.ScrollArea>
           <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
-            <Button mode="contained" onPress={handleSavePhotos} disabled={mutating || photoProcessing}>{t('Save photos')}</Button>
+            <Button mode="contained" onPress={handleSavePhotos} disabled={mutating || photoProcessing || !canSavePhotoChanges}>{t('Save photos')}</Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>
@@ -1607,17 +1608,6 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
         </View>
       </Modal>
 
-      <Snackbar
-        visible={snackVisible}
-        onDismiss={() => {
-          setSnackVisible(false);
-          clearError();
-          clearNotice();
-        }}
-        duration={5000}
-      >
-        {error ?? notice}
-      </Snackbar>
     </View>
   );
 }
