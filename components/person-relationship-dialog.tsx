@@ -214,8 +214,8 @@ export default function PersonRelationshipDialog({
         onDismiss={loading ? undefined : onDismiss}
         style={[dialogChrome.dialog, styles.dialog, { backgroundColor: theme.colors.surface }]}
       >
-        <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{editingRelationship ? t('Edit relationship') : t('Add relationship')}</Dialog.Title>
-        <IconButton icon="close" onPress={onDismiss} disabled={loading} accessibilityLabel={t('Cancel')} style={dialogChrome.closeButton} />
+        <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{editingRelationship ? t('Edit relationship') : t(K.relationship.addRelationship)}</Dialog.Title>
+        <IconButton icon="close" onPress={onDismiss} disabled={loading} accessibilityLabel={t(K.common.cancel)} style={dialogChrome.closeButton} />
         <Dialog.ScrollArea style={[dialogChrome.scrollArea, styles.scrollArea]}>
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
             <Text variant="bodyMedium" style={styles.helperText}>
@@ -359,7 +359,7 @@ export default function PersonRelationshipDialog({
           ]}
         >
           {editingRelationship && onDelete ? (
-            <IconButton icon="trash-can-outline" iconColor={theme.colors.error} onPress={onDelete} disabled={loading} accessibilityLabel={t('Delete')} />
+            <IconButton icon="trash-can-outline" iconColor={theme.colors.error} onPress={onDelete} disabled={loading} accessibilityLabel={t(K.common.delete)} />
           ) : (
             <View />
           )}

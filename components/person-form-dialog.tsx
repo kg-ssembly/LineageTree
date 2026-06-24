@@ -610,10 +610,10 @@ export default function PersonFormDialog({
         >
           <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose, styles.dialogTitle]}>
             {mode === 'create'
-              ? (step === 1 ? t('Add family member') : t('Add relationships'))
-              : t('Edit family member')}
+              ? (step === 1 ? t(K.personForm.addFamilyMember) : t(K.personForm.addRelationships))
+              : t(K.personForm.editFamilyMember)}
           </Dialog.Title>
-          <IconButton icon="close" onPress={onDismiss} disabled={loading} accessibilityLabel={t('Cancel')} style={dialogChrome.closeButton} />
+          <IconButton icon="close" onPress={onDismiss} disabled={loading} accessibilityLabel={t(K.common.cancel)} style={dialogChrome.closeButton} />
           {mode === 'create' ? (
             <View style={[styles.stepProgressRow, { borderBottomColor: theme.colors.outlineVariant }]}>
               <View style={[styles.stepDot, step >= 1 && { backgroundColor: theme.colors.primary }]} />
@@ -632,7 +632,7 @@ export default function PersonFormDialog({
                 <>
               <TextInput
                 mode="outlined"
-                label={t('First name *')}
+                label={t(K.personForm.firstNameRequired)}
                 value={firstName}
                 onChangeText={(value) => {
                   setFirstName(value);
@@ -652,7 +652,7 @@ export default function PersonFormDialog({
 
               <TextInput
                 mode="outlined"
-                label={t('Second / middle names')}
+                label={t(K.personForm.secondMiddleNames)}
                 value={middleNames}
                 onChangeText={setMiddleNames}
                 disabled={loading}
@@ -1006,8 +1006,8 @@ export default function PersonFormDialog({
                     t('Delete family member'),
                     t('Remove this person and all their relationships? This cannot be undone.'),
                     [
-                      { text: t('Cancel'), style: 'cancel' },
-                      { text: t('Delete'), style: 'destructive', onPress: () => void onDelete() },
+                      { text: t(K.common.cancel), style: 'cancel' },
+                      { text: t(K.common.delete), style: 'destructive', onPress: () => void onDelete() },
                     ],
                   );
                 }}

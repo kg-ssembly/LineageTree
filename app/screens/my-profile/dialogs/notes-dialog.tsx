@@ -30,7 +30,7 @@ export function NotesDialog({
     <Portal>
       <Dialog visible={visible} onDismiss={mutating ? undefined : onDismiss} style={[dialogChrome.dialog, personProfileStyles.memoryDialog, { backgroundColor: theme.colors.surface }]}>
         <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{t(K.memories.notes)}</Dialog.Title>
-        <IconButton icon="close" onPress={onDismiss} disabled={mutating} accessibilityLabel={t('Cancel')} style={dialogChrome.closeButton} />
+        <IconButton icon="close" onPress={onDismiss} disabled={mutating} accessibilityLabel={t(K.common.cancel)} style={dialogChrome.closeButton} />
         <Dialog.ScrollArea style={personProfileStyles.memoryDialogScrollArea}>
           <ScrollView contentContainerStyle={personProfileStyles.memoryDialogContent} keyboardShouldPersistTaps="handled">
             <TextInput

@@ -5,6 +5,7 @@ import type { FamilyTree } from '../../../components/dto/tree';
 import { extractSurname } from '../../../components/family-tree-surname-clusters';
 import { formatPersonName } from '../../../components/person-formatting';
 import { GlobalStyles } from '../../../constants/styles';
+import { I18N_KEYS as K } from '../../../i18n/keys';
 
 const dialogChrome = GlobalStyles.dialogChrome;
 const styles = GlobalStyles.treeDetail;
@@ -57,15 +58,15 @@ export function TreeDetailNodeQuickActionsDialog({
           size={20}
           onPress={closeNodeQuickActions}
           style={dialogChrome.closeButton}
-          accessibilityLabel={t('Close')}
+          accessibilityLabel={t(K.common.close)}
         />
         <Dialog.Content style={dialogChrome.content}>
           <Text variant="bodyMedium" style={[styles.quickActionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
             {t('Choose what you want to do with this family member in the tree.')}
           </Text>
           <List.Item
-            title={t('Open profile')}
-            description={t('See photos, memories, and full relationship details')}
+            title={t(K.relationship.openProfile)}
+            description={t(K.relationship.relationshipSummaryHint)}
             left={(props) => <List.Icon {...props} icon="account-arrow-right-outline" />}
             onPress={() => {
               if (!person) {

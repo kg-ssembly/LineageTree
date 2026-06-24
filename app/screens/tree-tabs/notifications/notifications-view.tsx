@@ -15,6 +15,7 @@ import type { NotificationActivityState } from '../../../../components/dto/notif
 import type { MainTabParamList } from '../../../../components/dto/navigation';
 import { GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
+import { I18N_KEYS as K } from '../../../../i18n/keys';
 import type { SharedTabProps } from '../shared';
 
 const dialogChrome = GlobalStyles.dialogChrome;
@@ -70,7 +71,7 @@ export function NotificationsView({
     const directNotifications = notifications.map<NotificationFeedItem>((notification) => ({
       id: `direct-${notification.id}`,
       kind: 'merge-invite',
-      title: t('Merge invitation'),
+      title: t(K.notifications.mergeInvitation),
       message: notification.message,
       createdAt: notification.createdAt,
       status: notification.status,
@@ -83,7 +84,7 @@ export function NotificationsView({
     const approvalNotifications = approvalRequests.map<NotificationFeedItem>((request) => ({
       id: `approval-${request.id}`,
       kind: 'approval',
-      title: request.status === 'pending' ? t('Approval request') : t('Approval update'),
+      title: request.status === 'pending' ? t(K.notifications.approvalRequest) : t(K.notifications.approvalUpdate),
       message: `${request.title} · ${request.description}`,
       createdAt: request.updatedAt,
       status: request.status,
@@ -97,7 +98,7 @@ export function NotificationsView({
     const mergeRequestNotifications = mergeRequests.map<NotificationFeedItem>((request) => ({
       id: `merge-request-${request.id}`,
       kind: 'merge-request',
-      title: t('Merge request'),
+      title: t(K.notifications.mergeRequest),
       message: `${request.preview.sourceTree.treeName} ↔ ${request.preview.targetTree.treeName}`,
       createdAt: request.updatedAt,
       status: request.status,
@@ -111,7 +112,7 @@ export function NotificationsView({
     const mergeHistoryNotifications = mergeHistory.map<NotificationFeedItem>((entry) => ({
       id: `merge-history-${entry.id}`,
       kind: 'merge-history',
-      title: t('Merge activity'),
+      title: t(K.notifications.mergeActivity),
       message: entry.summary,
       createdAt: entry.updatedAt,
       status: entry.status,
@@ -128,7 +129,7 @@ export function NotificationsView({
       .map<NotificationFeedItem>(({ tree, entry }) => ({
         id: `membership-${tree.id}-${entry.id}`,
         kind: 'membership',
-        title: t('Tree access update'),
+        title: t(K.notifications.treeAccessUpdate),
         message: entry.note?.trim()
           ? `${tree.name} · ${entry.note}`
           : `${tree.name} · ${entry.action}`,
@@ -247,13 +248,13 @@ export function NotificationsView({
         <View style={styles.sectionHeader}>
           <View style={styles.titleWrap}>
             <View style={styles.titleWithHelperRow}>
-              <Text variant="headlineSmall">{t('Notifications')}</Text>
+              <Text variant="headlineSmall">{t(K.notifications.notifications)}</Text>
               <IconButton
                 icon="information-outline"
                 size={18}
                 style={styles.helperIconButton}
                 onPress={() => setHelperVisible(true)}
-                accessibilityLabel={t('About notifications')}
+                accessibilityLabel={t(K.notifications.notifications)}
               />
             </View>
           </View>
@@ -263,19 +264,19 @@ export function NotificationsView({
           <Card mode="outlined" style={{ marginBottom: 16, backgroundColor: theme.colors.surface, borderRadius: 16 }}>
             <Card.Content style={{ gap: 12 }}>
               <View style={[styles.collaboratorChipRow, { justifyContent: 'space-between' }]}>
-                <Chip compact icon="bell-ring-outline">{t('{count} unseen', { count: unseenDirectNotifications.length })}</Chip>
-                <Chip compact icon="email-open-outline">{t('{count} unopened', { count: unopenedDirectNotifications.length })}</Chip>
-                <Chip compact icon="check-decagram-outline">{t('{count} unactioned', { count: unactionedDerivedNotifications.length })}</Chip>
+                <Chip compact icon="bell-ring-outline">{t(K.notifications.unseenCount, { count: unseenDirectNotifications.length })}</Chip>
+                <Chip compact icon="email-open-outline">{t(K.notifications.unopenedCount, { count: unopenedDirectNotifications.length })}</Chip>
+                <Chip compact icon="check-decagram-outline">{t(K.notifications.unactionedCount, { count: unactionedDerivedNotifications.length })}</Chip>
               </View>
               <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
                 <Button mode="outlined" onPress={() => { void handleMarkAllSeen(); }} disabled={mutating || unseenDirectNotifications.length === 0}>
-                  {t('Mark all seen')}
+                  {t(K.notifications.markAllSeen)}
                 </Button>
                 <Button mode="outlined" onPress={() => { void handleMarkAllOpened(); }} disabled={mutating || unopenedDirectNotifications.length === 0}>
-                  {t('Mark all opened')}
+                  {t(K.notifications.markAllOpened)}
                 </Button>
                 <Button mode="outlined" onPress={() => { void handleMarkAllActioned(); }} disabled={mutating || unactionedDerivedNotifications.length === 0}>
-                  {t('Mark all actioned')}
+                  {t(K.notifications.markAllActioned)}
                 </Button>
               </View>
             </Card.Content>
@@ -296,38 +297,38 @@ export function NotificationsView({
                         </Text>
                       </View>
                       <View style={styles.collaboratorChipRow}>
-                        {item.notificationId && !item.opened && !item.seen ? <Chip compact icon="bell-ring-outline">{t('New')}</Chip> : null}
-                        {item.notificationId && item.seen && !item.opened ? <Chip compact icon="eye-check-outline">{t('Seen')}</Chip> : null}
-                        {item.actioned ? <Chip compact icon="check-circle-outline">{t('Actioned')}</Chip> : null}
+                        {item.notificationId && !item.opened && !item.seen ? <Chip compact icon="bell-ring-outline">{t(K.notifications.new)}</Chip> : null}
+                        {item.notificationId && item.seen && !item.opened ? <Chip compact icon="eye-check-outline">{t(K.notifications.seen)}</Chip> : null}
+                        {item.actioned ? <Chip compact icon="check-circle-outline">{t(K.notifications.actioned)}</Chip> : null}
                         {item.status ? <Chip compact icon="bell-outline">{item.status}</Chip> : null}
                       </View>
                     </View>
                   </Pressable>
                   <View style={[styles.collaboratorChipRow, { marginTop: 8 }]}>
                     {item.treeName ? <Chip compact icon="family-tree">{item.treeName}</Chip> : null}
-                    {item.kind === 'approval' ? <Chip compact icon="clipboard-check-outline">{t('Approval')}</Chip> : null}
-                    {item.kind === 'merge-request' || item.kind === 'merge-history' || item.kind === 'merge-invite' ? <Chip compact icon="source-merge">{t('Merge')}</Chip> : null}
-                    {item.kind === 'membership' ? <Chip compact icon="account-key-outline">{t('Access')}</Chip> : null}
+                    {item.kind === 'approval' ? <Chip compact icon="clipboard-check-outline">{t(K.notifications.approval)}</Chip> : null}
+                    {item.kind === 'merge-request' || item.kind === 'merge-history' || item.kind === 'merge-invite' ? <Chip compact icon="source-merge">{t(K.notifications.merge)}</Chip> : null}
+                    {item.kind === 'membership' ? <Chip compact icon="account-key-outline">{t(K.notifications.access)}</Chip> : null}
                   </View>
                   <View style={{ flexDirection: 'row', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
                     {item.notificationId && !item.seen && !item.opened ? (
                       <Button mode="text" onPress={() => onMarkNotificationSeen(item.notificationId!)} disabled={mutating}>
-                        {t('Mark seen')}
+                        {t(K.notifications.markSeen)}
                       </Button>
                     ) : null}
                     {item.notificationId && !item.opened ? (
                       <Button mode="text" onPress={() => onMarkNotificationOpened(item.notificationId!)} disabled={mutating}>
-                        {t('Mark opened')}
+                        {t(K.notifications.markOpened)}
                       </Button>
                     ) : null}
                     {item.sourceKind && item.sourceId && !item.actioned ? (
                       <Button mode="text" onPress={() => { void handleMarkActioned(item); }} disabled={mutating}>
-                        {t('Mark actioned')}
+                        {t(K.notifications.markActioned)}
                       </Button>
                     ) : null}
                     {(item.kind === 'approval' || item.kind === 'merge-request' || item.kind === 'merge-history') ? (
                       <Button mode="text" onPress={() => { void handleOpenTarget(item); }} disabled={mutating}>
-                        {item.kind === 'approval' ? t('Open approval') : t('Open merge')}
+                        {item.kind === 'approval' ? t(K.notifications.openApproval) : t(K.notifications.openMerge)}
                       </Button>
                     ) : null}
                   </View>
@@ -337,9 +338,9 @@ export function NotificationsView({
           </View>
         ) : (
           <View style={styles.emptyState}>
-            <Text variant="titleMedium">{t('No notifications yet')}</Text>
+            <Text variant="titleMedium">{t(K.notifications.emptyTitle)}</Text>
             <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
-              {t('Merge invites, approval activity, collaborator access updates, and tree changes will appear here.')}
+              {t(K.notifications.emptyDescription)}
             </Text>
           </View>
         )}
@@ -352,12 +353,12 @@ export function NotificationsView({
           style={[dialogChrome.dialog, { backgroundColor: theme.colors.surface }]}
         >
           <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>
-            {t('Notifications')}
+            {t(K.notifications.notifications)}
           </Dialog.Title>
           <IconButton icon="close" onPress={() => setHelperVisible(false)} style={dialogChrome.closeButton} />
           <Dialog.Content style={dialogChrome.content}>
             <Text variant="bodyMedium">
-              {t('Review merge invites, approvals, merge activity, and tree access updates in one place. Use the notification actions to mark items as seen, opened, or actioned as needed.')}
+              {t(K.notifications.helper)}
             </Text>
           </Dialog.Content>
         </Dialog>
@@ -370,7 +371,7 @@ export function NotificationsView({
           style={[dialogChrome.dialog, { backgroundColor: theme.colors.surface }]}
         >
           <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>
-            {selectedNotification?.title ?? t('Notification')}
+            {selectedNotification?.title ?? t(K.notifications.notification)}
           </Dialog.Title>
           <IconButton icon="close" onPress={() => setSelectedNotification(null)} style={dialogChrome.closeButton} />
           <Dialog.Content style={dialogChrome.content}>
@@ -393,32 +394,32 @@ export function NotificationsView({
           <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
             {selectedNotification?.notificationId && !selectedNotification.seen && !selectedNotification.opened ? (
               <Button mode="text" onPress={() => onMarkNotificationSeen(selectedNotification.notificationId!)} disabled={mutating}>
-                {t('Mark seen')}
+                {t(K.notifications.markSeen)}
               </Button>
             ) : null}
             {selectedNotification?.notificationId && !selectedNotification.opened ? (
               <Button mode="text" onPress={() => onMarkNotificationOpened(selectedNotification.notificationId!)} disabled={mutating}>
-                {t('Mark opened')}
+                {t(K.notifications.markOpened)}
               </Button>
             ) : null}
             {selectedNotification?.sourceKind && selectedNotification.sourceId && !selectedNotification.actioned ? (
               <Button mode="text" onPress={() => { void handleMarkActioned(selectedNotification); }} disabled={mutating}>
-                {t('Mark actioned')}
+                {t(K.notifications.markActioned)}
               </Button>
             ) : null}
             {selectedNotification?.kind === 'merge-invite' && selectedNotification.notificationId && selectedNotification.status === 'pending' ? (
               <>
                 <Button mode="contained-tonal" onPress={() => onRespondToMergeInvite(selectedNotification.notificationId!, 'accepted')} disabled={mutating}>
-                  {t('Accept')}
+                  {t(K.notifications.accept)}
                 </Button>
                 <Button mode="text" onPress={() => onRespondToMergeInvite(selectedNotification.notificationId!, 'dismissed')} disabled={mutating}>
-                  {t('Dismiss')}
+                  {t(K.common.dismiss)}
                 </Button>
               </>
             ) : null}
             {selectedNotification && (selectedNotification.kind === 'approval' || selectedNotification.kind === 'merge-request' || selectedNotification.kind === 'merge-history') ? (
               <Button mode="contained" onPress={() => { void handleOpenTarget(selectedNotification); }} disabled={mutating}>
-                {selectedNotification.kind === 'approval' ? t('Open approval') : t('Open merge')}
+                {selectedNotification.kind === 'approval' ? t(K.notifications.openApproval) : t(K.notifications.openMerge)}
               </Button>
             ) : null}
           </Dialog.Actions>

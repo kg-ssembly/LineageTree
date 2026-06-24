@@ -78,7 +78,7 @@ export function RelationshipsSection({
               <View style={personProfileStyles.relationshipRow}>
                 <View style={personProfileStyles.relationshipTextWrap}>
                   <Chip compact style={personProfileStyles.relationshipChip}>
-                    {entry.mode === 'parent-of' ? t('Parent of') : entry.mode === 'child-of' ? t('Child of') : t('Spouse of')}
+                    {entry.mode === 'parent-of' ? t(K.relationship.parentOf) : entry.mode === 'child-of' ? t(K.relationship.childOf) : t(K.relationship.spouseOf)}
                   </Chip>
                   <Text variant="titleMedium" style={personProfileStyles.relationshipTitle}>{formatPersonName(entry.relatedPerson)}</Text>
                   <Text variant="bodySmall" style={[personProfileStyles.relationshipSubtitle, { color: theme.colors.onSurfaceVariant }]}>
@@ -98,7 +98,7 @@ export function RelationshipsSection({
         <View style={personProfileStyles.emptyState}>
           <Text variant="titleMedium">{t(K.personProfile.noRelationshipsYet)}</Text>
           <Text variant="bodyMedium" style={[personProfileStyles.stateText, { color: theme.colors.onSurfaceVariant }]}>
-            {t('Add parents, children, or spouses from this family member to grow the story around them.')}
+            {t(K.relationship.manageConnectionsDirectly, { name: formatPersonName(linkedPerson) })}
           </Text>
         </View>
       )}

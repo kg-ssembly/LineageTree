@@ -309,7 +309,7 @@ export default function RelationshipInsightCard({
             size={20}
             onPress={closePicker}
             style={[dialogChrome.closeButton, styles.pickerCloseButton]}
-            accessibilityLabel={t('Close')}
+            accessibilityLabel={t(K.common.close)}
           />
           <Dialog.ScrollArea style={dialogChrome.scrollArea}>
             <View>

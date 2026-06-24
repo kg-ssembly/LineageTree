@@ -203,7 +203,7 @@ export function TreeDetailMaidenViewer({
           >
             {t('Back to members')}
           </Button>
-          <IconButton icon="close" size={20} onPress={closeViewerPersonDialog} style={dialogChrome.closeButton} accessibilityLabel={t('Close')} />
+          <IconButton icon="close" size={20} onPress={closeViewerPersonDialog} style={dialogChrome.closeButton} accessibilityLabel={t(K.common.close)} />
           {viewerPerson ? (
             <Dialog.Content style={dialogChrome.content}>
               <View style={{ flexDirection: 'row', gap: 16, alignItems: 'center', marginBottom: 16 }}>
@@ -223,9 +223,9 @@ export function TreeDetailMaidenViewer({
 
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingBottom: 16 }}>
                 {[
-                  { key: 'summary', label: t('Summary') },
-                  { key: 'life', label: t('Life events') },
-                  { key: 'photos', label: t('Photos') },
+                  { key: 'summary', label: t(K.common.summary) },
+                  { key: 'life', label: t(K.memories.lifeEvents) },
+                  { key: 'photos', label: t(K.memories.photos) },
                 ].map((item) => (
                   <Chip key={item.key} selected={viewerProfileTab === item.key} onPress={() => setViewerProfileTab(item.key as 'summary' | 'life' | 'photos')}>
                     {item.label}

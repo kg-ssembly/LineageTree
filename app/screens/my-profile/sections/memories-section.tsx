@@ -114,7 +114,7 @@ export function MemoriesSection({
         <View style={personProfileStyles.lifeEventsSection}>
           <View style={personProfileStyles.sectionHeader}>
             <View style={personProfileStyles.sectionHeaderText}>
-              <Text variant="titleSmall">{t('Life events ({count})', { count: memoryTimeline.length })}</Text>
+              <Text variant="titleSmall">{t(K.memories.lifeEventsCount, { count: memoryTimeline.length })}</Text>
             </View>
             {canEditLinkedProfile ? (
               <Button mode="contained-tonal" icon="plus" onPress={onAddLifeEvent}>

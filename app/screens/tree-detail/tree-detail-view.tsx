@@ -160,7 +160,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     visible: false,
     title: '',
     message: '',
-    confirmLabel: t('Confirm'),
+    confirmLabel: t(K.common.confirm),
     action: null,
   });
   const [treeSettingsFocus, setTreeSettingsFocus] = useState<TreeSettingsFocus>(null);
@@ -443,7 +443,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
   }, []);
 
   const closeConfirm = useCallback(() => {
-    setConfirmState({ visible: false, title: '', message: '', confirmLabel: t('Confirm'), action: null });
+    setConfirmState({ visible: false, title: '', message: '', confirmLabel: t(K.common.confirm), action: null });
   }, [t]);
 
   const openPersonProfile = useCallback((person: PersonRecord) => {
@@ -856,10 +856,10 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
         <Tab.Screen name="PeopleRelationshipsTab" options={{ title: t(K.tree.familyMembers.title) }}>
           {() => <PeopleRelationshipsTabContent {...sharedTabProps} />}
         </Tab.Screen>
-        <Tab.Screen name="VisualisationTab" options={{ title: t('Tree') }}>
+        <Tab.Screen name="VisualisationTab" options={{ title: t(K.navigation.tree) }}>
           {() => <VisualisationTabContent {...sharedTabProps} />}
         </Tab.Screen>
-        <Tab.Screen name="ProfileTab" options={{ title: t('Profile') }}>
+        <Tab.Screen name="ProfileTab" options={{ title: t(K.navigation.profile) }}>
           {() => <TreeSettingsTabContent {...sharedTabProps} />}
         </Tab.Screen>
         <Tab.Screen
@@ -965,7 +965,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
         }}
         duration={5000}
         action={{
-          label: t('Dismiss'),
+          label: t(K.common.dismiss),
           onPress: () => {
             setSnackVisible(false);
             clearError();

@@ -19,6 +19,7 @@ import {
   type FamilyTree,
 } from '../../../components/dto/tree';
 import { useI18n } from '../../../hooks/use-i18n';
+import { I18N_KEYS as K } from '../../../i18n/keys';
 import { useAuthStore } from '../../../stores/auth-store';
 import { useTreeStore } from '../../../stores/tree-store';
 import { getTreeDeletionImpact } from '../../../providers/family-tree-service';
@@ -144,7 +145,7 @@ export function useMainScreenController({ navigation }: Props) {
     visible: false,
     title: '',
     message: '',
-    confirmLabel: t('Confirm'),
+    confirmLabel: t(K.common.confirm),
     action: null,
   });
 
@@ -267,7 +268,7 @@ export function useMainScreenController({ navigation }: Props) {
   }, []);
 
   const closeConfirm = useCallback(() => {
-    setConfirmState({ visible: false, title: '', message: '', confirmLabel: t('Confirm'), action: null });
+    setConfirmState({ visible: false, title: '', message: '', confirmLabel: t(K.common.confirm), action: null });
   }, [t]);
 
   const handleConfirmAction = useCallback(async () => {
@@ -420,7 +421,7 @@ export function useMainScreenController({ navigation }: Props) {
         openConfirm(
           t('Delete family tree'),
           details,
-          t('Delete'),
+          t(K.common.delete),
           async () => {
             await removeTree(tree);
             if (user?.defaultTreeId === tree.id) {
@@ -432,7 +433,7 @@ export function useMainScreenController({ navigation }: Props) {
         openConfirm(
           t('Delete family tree'),
           t('Delete "{treeName}" and everything attached to it, including family members, relationships, photos, collaborator access, approval history, merge records, and connected-tree links? This cannot be undone.', { treeName: tree.name }),
-          t('Delete'),
+          t(K.common.delete),
           async () => {
             await removeTree(tree);
             if (user?.defaultTreeId === tree.id) {

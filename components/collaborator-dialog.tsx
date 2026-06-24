@@ -45,7 +45,7 @@ export default function CollaboratorDialog({
     }
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
-      setError(t('Enter a valid email address.'));
+      setError(t(K.auth.enterValidEmail));
       return;
     }
 
@@ -64,7 +64,7 @@ export default function CollaboratorDialog({
         <Dialog.Content style={dialogChrome.content}>
           <TextInput
             mode="outlined"
-            label={t('Collaborator email')}
+            label={t(K.treeSettings.collaboratorEmail)}
             value={email}
             onChangeText={(value) => {
               setEmail(value);
@@ -86,14 +86,14 @@ export default function CollaboratorDialog({
             onValueChange={(value) => setRole(value as CollaboratorRole)}
             style={styles.roleButtons}
             buttons={[
-              { value: 'viewer', label: t('Viewer') },
-              { value: 'contributor', label: t('Contributor') },
-              { value: 'editor', label: t('Editor') },
+              { value: 'viewer', label: t(K.treeSettings.viewer) },
+              { value: 'contributor', label: t(K.treeSettings.contributor) },
+              { value: 'editor', label: t(K.treeSettings.editor) },
             ]}
           />
         </Dialog.Content>
         <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
-          <Button mode="contained" onPress={handleSubmit} disabled={loading}>{t('Invite')}</Button>
+          <Button mode="contained" onPress={handleSubmit} disabled={loading}>{t(K.treeSettings.invite)}</Button>
         </Dialog.Actions>
       </Dialog>
     </Portal>

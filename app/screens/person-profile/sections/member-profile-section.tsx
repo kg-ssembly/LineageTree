@@ -47,7 +47,7 @@ export function MemberProfileSection({
         </View>
         {canEdit ? (
           <Button mode="contained-tonal" icon="pencil" onPress={onEdit}>
-            {t('Edit family member')}
+            {t(K.personProfile.editFamilyMember)}
           </Button>
         ) : null}
       </View>
@@ -55,27 +55,27 @@ export function MemberProfileSection({
       <View style={styles.metadataRow}>
         {person.gender !== 'unspecified' ? <Chip compact>{formatPersonGender(person.gender)}</Chip> : null}
         <Chip compact icon={isPersonDeceased(person) ? 'flower-outline' : 'heart-pulse'}>{getPersonPresenceLabel(person)}</Chip>
-        <Chip compact icon="image-multiple">{t('{count} photos', { count: person.photos.length })}</Chip>
-        <Chip compact icon="source-branch">{t('{count} tree memberships', { count: getPersonTreeMembershipIds(person).length })}</Chip>
-        {preferredPhoto ? <Chip compact icon="star">{t('Preferred photo selected')}</Chip> : null}
-        {linkedCollaboratorLabel && !isCurrentUsersPerson ? <Chip compact icon="link-variant">{t('Linked')}</Chip> : null}
-        {person.canonicalPersonId?.trim() ? <Chip compact icon="merge">{t('Merged canonical profile')}</Chip> : null}
+        <Chip compact icon="image-multiple">{t(K.memories.photoGalleryCount, { count: person.photos.length })}</Chip>
+        <Chip compact icon="source-branch">{t(K.personProfile.treeMemberships)}: {getPersonTreeMembershipIds(person).length}</Chip>
+        {preferredPhoto ? <Chip compact icon="star">{t(K.personProfile.preferredPhotoSelected)}</Chip> : null}
+        {linkedCollaboratorLabel && !isCurrentUsersPerson ? <Chip compact icon="link-variant">{t(K.common.linked)}</Chip> : null}
+        {person.canonicalPersonId?.trim() ? <Chip compact icon="merge">{t(K.personProfile.mergedCanonicalProfile)}</Chip> : null}
       </View>
 
       <View style={styles.detailGrid}>
         <View style={[styles.detailCard, { backgroundColor: theme.colors.elevation.level1 }]}>
-          <Text variant="labelMedium" style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>{t('First name')}</Text>
-          <Text variant="titleMedium">{person.firstName || t('Unknown')}</Text>
+          <Text variant="labelMedium" style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>{t(K.personProfile.firstName)}</Text>
+          <Text variant="titleMedium">{person.firstName || t(K.common.unknown)}</Text>
         </View>
         {person.middleNames?.trim() ? (
           <View style={[styles.detailCard, { backgroundColor: theme.colors.elevation.level1 }]}>
-            <Text variant="labelMedium" style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>{t('Second / middle names')}</Text>
+            <Text variant="labelMedium" style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>{t(K.personProfile.secondMiddleNames)}</Text>
             <Text variant="titleMedium">{person.middleNames.trim()}</Text>
           </View>
         ) : null}
         <View style={[styles.detailCard, { backgroundColor: theme.colors.elevation.level1 }]}>
           <Text variant="labelMedium" style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>{t(K.personForm.lastName)}</Text>
-          <Text variant="titleMedium">{person.lastName || t('Unknown')}</Text>
+          <Text variant="titleMedium">{person.lastName || t(K.common.unknown)}</Text>
         </View>
         {person.maidenName?.trim() ? (
           <View style={[styles.detailCard, { backgroundColor: theme.colors.elevation.level1 }]}>
@@ -85,18 +85,18 @@ export function MemberProfileSection({
         ) : null}
         <View style={[styles.detailCard, { backgroundColor: theme.colors.elevation.level1 }]}>
           <Text variant="labelMedium" style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>{t(K.personForm.birthDate)}</Text>
-          <Text variant="titleMedium">{person.birthDate ? formatPersonDate(person.birthDate) : t('Unknown')}</Text>
+          <Text variant="titleMedium">{person.birthDate ? formatPersonDate(person.birthDate) : t(K.common.unknown)}</Text>
         </View>
         <View style={[styles.detailCard, { backgroundColor: theme.colors.elevation.level1 }]}>
           <Text variant="labelMedium" style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>{t(K.personProfile.treeMemberships)}</Text>
-          <Text variant="titleMedium">{getPersonTreeMembershipIds(person).join(', ') || t('Current tree only')}</Text>
+          <Text variant="titleMedium">{getPersonTreeMembershipIds(person).join(', ') || t(K.personProfile.currentTreeOnly)}</Text>
         </View>
       </View>
 
       <View style={[styles.notesBox, { backgroundColor: theme.colors.surfaceVariant }]}>
-        <Text variant="titleSmall">{t('Notes')}</Text>
+        <Text variant="titleSmall">{t(K.memories.notes)}</Text>
         <Text variant="bodyMedium" style={[styles.notesText, { color: theme.colors.onSurfaceVariant }]}>
-          {person.notes || t('No notes added yet.')}
+          {person.notes || t(K.memories.noNotesAddedYet)}
         </Text>
       </View>
     </Surface>

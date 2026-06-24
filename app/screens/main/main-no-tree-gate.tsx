@@ -3,6 +3,7 @@ import { StyleSheet, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Button, Text } from 'react-native-paper';
 import { GlobalStyles } from '../../../constants/styles';
+import { I18N_KEYS as K } from '../../../i18n/keys';
 import type { useMainScreenController } from './main-controller';
 
 const homeStyles = GlobalStyles.home;
@@ -31,13 +32,13 @@ export function MainNoTreeGate({
     <View style={[localStyles.noTreeGate, { backgroundColor: controller.theme.colors.background }]}>
       <MaterialCommunityIcons name="family-tree" size={64} color={controller.theme.colors.primary} />
       <Text variant="headlineSmall" style={[localStyles.noTreeGateText, { color: controller.theme.colors.onSurface }]}>
-        {controller.t('No family tree yet')}
+        {controller.t(K.app.noFamilyTreeYet)}
       </Text>
       <Text variant="bodyMedium" style={[localStyles.noTreeGateText, { color: controller.theme.colors.onSurfaceVariant }]}>
-        {controller.t('Create your first family tree to start adding people, photos, and relationships.')}
+        {controller.t(K.app.createFirstFamilyTree)}
       </Text>
       <Button mode="contained" icon="plus" onPress={onCreateTree} contentStyle={homeStyles.headerButtonContent}>
-        {controller.t('Create family tree')}
+        {controller.t(K.app.createFamilyTree)}
       </Button>
     </View>
   );

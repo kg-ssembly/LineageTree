@@ -125,7 +125,7 @@ export default function LifeEventDialog({
           style={[dialogChrome.dialog, styles.dialog, { backgroundColor: theme.colors.surface }]}
         >
           <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{event ? t('Edit life event') : t('Add life event')}</Dialog.Title>
-          <IconButton icon="close" onPress={onDismiss} disabled={loading} accessibilityLabel={t('Cancel')} style={dialogChrome.closeButton} />
+          <IconButton icon="close" onPress={onDismiss} disabled={loading} accessibilityLabel={t(K.common.cancel)} style={dialogChrome.closeButton} />
           <Dialog.ScrollArea style={[dialogChrome.scrollArea, styles.scrollArea]}>
             <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
               <Text variant="bodyMedium" style={styles.helperText}>
@@ -172,7 +172,7 @@ export default function LifeEventDialog({
                   </Button>
                   {date ? (
                     <Button onPress={() => setDate('')} disabled={loading}>
-                      {t('Clear')}
+                      {t(K.common.clear)}
                     </Button>
                   ) : null}
                 </View>
@@ -200,11 +200,11 @@ export default function LifeEventDialog({
             ]}
           >
             {event && onDelete ? (
-              <IconButton icon="trash-can-outline" iconColor={theme.colors.error} onPress={onDelete} disabled={loading} accessibilityLabel={t('Delete')} />
+              <IconButton icon="trash-can-outline" iconColor={theme.colors.error} onPress={onDelete} disabled={loading} accessibilityLabel={t(K.common.delete)} />
             ) : (
               <View />
             )}
-            <Button mode="contained" onPress={handleSubmit} disabled={loading}>{t('Save')}</Button>
+            <Button mode="contained" onPress={handleSubmit} disabled={loading}>{t(K.common.save)}</Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>
@@ -224,7 +224,7 @@ export default function LifeEventDialog({
             }
           }
         }}
-        saveLabel={t('Save')}
+        saveLabel={t(K.common.save)}
         label={t('Select event date')}
       />
     </>

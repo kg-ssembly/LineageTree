@@ -10,6 +10,7 @@ import {
 } from '../../../components';
 import { canManageTree } from '../../../components/dto/tree';
 import { GlobalStyles } from '../../../constants/styles';
+import { I18N_KEYS as K } from '../../../i18n/keys';
 import type { useMainScreenController } from './main-controller';
 import { MainNoTreeGate } from './main-no-tree-gate';
 import { MainNodeQuickActionsDialog } from './main-node-quick-actions-dialog';
@@ -108,7 +109,7 @@ export function MainScreenView({ controller }: { controller: ReturnType<typeof u
         visible={controller.snackVisible}
         onDismiss={controller.dismissSnackbar}
         duration={5000}
-        action={{ label: controller.t('Dismiss'), onPress: controller.dismissSnackbar }}
+        action={{ label: controller.t(K.common.dismiss), onPress: controller.dismissSnackbar }}
       >
         {controller.snackMessage}
       </Snackbar>

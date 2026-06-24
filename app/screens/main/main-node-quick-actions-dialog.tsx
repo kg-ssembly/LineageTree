@@ -4,6 +4,7 @@ import { Dialog, IconButton, Portal, Text } from 'react-native-paper';
 import { extractSurname } from '../../../components/family-tree-surname-clusters';
 import { formatPersonName } from '../../../components/person-formatting';
 import { GlobalStyles } from '../../../constants/styles';
+import { I18N_KEYS as K } from '../../../i18n/keys';
 import type { useMainScreenController } from './main-controller';
 
 const dialogChrome = GlobalStyles.dialogChrome;
@@ -29,15 +30,15 @@ export function MainNodeQuickActionsDialog({
           size={20}
           onPress={controller.closeNodeQuickActions}
           style={dialogChrome.closeButton}
-          accessibilityLabel={controller.t('Close')}
+          accessibilityLabel={controller.t(K.common.close)}
         />
         <Dialog.Content style={dialogChrome.content}>
           <Text variant="bodyMedium" style={[styles.quickActionSubtitle, { color: controller.theme.colors.onSurfaceVariant }]}>
             {controller.t('Choose what you want to do with this family member.')}
           </Text>
           <List.Item
-            title={controller.t('Open profile')}
-            description={controller.t('See photos, memories, and full relationship details')}
+            title={controller.t(K.relationship.openProfile)}
+            description={controller.t(K.relationship.relationshipSummaryHint)}
             left={(props) => <List.Icon {...props} icon="account-arrow-right-outline" />}
             onPress={() => {
               const person = controller.nodeQuickActionState.person;

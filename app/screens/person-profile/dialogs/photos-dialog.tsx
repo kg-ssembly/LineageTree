@@ -50,15 +50,15 @@ export function PersonPhotosDialog({
     <Portal>
       <Dialog visible={visible} onDismiss={mutating ? undefined : onDismiss} style={[dialogChrome.dialog, styles.memoryDialog, { backgroundColor: theme.colors.surface }]}>
         <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{t(K.memories.managePhotos)}</Dialog.Title>
-        <IconButton icon="close" onPress={onDismiss} disabled={mutating} accessibilityLabel={t('Cancel')} style={dialogChrome.closeButton} />
+        <IconButton icon="close" onPress={onDismiss} disabled={mutating} accessibilityLabel={t(K.common.cancel)} style={dialogChrome.closeButton} />
         <Dialog.ScrollArea style={styles.memoryDialogScrollArea}>
           <ScrollView contentContainerStyle={styles.memoryDialogContent} keyboardShouldPersistTaps="handled">
             <View style={styles.memoryDialogPhotoActions}>
               <Button mode="outlined" icon="image-plus" onPress={onLibrary} disabled={mutating || photoProcessing || photoEditorCount >= MAX_PHOTOS_PER_PERSON}>
-                {t('Library')}
+                {t(K.common.library)}
               </Button>
               <Button mode="outlined" icon="camera" onPress={onCamera} disabled={mutating || photoProcessing || photoEditorCount >= MAX_PHOTOS_PER_PERSON}>
-                {t('Camera')}
+                {t(K.common.camera)}
               </Button>
             </View>
             <Text variant="bodySmall" style={styles.memoryDialogHint}>

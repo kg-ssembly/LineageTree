@@ -125,7 +125,7 @@ export function PersonMemoriesSection({
         <View style={styles.lifeEventsSection}>
           <View style={styles.sectionHeader}>
             <View style={styles.sectionHeaderText}>
-              <Text variant="titleSmall">{t('Life events ({count})', { count: memoryTimeline.length })}</Text>
+              <Text variant="titleSmall">{t(K.memories.lifeEventsCount, { count: memoryTimeline.length })}</Text>
             </View>
             {canEdit ? (
               <Button mode="contained-tonal" icon="plus" onPress={onAddLifeEvent}>

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { TextInput } from 'react-native-paper';
 import { useI18n } from '../../../../hooks/use-i18n';
+import { I18N_KEYS as K } from '../../../../i18n/keys';
 import { useAuthStore } from '../../../../stores/auth-store';
 import { type AuthFieldConfig } from '../shared/auth-form-view';
 import { validateDisplayName, validateEmail, validateSignUpPassword } from '../shared/auth-validation';
@@ -56,7 +57,7 @@ export function useSignUpScreenController(navigation: SignUpNavigation) {
   const fields = useMemo<AuthFieldConfig[]>(() => [
     {
       key: 'displayName',
-      label: t('Full name'),
+      label: t(K.common.fullName),
       value: displayName,
       onChangeText: (value) => {
         setDisplayName(value);
@@ -68,7 +69,7 @@ export function useSignUpScreenController(navigation: SignUpNavigation) {
     },
     {
       key: 'email',
-      label: t('Email'),
+      label: t(K.common.email),
       value: email,
       onChangeText: (value) => {
         setEmail(value);
@@ -82,7 +83,7 @@ export function useSignUpScreenController(navigation: SignUpNavigation) {
     },
     {
       key: 'password',
-      label: t('Password'),
+      label: t(K.common.password),
       value: password,
       onChangeText: (value) => {
         setPassword(value);
@@ -110,19 +111,19 @@ export function useSignUpScreenController(navigation: SignUpNavigation) {
 
   return {
     chipIcon: 'sprout',
-    chipLabel: t('Start your first branch'),
-    title: t('Sign up'),
-    heroTitle: t('Create your account'),
-    heroSubtitle: t('Capture generations, memories, and milestones in a more beautiful family workspace.'),
-    subtitle: t('Set up your space in less than a minute.'),
-    submitLabel: t('Create account'),
-    secondaryActionLabel: t('Already have an account? Sign in'),
+    chipLabel: t(K.auth.startYourFirstBranch),
+    title: t(K.auth.signUp),
+    heroTitle: t(K.auth.createYourAccount),
+    heroSubtitle: t(K.auth.captureGenerations),
+    subtitle: t(K.auth.setUpYourSpace),
+    submitLabel: t(K.auth.createAccount),
+    secondaryActionLabel: t(K.auth.alreadyHaveAccountSignIn),
     submitLoading: loading,
     fields,
     snackbarVisible: snackVisible,
     snackbarMessage: error,
     onDismissSnackbar: dismissSnackbar,
-    dismissLabel: t('Dismiss'),
+    dismissLabel: t(K.common.dismiss),
     onSubmit: handleSignUp,
     onSecondaryAction: () => navigation.navigate('Login'),
   };

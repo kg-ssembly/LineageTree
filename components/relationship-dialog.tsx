@@ -170,8 +170,8 @@ export default function RelationshipDialog({
         onDismiss={loading ? undefined : onDismiss}
         style={[dialogChrome.dialog, styles.dialog, { backgroundColor: theme.colors.surface }]}
       >
-        <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose, styles.dialogTitle]}>{t('Add relationship')}</Dialog.Title>
-        <IconButton icon="close" onPress={onDismiss} disabled={loading} accessibilityLabel={t('Cancel')} style={dialogChrome.closeButton} />
+        <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose, styles.dialogTitle]}>{t(K.relationship.addRelationship)}</Dialog.Title>
+        <IconButton icon="close" onPress={onDismiss} disabled={loading} accessibilityLabel={t(K.common.cancel)} style={dialogChrome.closeButton} />
         <Dialog.ScrollArea style={[dialogChrome.scrollArea, styles.scrollArea]}>
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
             <View style={[styles.relationshipTypeCard, { borderColor: theme.colors.outlineVariant }]}>
@@ -245,13 +245,13 @@ export default function RelationshipDialog({
                 <Text variant="titleSmall">{firstLabel}</Text>
                 {selectedFromPerson ? (
                   <Chip compact selected onPress={() => setFromPersonId('')}>
-                    {t('Selected')}
+                    {t(K.relationship.selected)}
                   </Chip>
                 ) : null}
               </View>
               <TextInput
                 mode="outlined"
-                label={t('Search family member')}
+                label={t(K.common.searchFamilyMember)}
                 value={fromSearch}
                 onChangeText={setFromSearch}
                 style={styles.searchInput}
@@ -259,7 +259,7 @@ export default function RelationshipDialog({
                 left={<TextInput.Icon icon="magnify" />}
               />
               <Text variant="bodySmall" style={styles.helperCopy}>
-                {t('Search by name, then pick from the best matches instead of scanning the whole tree.')}
+                {t(K.relationship.searchHelper)}
               </Text>
               {selectedFromPerson ? (
                 <View style={styles.selectedChipRow}>
@@ -291,12 +291,12 @@ export default function RelationshipDialog({
                 </View>
               ) : (
                 <View style={styles.emptyState}>
-                  <Text variant="bodyMedium">{t('No matching family members found for this side yet.')}</Text>
+                  <Text variant="bodyMedium">{t(K.relationship.noMatchesThisSide)}</Text>
                 </View>
               )}
               {fromMatches.length > MAX_VISIBLE_RESULTS ? (
                 <Text variant="bodySmall" style={styles.resultsFooterText}>
-                  {t('Showing the first 3 matches. Keep typing to narrow the list.')}
+                  {t(K.relationship.keepTypingToNarrow)}
                 </Text>
               ) : null}
             </View>
@@ -306,13 +306,13 @@ export default function RelationshipDialog({
                 <Text variant="titleSmall">{secondLabel}</Text>
                 {selectedToPerson ? (
                   <Chip compact selected onPress={() => setToPersonId('')}>
-                    {t('Selected')}
+                    {t(K.relationship.selected)}
                   </Chip>
                 ) : null}
               </View>
               <TextInput
                 mode="outlined"
-                label={t('Search family member')}
+                label={t(K.common.searchFamilyMember)}
                 value={toSearch}
                 onChangeText={setToSearch}
                 style={styles.searchInput}
@@ -352,12 +352,12 @@ export default function RelationshipDialog({
                 </View>
               ) : (
                 <View style={styles.emptyState}>
-                  <Text variant="bodyMedium">{t('No matching family members found for this side yet.')}</Text>
+                  <Text variant="bodyMedium">{t(K.relationship.noMatchesThisSide)}</Text>
                 </View>
               )}
               {toMatches.length > MAX_VISIBLE_RESULTS ? (
                 <Text variant="bodySmall" style={styles.resultsFooterText}>
-                  {t('Showing the first 3 matches. Keep typing to narrow the list.')}
+                  {t(K.relationship.keepTypingToNarrow)}
                 </Text>
               ) : null}
             </View>
@@ -368,7 +368,7 @@ export default function RelationshipDialog({
           </ScrollView>
         </Dialog.ScrollArea>
         <Dialog.Actions style={[dialogChrome.dialogActions, styles.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
-          <Button mode="contained" onPress={handleSubmit} disabled={loading || people.length < 2 || !!validationMessage}>{t('Save')}</Button>
+          <Button mode="contained" onPress={handleSubmit} disabled={loading || people.length < 2 || !!validationMessage}>{t(K.common.save)}</Button>
         </Dialog.Actions>
       </Dialog>
     </Portal>

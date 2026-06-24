@@ -1,10 +1,12 @@
+import { I18N_KEYS as K } from '../../../../i18n/keys';
+
 export function validateEmail(email: string, t: (message: string) => string): string | null {
   if (!email.trim()) {
     return t('Email is required.');
   }
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    return t('Enter a valid email address.');
+    return t(K.auth.enterValidEmail);
   }
 
   return null;
@@ -12,7 +14,7 @@ export function validateEmail(email: string, t: (message: string) => string): st
 
 export function validateLoginPassword(password: string, t: (message: string) => string): string | null {
   if (!password) {
-    return t('Password is required.');
+    return t(K.auth.passwordRequired);
   }
 
   return null;
@@ -20,7 +22,7 @@ export function validateLoginPassword(password: string, t: (message: string) => 
 
 export function validateSignUpPassword(password: string, t: (message: string) => string): string | null {
   if (!password) {
-    return t('Password is required.');
+    return t(K.auth.passwordRequired);
   }
 
   if (password.length < 8) {

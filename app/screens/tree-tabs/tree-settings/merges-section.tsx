@@ -3,6 +3,7 @@ import { Pressable, View } from 'react-native';
 import { Button, Card, Chip, Divider, IconButton, ProgressBar, Text, TextInput, useTheme } from 'react-native-paper';
 import { GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
+import { I18N_KEYS as K } from '../../../../i18n/keys';
 import type { MergesSectionProps } from './tree-settings-shared';
 
 const styles = GlobalStyles.treeDetail;
@@ -91,7 +92,7 @@ export function MergesSection({
                         {t('Use this tree')}
                       </Button>
                       <Button mode="text" onPress={() => onRespondToMergeInvite(notification.id, 'dismissed')} disabled={mutating}>
-                        {t('Dismiss')}
+                        {t(K.common.dismiss)}
                       </Button>
                     </View>
                   </Card.Content>

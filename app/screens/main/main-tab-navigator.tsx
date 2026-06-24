@@ -2,6 +2,7 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import type { MainTabParamList } from '../../../components/dto/navigation';
+import { I18N_KEYS as K } from '../../../i18n/keys';
 import PersonProfileScreen from '../person-profile';
 import { NotificationsTabContent, PeopleRelationshipsTabContent, TreeSettingsTabContent, VisualisationTabContent } from '../tree-tab-content';
 import { UserProfileTabContent } from '../my-profile';
@@ -45,11 +46,11 @@ export function MainTabNavigator({
         ),
       })}
     >
-      <Tab.Screen name="tree" options={{ title: controller.t('Tree') }}>
+      <Tab.Screen name="tree" options={{ title: controller.t(K.navigation.tree) }}>
         {() => (controller.sharedTabProps ? <VisualisationTabContent {...controller.sharedTabProps} /> : noTreeGate)}
       </Tab.Screen>
 
-      <Tab.Screen name="members" options={{ title: controller.t('Members') }}>
+      <Tab.Screen name="members" options={{ title: controller.t(K.navigation.members) }}>
         {() => (controller.sharedTabProps
           ? controller.memberProfileParams
             ? (
@@ -62,21 +63,21 @@ export function MainTabNavigator({
           : noTreeGate)}
       </Tab.Screen>
 
-      <Tab.Screen name="treeSettings" options={{ title: controller.t('Settings') }}>
+      <Tab.Screen name="treeSettings" options={{ title: controller.t(K.navigation.settings) }}>
         {() => (controller.sharedTabProps ? <TreeSettingsTabContent {...controller.sharedTabProps} /> : noTreeGate)}
       </Tab.Screen>
 
       <Tab.Screen
         name="notifications"
         options={{
-          title: controller.t('Notifications'),
+          title: controller.t(K.navigation.notifications),
           tabBarBadge: controller.notificationBadgeCount > 0 ? controller.notificationBadgeCount : undefined,
         }}
       >
         {() => (controller.sharedTabProps ? <NotificationsTabContent {...controller.sharedTabProps} /> : noTreeGate)}
       </Tab.Screen>
 
-      <Tab.Screen name="myProfile" options={{ title: controller.t('Profile') }}>
+      <Tab.Screen name="myProfile" options={{ title: controller.t(K.navigation.profile) }}>
         {() => <UserProfileTabContent onSignOut={controller.signOut} authLoading={controller.authLoading} />}
       </Tab.Screen>
     </Tab.Navigator>

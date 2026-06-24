@@ -26,25 +26,25 @@ export function ProfileOverviewSection({
       <View style={personProfileStyles.metadataRow}>
         {linkedPerson.gender !== 'unspecified' ? <Chip compact>{formatPersonGender(linkedPerson.gender)}</Chip> : null}
         <Chip compact icon={isPersonDeceased(linkedPerson) ? 'flower-outline' : 'heart-pulse'}>{getPersonPresenceLabel(linkedPerson)}</Chip>
-        <Chip compact icon="image-multiple">{t('{count} photos', { count: linkedPerson.photos.length })}</Chip>
-        <Chip compact icon="source-branch">{t('{count} tree memberships', { count: getPersonTreeMembershipIds(linkedPerson).length })}</Chip>
-        {preferredPhoto ? <Chip compact icon="star">{t('Preferred photo selected')}</Chip> : null}
+        <Chip compact icon="image-multiple">{t(K.memories.photoGalleryCount, { count: linkedPerson.photos.length })}</Chip>
+        <Chip compact icon="source-branch">{t(K.personProfile.treeMemberships)}: {getPersonTreeMembershipIds(linkedPerson).length}</Chip>
+        {preferredPhoto ? <Chip compact icon="star">{t(K.personProfile.preferredPhotoSelected)}</Chip> : null}
       </View>
 
       <View style={personProfileStyles.detailGrid}>
         <View style={[personProfileStyles.detailCard, { backgroundColor: theme.colors.elevation.level1 }]}>
-          <Text variant="labelMedium" style={[personProfileStyles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>{t('First name')}</Text>
-          <Text variant="titleMedium">{linkedPerson.firstName || t('Unknown')}</Text>
+          <Text variant="labelMedium" style={[personProfileStyles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>{t(K.personProfile.firstName)}</Text>
+          <Text variant="titleMedium">{linkedPerson.firstName || t(K.common.unknown)}</Text>
         </View>
         {linkedPerson.middleNames?.trim() ? (
           <View style={[personProfileStyles.detailCard, { backgroundColor: theme.colors.elevation.level1 }]}>
-            <Text variant="labelMedium" style={[personProfileStyles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>{t('Second / middle names')}</Text>
+            <Text variant="labelMedium" style={[personProfileStyles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>{t(K.personProfile.secondMiddleNames)}</Text>
             <Text variant="titleMedium">{linkedPerson.middleNames.trim()}</Text>
           </View>
         ) : null}
         <View style={[personProfileStyles.detailCard, { backgroundColor: theme.colors.elevation.level1 }]}>
           <Text variant="labelMedium" style={[personProfileStyles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>{t(K.personForm.lastName)}</Text>
-          <Text variant="titleMedium">{linkedPerson.lastName || t('Unknown')}</Text>
+          <Text variant="titleMedium">{linkedPerson.lastName || t(K.common.unknown)}</Text>
         </View>
         {linkedPerson.maidenName?.trim() ? (
           <View style={[personProfileStyles.detailCard, { backgroundColor: theme.colors.elevation.level1 }]}>
@@ -54,18 +54,18 @@ export function ProfileOverviewSection({
         ) : null}
         <View style={[personProfileStyles.detailCard, { backgroundColor: theme.colors.elevation.level1 }]}>
           <Text variant="labelMedium" style={[personProfileStyles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>{t(K.personForm.birthDate)}</Text>
-          <Text variant="titleMedium">{linkedPerson.birthDate ? formatPersonDate(linkedPerson.birthDate) : t('Unknown')}</Text>
+          <Text variant="titleMedium">{linkedPerson.birthDate ? formatPersonDate(linkedPerson.birthDate) : t(K.common.unknown)}</Text>
         </View>
         <View style={[personProfileStyles.detailCard, { backgroundColor: theme.colors.elevation.level1 }]}>
           <Text variant="labelMedium" style={[personProfileStyles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>{t(K.personProfile.treeMemberships)}</Text>
-          <Text variant="titleMedium">{getPersonTreeMembershipIds(linkedPerson).join(', ') || t('Current tree only')}</Text>
+          <Text variant="titleMedium">{getPersonTreeMembershipIds(linkedPerson).join(', ') || t(K.personProfile.currentTreeOnly)}</Text>
         </View>
       </View>
 
       <View style={[personProfileStyles.notesBox, { backgroundColor: theme.colors.surfaceVariant }]}>
-        <Text variant="titleSmall">{t('Notes')}</Text>
+        <Text variant="titleSmall">{t(K.memories.notes)}</Text>
         <Text variant="bodyMedium" style={[personProfileStyles.notesText, { color: theme.colors.onSurfaceVariant }]}>
-          {linkedPerson.notes || t('No notes added yet.')}
+          {linkedPerson.notes || t(K.memories.noNotesAddedYet)}
         </Text>
       </View>
     </Surface>

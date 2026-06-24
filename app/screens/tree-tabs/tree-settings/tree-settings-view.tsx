@@ -12,6 +12,7 @@ import {
 } from '../../../../components/dto/tree';
 import { GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
+import { I18N_KEYS as K } from '../../../../i18n/keys';
 import { normaliseSurnameKey } from '../../tree-screen-helpers';
 import type { SharedTabProps } from '../shared';
 import { ApprovalsSection } from './approvals-section';
@@ -602,17 +603,17 @@ function TreeSettingsContent({
               setSurnameVariantDrafts(treeSurnameVariants);
               setSurnameVariantDialogVisible(false);
             }}>
-              {t('Cancel')}
+              {t(K.common.cancel)}
             </Button>
             <Button mode="contained" onPress={handleSaveSurnameVariants} disabled={mutating}>
-              {t('Save')}
+              {t(K.common.save)}
             </Button>
           </Dialog.Actions>
         </Dialog>
 
         <Dialog visible={helperDialog.visible} onDismiss={() => setHelperDialog((current) => ({ ...current, visible: false }))} style={[dialogChrome.dialog, { backgroundColor: theme.colors.surface }]}>
           <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{t(TREE_HELPER_COPY[helperDialog.key].title)}</Dialog.Title>
-          <IconButton icon="close" size={20} onPress={() => setHelperDialog((current) => ({ ...current, visible: false }))} style={dialogChrome.closeButton} accessibilityLabel={t('Close')} />
+          <IconButton icon="close" size={20} onPress={() => setHelperDialog((current) => ({ ...current, visible: false }))} style={dialogChrome.closeButton} accessibilityLabel={t(K.common.close)} />
           <Dialog.Content style={dialogChrome.content}>
             <Text variant="bodyMedium">{t(TREE_HELPER_COPY[helperDialog.key].message)}</Text>
           </Dialog.Content>
@@ -622,7 +623,7 @@ function TreeSettingsContent({
           <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>
             {previewApprovalRequest?.title ?? t('Approval preview')}
           </Dialog.Title>
-          <IconButton icon="close" size={20} onPress={() => setPreviewApprovalRequest(null)} style={dialogChrome.closeButton} accessibilityLabel={t('Close')} />
+          <IconButton icon="close" size={20} onPress={() => setPreviewApprovalRequest(null)} style={dialogChrome.closeButton} accessibilityLabel={t(K.common.close)} />
           <Dialog.ScrollArea style={dialogChrome.scrollArea}>
             <ScrollView contentContainerStyle={{ paddingBottom: 8 }} keyboardShouldPersistTaps="handled">
               {previewApprovalRequest ? (
@@ -661,7 +662,7 @@ function TreeSettingsContent({
 
         <Dialog visible={mergePreviewVisible} onDismiss={() => setMergePreviewVisible(false)} style={[dialogChrome.dialog, { backgroundColor: theme.colors.surface }]}>
           <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{t('Merge preview')}</Dialog.Title>
-          <IconButton icon="close" size={20} onPress={() => setMergePreviewVisible(false)} style={dialogChrome.closeButton} accessibilityLabel={t('Close')} />
+          <IconButton icon="close" size={20} onPress={() => setMergePreviewVisible(false)} style={dialogChrome.closeButton} accessibilityLabel={t(K.common.close)} />
           <Dialog.ScrollArea style={dialogChrome.scrollArea}>
             <ScrollView contentContainerStyle={{ paddingBottom: 8 }} keyboardShouldPersistTaps="handled">
               {mergePreview ? (
@@ -706,7 +707,7 @@ function TreeSettingsContent({
 
         <Dialog visible={mergeHistoryVisible} onDismiss={() => setMergeHistoryVisible(false)} style={[dialogChrome.dialog, { backgroundColor: theme.colors.surface }]}>
           <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{t('Merge history and undo')}</Dialog.Title>
-          <IconButton icon="close" size={20} onPress={() => setMergeHistoryVisible(false)} style={dialogChrome.closeButton} accessibilityLabel={t('Close')} />
+          <IconButton icon="close" size={20} onPress={() => setMergeHistoryVisible(false)} style={dialogChrome.closeButton} accessibilityLabel={t(K.common.close)} />
           <Dialog.ScrollArea style={dialogChrome.scrollArea}>
             <ScrollView contentContainerStyle={{ paddingBottom: 8 }} keyboardShouldPersistTaps="handled">
               {mergeHistory.length > 0 ? (
@@ -767,7 +768,7 @@ function TreeSettingsContent({
         </Dialog>
       </Portal>
 
-      <Snackbar visible={copyNoticeVisible} onDismiss={() => setCopyNoticeVisible(false)} duration={2200} action={{ label: t('Dismiss'), onPress: () => setCopyNoticeVisible(false) }}>
+      <Snackbar visible={copyNoticeVisible} onDismiss={() => setCopyNoticeVisible(false)} duration={2200} action={{ label: t(K.common.dismiss), onPress: () => setCopyNoticeVisible(false) }}>
         {copyNoticeMessage}
       </Snackbar>
     </ScrollView>

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { TextInput } from 'react-native-paper';
 import { useI18n } from '../../../../hooks/use-i18n';
+import { I18N_KEYS as K } from '../../../../i18n/keys';
 import { useAuthStore } from '../../../../stores/auth-store';
 import { type AuthFieldConfig } from '../shared/auth-form-view';
 import { validateEmail, validateLoginPassword } from '../shared/auth-validation';
@@ -53,7 +54,7 @@ export function useLoginScreenController(navigation: LoginNavigation) {
   const fields = useMemo<AuthFieldConfig[]>(() => [
     {
       key: 'email',
-      label: t('Email'),
+      label: t(K.common.email),
       value: email,
       onChangeText: (value) => {
         setEmail(value);
@@ -67,7 +68,7 @@ export function useLoginScreenController(navigation: LoginNavigation) {
     },
     {
       key: 'password',
-      label: t('Password'),
+      label: t(K.common.password),
       value: password,
       onChangeText: (value) => {
         setPassword(value);
@@ -92,19 +93,19 @@ export function useLoginScreenController(navigation: LoginNavigation) {
 
   return {
     chipIcon: 'account-heart',
-    chipLabel: t('Welcome back'),
-    title: t('Sign in'),
+    chipLabel: t(K.auth.welcomeBack),
+    title: t(K.auth.signIn),
     heroTitle: 'Lineage Tree',
-    heroSubtitle: t('Return to your family stories, people profiles, and memories.'),
-    subtitle: t('Pick up where you left off.'),
-    submitLabel: t('Sign in'),
-    secondaryActionLabel: t("Don't have an account? Sign up"),
+    heroSubtitle: t(K.auth.returnToStories),
+    subtitle: t(K.auth.pickUpWhereYouLeftOff),
+    submitLabel: t(K.auth.signIn),
+    secondaryActionLabel: t(K.auth.dontHaveAccountSignUp),
     submitLoading: loading,
     fields,
     snackbarVisible: snackVisible,
     snackbarMessage: error,
     onDismissSnackbar: dismissSnackbar,
-    dismissLabel: t('Dismiss'),
+    dismissLabel: t(K.common.dismiss),
     onSubmit: handleSignIn,
     onSecondaryAction: () => navigation.navigate('SignUp'),
   };

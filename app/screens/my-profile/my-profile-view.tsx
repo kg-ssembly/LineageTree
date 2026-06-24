@@ -217,7 +217,7 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
     visible: false,
     title: '',
     message: '',
-    confirmLabel: t('Confirm'),
+    confirmLabel: t(K.common.confirm),
     action: null,
   });
 

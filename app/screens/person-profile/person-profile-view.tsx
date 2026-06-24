@@ -270,7 +270,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
     visible: false,
     title: '',
     message: '',
-    confirmLabel: t('Confirm'),
+    confirmLabel: t(K.common.confirm),
     action: null,
   });
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
@@ -1237,7 +1237,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
             size={20}
             onPress={() => setHelperDialog((current) => ({ ...current, visible: false }))}
             style={dialogChrome.closeButton}
-            accessibilityLabel={t('Close')}
+            accessibilityLabel={t(K.common.close)}
           />
           <Dialog.Content style={dialogChrome.content}>
             <Text variant="bodyMedium">{t(helperDialogCopy[helperDialog.key].message)}</Text>
