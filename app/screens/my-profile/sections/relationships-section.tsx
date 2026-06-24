@@ -7,6 +7,7 @@ import type { RelationshipRecord } from '../../../../components/dto/relationship
 import { formatPersonName } from '../../../../components/person-formatting';
 import { GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
+import { I18N_KEYS as K } from '../../../../i18n/keys';
 
 const personProfileStyles = GlobalStyles.personProfile;
 
@@ -47,19 +48,19 @@ export function RelationshipsSection({
     <Surface style={[personProfileStyles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
       <View style={personProfileStyles.sectionHeader}>
         <View style={personProfileStyles.sectionHeaderText}>
-          <Text variant="titleLarge">{t('Relationships')}</Text>
+          <Text variant="titleLarge">{t(K.personProfile.relationships)}</Text>
         </View>
         {canEditLinkedProfile ? (
           <Button mode="contained" icon="family-tree" onPress={onAddRelationship}>
-            {t('Add relationship')}
+            {t(K.personProfile.addRelationship)}
           </Button>
         ) : null}
       </View>
 
       <HorizontalTabStrip
         items={[
-          { key: 'insight', label: t('How Related') },
-          { key: 'list', label: t('All Links') },
+          { key: 'insight', label: t(K.personProfile.howRelated) },
+          { key: 'list', label: t(K.personProfile.allLinks) },
         ]}
         activeKey={relationshipSectionTab}
         onChange={(value) => setRelationshipSectionTab(value as RelationshipSectionTabKey)}
@@ -69,7 +70,7 @@ export function RelationshipsSection({
       />
 
       {relationshipSectionTab === 'insight' ? (
-        <RelationshipInsightCard people={people} relationships={relationships} lockedFromPersonId={linkedPerson.id} title={t('How do I relate to...')} />
+        <RelationshipInsightCard people={people} relationships={relationships} lockedFromPersonId={linkedPerson.id} title={t(K.personProfile.howDoIRelate)} />
       ) : relationshipEntries.length > 0 ? (
         <View style={personProfileStyles.relationshipList}>
           {relationshipEntries.map((entry) => (
@@ -95,7 +96,7 @@ export function RelationshipsSection({
         </View>
       ) : (
         <View style={personProfileStyles.emptyState}>
-          <Text variant="titleMedium">{t('No relationships yet')}</Text>
+          <Text variant="titleMedium">{t(K.personProfile.noRelationshipsYet)}</Text>
           <Text variant="bodyMedium" style={[personProfileStyles.stateText, { color: theme.colors.onSurfaceVariant }]}>
             {t('Add parents, children, or spouses from this family member to grow the story around them.')}
           </Text>

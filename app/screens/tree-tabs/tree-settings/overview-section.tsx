@@ -5,6 +5,7 @@ import { isPersonDeceased } from '../../../../components/dto/person';
 import { formatPersonName } from '../../../../components/person-formatting';
 import { GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
+import { I18N_KEYS as K } from '../../../../i18n/keys';
 import type { OverviewSectionProps } from './tree-settings-shared';
 import { formatRole } from './tree-settings-shared';
 
@@ -61,7 +62,7 @@ export function OverviewSection({
           <View style={styles.sectionHeader}>
             <View style={styles.titleWrap}>
               <View style={styles.titleWithHelperRow}>
-                <Text variant="titleLarge">{t('Surname variants')}</Text>
+                <Text variant="titleLarge">{t(K.treeSettings.surnameVariants)}</Text>
                 <IconButton
                   icon="information-outline"
                   size={18}
@@ -93,7 +94,7 @@ export function OverviewSection({
         <View style={styles.sectionHeader}>
           <View style={styles.titleWrap}>
             <View style={styles.titleWithHelperRow}>
-              <Text variant="titleLarge">{t('My place in this tree')}</Text>
+              <Text variant="titleLarge">{t(K.treeSettings.myPlaceInThisTree)}</Text>
               <IconButton
                 icon="information-outline"
                 size={18}
@@ -116,7 +117,7 @@ export function OverviewSection({
               <View style={styles.selfAssignmentTextWrap}>
                 <View style={styles.collaboratorChipRow}>
                   <Chip compact icon={currentAssignedPerson ? 'check-decagram' : 'link-variant-off'}>
-                    {currentAssignedPerson ? t('Linked profile') : t('Not linked yet')}
+                    {currentAssignedPerson ? t(K.treeSettings.linkedProfile) : t(K.treeSettings.notLinkedYet)}
                   </Chip>
                   <Chip compact icon="account">{currentUserLabel}</Chip>
                 </View>
@@ -132,7 +133,7 @@ export function OverviewSection({
               {currentAssignedPerson ? (
                 <View style={styles.selfAssignmentActions}>
                   <Button mode="contained" icon="open-in-new" onPress={() => openPersonProfile(currentAssignedPerson)} disabled={mutating}>
-                    {t('Open')}
+                    {t(K.common.open)}
                   </Button>
                   <Button
                     mode="text"
@@ -141,18 +142,18 @@ export function OverviewSection({
                     onPress={() => openConfirm(
                       t('Unlink your profile'),
                       t('Remove the connection between your account and this family member profile?'),
-                      t('Unlink'),
+                      t(K.common.unlink),
                       onClearSelfAssignment,
                     )}
                     disabled={mutating}
                   >
-                    {t('Unlink')}
+                    {t(K.common.unlink)}
                   </Button>
                 </View>
               ) : (
                 <View style={styles.selfAssignmentActions}>
                   <Button mode="contained" icon="account-search" onPress={() => setShowLinkChooser(true)} disabled={mutating}>
-                    {t('Browse family members')}
+                    {t(K.treeSettings.browseFamilyMembers)}
                   </Button>
                   <Button mode="outlined" icon="account-plus" onPress={onOpenAddSelf} disabled={mutating || !canCreateSelfProfile}>
                     {t('Add myself')}
@@ -179,7 +180,7 @@ export function OverviewSection({
                       <View style={styles.assignmentSuggestionTextWrap}>
                         <View style={styles.collaboratorChipRow}>
                           <Chip compact icon={suggestion.tone === 'exact' ? 'star-four-points' : 'lightbulb-on-outline'}>
-                            {suggestion.tone === 'exact' ? t('Suggested match') : t('Likely match')}
+                            {suggestion.tone === 'exact' ? t(K.treeSettings.suggestedMatch) : t(K.treeSettings.likelyMatch)}
                           </Chip>
                           {suggestion.person.birthDate ? <Chip compact icon="calendar">{suggestion.person.birthDate}</Chip> : null}
                         </View>
@@ -228,7 +229,7 @@ export function OverviewSection({
                           <View style={styles.collaboratorChipRow}>
                             {person.birthDate ? <Chip compact icon="calendar">{person.birthDate}</Chip> : null}
                             <Chip compact icon={isPersonDeceased(person) ? 'flower-outline' : 'heart-pulse'}>
-                              {isPersonDeceased(person) ? t('Deceased') : t('Present')}
+                              {isPersonDeceased(person) ? t(K.common.deceased) : t(K.common.present)}
                             </Chip>
                           </View>
                         </View>
@@ -247,7 +248,7 @@ export function OverviewSection({
             )}
 
             <Button mode="text" onPress={() => setShowLinkChooser(false)} style={{ alignSelf: 'flex-start' }}>
-              {t('Hide chooser')}
+              {t(K.treeSettings.hideChooser)}
             </Button>
           </View>
         ) : null}

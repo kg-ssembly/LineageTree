@@ -24,6 +24,7 @@ import {
 import { formatPersonGender, formatPersonName } from '../../../../components/person-formatting';
 import { GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
+import { I18N_KEYS as K } from '../../../../i18n/keys';
 import type { SharedTabProps } from '../shared';
 
 const dialogChrome = GlobalStyles.dialogChrome;
@@ -236,7 +237,7 @@ export function FamilyMembersView({
           <View style={styles.memberListInfo}>
             <View style={styles.personNameRow}>
               <Text variant="titleMedium">{formatPersonName(person)}</Text>
-              {isCurrentUsersPerson ? <Chip compact icon="account">{t('You')}</Chip> : null}
+              {isCurrentUsersPerson ? <Chip compact icon="account">{t(K.common.you)}</Chip> : null}
             </View>
             <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant, marginTop: 6 }]}>
               {[person.birthDate ? formatPersonDate(person.birthDate) : null, getPersonPresenceLabel(person)]
@@ -258,17 +259,17 @@ export function FamilyMembersView({
         <View style={styles.sectionHeader}>
           <View style={styles.titleWrap}>
             <View style={styles.titleWithHelperRow}>
-              <Text variant="titleLarge">{t('Family members')}</Text>
+              <Text variant="titleLarge">{t(K.tree.familyMembers.title)}</Text>
               <IconButton
                 icon="information-outline"
                 size={20}
                 style={styles.helperIconButton}
                 onPress={() => setHelperVisible(true)}
-                accessibilityLabel={t('About family members')}
+                accessibilityLabel={t(K.tree.familyMembers.aboutLabel)}
               />
             </View>
             <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-              {t('Tap a card to open a profile.')}
+              {t(K.tree.familyMembers.about)}
             </Text>
           </View>
           {canEdit ? (
@@ -281,7 +282,7 @@ export function FamilyMembersView({
         <View style={styles.searchRow}>
           <TextInput
             mode="outlined"
-            label={t('Search family members')}
+            label={t(K.tree.familyMembers.search)}
             value={searchQuery}
             onChangeText={setSearchQuery}
             style={styles.searchBar}
@@ -311,20 +312,20 @@ export function FamilyMembersView({
             <View style={styles.centeredState}>
               <ActivityIndicator color={theme.colors.primary} />
               <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
-                {t('Loading tree details...')}
+                {t(K.tree.familyMembers.loading)}
               </Text>
             </View>
           ) : filteredPeople.length === 0 ? (
             <View style={styles.emptyState}>
-              <Text variant="titleMedium">{t('No matching family members')}</Text>
+              <Text variant="titleMedium">{t(K.tree.familyMembers.noMatches)}</Text>
               <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
                 {people.length === 0
-                  ? (canEdit ? t('Add a family member to start building this family tree.') : t('This shared tree does not have any family members yet.'))
-                  : t('Try adjusting the search or filters.')}
+                  ? (canEdit ? t(K.tree.familyMembers.startBuilding) : t(K.tree.familyMembers.sharedTreeEmpty))
+                  : t(K.tree.familyMembers.adjustSearchOrFilters)}
               </Text>
               {activeFilterCount > 0 ? (
                 <Button mode="outlined" onPress={() => setFilters(DEFAULT_FILTERS)} style={{ marginTop: 8 }}>
-                  {t('Clear filters')}
+                  {t(K.tree.familyMembers.clearFilters)}
                 </Button>
               ) : null}
             </View>
@@ -332,7 +333,7 @@ export function FamilyMembersView({
             <>
               <View style={[styles.resultsPill, { backgroundColor: theme.colors.surfaceVariant }]}>
                 <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                  {t('{count} member(s)', { count: filteredPeople.length })}
+                  {t(K.tree.familyMembers.count, { count: filteredPeople.length })}
                 </Text>
               </View>
               <FlatList
@@ -353,16 +354,16 @@ export function FamilyMembersView({
                       icon="chevron-left"
                       onPress={() => setCurrentPage((page) => Math.max(1, page - 1))}
                       disabled={currentPage === 1}
-                      accessibilityLabel={t('Previous page')}
+                      accessibilityLabel={t(K.tree.familyMembers.previousPage)}
                     />
                     <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-                      {t('Page {current} of {total}', { current: currentPage, total: totalPages })}
+                      {t(K.tree.familyMembers.pageOf, { current: currentPage, total: totalPages })}
                     </Text>
                     <IconButton
                       icon="chevron-right"
                       onPress={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
                       disabled={currentPage === totalPages}
-                      accessibilityLabel={t('Next page')}
+                      accessibilityLabel={t(K.tree.familyMembers.nextPage)}
                     />
                   </View>
                 ) : null}
@@ -378,7 +379,7 @@ export function FamilyMembersView({
           onDismiss={() => setFilterModalVisible(false)}
           style={[dialogChrome.dialog, { maxHeight: '85%', backgroundColor: theme.colors.surface }]}
         >
-          <Dialog.Title style={dialogChrome.dialogTitle}>{t('Filter members')}</Dialog.Title>
+          <Dialog.Title style={dialogChrome.dialogTitle}>{t(K.tree.familyMembers.filterMembers)}</Dialog.Title>
           <Dialog.ScrollArea style={dialogChrome.scrollArea}>
             <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={dialogChrome.content}>
               <Text variant="titleSmall" style={{ marginTop: 8, marginBottom: 4 }}>{t('Gender')}</Text>
@@ -390,12 +391,12 @@ export function FamilyMembersView({
                     onPress={() => setDraftFilters((current) => ({ ...current, gender }))}
                     style={{ marginRight: 8, marginBottom: 8 }}
                   >
-                    {gender === 'all' ? t('All genders') : formatPersonGender(gender)}
+                    {gender === 'all' ? t(K.tree.familyMembers.allGenders) : formatPersonGender(gender)}
                   </Chip>
                 ))}
               </View>
 
-              <Text variant="titleSmall" style={{ marginTop: 8, marginBottom: 4 }}>{t('Presence')}</Text>
+              <Text variant="titleSmall" style={{ marginTop: 8, marginBottom: 4 }}>{t(K.tree.filters.presence)}</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
                 {(['all', 'present', 'deceased'] as const).map((presence) => (
                   <Chip
@@ -404,53 +405,53 @@ export function FamilyMembersView({
                     onPress={() => setDraftFilters((current) => ({ ...current, presence }))}
                     style={{ marginRight: 8, marginBottom: 8 }}
                   >
-                    {presence === 'all' ? t('Any') : t(presence.charAt(0).toUpperCase() + presence.slice(1))}
+                    {presence === 'all' ? t(K.common.any) : presence === 'present' ? t(K.common.present) : t(K.common.deceased)}
                   </Chip>
                 ))}
               </View>
 
-              <Text variant="titleSmall" style={{ marginTop: 8, marginBottom: 4 }}>{t('Birth date range')}</Text>
+              <Text variant="titleSmall" style={{ marginTop: 8, marginBottom: 4 }}>{t(K.tree.filters.birthDateRange)}</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
                 <Button mode="outlined" icon="calendar-start" onPress={() => setBirthDateFromPickerVisible(true)}>
-                  {formatDateFilterLabel(draftFilters.birthDateFrom, t('From date'))}
+                  {formatDateFilterLabel(draftFilters.birthDateFrom, t(K.tree.filters.fromDate))}
                 </Button>
                 {draftFilters.birthDateFrom ? (
                   <Button onPress={() => setDraftFilters((current) => ({ ...current, birthDateFrom: '' }))}>
-                    {t('Clear')}
+                    {t(K.common.clear)}
                   </Button>
                 ) : null}
               </View>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginTop: 8 }}>
                 <Button mode="outlined" icon="calendar-end" onPress={() => setBirthDateToPickerVisible(true)}>
-                  {formatDateFilterLabel(draftFilters.birthDateTo, t('To date'))}
+                  {formatDateFilterLabel(draftFilters.birthDateTo, t(K.tree.filters.toDate))}
                 </Button>
                 {draftFilters.birthDateTo ? (
                   <Button onPress={() => setDraftFilters((current) => ({ ...current, birthDateTo: '' }))}>
-                    {t('Clear')}
+                    {t(K.common.clear)}
                   </Button>
                 ) : null}
               </View>
 
-              <Text variant="titleSmall" style={{ marginTop: 8, marginBottom: 4 }}>{t('Has notes')}</Text>
+              <Text variant="titleSmall" style={{ marginTop: 8, marginBottom: 4 }}>{t(K.tree.filters.hasNotes)}</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-                <TriToggleChip label={t('Has notes')} value={draftFilters.hasNotes} onChange={(value) => setDraftFilters((current) => ({ ...current, hasNotes: value }))} />
+                <TriToggleChip label={t(K.tree.filters.hasNotes)} value={draftFilters.hasNotes} onChange={(value) => setDraftFilters((current) => ({ ...current, hasNotes: value }))} />
               </View>
 
-              <Text variant="titleSmall" style={{ marginTop: 8, marginBottom: 4 }}>{t('Relationships')}</Text>
+              <Text variant="titleSmall" style={{ marginTop: 8, marginBottom: 4 }}>{t(K.tree.familyMembers.relationships)}</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-                <TriToggleChip label={t('Has parents')} value={draftFilters.hasParents} onChange={(value) => setDraftFilters((current) => ({ ...current, hasParents: value }))} />
-                <TriToggleChip label={t('Has children')} value={draftFilters.hasChildren} onChange={(value) => setDraftFilters((current) => ({ ...current, hasChildren: value }))} />
-                <TriToggleChip label={t('Has spouse')} value={draftFilters.hasSpouse} onChange={(value) => setDraftFilters((current) => ({ ...current, hasSpouse: value }))} />
+                <TriToggleChip label={t(K.tree.filters.hasParents)} value={draftFilters.hasParents} onChange={(value) => setDraftFilters((current) => ({ ...current, hasParents: value }))} />
+                <TriToggleChip label={t(K.tree.filters.hasChildren)} value={draftFilters.hasChildren} onChange={(value) => setDraftFilters((current) => ({ ...current, hasChildren: value }))} />
+                <TriToggleChip label={t(K.tree.filters.hasSpouse)} value={draftFilters.hasSpouse} onChange={(value) => setDraftFilters((current) => ({ ...current, hasSpouse: value }))} />
               </View>
 
               <Button mode="outlined" icon="filter-remove" onPress={() => setDraftFilters(DEFAULT_FILTERS)} style={{ marginTop: 12 }}>
-                {t('Clear all filters')}
+                {t(K.tree.familyMembers.clearAllFilters)}
               </Button>
             </ScrollView>
           </Dialog.ScrollArea>
           <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
-            <Button mode="outlined" onPress={() => setFilterModalVisible(false)}>{t('Cancel')}</Button>
-            <Button mode="contained" onPress={applyFilters}>{t('Apply')}</Button>
+            <Button mode="outlined" onPress={() => setFilterModalVisible(false)}>{t(K.common.cancel)}</Button>
+            <Button mode="contained" onPress={applyFilters}>{t(K.common.apply)}</Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>
@@ -467,8 +468,8 @@ export function FamilyMembersView({
             setDraftFilters((current) => ({ ...current, birthDateFrom: formatIsoDate(date) }));
           }
         }}
-        saveLabel={t('Save')}
-        label={t('Select earliest birth date')}
+        saveLabel={t(K.common.save)}
+        label={t(K.tree.familyMembers.selectEarliestBirthDate)}
       />
 
       <DatePickerModal
@@ -483,8 +484,8 @@ export function FamilyMembersView({
             setDraftFilters((current) => ({ ...current, birthDateTo: formatIsoDate(date) }));
           }
         }}
-        saveLabel={t('Save')}
-        label={t('Select latest birth date')}
+        saveLabel={t(K.common.save)}
+        label={t(K.tree.familyMembers.selectLatestBirthDate)}
       />
 
       <Portal>
@@ -493,17 +494,17 @@ export function FamilyMembersView({
           onDismiss={() => setHelperVisible(false)}
           style={[dialogChrome.dialog, { backgroundColor: theme.colors.surface }]}
         >
-          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{t('Family members')}</Dialog.Title>
+          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{t(K.tree.familyMembers.title)}</Dialog.Title>
           <IconButton
             icon="close"
             size={20}
             onPress={() => setHelperVisible(false)}
             style={dialogChrome.closeButton}
-            accessibilityLabel={t('Close')}
+            accessibilityLabel={t(K.common.close)}
           />
           <Dialog.Content style={dialogChrome.content}>
             <Text variant="bodyMedium">
-              {t('Each card represents one person in this family tree. Tap a card to open their full profile. Use the search bar and Filters button to narrow by name, gender, presence, birth date, photos, notes, or relationship status. The tri-state filter chips cycle through unset, must have, and must not have.')}
+              {t(K.tree.familyMembers.helper)}
             </Text>
           </Dialog.Content>
         </Dialog>

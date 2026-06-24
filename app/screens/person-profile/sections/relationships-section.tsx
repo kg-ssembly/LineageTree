@@ -8,6 +8,7 @@ import type { RelationshipRecord } from '../../../../components/dto/relationship
 import { formatPersonName } from '../../../../components/person-formatting';
 import { GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
+import { I18N_KEYS as K } from '../../../../i18n/keys';
 
 const styles = GlobalStyles.personProfile;
 
@@ -58,27 +59,27 @@ export function PersonRelationshipsSection({
       <View style={styles.sectionHeader}>
         <View style={styles.sectionHeaderText}>
           <View style={styles.titleWithHelperRow}>
-            <Text variant="titleLarge">{t('Relationships')}</Text>
+            <Text variant="titleLarge">{t(K.personProfile.relationships)}</Text>
             <IconButton
               icon="information-outline"
               size={20}
               style={styles.helperIconButton}
               onPress={onOpenHelperDialog}
-              accessibilityLabel={t('About relationships')}
+              accessibilityLabel={t(K.personProfile.aboutRelationships)}
             />
           </View>
         </View>
         {canEdit ? (
           <Button mode="contained" icon="family-tree" onPress={onAddRelationship}>
-            {t('Add relationship')}
+            {t(K.personProfile.addRelationship)}
           </Button>
         ) : null}
       </View>
 
       <HorizontalTabStrip
         items={[
-          { key: 'insight', label: t('How Related') },
-          { key: 'list', label: t('All Links') },
+          { key: 'insight', label: t(K.personProfile.howRelated) },
+          { key: 'list', label: t(K.personProfile.allLinks) },
         ]}
         activeKey={relationshipSectionTab}
         onChange={(value) => setRelationshipSectionTab(value as PersonRelationshipSectionTabKey)}
@@ -92,7 +93,7 @@ export function PersonRelationshipsSection({
           people={people}
           relationships={relationships}
           lockedFromPersonId={person.id}
-          title={t('How does {name} relate to...', { name: formatPersonName(person) })}
+          title={t(K.personProfile.howDoesPersonRelate, { name: formatPersonName(person) })}
         />
       ) : paginatedRelationships.length > 0 ? (
         <>
@@ -127,7 +128,7 @@ export function PersonRelationshipsSection({
         </>
       ) : (
         <View style={styles.emptyState}>
-          <Text variant="titleMedium">{t('No relationships yet')}</Text>
+          <Text variant="titleMedium">{t(K.personProfile.noRelationshipsYet)}</Text>
           <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
             {t('Add parents, children, or spouses from this family member to grow the story around them.')}
           </Text>

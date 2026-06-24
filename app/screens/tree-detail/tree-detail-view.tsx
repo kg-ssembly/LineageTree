@@ -39,6 +39,7 @@ import { computeRelationshipInsight } from '../../../providers';
 import { getTreeBundle } from '../../../providers/family-tree-service';
 import { GlobalStyles } from '../../../constants/styles';
 import { useI18n } from '../../../hooks/use-i18n';
+import { I18N_KEYS as K } from '../../../i18n/keys';
 import {
   buildSelfAssignmentSuggestions,
   PeopleRelationshipsTabContent,
@@ -293,9 +294,9 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
       items.push({
         id: `birth-${viewerPerson.id}`,
         date: viewerPerson.birthDate,
-        title: t('Birth'),
-        description: t('{name} was born.', { name: formatPersonName(viewerPerson) }),
-        badgeLabel: t('Birth'),
+        title: t(K.personProfile.birth),
+        description: t(K.personProfile.wasBorn, { name: formatPersonName(viewerPerson) }),
+        badgeLabel: t(K.personProfile.birth),
         system: true,
       });
     }
@@ -304,9 +305,9 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
       items.push({
         id: `death-${viewerPerson.id}`,
         date: viewerPerson.deathDate,
-        title: t('In memory'),
-        description: t('{name} passed away.', { name: formatPersonName(viewerPerson) }),
-        badgeLabel: t('In memory'),
+        title: t(K.personProfile.inMemory),
+        description: t(K.personProfile.passedAway, { name: formatPersonName(viewerPerson) }),
+        badgeLabel: t(K.personProfile.inMemory),
         system: true,
       });
     }
@@ -852,7 +853,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
           },
         })}
       >
-        <Tab.Screen name="PeopleRelationshipsTab" options={{ title: t('Family members') }}>
+        <Tab.Screen name="PeopleRelationshipsTab" options={{ title: t(K.tree.familyMembers.title) }}>
           {() => <PeopleRelationshipsTabContent {...sharedTabProps} />}
         </Tab.Screen>
         <Tab.Screen name="VisualisationTab" options={{ title: t('Tree') }}>

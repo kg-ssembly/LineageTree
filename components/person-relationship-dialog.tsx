@@ -7,6 +7,7 @@ import { DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND, DEFAULT_SPOUSE_RELATIONSHIP_STA
 import { getRelationshipValidationFeedback, validateProposedRelationship } from './family-tree-validation';
 import { useI18n } from '../hooks/use-i18n';
 import { translate } from '../i18n';
+import { I18N_KEYS as K } from '../i18n/keys';
 import { GlobalStyles } from '../constants/styles';
 
 const styles = GlobalStyles.personRelationshipDialog;
@@ -110,13 +111,13 @@ export default function PersonRelationshipDialog({
   const modeButtons = useMemo(() => [
     {
       value: 'parent-of',
-      label: person?.gender === 'male' ? t('Father of') : person?.gender === 'female' ? t('Mother of') : t('Parent of'),
+      label: person?.gender === 'male' ? t(K.relationship.fatherOf) : person?.gender === 'female' ? t(K.relationship.motherOf) : t(K.relationship.parentOf),
     },
     {
       value: 'child-of',
-      label: person?.gender === 'male' ? t('Son of') : person?.gender === 'female' ? t('Daughter of') : t('Child of'),
+      label: person?.gender === 'male' ? t(K.relationship.sonOf) : person?.gender === 'female' ? t(K.relationship.daughterOf) : t(K.relationship.childOf),
     },
-    { value: 'spouse-of', label: t('Spouse of') },
+    { value: 'spouse-of', label: t(K.relationship.spouseOf) },
   ], [person?.gender, t]);
 
   const candidates = useMemo(() => {
@@ -218,7 +219,7 @@ export default function PersonRelationshipDialog({
         <Dialog.ScrollArea style={[dialogChrome.scrollArea, styles.scrollArea]}>
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
             <Text variant="bodyMedium" style={styles.helperText}>
-              {t('Manage connections directly from {name}.', { name: formatPersonName(person) })}
+              {t(K.relationship.manageConnectionsDirectly, { name: formatPersonName(person) })}
             </Text>
 
             <SegmentedButtons
@@ -235,7 +236,7 @@ export default function PersonRelationshipDialog({
 
             {mode === 'spouse-of' ? (
               <View style={styles.section}>
-                <Text variant="titleSmall">{t('Relationship status')}</Text>
+                <Text variant="titleSmall">{t(K.relationship.relationshipStatus)}</Text>
                 <View style={styles.choiceWrap}>
                   {[
                     { value: 'partner', label: 'Partner' },
@@ -258,7 +259,7 @@ export default function PersonRelationshipDialog({
               </View>
             ) : (
               <View style={styles.section}>
-                <Text variant="titleSmall">{t('Child relationship')}</Text>
+                <Text variant="titleSmall">{t(K.relationship.childRelationship)}</Text>
                 <View style={styles.choiceWrap}>
                   {[
                     { value: 'biological', label: 'Biological' },
@@ -286,7 +287,7 @@ export default function PersonRelationshipDialog({
             )}
 
             <View style={styles.section}>
-              <Text variant="titleSmall">{t('Select related family member')}</Text>
+              <Text variant="titleSmall">{t(K.relationship.selectRelatedFamilyMember)}</Text>
               {selectedPerson ? (
                 <View style={styles.selectedChipRow}>
                   <Chip
@@ -303,7 +304,7 @@ export default function PersonRelationshipDialog({
                 <>
                   <TextInput
                     mode="outlined"
-                    label={t('Search family member')}
+                    label={t(K.common.searchFamilyMember)}
                     value={searchQuery}
                     onChangeText={setSearchQuery}
                     style={styles.searchInput}
@@ -362,7 +363,7 @@ export default function PersonRelationshipDialog({
           ) : (
             <View />
           )}
-          <Button mode="contained" onPress={handleSubmit} disabled={loading || !person || candidates.length === 0 || !!validationMessage}>{t('Save')}</Button>
+          <Button mode="contained" onPress={handleSubmit} disabled={loading || !person || candidates.length === 0 || !!validationMessage}>{t(K.common.save)}</Button>
         </Dialog.Actions>
       </Dialog>
     </Portal>

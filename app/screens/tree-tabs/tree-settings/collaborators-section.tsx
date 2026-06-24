@@ -4,6 +4,7 @@ import { Button, Card, Chip, IconButton, Text, TextInput, useTheme } from 'react
 import { formatPersonName } from '../../../../components/person-formatting';
 import { GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
+import { I18N_KEYS as K } from '../../../../i18n/keys';
 import { buildSelfAssignmentSuggestions } from '../shared';
 import type { CollaboratorsSectionProps } from './tree-settings-shared';
 import { formatRole } from './tree-settings-shared';
@@ -46,7 +47,7 @@ export function CollaboratorsSection({
       <View style={styles.sectionHeader}>
         <View style={styles.titleWrap}>
           <View style={styles.titleWithHelperRow}>
-            <Text variant="titleLarge">{t('Collaborators')}</Text>
+            <Text variant="titleLarge">{t(K.treeSettings.collaborators)}</Text>
             <IconButton
               icon="information-outline"
               size={18}
@@ -58,7 +59,7 @@ export function CollaboratorsSection({
         </View>
         {isOwner ? (
           <Button mode="contained" icon="account-plus" onPress={onOpenCollaboratorDialog} disabled={mutating}>
-            {t('Add collaborator')}
+            {t(K.treeSettings.addCollaborator)}
           </Button>
         ) : null}
       </View>
@@ -80,7 +81,7 @@ export function CollaboratorsSection({
                     <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>{collaborator.email}</Text>
                     <View style={styles.collaboratorChipRow}>
                       <Chip compact>{formatRole(collaborator.role)}</Chip>
-                      {collaborator.userId === userId ? <Chip compact icon="account">{t('You')}</Chip> : null}
+                      {collaborator.userId === userId ? <Chip compact icon="account">{t(K.common.you)}</Chip> : null}
                       {linkedPerson ? <Chip compact icon="link-variant">{formatPersonName(linkedPerson)}</Chip> : null}
                     </View>
                   </View>
@@ -115,7 +116,7 @@ export function CollaboratorsSection({
                                 <View style={styles.assignmentSuggestionTextWrap}>
                                   <View style={styles.collaboratorChipRow}>
                                     <Chip compact icon={suggestion.tone === 'exact' ? 'star-four-points' : 'lightbulb-on-outline'}>
-                                      {suggestion.tone === 'exact' ? t('Suggested match') : t('Likely match')}
+                                      {suggestion.tone === 'exact' ? t(K.treeSettings.suggestedMatch) : t(K.treeSettings.likelyMatch)}
                                     </Chip>
                                     {suggestion.person.birthDate ? <Chip compact icon="calendar">{suggestion.person.birthDate}</Chip> : null}
                                   </View>
@@ -134,7 +135,7 @@ export function CollaboratorsSection({
 
                     <View style={{ flexDirection: 'row', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
                       <Button mode="outlined" icon={isOwnerSuggestionTarget ? 'chevron-up' : 'account-search'} onPress={() => toggleOwnerLinkChooser(collaborator.userId)}>
-                        {isOwnerSuggestionTarget ? t('Hide chooser') : t('Browse family members')}
+                        {isOwnerSuggestionTarget ? t(K.treeSettings.hideChooser) : t(K.treeSettings.browseFamilyMembers)}
                       </Button>
                     </View>
 
@@ -142,7 +143,7 @@ export function CollaboratorsSection({
                       <View style={styles.assignmentChooserWrap}>
                         <TextInput
                           mode="outlined"
-                          label={t('Search family members')}
+                          label={t(K.common.searchFamilyMembers)}
                           value={ownerLinkSearchQuery}
                           onChangeText={setOwnerLinkSearchQuery}
                           style={styles.assignmentSearchInput}

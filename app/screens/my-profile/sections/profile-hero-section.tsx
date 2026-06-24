@@ -7,6 +7,7 @@ import { getPersonLifeSpanLabel, isPersonDeceased, type PersonPhoto } from '../.
 import { formatPersonName } from '../../../../components/person-formatting';
 import { GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
+import { I18N_KEYS as K } from '../../../../i18n/keys';
 
 const homeStyles = GlobalStyles.home;
 const personProfileStyles = GlobalStyles.personProfile;
@@ -43,7 +44,7 @@ export function ProfileHeroSection({
             size={22}
             onPress={onEdit}
             style={[personProfileStyles.heroFloatingButton, personProfileStyles.heroFloatingButtonRight]}
-            accessibilityLabel={t('Edit my linked family profile')}
+            accessibilityLabel={t(K.personProfile.editLinkedFamilyProfile)}
           />
         ) : null}
         <View style={personProfileStyles.heroHeader}>
@@ -61,14 +62,14 @@ export function ProfileHeroSection({
             )}
             <View style={personProfileStyles.heroIdentityWrap}>
               <Text variant="labelLarge" style={{ color: theme.colors.primary }}>
-                {t('My linked family profile')}
+                {t(K.personProfile.linkedFamilyProfile)}
               </Text>
               <View style={personProfileStyles.heroNameRow}>
-                <Text variant="headlineMedium">{linkedPerson ? formatPersonName(linkedPerson) : t('Unknown')}</Text>
-                <Chip compact icon="account">{t('You')}</Chip>
+                <Text variant="headlineMedium">{linkedPerson ? formatPersonName(linkedPerson) : t(K.common.unknown)}</Text>
+                <Chip compact icon="account">{t(K.common.you)}</Chip>
               </View>
               <Text variant="bodyMedium" style={[personProfileStyles.heroSubtext, { color: theme.colors.onSurfaceVariant }]}>
-                {linkedPerson ? getPersonLifeSpanLabel(linkedPerson) : t('Link yourself in your default tree to manage your family profile here.')}
+                {linkedPerson ? getPersonLifeSpanLabel(linkedPerson) : t(K.personProfile.linkYourselfToManageProfile)}
               </Text>
             </View>
           </View>
@@ -88,10 +89,10 @@ export function ProfileHeroSection({
         />
         <View style={homeStyles.profileNameWrap}>
           <Text variant="labelLarge" style={{ color: theme.colors.primary }}>
-            {t('Profile workspace')}
+            {t(K.profileState.profileWorkspace)}
           </Text>
           <Text variant="headlineMedium" style={{ color: theme.colors.onSurface, fontWeight: '800' }}>
-            {userDisplayName ?? t('Unknown')}
+            {userDisplayName ?? t(K.common.unknown)}
           </Text>
           <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 2 }}>
             {userEmail}

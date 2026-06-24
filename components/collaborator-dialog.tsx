@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Button, Dialog, HelperText, IconButton, Portal, SegmentedButtons, TextInput, useTheme } from 'react-native-paper';
 import type { CollaboratorRole } from './dto/tree';
 import { useI18n } from '../hooks/use-i18n';
+import { I18N_KEYS as K } from '../i18n/keys';
 import { GlobalStyles } from '../constants/styles';
 
 const styles = GlobalStyles.collaboratorDialog;
@@ -58,8 +59,8 @@ export default function CollaboratorDialog({
         onDismiss={loading ? undefined : onDismiss}
         style={[dialogChrome.dialog, styles.dialog, { backgroundColor: theme.colors.surface }]}
       >
-        <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{t('Add collaborator')}</Dialog.Title>
-        <IconButton icon="close" onPress={onDismiss} disabled={loading} accessibilityLabel={t('Cancel')} style={dialogChrome.closeButton} />
+        <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{t(K.treeSettings.addCollaborator)}</Dialog.Title>
+        <IconButton icon="close" onPress={onDismiss} disabled={loading} accessibilityLabel={t(K.common.cancel)} style={dialogChrome.closeButton} />
         <Dialog.Content style={dialogChrome.content}>
           <TextInput
             mode="outlined"

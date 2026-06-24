@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { LANGUAGE_OPTIONS, translate, type AppLanguage } from '../i18n';
+import { LANGUAGE_OPTIONS, translate, type AppLanguage, type TranslationKey } from '../i18n';
 import { useLanguageStore } from '../stores/language-store';
 
 export function useI18n() {
@@ -10,13 +10,13 @@ export function useI18n() {
     language,
     setLanguage,
     languages: LANGUAGE_OPTIONS,
-    t: (message: string, params?: Record<string, string | number | null | undefined>) => translate(message, params),
+    t: (message: TranslationKey | string, params?: Record<string, string | number | null | undefined>) => translate(message, params),
   }), [language, setLanguage]);
 
   return api as {
     language: AppLanguage;
     setLanguage: (language: AppLanguage) => Promise<void>;
     languages: typeof LANGUAGE_OPTIONS;
-    t: (message: string, params?: Record<string, string | number | null | undefined>) => string;
+    t: (message: TranslationKey | string, params?: Record<string, string | number | null | undefined>) => string;
   };
 }

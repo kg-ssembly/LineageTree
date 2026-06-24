@@ -22,6 +22,7 @@ import { DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND } from './dto/relationship';
 import { getPersonValidationFeedback, getRelationshipValidationFeedback } from './family-tree-validation';
 import { GlobalStyles } from '../constants/styles';
 import { useI18n } from '../hooks/use-i18n';
+import { I18N_KEYS as K } from '../i18n/keys';
 
 const styles = GlobalStyles.personFormDialog;
 const dialogChrome = GlobalStyles.dialogChrome;
@@ -88,7 +89,7 @@ function parseIsoDate(value: string) {
 }
 
 function formatDateButtonLabel(value: string, t: (key: string, values?: Record<string, string | number>) => string) {
-  return value ? formatPersonDate(value) : t('Pick a date');
+  return value ? formatPersonDate(value) : t(K.common.pickDate);
 }
 
 function formatPersonName(person: PersonRecord) {
@@ -425,14 +426,14 @@ export default function PersonFormDialog({
   // Gender-aware relationship mode labels
   const relationshipModeOptions = useMemo(() => [
     {
-      label: gender === 'male' ? t('Father of') : gender === 'female' ? t('Mother of') : t('Parent of'),
+      label: gender === 'male' ? t(K.relationship.fatherOf) : gender === 'female' ? t(K.relationship.motherOf) : t(K.relationship.parentOf),
       value: 'parent-of' as PendingRelationshipMode,
     },
     {
-      label: gender === 'male' ? t('Son of') : gender === 'female' ? t('Daughter of') : t('Child of'),
+      label: gender === 'male' ? t(K.relationship.sonOf) : gender === 'female' ? t(K.relationship.daughterOf) : t(K.relationship.childOf),
       value: 'child-of' as PendingRelationshipMode,
     },
-    { label: t('Spouse of'), value: 'spouse-of' as PendingRelationshipMode },
+    { label: t(K.relationship.spouseOf), value: 'spouse-of' as PendingRelationshipMode },
   ], [gender, t]);
 
   const handleNextStep = () => {
@@ -658,7 +659,7 @@ export default function PersonFormDialog({
               />
 
               <View style={styles.sectionSpacing}>
-                <Text variant="titleSmall">{t('Last name')}</Text>
+                <Text variant="titleSmall">{t(K.personForm.lastName)}</Text>
                 <Menu
                   visible={surnameMenuVisible}
                   onDismiss={() => setSurnameMenuVisible(false)}
@@ -670,7 +671,7 @@ export default function PersonFormDialog({
                       style={styles.fieldSpacing}
                       disabled={loading || uniqueLastNames.length === 0}
                     >
-                      {lastName || (uniqueLastNames.length > 0 ? t('Choose existing surname') : t('No existing surnames'))}
+                      {lastName || (uniqueLastNames.length > 0 ? t(K.personForm.chooseExistingSurname) : t(K.personForm.noExistingSurnames))}
                     </Button>
                   )}
                 >
@@ -688,7 +689,7 @@ export default function PersonFormDialog({
                 </Menu>
                 <TextInput
                   mode="outlined"
-                  label={t('Type new surname or edit selection')}
+                  label={t(K.personForm.typeNewSurnameOrEditSelection)}
                   value={lastName}
                   onChangeText={(value) => {
                     setLastName(value);
@@ -705,22 +706,22 @@ export default function PersonFormDialog({
               </View>
 
               <View style={styles.sectionSpacing}>
-                <Text variant="titleSmall">{t('Maiden name')}</Text>
+                <Text variant="titleSmall">{t(K.personForm.maidenName)}</Text>
                 <TextInput
                   mode="outlined"
-                  label={t('Maiden / birth surname (optional)')}
+                  label={t(K.personForm.maidenBirthSurnameOptional)}
                   value={maidenName}
                   onChangeText={setMaidenName}
                   disabled={loading}
                   style={styles.fieldSpacing}
                 />
                 <HelperText type="info" visible>
-                  {t('The surname this person was born with or used before marriage.')}
+                  {t(K.personForm.surnameHelper)}
                 </HelperText>
               </View>
 
               <View style={styles.sectionSpacing}>
-                <Text variant="titleSmall">{t('Birth date')}</Text>
+                <Text variant="titleSmall">{t(K.personForm.birthDate)}</Text>
                 <View style={styles.birthDateActions}>
                   <Button
                     mode="outlined"
@@ -748,7 +749,7 @@ export default function PersonFormDialog({
 
               <View style={styles.sectionSpacing}>
                 <View style={styles.presentRow}>
-                  <Text variant="titleSmall">{t('Still present')}</Text>
+                  <Text variant="titleSmall">{t(K.personForm.stillPresent)}</Text>
                   <Switch
                     value={isPresent}
                     onValueChange={(value) => {
@@ -792,7 +793,7 @@ export default function PersonFormDialog({
               </View>
 
               <View style={styles.sectionSpacing}>
-                <Text variant="titleSmall">{t('Gender')}</Text>
+                <Text variant="titleSmall">{t(K.personForm.gender)}</Text>
                 <View style={styles.chipGroup}>
                   {genderOptions.map((option) => (
                     <Chip
@@ -909,7 +910,7 @@ export default function PersonFormDialog({
                           <>
                             <TextInput
                               mode="outlined"
-                              label={t('Search family member')}
+                              label={t(K.common.searchFamilyMember)}
                               value={draft.searchQuery}
                               onChangeText={(value) => setPendingRelationships((current) => current.map((item) => item.key === draft.key ? { ...item, searchQuery: value } : item))}
                               style={styles.fieldSpacing}
@@ -1013,7 +1014,7 @@ export default function PersonFormDialog({
                 accessibilityLabel={t('Delete member')}
               />
             ) : mode === 'create' && step === 2 ? (
-              <Button mode="outlined" onPress={() => setStep(1)} disabled={loading}>{t('Back')}</Button>
+              <Button mode="outlined" onPress={() => setStep(1)} disabled={loading}>{t(K.common.back)}</Button>
             ) : (
               <View />
             )}
@@ -1021,12 +1022,12 @@ export default function PersonFormDialog({
               <View style={{ flexDirection: 'row', gap: 8 }}>
               {mode === 'create' && step === 1 ? (
                 <>
-                  <Button mode="contained" onPress={handleNextStep} disabled={loading}>{t('Next')}</Button>
+                  <Button mode="contained" onPress={handleNextStep} disabled={loading}>{t(K.common.next)}</Button>
                 </>
               ) : (
                 <>
                   <Button mode="contained" onPress={handleSubmit} disabled={loading}>
-                    {mode === 'create' ? t('Create') : t('Save')}
+                    {mode === 'create' ? t(K.common.create) : t(K.common.save)}
                   </Button>
                 </>
               )}
@@ -1051,7 +1052,7 @@ export default function PersonFormDialog({
             }
           }
         }}
-        saveLabel={t('Save')}
+        saveLabel={t(K.common.save)}
         label={t('Select birth date')}
       />
 
@@ -1071,7 +1072,7 @@ export default function PersonFormDialog({
             }
           }
         }}
-        saveLabel={t('Save')}
+        saveLabel={t(K.common.save)}
         label={t('Select date of death')}
       />
     </>

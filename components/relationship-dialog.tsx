@@ -7,6 +7,7 @@ import { DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND, DEFAULT_SPOUSE_RELATIONSHIP_STA
 import { getRelationshipValidationFeedback, validateProposedRelationship } from './family-tree-validation';
 import { useI18n } from '../hooks/use-i18n';
 import { translate } from '../i18n';
+import { I18N_KEYS as K } from '../i18n/keys';
 import { GlobalStyles } from '../constants/styles';
 
 const styles = GlobalStyles.relationshipDialog;
@@ -189,7 +190,7 @@ export default function RelationshipDialog({
 
             {type === 'spouse' ? (
               <View style={[styles.relationshipTypeCard, { borderColor: theme.colors.outlineVariant }]}>
-                <Text variant="titleSmall">{t('Relationship status')}</Text>
+                <Text variant="titleSmall">{t(K.relationship.relationshipStatus)}</Text>
                 <View style={styles.choiceWrap}>
                   {[
                     { value: 'partner', label: 'Partner' },
@@ -212,7 +213,7 @@ export default function RelationshipDialog({
               </View>
             ) : (
               <View style={[styles.relationshipTypeCard, { borderColor: theme.colors.outlineVariant }]}>
-                <Text variant="titleSmall">{t('Child relationship')}</Text>
+                <Text variant="titleSmall">{t(K.relationship.childRelationship)}</Text>
                 <View style={styles.choiceWrap}>
                   {[
                     { value: 'biological', label: 'Biological' },

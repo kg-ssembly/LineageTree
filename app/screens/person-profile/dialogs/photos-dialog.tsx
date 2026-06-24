@@ -5,6 +5,7 @@ import type { PersonPhoto } from '../../../../components/dto/person';
 import { MAX_PHOTOS_PER_PERSON } from '../../../../components/photo-utils';
 import { GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
+import { I18N_KEYS as K } from '../../../../i18n/keys';
 
 const dialogChrome = GlobalStyles.dialogChrome;
 const styles = GlobalStyles.personProfile;
@@ -48,7 +49,7 @@ export function PersonPhotosDialog({
   return (
     <Portal>
       <Dialog visible={visible} onDismiss={mutating ? undefined : onDismiss} style={[dialogChrome.dialog, styles.memoryDialog, { backgroundColor: theme.colors.surface }]}>
-        <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{t('Manage photos')}</Dialog.Title>
+        <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{t(K.memories.managePhotos)}</Dialog.Title>
         <IconButton icon="close" onPress={onDismiss} disabled={mutating} accessibilityLabel={t('Cancel')} style={dialogChrome.closeButton} />
         <Dialog.ScrollArea style={styles.memoryDialogScrollArea}>
           <ScrollView contentContainerStyle={styles.memoryDialogContent} keyboardShouldPersistTaps="handled">
@@ -61,7 +62,7 @@ export function PersonPhotosDialog({
               </Button>
             </View>
             <Text variant="bodySmall" style={styles.memoryDialogHint}>
-              {t('Add up to 5 photos. Every photo is compressed to stay under 2 MB. When you choose a preferred photo, that one is cropped to fit the circular tree avatar.')}
+              {t(K.memories.addPhotosHint)}
             </Text>
 
             {photoEditorCount > 0 ? (
@@ -107,13 +108,13 @@ export function PersonPhotosDialog({
               </ScrollView>
             ) : (
               <Text variant="bodySmall" style={styles.memoryDialogHint}>
-                {t('No photos added yet.')}
+                {t(K.memories.noPhotosAddedYet)}
               </Text>
             )}
           </ScrollView>
         </Dialog.ScrollArea>
         <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
-          <Button mode="contained" onPress={onSave} disabled={mutating || photoProcessing || !canSavePhotoChanges}>{t('Save photos')}</Button>
+          <Button mode="contained" onPress={onSave} disabled={mutating || photoProcessing || !canSavePhotoChanges}>{t(K.memories.savePhotos)}</Button>
         </Dialog.Actions>
       </Dialog>
     </Portal>

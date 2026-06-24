@@ -6,6 +6,7 @@ import type { PersonLifeEvent, PersonPhoto, PersonRecord } from '../../../../com
 import { formatPersonDate } from '../../../../components/dto/person';
 import { GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
+import { I18N_KEYS as K } from '../../../../i18n/keys';
 
 const personProfileStyles = GlobalStyles.personProfile;
 
@@ -43,13 +44,13 @@ export function MemoriesSection({
 
   return (
     <Surface style={[personProfileStyles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
-      <Text variant="titleLarge">{t('Memories')}</Text>
+      <Text variant="titleLarge">{t(K.memories.memories)}</Text>
 
       <HorizontalTabStrip
         items={[
-          { key: 'events', label: t('Life Events') },
-          { key: 'photos', label: t('Photos') },
-          { key: 'notes', label: t('Notes') },
+          { key: 'events', label: t(K.memories.lifeEvents) },
+          { key: 'photos', label: t(K.memories.photos) },
+          { key: 'notes', label: t(K.memories.notes) },
         ]}
         activeKey={memorySectionTab}
         onChange={(value) => setMemorySectionTab(value as MemorySectionTabKey)}
@@ -62,16 +63,16 @@ export function MemoriesSection({
         <View style={[personProfileStyles.notesBox, { backgroundColor: theme.colors.surfaceVariant }]}>
           <View style={personProfileStyles.sectionHeader}>
             <View style={personProfileStyles.sectionHeaderText}>
-              <Text variant="titleSmall">{t('Notes')}</Text>
+              <Text variant="titleSmall">{t(K.memories.notes)}</Text>
             </View>
             {canEditLinkedProfile ? (
               <Button mode="contained-tonal" icon="pencil" onPress={onOpenNotesDialog}>
-                {linkedPerson.notes ? t('Edit notes') : t('Add notes')}
+                {linkedPerson.notes ? t(K.memories.editNotes) : t(K.memories.addNotes)}
               </Button>
             ) : null}
           </View>
           <Text variant="bodyMedium" style={[personProfileStyles.notesText, { color: theme.colors.onSurfaceVariant }]}>
-            {linkedPerson.notes || t('No notes added yet.')}
+            {linkedPerson.notes || t(K.memories.noNotesAddedYet)}
           </Text>
         </View>
       ) : null}
@@ -80,11 +81,11 @@ export function MemoriesSection({
         <View style={personProfileStyles.gallerySection}>
           <View style={personProfileStyles.sectionHeader}>
             <View style={personProfileStyles.sectionHeaderText}>
-              <Text variant="titleSmall">{t('Photo gallery ({count})', { count: linkedPerson.photos.length })}</Text>
+              <Text variant="titleSmall">{t(K.memories.photoGalleryCount, { count: linkedPerson.photos.length })}</Text>
             </View>
             {canEditLinkedProfile ? (
               <Button mode="contained-tonal" icon="image-plus" onPress={onOpenPhotosDialog}>
-                {linkedPerson.photos.length > 0 ? t('Manage photos') : t('Add photos')}
+                {linkedPerson.photos.length > 0 ? t(K.memories.managePhotos) : t(K.memories.addPhotos)}
               </Button>
             ) : null}
           </View>
@@ -100,9 +101,9 @@ export function MemoriesSection({
             </ScrollView>
           ) : (
             <View style={personProfileStyles.emptyState}>
-              <Text variant="titleMedium">{t('No photos yet')}</Text>
+              <Text variant="titleMedium">{t(K.memories.noPhotosYet)}</Text>
               <Text variant="bodyMedium" style={[personProfileStyles.stateText, { color: theme.colors.onSurfaceVariant }]}>
-                Photos and scanned keepsakes will show up here.
+                {t(K.memories.photosAndKeepsakes)}
               </Text>
             </View>
           )}
@@ -117,7 +118,7 @@ export function MemoriesSection({
             </View>
             {canEditLinkedProfile ? (
               <Button mode="contained-tonal" icon="plus" onPress={onAddLifeEvent}>
-                {t('Add event')}
+                {t(K.memories.addEvent)}
               </Button>
             ) : null}
           </View>
@@ -153,9 +154,9 @@ export function MemoriesSection({
             </View>
           ) : (
             <View style={personProfileStyles.emptyState}>
-              <Text variant="titleMedium">{t('No memories yet')}</Text>
+              <Text variant="titleMedium">{t(K.memories.noMemoriesYet)}</Text>
               <Text variant="bodyMedium" style={[personProfileStyles.stateText, { color: theme.colors.onSurfaceVariant }]}>
-                Start with major milestones like marriage, moving house, graduation, or a treasured family story.
+                {t(K.memories.startWithMilestones)}
               </Text>
             </View>
           )}

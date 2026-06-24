@@ -6,6 +6,7 @@ import type { PersonPhoto, PersonRecord } from '../../../components/dto/person';
 import { formatPersonDate, getDisplayPersonPhoto, getPersonLifeSpanLabel, getPersonPresenceLabel } from '../../../components/dto/person';
 import { formatPersonName } from '../../../components/person-formatting';
 import { GlobalStyles } from '../../../constants/styles';
+import { I18N_KEYS as K } from '../../../i18n/keys';
 
 const dialogChrome = GlobalStyles.dialogChrome;
 const styles = GlobalStyles.treeDetail;
@@ -111,14 +112,14 @@ export function TreeDetailMaidenViewer({
 
       <Portal>
         <Dialog visible={maidenMembersVisible} onDismiss={closeMaidenMembersModal} style={[dialogChrome.dialog, { backgroundColor: theme.colors.surface, maxHeight: '88%' }]}>
-          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{t('Maiden family members')}</Dialog.Title>
-          <IconButton icon="close" size={20} onPress={closeMaidenMembersModal} style={dialogChrome.closeButton} accessibilityLabel={t('Close')} />
+          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{t(K.tree.familyMembers.maidenTitle)}</Dialog.Title>
+          <IconButton icon="close" size={20} onPress={closeMaidenMembersModal} style={dialogChrome.closeButton} accessibilityLabel={t(K.common.close)} />
           <Dialog.ScrollArea style={dialogChrome.content}>
             <View style={{ gap: 12, paddingBottom: 8 }}>
               <View style={styles.searchRow}>
                 <TextInput
                   mode="outlined"
-                  label={t('Search family members')}
+                  label={t(K.tree.familyMembers.search)}
                   value={maidenMemberSearchQuery}
                   onChangeText={setMaidenMemberSearchQuery}
                   style={styles.searchBar}
@@ -128,7 +129,7 @@ export function TreeDetailMaidenViewer({
               </View>
               {filteredMaidenViewerPeople.length === 0 ? (
                 <View style={styles.emptyState}>
-                  <Text variant="titleMedium">{t('No matching family members')}</Text>
+                  <Text variant="titleMedium">{t(K.tree.familyMembers.noMatches)}</Text>
                   <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
                     {t('Try adjusting the search.')}
                   </Text>
@@ -137,7 +138,7 @@ export function TreeDetailMaidenViewer({
                 <>
                   <View style={[styles.resultsPill, { backgroundColor: theme.colors.surfaceVariant }]}>
                     <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                      {t('{count} member(s)', { count: filteredMaidenViewerPeople.length })}
+                      {t(K.tree.familyMembers.count, { count: filteredMaidenViewerPeople.length })}
                     </Text>
                   </View>
                   <ScrollView contentContainerStyle={{ gap: 10, paddingBottom: 8 }}>

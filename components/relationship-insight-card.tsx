@@ -5,6 +5,7 @@ import { getPersonLifeSpanLabel, type PersonRecord } from './dto/person';
 import type { RelationshipRecord } from './dto/relationship';
 import { useI18n } from '../hooks/use-i18n';
 import { translate } from '../i18n';
+import { I18N_KEYS as K } from '../i18n/keys';
 import { computeRelationshipInsight } from '../providers';
 import { GlobalStyles } from '../constants/styles';
 
@@ -48,7 +49,7 @@ export default function RelationshipInsightCard({
   people,
   relationships,
   lockedFromPersonId,
-  title = translate('Relationship intelligence'),
+  title = translate(K.relationshipInsight.title),
   subtitle,
 }: RelationshipInsightCardProps) {
   const theme = useTheme();
@@ -181,7 +182,7 @@ export default function RelationshipInsightCard({
         {!lockedFromPersonId ? (
           <View style={styles.section}>
             <Button mode="outlined" icon="account-search" onPress={() => openPicker('from')}>
-              {fromPerson ? formatPersonName(fromPerson) : t('Select family member')}
+              {fromPerson ? formatPersonName(fromPerson) : t(K.common.selectFamilyMember)}
             </Button>
           </View>
         ) : null}
@@ -193,7 +194,7 @@ export default function RelationshipInsightCard({
             onPress={() => openPicker('to')}
             disabled={!fromPersonId}
           >
-            {toPerson ? formatPersonName(toPerson) : t('Select family member')}
+            {toPerson ? formatPersonName(toPerson) : t(K.common.selectFamilyMember)}
           </Button>
         </View>
 
@@ -223,7 +224,7 @@ export default function RelationshipInsightCard({
                 setToPersonId('');
                 setShowPathDetails(false);
               }}
-              accessibilityLabel={t('Reset')}
+              accessibilityLabel={t(K.common.reset)}
             />
           ) : null}
         </View>
@@ -231,7 +232,7 @@ export default function RelationshipInsightCard({
         {!canShowInsight ? (
           <View style={[styles.resultBox, { backgroundColor: theme.colors.surfaceVariant }]}>
             <Text variant="bodyMedium" style={[styles.pathText, { color: theme.colors.onSurfaceVariant }]}>
-              {t('Select a family member to see the relationship.')}
+              {t(K.relationshipInsight.selectPrompt)}
             </Text>
           </View>
         ) : (
@@ -245,7 +246,7 @@ export default function RelationshipInsightCard({
                 })}
               </Text>
               <Text variant="bodyMedium" style={[styles.pathText, { color: theme.colors.onSurfaceVariant }]}>
-                {t('We found a family connection and can show both the plain-language answer and the exact path through the tree.')}
+                {t(K.relationshipInsight.connectionFound)}
               </Text>
               <View style={styles.summaryRow}>
                 <Chip compact icon="account">{formatPersonName(fromPerson)}</Chip>
@@ -254,7 +255,7 @@ export default function RelationshipInsightCard({
                 <Chip compact icon="source-branch">{Math.max(insight.pathPersonIds.length - 1, 0)} steps</Chip>
               </View>
               <Button mode="text" onPress={() => setShowPathDetails((current) => !current)} style={{ alignSelf: 'flex-start', marginTop: 8 }}>
-                {showPathDetails ? t('Hide connection steps') : t('Show connection steps')}
+                {showPathDetails ? t(K.relationshipInsight.hideSteps) : t(K.relationshipInsight.showSteps)}
               </Button>
               {showPathDetails ? (
                 <View style={{ marginTop: 8 }}>
@@ -267,18 +268,18 @@ export default function RelationshipInsightCard({
                         <Text variant="titleSmall">{index + 1}. {formatPersonName(currentPerson)}</Text>
                         {relation ? (
                           <Text variant="bodySmall" style={styles.stepMeta}>
-                            {t('Next step goes through a {relation} relationship.', { relation: getPathRelationLabel(relation) })}
+                            {t(K.relationshipInsight.nextStepThroughRelation, { relation: getPathRelationLabel(relation) })}
                           </Text>
                         ) : null}
                       </View>
                     );
                   })}
                   <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
-                    {t('Full path: {path}', { path: pathLabel ?? '' })}
+                    {t(K.relationshipInsight.fullPath, { path: pathLabel ?? '' })}
                   </Text>
                   {pathRelationLabel ? (
                     <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
-                      {t('Path types: {types}', { types: pathRelationLabel })}
+                      {t(K.relationshipInsight.pathTypes, { types: pathRelationLabel })}
                     </Text>
                   ) : null}
                 </View>
@@ -286,9 +287,9 @@ export default function RelationshipInsightCard({
             </View>
           ) : (
             <View style={[styles.resultBox, { backgroundColor: theme.colors.surfaceVariant }]}>
-              <Text variant="titleMedium">{t('No direct family relationship found')}</Text>
+              <Text variant="titleMedium">{t(K.relationshipInsight.noDirectRelationshipFound)}</Text>
               <Text variant="bodyMedium" style={[styles.pathText, { color: theme.colors.onSurfaceVariant }]}>
-                {t('No result returned because these two family members are currently unrelated in this tree.')}
+                {t(K.relationshipInsight.noRelationshipResult)}
               </Text>
             </View>
           )
@@ -301,7 +302,7 @@ export default function RelationshipInsightCard({
           style={[dialogChrome.dialog, styles.pickerDialog, { backgroundColor: theme.colors.surface }]}
         >
           <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose, styles.pickerDialogTitle]}>
-            {t('Select family member')}
+            {t(K.common.selectFamilyMember)}
           </Dialog.Title>
           <IconButton
             icon="close"
@@ -314,7 +315,7 @@ export default function RelationshipInsightCard({
             <View>
             <TextInput
               mode="outlined"
-              label={t('Search family member')}
+                label={t(K.common.searchFamilyMember)}
               value={pickerSearchQuery}
               onChangeText={setPickerSearchQuery}
               style={styles.searchInput}
@@ -340,7 +341,7 @@ export default function RelationshipInsightCard({
               </View>
             ) : (
               <View style={styles.emptyState}>
-                <Text variant="bodyMedium">{t('No matching family members found.')}</Text>
+                <Text variant="bodyMedium">{t(K.relationshipInsight.noMatchingFamilyMembersFound)}</Text>
               </View>
             )}
 
@@ -350,7 +351,7 @@ export default function RelationshipInsightCard({
                   icon="chevron-left"
                   onPress={() => setPickerPage((page) => Math.max(1, page - 1))}
                   disabled={pickerPage === 1}
-                  accessibilityLabel={t('Previous')}
+                  accessibilityLabel={t(K.common.previous)}
                 />
                 <Text variant="bodySmall" style={styles.paginationLabel}>
                   {pickerPage} / {totalPickerPages}
@@ -359,7 +360,7 @@ export default function RelationshipInsightCard({
                   icon="chevron-right"
                   onPress={() => setPickerPage((page) => Math.min(totalPickerPages, page + 1))}
                   disabled={pickerPage === totalPickerPages}
-                  accessibilityLabel={t('Next')}
+                  accessibilityLabel={t(K.common.next)}
                 />
               </View>
             ) : null}

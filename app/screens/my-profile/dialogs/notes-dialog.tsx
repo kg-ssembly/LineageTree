@@ -3,6 +3,7 @@ import { ScrollView } from 'react-native';
 import { Button, Dialog, IconButton, Portal, TextInput, useTheme } from 'react-native-paper';
 import { GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
+import { I18N_KEYS as K } from '../../../../i18n/keys';
 
 const dialogChrome = GlobalStyles.dialogChrome;
 const personProfileStyles = GlobalStyles.personProfile;
@@ -28,13 +29,13 @@ export function NotesDialog({
   return (
     <Portal>
       <Dialog visible={visible} onDismiss={mutating ? undefined : onDismiss} style={[dialogChrome.dialog, personProfileStyles.memoryDialog, { backgroundColor: theme.colors.surface }]}>
-        <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{t('Notes')}</Dialog.Title>
+        <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{t(K.memories.notes)}</Dialog.Title>
         <IconButton icon="close" onPress={onDismiss} disabled={mutating} accessibilityLabel={t('Cancel')} style={dialogChrome.closeButton} />
         <Dialog.ScrollArea style={personProfileStyles.memoryDialogScrollArea}>
           <ScrollView contentContainerStyle={personProfileStyles.memoryDialogContent} keyboardShouldPersistTaps="handled">
             <TextInput
               mode="outlined"
-              label={t('Family notes')}
+              label={t(K.memories.familyNotes)}
               value={notesDraft}
               onChangeText={setNotesDraft}
               multiline
@@ -45,7 +46,7 @@ export function NotesDialog({
           </ScrollView>
         </Dialog.ScrollArea>
         <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
-          <Button mode="contained" onPress={onSave} disabled={mutating}>{t('Save notes')}</Button>
+          <Button mode="contained" onPress={onSave} disabled={mutating}>{t(K.memories.saveNotes)}</Button>
         </Dialog.Actions>
       </Dialog>
     </Portal>

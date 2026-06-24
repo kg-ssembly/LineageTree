@@ -4,6 +4,7 @@ import { Button, Chip, SegmentedButtons, Surface, Text, TextInput, useTheme } fr
 import type { ThemePreference } from '../../../../constants/theme';
 import { GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
+import { I18N_KEYS as K } from '../../../../i18n/keys';
 import { useAuthStore } from '../../../../stores/auth-store';
 import { useThemeStore } from '../../../../stores/theme-store';
 
@@ -32,8 +33,8 @@ export function AppSettingsSection({ onSignOut, authLoading }: UserProfileTabPro
   const isDirty = editName.trim() !== (user?.displayName ?? '').trim();
   const appearanceSummary =
     preference === 'dark'
-      ? t('Dark mode is enabled for a cosy, low-light workspace.')
-      : t('Light mode is enabled for a bright, airy workspace.');
+      ? t(K.settings.darkModeEnabled)
+      : t(K.settings.lightModeEnabled);
 
   const handleSaveName = async () => {
     if (!editName.trim()) {
@@ -55,9 +56,9 @@ export function AppSettingsSection({ onSignOut, authLoading }: UserProfileTabPro
   return (
     <>
       <Surface style={[treeDetailStyles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
-        <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>{t('Edit profile')}</Text>
+        <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>{t(K.settings.editProfile)}</Text>
         <Text variant="bodySmall" style={[treeDetailStyles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-          {t('Change the display name shown across your family trees.')}
+          {t(K.settings.changeDisplayName)}
         </Text>
         <View style={homeStyles.editNameRow}>
           <TextInput
@@ -73,24 +74,24 @@ export function AppSettingsSection({ onSignOut, authLoading }: UserProfileTabPro
             disabled={savingName}
           />
           <Button mode="contained" icon="content-save-outline" onPress={handleSaveName} disabled={savingName || !isDirty} style={homeStyles.saveNameButton}>
-            {t('Save changes')}
+            {t(K.common.saveChanges)}
           </Button>
         </View>
         {nameError ? <Text variant="bodySmall" style={{ color: theme.colors.error, marginTop: 4 }}>{nameError}</Text> : null}
       </Surface>
 
       <Surface style={[treeDetailStyles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
-        <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>{t('Appearance')}</Text>
+        <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>{t(K.settings.appearance)}</Text>
         <Text variant="bodySmall" style={[treeDetailStyles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-          {t('Switch the app between light and dark viewing modes.')}
+          {t(K.settings.switchLightDarkModes)}
         </Text>
         <SegmentedButtons
           key={`appearance-${theme.dark ? 'dark' : 'light'}-${preference}`}
           value={preference}
           onValueChange={(value) => setPreference(value as ThemePreference)}
           buttons={[
-            { value: 'light', label: t('Light'), icon: 'white-balance-sunny' },
-            { value: 'dark', label: t('Dark'), icon: 'weather-night' },
+            { value: 'light', label: t(K.common.light), icon: 'white-balance-sunny' },
+            { value: 'dark', label: t(K.common.dark), icon: 'weather-night' },
           ]}
           style={homeStyles.themeSwitch}
         />
@@ -100,9 +101,9 @@ export function AppSettingsSection({ onSignOut, authLoading }: UserProfileTabPro
       </Surface>
 
       <Surface style={[treeDetailStyles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
-        <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>{t('App language')}</Text>
+        <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>{t(K.settings.appLanguage)}</Text>
         <Text variant="bodySmall" style={[treeDetailStyles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-          {t('Choose the language used across the app.')}
+          {t(K.settings.chooseLanguage)}
         </Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
           {languages.map((option) => (

@@ -39,6 +39,7 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Button, Chip, IconButton, Text, useTheme } from 'react-native-paper';
 import { translate } from '../i18n';
+import { I18N_KEYS as K } from '../i18n/keys';
 import Svg, { Path, Text as SvgText } from 'react-native-svg';
 
 import type { PersonRecord } from './dto/person';
@@ -865,12 +866,12 @@ function FamilyTreeCanvas({
 
   // ---- Labels ----
   const controlsLabel = lineageMode === 'ascendant'
-      ? t('Drag to pan, pinch / Ctrl-scroll to zoom through earlier generations.')
+      ? t(K.lineage.canvasControlsAscendants)
       : lineageMode === 'descendant'
-          ? t('Drag to pan, pinch / Ctrl-scroll to zoom through descendants.')
-          : t('Drag to pan, pinch or Ctrl+scroll to zoom.');
-  const fullscreenTitle = lineageMode === 'ascendant' ? t('Full-screen ascendant tree')
-      : lineageMode === 'descendant' ? t('Full-screen descendant tree') : t('Full-screen family tree');
+          ? t(K.lineage.canvasControlsDescendants)
+          : t(K.lineage.canvasControlsGeneric);
+  const fullscreenTitle = lineageMode === 'ascendant' ? t(K.lineage.fullScreenAscendantTree)
+      : lineageMode === 'descendant' ? t(K.lineage.fullScreenDescendantTree) : t(K.lineage.fullScreenFamilyTree);
 
   // ---- Render helpers ----
   const transformStyle = {
@@ -891,11 +892,11 @@ function FamilyTreeCanvas({
           <Chip compact icon="magnify">{scale.toFixed(2)}x</Chip>
           <IconButton icon="minus" size={18} mode="contained-tonal" onPress={() => zoomBy(-0.15)} />
           <IconButton icon="plus" size={18} mode="contained-tonal" onPress={() => zoomBy(0.15)} />
-          <Button compact mode="contained-tonal" onPress={resetView}>{t('Reset')}</Button>
+          <Button compact mode="contained-tonal" onPress={resetView}>{t(K.common.reset)}</Button>
           {allowFullscreen ? (
               mode === 'fullscreen'
-                  ? <Button compact mode="contained" icon="close" onPress={() => setIsFullscreen(false)}>{t('Close')}</Button>
-                  : <Button compact mode="contained" icon="fullscreen" onPress={() => setIsFullscreen(true)}>{t('Fullscreen')}</Button>
+                  ? <Button compact mode="contained" icon="close" onPress={() => setIsFullscreen(false)}>{t(K.common.close)}</Button>
+                  : <Button compact mode="contained" icon="fullscreen" onPress={() => setIsFullscreen(true)}>{t(K.common.fullscreen)}</Button>
           ) : null}
         </View>
       </View>
@@ -1004,8 +1005,8 @@ function FamilyTreeCanvas({
                 <Chip compact icon="magnify-minus">{scale.toFixed(2)}x</Chip>
                 <Button compact mode="outlined" onPress={() => zoomBy(-0.15)}>-</Button>
                 <Button compact mode="outlined" onPress={() => zoomBy(0.15)}>+</Button>
-                <Button compact onPress={resetView}>{t('Reset')}</Button>
-                {allowFullscreen ? <Button compact mode="contained-tonal" icon="fullscreen" onPress={() => setIsFullscreen(true)}>{t('Fullscreen')}</Button> : null}
+                <Button compact onPress={resetView}>{t(K.common.reset)}</Button>
+                {allowFullscreen ? <Button compact mode="contained-tonal" icon="fullscreen" onPress={() => setIsFullscreen(true)}>{t(K.common.fullscreen)}</Button> : null}
               </View>
             </View>
         ) : null}

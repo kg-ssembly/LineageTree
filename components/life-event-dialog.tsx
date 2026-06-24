@@ -5,6 +5,7 @@ import { DatePickerModal } from 'react-native-paper-dates';
 import type { PersonLifeEvent, PersonLifeEventType } from './dto/person';
 import { formatPersonDate, getLifeEventTypeLabel, parsePersonDate } from './dto/person';
 import { useI18n } from '../hooks/use-i18n';
+import { I18N_KEYS as K } from '../i18n/keys';
 import { GlobalStyles } from '../constants/styles';
 
 const styles = GlobalStyles.lifeEventDialog;
@@ -52,7 +53,7 @@ function getDefaultTitle(type: PersonLifeEventType) {
 }
 
 function formatDateButtonLabel(value: string) {
-  return value ? formatPersonDate(value) : 'Pick a date';
+  return value ? formatPersonDate(value) : K.common.pickDate;
 }
 
 export default function LifeEventDialog({
@@ -167,7 +168,7 @@ export default function LifeEventDialog({
                 <Text variant="titleSmall">{t('Event date')}</Text>
                 <View style={styles.dateActions}>
                   <Button mode="outlined" icon="calendar" onPress={() => setDatePickerVisible(true)} disabled={loading}>
-                    {formatDateButtonLabel(date)}
+                  {t(formatDateButtonLabel(date))}
                   </Button>
                   {date ? (
                     <Button onPress={() => setDate('')} disabled={loading}>

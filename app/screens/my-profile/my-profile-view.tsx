@@ -37,6 +37,7 @@ import { getPersonValidationFeedback } from '../../../components/family-tree-val
 import { formatPersonName } from '../../../components/person-formatting';
 import { GlobalStyles } from '../../../constants/styles';
 import { useI18n } from '../../../hooks/use-i18n';
+import { I18N_KEYS as K } from '../../../i18n/keys';
 import { useAuthStore } from '../../../stores/auth-store';
 import { useTreeStore } from '../../../stores/tree-store';
 import { NotesDialog } from './dialogs/notes-dialog';
@@ -312,66 +313,66 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
   const fallbackProfileState = useMemo(() => {
     if (trees.length === 0) {
       return {
-        title: t('Create or join a tree'),
-        summary: t('You can unlock the rest of this profile workspace once you create or join a family tree.'),
-        detail: t('Open the tree settings tab to create your first tree or accept access to a shared tree.'),
+        title: t(K.profileState.createOrJoinTree),
+        summary: t(K.profileState.createOrJoinTreeSummary),
+        detail: t(K.profileState.createOrJoinTreeDetail),
       };
     }
 
     if (!user?.defaultTreeId) {
       return {
-        title: t('Choose a default tree'),
-        summary: t('You already have a family tree, but no default tree has been chosen for this profile workspace yet.'),
-        detail: t('Open the tree settings tab to mark one of your trees as the default tree.'),
+        title: t(K.profileState.chooseDefaultTree),
+        summary: t(K.profileState.chooseDefaultTreeSummary),
+        detail: t(K.profileState.chooseDefaultTreeDetail),
       };
     }
 
     if (!defaultTree) {
       if (selectedTree && currentAssignedPersonId) {
         return {
-          title: t('Linked profile available'),
-          summary: t('You are linked in "{treeName}", but your saved default tree is not available right now.', { treeName: selectedTree.name }),
-          detail: t('The profile tabs should still open from this linked tree. If not, reopen the profile tab or choose a new default tree in tree settings.'),
+          title: t(K.profileState.linkedProfileAvailable),
+          summary: t(K.profileState.linkedProfileAvailableSummary, { treeName: selectedTree.name }),
+          detail: t(K.profileState.linkedProfileAvailableDetail),
         };
       }
 
       return {
-        title: t('Reconnect your default tree'),
-        summary: t('Your account still points to a default tree, but that tree is not available right now.'),
-        detail: t('Open the tree settings tab to pick a new default tree or rejoin the original tree if you still need access.'),
+        title: t(K.profileState.reconnectDefaultTree),
+        summary: t(K.profileState.reconnectDefaultTreeSummary),
+        detail: t(K.profileState.reconnectDefaultTreeDetail),
       };
     }
 
     if (!defaultAssignedPersonId && !currentAssignedPersonId) {
       return {
-        title: t('Link or claim your family profile'),
+        title: t(K.profileState.linkOrClaimFamilyProfile),
         summary: t(
           defaultTree
-            ? 'You have a tree ready, but your account is not linked to a family member profile yet in "{treeName}".'
+            ? K.profileState.linkOrClaimFamilyProfileSummary
             : 'You have a tree ready, but your account is not linked to a family member profile yet.',
           { treeName: defaultTree?.name ?? '' },
         ),
-        detail: t('Open the tree settings tab to link yourself to an existing person or claim your profile there.'),
+        detail: t(K.profileState.linkOrClaimFamilyProfileDetail),
       };
     }
 
     if (!currentAssignedPerson) {
       return {
-        title: t('Loading your family profile'),
+        title: t(K.profileState.loadingFamilyProfile),
         summary: t(
           profileTree
-            ? 'Your account is linked in "{treeName}", and we are still loading that family member profile.'
+            ? K.profileState.loadingFamilyProfileSummary
             : 'Your account is linked, and we are still loading that family member profile.',
           { treeName: profileTree?.name ?? '' },
         ),
-        detail: t('This should resolve in a moment. If it does not, reopen the profile tab.'),
+        detail: t(K.profileState.loadingFamilyProfileDetail),
       };
     }
 
     return {
-      title: t('Profile workspace'),
-      summary: t('Your profile workspace is getting ready.'),
-      detail: t('If this message stays here, reopen the profile tab.'),
+      title: t(K.profileState.profileWorkspace),
+      summary: t(K.profileState.profileWorkspaceSummary),
+      detail: t(K.profileState.profileWorkspaceDetail),
     };
   }, [currentAssignedPerson, currentAssignedPersonId, defaultAssignedPersonId, defaultTree, profileTree, selectedTree, t, trees.length, user?.defaultTreeId]);
 
@@ -415,10 +416,10 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
               : relationship.fromPersonId;
         const relatedPerson = peopleById.get(relatedPersonId) ?? null;
         const subtitle = relationship.type === 'spouse'
-          ? t('Partner connection')
+          ? t(K.personProfile.partnerConnection)
           : mode === 'parent-of'
-            ? t('Parent -> child connection')
-            : t('Child -> parent connection');
+            ? t(K.personProfile.parentToChildConnection)
+            : t(K.personProfile.childToParentConnection);
 
         return {
           relationship,
@@ -449,9 +450,9 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
       items.push({
         id: `birth-${linkedPerson.id}`,
         date: linkedPerson.birthDate,
-        title: t('Birth'),
-        description: t('{name} was born.', { name: formatPersonName(linkedPerson) }),
-        badgeLabel: t('Birth'),
+        title: t(K.personProfile.birth),
+        description: t(K.personProfile.wasBorn, { name: formatPersonName(linkedPerson) }),
+        badgeLabel: t(K.personProfile.birth),
         system: true,
       });
     }
@@ -460,9 +461,9 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
       items.push({
         id: `death-${linkedPerson.id}`,
         date: linkedPerson.deathDate,
-        title: t('In memory'),
-        description: t('{name} passed away.', { name: formatPersonName(linkedPerson) }),
-        badgeLabel: t('In memory'),
+        title: t(K.personProfile.inMemory),
+        description: t(K.personProfile.passedAway, { name: formatPersonName(linkedPerson) }),
+        badgeLabel: t(K.personProfile.inMemory),
         system: true,
       });
     }
@@ -503,7 +504,7 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
   };
 
   const closeConfirm = () => {
-    setConfirmState({ visible: false, title: '', message: '', confirmLabel: t('Confirm'), action: null });
+    setConfirmState({ visible: false, title: '', message: '', confirmLabel: t(K.common.confirm), action: null });
   };
 
   const handleConfirm = async () => {
@@ -583,7 +584,7 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
     }
 
     if (photoEditorCount >= MAX_PHOTOS_PER_PERSON) {
-      Alert.alert(t('Photo limit reached'), t('You can save up to 5 photos per family member.'));
+      Alert.alert(t(K.media.photoLimitReached), t(K.media.photoLimitSummary));
       return;
     }
 
@@ -592,13 +593,13 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
     try {
       const preparedPhoto = await preparePhotoForUpload(result.assets[0]);
       if (preparedPhoto.sizeBytes > MAX_PHOTO_BYTES) {
-        Alert.alert(t('Photo too large'), t('This photo could not be compressed below 2 MB. Please choose a smaller image.'));
+        Alert.alert(t(K.media.photoTooLarge), t(K.media.photoTooLargeSummary));
         return;
       }
 
       setPhotoEditorNewPhotoUris((current) => [...current, preparedPhoto.uri]);
     } catch {
-      Alert.alert(t('Photo processing failed'), t('We could not prepare this image. Please try a different photo.'));
+      Alert.alert(t(K.media.photoProcessingFailed), t(K.media.photoProcessingFailedSummary));
     } finally {
       setPhotoProcessing(false);
     }
@@ -608,7 +609,7 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
     if (Platform.OS !== 'web') {
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permission.granted) {
-        Alert.alert(t('Permission needed'), t('Please allow access to your photo library to add family photos.'));
+        Alert.alert(t(K.media.permissionNeeded), t(K.media.photoPermissionLibrary));
         return;
       }
     }
@@ -626,7 +627,7 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
     if (Platform.OS !== 'web') {
       const permission = await ImagePicker.requestCameraPermissionsAsync();
       if (!permission.granted) {
-        Alert.alert(t('Permission needed'), t('Please allow camera access to capture family photos.'));
+        Alert.alert(t(K.media.permissionNeeded), t(K.media.photoPermissionCamera));
         return;
       }
     }
@@ -640,7 +641,7 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
 
       await addPhotoFromPickerResult(result);
     } catch {
-      Alert.alert(t('Camera unavailable'), t('The camera could not be opened on this device.'));
+      Alert.alert(t(K.media.cameraUnavailable), t('The camera could not be opened on this device.'));
     }
   };
 
@@ -670,7 +671,7 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
       if (preferredNewPhotoIndex >= 0) {
         const croppedPreferred = await cropPhotoForPreferredDisplay(nextNewPhotoUris[preferredNewPhotoIndex]);
         if (croppedPreferred.sizeBytes > MAX_PHOTO_BYTES) {
-          Alert.alert(t('Photo too large'), t('This preferred photo could not be cropped and compressed below 2 MB. Please choose a smaller image.'));
+          Alert.alert(t(K.media.photoTooLarge), t(K.media.preferredPhotoTooLargeSummary));
           return;
         }
 
@@ -703,7 +704,7 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
         ignorePersonId: linkedPerson.id,
       });
       if (photoValidation.errors.length > 0) {
-        Alert.alert(t('Cannot save photos'), photoValidation.errors[0]);
+        Alert.alert(t(K.personProfile.cannotSavePhotos), photoValidation.errors[0]);
         return;
       }
 
@@ -805,7 +806,7 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
       ignorePersonId: linkedPerson.id,
     });
     if (validation.errors.length > 0) {
-      Alert.alert(t('Cannot save life event'), validation.errors[0]);
+      Alert.alert(t(K.personProfile.cannotSaveLifeEvent), validation.errors[0]);
       return;
     }
 
@@ -855,7 +856,7 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
 
         <Surface style={[treeDetailStyles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
           <Text variant="titleMedium" style={{ color: theme.colors.onSurface, marginBottom: 8 }}>
-            {shouldShowLinkedProfileTabs ? t('Your profile workspace') : t('Available right now')}
+            {shouldShowLinkedProfileTabs ? t(K.personProfile.yourProfileWorkspace) : t(K.common.availableRightNow)}
           </Text>
           <HorizontalTabStrip
             items={shouldShowLinkedProfileTabs ? profileTabs : profileTabs.filter((tab) => tab.key === 'app-settings')}
@@ -977,9 +978,9 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
         onDismiss={() => setRelationshipDialog({ visible: false, relationship: null })}
         onDelete={relationshipDialog.relationship ? async () => {
           openConfirm(
-            t('Remove relationship'),
-            t('Remove this family connection?'),
-            t('Remove'),
+            t(K.personProfile.removeRelationship),
+            t(K.personProfile.removeThisFamilyConnection),
+            t(K.common.remove),
             async () => {
               if (!user?.id) {
                 return;
@@ -1000,9 +1001,9 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
         onDismiss={() => setLifeEventDialog({ visible: false, event: null })}
         onDelete={lifeEventDialog.event && linkedPerson ? async () => {
           openConfirm(
-            t('Delete life event'),
-            t('Delete the "{title}" memory from {name}?', { title: lifeEventDialog.event!.title, name: formatPersonName(linkedPerson) }),
-            t('Delete'),
+            t(K.personProfile.deleteLifeEvent),
+            t(K.personProfile.deleteMemoryFromName, { title: lifeEventDialog.event!.title, name: formatPersonName(linkedPerson) }),
+            t(K.common.delete),
             async () => {
               await handleDeleteLifeEvent(lifeEventDialog.event!);
               setLifeEventDialog({ visible: false, event: null });

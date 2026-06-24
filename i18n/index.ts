@@ -9,6 +9,7 @@ import ts from './locales/ts';
 import ve from './locales/ve';
 import xh from './locales/xh';
 import zu from './locales/zu';
+import { TRANSLATION_FALLBACKS } from './keys';
 import type { AppLanguage, LanguageOption, TranslationMap } from './types';
 
 export const LANGUAGE_OPTIONS: LanguageOption[] = [
@@ -50,7 +51,10 @@ export function getActiveLanguage() {
 }
 
 export function translate(message: string, params?: Record<string, string | number | null | undefined>) {
-  const localized = TRANSLATIONS[activeLanguage]?.[message] ?? message;
+  const fallback = TRANSLATION_FALLBACKS[message] ?? message;
+  const localized = TRANSLATIONS[activeLanguage]?.[message]
+    ?? TRANSLATIONS[activeLanguage]?.[fallback]
+    ?? fallback;
 
   if (!params) {
     return localized;
@@ -62,3 +66,4 @@ export function translate(message: string, params?: Record<string, string | numb
 }
 
 export type { AppLanguage, LanguageOption } from './types';
+export { I18N_KEYS, type TranslationKey } from './keys';

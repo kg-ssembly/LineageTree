@@ -6,6 +6,7 @@ import { formatPersonDate, getPersonPresenceLabel, getPersonTreeMembershipIds, i
 import { formatPersonGender } from '../../../../components/person-formatting';
 import { GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
+import { I18N_KEYS as K } from '../../../../i18n/keys';
 
 const personProfileStyles = GlobalStyles.personProfile;
 
@@ -21,7 +22,7 @@ export function ProfileOverviewSection({
 
   return (
     <Surface style={[personProfileStyles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
-      <Text variant="titleLarge">{t('Profile')}</Text>
+      <Text variant="titleLarge">{t(K.personProfile.memberProfile)}</Text>
       <View style={personProfileStyles.metadataRow}>
         {linkedPerson.gender !== 'unspecified' ? <Chip compact>{formatPersonGender(linkedPerson.gender)}</Chip> : null}
         <Chip compact icon={isPersonDeceased(linkedPerson) ? 'flower-outline' : 'heart-pulse'}>{getPersonPresenceLabel(linkedPerson)}</Chip>
@@ -42,21 +43,21 @@ export function ProfileOverviewSection({
           </View>
         ) : null}
         <View style={[personProfileStyles.detailCard, { backgroundColor: theme.colors.elevation.level1 }]}>
-          <Text variant="labelMedium" style={[personProfileStyles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>{t('Last name')}</Text>
+          <Text variant="labelMedium" style={[personProfileStyles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>{t(K.personForm.lastName)}</Text>
           <Text variant="titleMedium">{linkedPerson.lastName || t('Unknown')}</Text>
         </View>
         {linkedPerson.maidenName?.trim() ? (
           <View style={[personProfileStyles.detailCard, { backgroundColor: theme.colors.elevation.level1 }]}>
-            <Text variant="labelMedium" style={[personProfileStyles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>{t('Maiden name')}</Text>
+            <Text variant="labelMedium" style={[personProfileStyles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>{t(K.personForm.maidenName)}</Text>
             <Text variant="titleMedium">{linkedPerson.maidenName.trim()}</Text>
           </View>
         ) : null}
         <View style={[personProfileStyles.detailCard, { backgroundColor: theme.colors.elevation.level1 }]}>
-          <Text variant="labelMedium" style={[personProfileStyles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>{t('Birth date')}</Text>
+          <Text variant="labelMedium" style={[personProfileStyles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>{t(K.personForm.birthDate)}</Text>
           <Text variant="titleMedium">{linkedPerson.birthDate ? formatPersonDate(linkedPerson.birthDate) : t('Unknown')}</Text>
         </View>
         <View style={[personProfileStyles.detailCard, { backgroundColor: theme.colors.elevation.level1 }]}>
-          <Text variant="labelMedium" style={[personProfileStyles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>{t('Tree memberships')}</Text>
+          <Text variant="labelMedium" style={[personProfileStyles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>{t(K.personProfile.treeMemberships)}</Text>
           <Text variant="titleMedium">{getPersonTreeMembershipIds(linkedPerson).join(', ') || t('Current tree only')}</Text>
         </View>
       </View>

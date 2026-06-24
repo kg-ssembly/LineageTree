@@ -4,6 +4,7 @@ import { ActivityIndicator, Button, Card, Chip, IconButton, Text, useTheme } fro
 import { getTreeRole } from '../../../../components/dto/tree';
 import { GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
+import { I18N_KEYS as K } from '../../../../i18n/keys';
 import type { TreesSectionProps } from './tree-settings-shared';
 import { formatRole } from './tree-settings-shared';
 
@@ -111,7 +112,7 @@ export function TreesSection({
                       {isSelected ? <Chip compact icon="check-circle" style={{ backgroundColor: theme.colors.primaryContainer }}>{t('Active')}</Chip> : null}
                     </View>
                     <Text variant="bodySmall" style={{ color: isSelected ? theme.colors.onPrimaryContainer : theme.colors.onSurfaceVariant, marginTop: 2 }}>
-                      {t('{count} member(s) · {role}', { count: tree.memberIds?.length ?? 0, role: formatRole(treeRole) })}
+                      {t(K.tree.trees.memberCountWithRole, { count: tree.memberIds?.length ?? 0, role: formatRole(treeRole) })}
                     </Text>
                     <Text selectable variant="bodySmall" style={{ color: isSelected ? theme.colors.onPrimaryContainer : theme.colors.onSurfaceVariant, marginTop: 4 }}>
                       {t('Tree ID: {id}', { id: tree.id })}

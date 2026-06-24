@@ -38,6 +38,7 @@ import { cropPhotoForPreferredDisplay, MAX_PHOTOS_PER_PERSON, MAX_PHOTO_BYTES, p
 import { formatPersonGender, formatPersonName } from '../../../components/person-formatting';
 import { GlobalStyles } from '../../../constants/styles';
 import { useI18n } from '../../../hooks/use-i18n';
+import { I18N_KEYS as K } from '../../../i18n/keys';
 import { PersonNotesDialog } from './dialogs/notes-dialog';
 import { PersonPhotoViewerModal } from './dialogs/photo-viewer-modal';
 import { PersonPhotosDialog } from './dialogs/photos-dialog';
@@ -215,7 +216,7 @@ const styles = GlobalStyles.personProfile;
 
 const PROFILE_TABS: Array<{ key: PersonProfileTabKey; label: string }> = [
   { key: 'member-profile', label: 'Profile' },
-  { key: 'relationships', label: 'Relationships' },
+  { key: 'relationships', label: K.personProfile.relationships },
   { key: 'memories-gallery', label: 'Memories' },
   { key: 'descendant-tree', label: 'Descendants' },
   { key: 'ascendant-tree', label: 'Ascendants' },
@@ -395,10 +396,10 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
             ? t('Child of {name}', { name: formatPersonName(relatedPerson) })
             : t('Spouse of {name}', { name: formatPersonName(relatedPerson) });
         const subtitle = relationship.type === 'spouse'
-          ? t('Partner connection')
+          ? t(K.personProfile.partnerConnection)
           : mode === 'parent-of'
-            ? t('Parent → child connection')
-            : t('Child → parent connection');
+            ? t(K.personProfile.parentToChildConnection)
+            : t(K.personProfile.childToParentConnection);
 
         return {
           relationship,
@@ -443,9 +444,9 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
       items.push({
         id: `birth-${person.id}`,
         date: person.birthDate,
-        title: t('Birth'),
-        description: t('{name} was born.', { name: formatPersonName(person) }),
-        badgeLabel: t('Birth'),
+        title: t(K.personProfile.birth),
+        description: t(K.personProfile.wasBorn, { name: formatPersonName(person) }),
+        badgeLabel: t(K.personProfile.birth),
         system: true,
       });
     }
@@ -454,9 +455,9 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
       items.push({
         id: `death-${person.id}`,
         date: person.deathDate,
-        title: t('In memory'),
-        description: t('{name} passed away.', { name: formatPersonName(person) }),
-        badgeLabel: t('In memory'),
+        title: t(K.personProfile.inMemory),
+        description: t(K.personProfile.passedAway, { name: formatPersonName(person) }),
+        badgeLabel: t(K.personProfile.inMemory),
         system: true,
       });
     }
@@ -541,7 +542,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
   };
 
   const closeConfirm = () => {
-    setConfirmState({ visible: false, title: '', message: '', confirmLabel: t('Confirm'), action: null });
+    setConfirmState({ visible: false, title: '', message: '', confirmLabel: t(K.common.confirm), action: null });
   };
 
   const handleConfirm = async () => {
@@ -610,7 +611,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
     }
 
     if (photoEditorCount >= MAX_PHOTOS_PER_PERSON) {
-      Alert.alert(t('Photo limit reached'), t('You can save up to 5 photos per family member.'));
+      Alert.alert(t(K.media.photoLimitReached), t(K.media.photoLimitSummary));
       return;
     }
 
@@ -619,13 +620,13 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
     try {
       const preparedPhoto = await preparePhotoForUpload(result.assets[0]);
       if (preparedPhoto.sizeBytes > MAX_PHOTO_BYTES) {
-        Alert.alert(t('Photo too large'), t('This photo could not be compressed below 2 MB. Please choose a smaller image.'));
+        Alert.alert(t(K.media.photoTooLarge), t(K.media.photoTooLargeSummary));
         return;
       }
 
       setPhotoEditorNewPhotoUris((current) => [...current, preparedPhoto.uri]);
     } catch {
-      Alert.alert(t('Photo processing failed'), t('We could not prepare this image. Please try a different photo.'));
+      Alert.alert(t(K.media.photoProcessingFailed), t(K.media.photoProcessingFailedSummary));
     } finally {
       setPhotoProcessing(false);
     }
@@ -635,7 +636,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
     if (Platform.OS !== 'web') {
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!permission.granted) {
-        Alert.alert(t('Permission needed'), t('Please allow access to your photo library to add family photos.'));
+        Alert.alert(t(K.media.permissionNeeded), t(K.media.photoPermissionLibrary));
         return;
       }
     }
@@ -653,7 +654,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
     if (Platform.OS !== 'web') {
       const permission = await ImagePicker.requestCameraPermissionsAsync();
       if (!permission.granted) {
-        Alert.alert(t('Permission needed'), t('Please allow camera access to capture family photos.'));
+        Alert.alert(t(K.media.permissionNeeded), t(K.media.photoPermissionCamera));
         return;
       }
     }
@@ -667,7 +668,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
 
       await addPhotoFromPickerResult(result);
     } catch {
-      Alert.alert(t('Camera unavailable'), t('The camera could not be opened on this device.'));
+      Alert.alert(t(K.media.cameraUnavailable), t('The camera could not be opened on this device.'));
     }
   };
 
@@ -697,7 +698,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
       if (preferredNewPhotoIndex >= 0) {
         const croppedPreferred = await cropPhotoForPreferredDisplay(nextNewPhotoUris[preferredNewPhotoIndex]);
         if (croppedPreferred.sizeBytes > MAX_PHOTO_BYTES) {
-          Alert.alert(t('Photo too large'), t('This preferred photo could not be cropped and compressed below 2 MB. Please choose a smaller image.'));
+          Alert.alert(t(K.media.photoTooLarge), t(K.media.preferredPhotoTooLargeSummary));
           return;
         }
 
@@ -730,7 +731,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
         ignorePersonId: person.id,
       });
       if (photoValidation.errors.length > 0) {
-        Alert.alert(t('Cannot save photos'), photoValidation.errors[0]);
+        Alert.alert(t(K.personProfile.cannotSavePhotos), photoValidation.errors[0]);
         return;
       }
 
@@ -832,7 +833,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
       ignorePersonId: person.id,
     });
     if (validation.errors.length > 0) {
-      Alert.alert(t('Cannot save life event'), validation.errors[0]);
+      Alert.alert(t(K.personProfile.cannotSaveLifeEvent), validation.errors[0]);
       return;
     }
 
@@ -915,9 +916,9 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
           onPress={handleGoBack}
           style={[styles.heroFloatingButton, styles.heroFloatingButtonLeft]}
           contentStyle={{ height: 44, paddingHorizontal: 6 }}
-          accessibilityLabel={t('Back to member search')}
+          accessibilityLabel={t(K.personProfile.backToMemberSearch)}
         >
-          {t('Back to member search')}
+          {t(K.personProfile.backToMemberSearch)}
         </Button>
       </View>
       <ScrollView contentContainerStyle={styles.content}>
@@ -937,11 +938,11 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
               )}
               <View style={styles.heroIdentityWrap}>
                 <Text variant="labelLarge" style={{ color: theme.colors.primary }}>
-                  {t('Family profile')}
+                  {t(K.personProfile.familyProfile)}
                 </Text>
                 <View style={styles.heroNameRow}>
                   <Text variant="headlineMedium">{formatPersonName(person)}</Text>
-                  {isCurrentUsersPerson ? <Chip compact icon="account">{t('You')}</Chip> : null}
+                  {isCurrentUsersPerson ? <Chip compact icon="account">{t(K.common.you)}</Chip> : null}
                 </View>
                 <Text variant="bodyMedium" style={[styles.heroSubtext, { color: theme.colors.onSurfaceVariant }]}>
                   {getPersonLifeSpanLabel(person)}
@@ -955,32 +956,32 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
               {isCurrentUsersPerson ? (
                 <View style={styles.claimRow}>
                   <View style={styles.claimTextWrap}>
-                    <Text variant="titleSmall">{t('This is your linked profile')}</Text>
+                    <Text variant="titleSmall">{t(K.personProfile.thisIsYourLinkedProfile)}</Text>
                     <Text variant="bodySmall" style={[styles.claimText, { color: theme.colors.onSurfaceVariant }]}>
-                      {t('Anywhere this family member appears in the tree, you will now see a You badge. Unlink this profile first if you want to claim someone else.')}
+                      {t(K.personProfile.anywhereYouWillSeeYouBadge)}
                     </Text>
                   </View>
                     <Button mode="outlined" icon="link-off" onPress={handleUnclaimPerson} disabled={mutating}>
-                    {t('Unclaim myself')}
+                    {t(K.personProfile.unclaimMyself)}
                   </Button>
                 </View>
               ) : linkedCollaborator ? (
                 <>
-                  <Text variant="titleSmall">{t('Already linked to someone else')}</Text>
+                  <Text variant="titleSmall">{t(K.personProfile.alreadyLinkedToSomeoneElse)}</Text>
                   <Text variant="bodySmall" style={[styles.claimText, { color: theme.colors.onSurfaceVariant }]}>
-                    {t('This profile is already linked to {name}.', { name: linkedCollaborator.displayName || linkedCollaborator.email })}
+                    {t(K.personProfile.thisProfileAlreadyLinkedToName, { name: linkedCollaborator.displayName || linkedCollaborator.email })}
                   </Text>
                 </>
               ) : canClaimPerson ? (
                 <View style={styles.claimRow}>
                   <View style={styles.claimTextWrap}>
-                    <Text variant="titleSmall">{t('Is this you?')}</Text>
+                    <Text variant="titleSmall">{t(K.personProfile.isThisYou)}</Text>
                     <Text variant="bodySmall" style={[styles.claimText, { color: theme.colors.onSurfaceVariant }]}>
-                      {t('Tap once to link your account to this family member profile.')}
+                      {t(K.personProfile.tapOnceToLinkProfile)}
                     </Text>
                   </View>
                   <Button mode="contained" icon="account-check" onPress={handleClaimPerson} disabled={mutating}>
-                    {t('Claim this family member as me')}
+                    {t(K.personProfile.claimThisFamilyMemberAsMe)}
                   </Button>
                 </View>
               ) : null}
@@ -990,7 +991,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
 
         <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
           <Text variant="titleMedium" style={{ color: theme.colors.onSurface, marginBottom: 8 }}>
-            {t('Your profile workspace')}
+            {t(K.personProfile.yourProfileWorkspace)}
           </Text>
           <HorizontalTabStrip
             items={PROFILE_TABS.map((tab) => ({ ...tab, label: t(tab.label) }))}
@@ -1034,8 +1035,8 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
 
         {activeTab === 'descendant-tree' ? (
           <PersonLineageSection
-            title={t('Descendant tree')}
-            helperLabel={t('About descendant tree')}
+            title={t(K.lineage.descendantTree)}
+            helperLabel={t(K.lineage.aboutDescendantTree)}
             count={descendantIds.length}
             singularLabel="descendant"
             pluralLabel="descendants"
@@ -1051,8 +1052,8 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
 
         {activeTab === 'ascendant-tree' ? (
           <PersonLineageSection
-            title={t('Ascendant tree')}
-            helperLabel={t('About ascendant tree')}
+            title={t(K.lineage.ascendantTree)}
+            helperLabel={t(K.lineage.aboutAscendantTree)}
             count={ascendantIds.length}
             singularLabel="ancestor"
             pluralLabel="ancestors"
@@ -1153,9 +1154,9 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
         onDismiss={() => setRelationshipDialog({ visible: false, relationship: null })}
         onDelete={relationshipDialog.relationship ? async () => {
           openConfirm(
-            t('Remove relationship'),
-            t('Remove this family connection?'),
-            t('Remove'),
+            t(K.personProfile.removeRelationship),
+            t(K.personProfile.removeThisFamilyConnection),
+            t(K.common.remove),
             async () => {
               if (!user?.id) return;
               await removeRelationship(user.id, relationshipDialog.relationship!.id);
@@ -1173,9 +1174,9 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
         onDismiss={() => setLifeEventDialog({ visible: false, event: null })}
         onDelete={lifeEventDialog.event ? async () => {
           openConfirm(
-            t('Delete life event'),
-            t('Delete the "{title}" memory from {name}?', { title: lifeEventDialog.event!.title, name: formatPersonName(person) }),
-            t('Delete'),
+            t(K.personProfile.deleteLifeEvent),
+            t(K.personProfile.deleteMemoryFromName, { title: lifeEventDialog.event!.title, name: formatPersonName(person) }),
+            t(K.common.delete),
             async () => {
               await handleDeleteLifeEvent(lifeEventDialog.event!);
               setLifeEventDialog({ visible: false, event: null });
