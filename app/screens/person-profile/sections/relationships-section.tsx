@@ -1,0 +1,138 @@
+import React from 'react';
+import { View } from 'react-native';
+import { Button, Chip, IconButton, Surface, Text, useTheme } from 'react-native-paper';
+import { HorizontalTabStrip, RelationshipInsightCard } from '../../../../components';
+import type { PersonRelationshipMode } from '../../../../components/person-relationship-dialog';
+import type { PersonRecord } from '../../../../components/dto/person';
+import type { RelationshipRecord } from '../../../../components/dto/relationship';
+import { formatPersonName } from '../../../../components/person-formatting';
+import { GlobalStyles } from '../../../../constants/styles';
+import { useI18n } from '../../../../hooks/use-i18n';
+
+const styles = GlobalStyles.personProfile;
+
+export type PersonRelationshipSectionTabKey = 'insight' | 'list';
+
+export function PersonRelationshipsSection({
+  person,
+  people,
+  relationships,
+  canEdit,
+  mutating,
+  relationshipSectionTab,
+  setRelationshipSectionTab,
+  paginatedRelationships,
+  relationshipPage,
+  totalRelationshipPages,
+  setRelationshipPage,
+  onOpenHelperDialog,
+  onAddRelationship,
+  onEditRelationship,
+}: {
+  person: PersonRecord;
+  people: PersonRecord[];
+  relationships: RelationshipRecord[];
+  canEdit: boolean;
+  mutating: boolean;
+  relationshipSectionTab: PersonRelationshipSectionTabKey;
+  setRelationshipSectionTab: (tab: PersonRelationshipSectionTabKey) => void;
+  paginatedRelationships: Array<{
+    relationship: RelationshipRecord;
+    mode: PersonRelationshipMode;
+    relatedPerson: PersonRecord | null;
+    title: string;
+    subtitle: string;
+  }>;
+  relationshipPage: number;
+  totalRelationshipPages: number;
+  setRelationshipPage: React.Dispatch<React.SetStateAction<number>>;
+  onOpenHelperDialog: () => void;
+  onAddRelationship: () => void;
+  onEditRelationship: (relationship: RelationshipRecord) => void;
+}) {
+  const theme = useTheme();
+  const { t } = useI18n();
+
+  return (
+    <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
+      <View style={styles.sectionHeader}>
+        <View style={styles.sectionHeaderText}>
+          <View style={styles.titleWithHelperRow}>
+            <Text variant="titleLarge">{t('Relationships')}</Text>
+            <IconButton
+              icon="information-outline"
+              size={20}
+              style={styles.helperIconButton}
+              onPress={onOpenHelperDialog}
+              accessibilityLabel={t('About relationships')}
+            />
+          </View>
+        </View>
+        {canEdit ? (
+          <Button mode="contained" icon="family-tree" onPress={onAddRelationship}>
+            {t('Add relationship')}
+          </Button>
+        ) : null}
+      </View>
+
+      <HorizontalTabStrip
+        items={[
+          { key: 'insight', label: t('How Related') },
+          { key: 'list', label: t('All Links') },
+        ]}
+        activeKey={relationshipSectionTab}
+        onChange={(value) => setRelationshipSectionTab(value as PersonRelationshipSectionTabKey)}
+        containerStyle={[styles.tabStripCard, styles.relationshipTabStripCard, { backgroundColor: theme.colors.surface }]}
+        contentContainerStyle={styles.tabStripContent}
+        itemStyle={styles.tabStripItem}
+      />
+
+      {relationshipSectionTab === 'insight' ? (
+        <RelationshipInsightCard
+          people={people}
+          relationships={relationships}
+          lockedFromPersonId={person.id}
+          title={t('How does {name} relate to...', { name: formatPersonName(person) })}
+        />
+      ) : paginatedRelationships.length > 0 ? (
+        <>
+          <View style={styles.relationshipList}>
+            {paginatedRelationships.map((entry) => (
+              <View key={entry.relationship.id} style={[styles.relationshipCard, { backgroundColor: theme.colors.surface }]}>
+                <View style={styles.relationshipRow}>
+                  <View style={styles.relationshipTextWrap}>
+                    <Chip compact style={styles.relationshipChip}>
+                      {entry.mode === 'parent-of' ? t('Parent of') : entry.mode === 'child-of' ? t('Child of') : t('Spouse of')}
+                    </Chip>
+                    <Text variant="titleMedium" style={styles.relationshipTitle}>{formatPersonName(entry.relatedPerson)}</Text>
+                    <Text variant="bodySmall" style={[styles.relationshipSubtitle, { color: theme.colors.onSurfaceVariant }]}>{entry.subtitle}</Text>
+                  </View>
+                  {canEdit ? (
+                    <View style={styles.rowActions}>
+                      <IconButton icon="pencil" onPress={() => onEditRelationship(entry.relationship)} disabled={mutating} />
+                    </View>
+                  ) : null}
+                </View>
+              </View>
+            ))}
+          </View>
+
+          {totalRelationshipPages > 1 ? (
+            <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, marginTop: 12 }}>
+              <IconButton icon="chevron-left" onPress={() => setRelationshipPage((p) => Math.max(1, p - 1))} disabled={relationshipPage === 1} />
+              <Text variant="bodyMedium">{relationshipPage} / {totalRelationshipPages}</Text>
+              <IconButton icon="chevron-right" onPress={() => setRelationshipPage((p) => Math.min(totalRelationshipPages, p + 1))} disabled={relationshipPage === totalRelationshipPages} />
+            </View>
+          ) : null}
+        </>
+      ) : (
+        <View style={styles.emptyState}>
+          <Text variant="titleMedium">{t('No relationships yet')}</Text>
+          <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
+            {t('Add parents, children, or spouses from this family member to grow the story around them.')}
+          </Text>
+        </View>
+      )}
+    </Surface>
+  );
+}

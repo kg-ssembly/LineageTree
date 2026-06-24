@@ -1,12 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, Dimensions, Image, Modal, Platform, Pressable, ScrollView, View } from 'react-native';
+import { Alert, Image, Platform, Pressable, ScrollView, View } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import {
   ActivityIndicator,
   Button,
-  Card,
   Chip,
   Dialog,
   IconButton,
@@ -17,11 +16,11 @@ import {
   TextInput,
   useTheme,
 } from 'react-native-paper';
-import { ConfirmDialog, FamilyTreeCanvas, HorizontalTabStrip, LifeEventDialog, PersonFormDialog, PersonRelationshipDialog, RelationshipInsightCard } from '../../components';
-import type { PersonRelationshipMode } from '../../components/person-relationship-dialog';
-import { useAuthStore } from '../../stores/auth-store';
-import { useTreeStore } from '../../stores/tree-store';
-import type { PersonLifeEvent, PersonMutationPayload, PersonPhoto, PersonRecord } from '../../components/dto/person';
+import { ConfirmDialog, HorizontalTabStrip, LifeEventDialog, PersonFormDialog, PersonRelationshipDialog } from '../../../components';
+import type { PersonRelationshipMode } from '../../../components/person-relationship-dialog';
+import { useAuthStore } from '../../../stores/auth-store';
+import { useTreeStore } from '../../../stores/tree-store';
+import type { PersonLifeEvent, PersonMutationPayload, PersonPhoto, PersonRecord } from '../../../components/dto/person';
 import {
   formatPersonDate,
   getDisplayPersonPhoto,
@@ -30,15 +29,22 @@ import {
   getPersonPresenceLabel,
   getPersonTreeMembershipIds,
   isPersonDeceased,
-} from '../../components/dto/person';
-import type { ParentChildRelationshipKind, RelationshipRecord, SpouseRelationshipStatus } from '../../components/dto/relationship';
-import type { MainTabParamList } from '../../components/dto/navigation';
-import { canEditTreeContent, getAssignedPersonId, getAssignedUserIdForPerson } from '../../components/dto/tree';
-import { getPersonValidationFeedback } from '../../components/family-tree-validation';
-import { cropPhotoForPreferredDisplay, MAX_PHOTOS_PER_PERSON, MAX_PHOTO_BYTES, preparePhotoForUpload } from '../../components/photo-utils';
-import { formatPersonGender, formatPersonName } from '../../components/person-formatting';
-import { GlobalStyles } from '../../constants/styles';
-import { useI18n } from '../../hooks/use-i18n';
+} from '../../../components/dto/person';
+import type { ParentChildRelationshipKind, RelationshipRecord, SpouseRelationshipStatus } from '../../../components/dto/relationship';
+import type { MainTabParamList } from '../../../components/dto/navigation';
+import { canEditTreeContent, getAssignedPersonId, getAssignedUserIdForPerson } from '../../../components/dto/tree';
+import { getPersonValidationFeedback } from '../../../components/family-tree-validation';
+import { cropPhotoForPreferredDisplay, MAX_PHOTOS_PER_PERSON, MAX_PHOTO_BYTES, preparePhotoForUpload } from '../../../components/photo-utils';
+import { formatPersonGender, formatPersonName } from '../../../components/person-formatting';
+import { GlobalStyles } from '../../../constants/styles';
+import { useI18n } from '../../../hooks/use-i18n';
+import { PersonNotesDialog } from './dialogs/notes-dialog';
+import { PersonPhotoViewerModal } from './dialogs/photo-viewer-modal';
+import { PersonPhotosDialog } from './dialogs/photos-dialog';
+import { MemberProfileSection } from './sections/member-profile-section';
+import { PersonLineageSection } from './sections/lineage-section';
+import { PersonMemoriesSection, type PersonMemorySectionTabKey } from './sections/memories-section';
+import { PersonRelationshipsSection, type PersonRelationshipSectionTabKey } from './sections/relationships-section';
 const dialogChrome = GlobalStyles.dialogChrome;
 const treeDetailStyles = GlobalStyles.treeDetail;
 
@@ -84,19 +90,6 @@ type LifeEventDialogState = {
 type HelperDialogKey = 'tabs' | 'member-profile' | 'relationships' | 'descendant-tree' | 'ascendant-tree' | 'memories-gallery';
 
 type PersonProfileTabKey = 'member-profile' | 'relationships' | 'descendant-tree' | 'ascendant-tree' | 'memories-gallery';
-type RelationshipSectionTabKey = 'insight' | 'list';
-type MemorySectionTabKey = 'notes' | 'photos' | 'events';
-
-const RELATIONSHIP_SECTION_TABS: Array<{ key: RelationshipSectionTabKey; label: string }> = [
-  { key: 'insight', label: 'How Related' },
-  { key: 'list', label: 'All Links' },
-];
-
-const MEMORY_SECTION_TABS: Array<{ key: MemorySectionTabKey; label: string }> = [
-  { key: 'events', label: 'Life Events' },
-  { key: 'photos', label: 'Photos' },
-  { key: 'notes', label: 'Notes' },
-];
 
 function getRelationshipModeForPerson(personId: string, relationship: RelationshipRecord): PersonRelationshipMode {
   if (relationship.type === 'spouse') {
@@ -287,8 +280,8 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
     key: 'tabs',
   });
   const [relationshipPage, setRelationshipPage] = useState(1);
-  const [relationshipSectionTab, setRelationshipSectionTab] = useState<RelationshipSectionTabKey>('insight');
-  const [memorySectionTab, setMemorySectionTab] = useState<MemorySectionTabKey>('events');
+  const [relationshipSectionTab, setRelationshipSectionTab] = useState<PersonRelationshipSectionTabKey>('insight');
+  const [memorySectionTab, setMemorySectionTab] = useState<PersonMemorySectionTabKey>('events');
   const [notesDialogVisible, setNotesDialogVisible] = useState(false);
   const [notesDraft, setNotesDraft] = useState('');
   const [photosDialogVisible, setPhotosDialogVisible] = useState(false);
@@ -913,9 +906,6 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
     );
   }
 
-  const viewerWidth = Dimensions.get('window').width;
-  const viewerHeight = Dimensions.get('window').height;
-
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <View pointerEvents="box-none" style={styles.stickyActionBarHost}>
@@ -1013,356 +1003,85 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
         </Surface>
 
         {activeTab === 'member-profile' ? (
-          <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
-            <View style={styles.sectionHeader}>
-              <View style={styles.sectionHeaderText}>
-                <View style={styles.titleWithHelperRow}>
-                  <Text variant="titleLarge">{t('Member profile')}</Text>
-                  <IconButton
-                    icon="information-outline"
-                    size={20}
-                    style={styles.helperIconButton}
-                    onPress={() => openHelperDialog('member-profile')}
-                    accessibilityLabel={t('About member profile')}
-                  />
-                </View>
-              </View>
-              {canEdit ? (
-                <Button mode="contained-tonal" icon="pencil" onPress={() => setEditorVisible(true)}>
-                  {t('Edit family member')}
-                </Button>
-              ) : null}
-            </View>
-
-            <View style={styles.metadataRow}>
-              {person.gender !== 'unspecified' ? <Chip compact>{formatPersonGender(person.gender)}</Chip> : null}
-              <Chip compact icon={isPersonDeceased(person) ? 'flower-outline' : 'heart-pulse'}>{getPersonPresenceLabel(person)}</Chip>
-              <Chip compact icon="image-multiple">{t('{count} photos', { count: person.photos.length })}</Chip>
-              <Chip compact icon="source-branch">{t('{count} tree memberships', { count: getPersonTreeMembershipIds(person).length })}</Chip>
-              {preferredPhoto ? <Chip compact icon="star">{t('Preferred photo selected')}</Chip> : null}
-              {linkedCollaborator && !isCurrentUsersPerson ? <Chip compact icon="link-variant">{t('Linked')}</Chip> : null}
-              {person.canonicalPersonId?.trim() ? <Chip compact icon="merge">{t('Merged canonical profile')}</Chip> : null}
-            </View>
-
-            <View style={styles.detailGrid}>
-              <View style={[styles.detailCard, { backgroundColor: theme.colors.elevation.level1 }]}>
-                <Text variant="labelMedium" style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>{t('First name')}</Text>
-                <Text variant="titleMedium">{person.firstName || t('Unknown')}</Text>
-              </View>
-              {person.middleNames?.trim() ? (
-                <View style={[styles.detailCard, { backgroundColor: theme.colors.elevation.level1 }]}>
-                  <Text variant="labelMedium" style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>{t('Second / middle names')}</Text>
-                  <Text variant="titleMedium">{person.middleNames.trim()}</Text>
-                </View>
-              ) : null}
-              <View style={[styles.detailCard, { backgroundColor: theme.colors.elevation.level1 }]}>
-                <Text variant="labelMedium" style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>{t('Last name')}</Text>
-                <Text variant="titleMedium">{person.lastName || t('Unknown')}</Text>
-              </View>
-              {person.maidenName?.trim() ? (
-                <View style={[styles.detailCard, { backgroundColor: theme.colors.elevation.level1 }]}>
-                  <Text variant="labelMedium" style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>{t('Maiden name')}</Text>
-                  <Text variant="titleMedium">{person.maidenName.trim()}</Text>
-                </View>
-              ) : null}
-              <View style={[styles.detailCard, { backgroundColor: theme.colors.elevation.level1 }]}>
-                <Text variant="labelMedium" style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>{t('Birth date')}</Text>
-                <Text variant="titleMedium">{person.birthDate ? formatPersonDate(person.birthDate) : t('Unknown')}</Text>
-              </View>
-              <View style={[styles.detailCard, { backgroundColor: theme.colors.elevation.level1 }]}>
-                <Text variant="labelMedium" style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>{t('Tree memberships')}</Text>
-                <Text variant="titleMedium">{getPersonTreeMembershipIds(person).join(', ') || t('Current tree only')}</Text>
-              </View>
-            </View>
-
-            <View style={[styles.notesBox, { backgroundColor: theme.colors.surfaceVariant }]}>
-              <Text variant="titleSmall">{t('Notes')}</Text>
-              <Text variant="bodyMedium" style={[styles.notesText, { color: theme.colors.onSurfaceVariant }]}>
-                {person.notes || t('No notes added yet.')}
-              </Text>
-            </View>
-          </Surface>
+          <MemberProfileSection
+            person={person}
+            preferredPhoto={preferredPhoto}
+            canEdit={canEdit}
+            linkedCollaboratorLabel={linkedCollaborator ? linkedCollaborator.displayName || linkedCollaborator.email : null}
+            isCurrentUsersPerson={isCurrentUsersPerson}
+            onOpenHelperDialog={() => openHelperDialog('member-profile')}
+            onEdit={() => setEditorVisible(true)}
+          />
         ) : null}
         {activeTab === 'relationships' ? (
-          <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
-            <View style={styles.sectionHeader}>
-              <View style={styles.sectionHeaderText}>
-                <View style={styles.titleWithHelperRow}>
-                  <Text variant="titleLarge">{t('Relationships')}</Text>
-                  <IconButton
-                    icon="information-outline"
-                    size={20}
-                    style={styles.helperIconButton}
-                    onPress={() => openHelperDialog('relationships')}
-                    accessibilityLabel={t('About relationships')}
-                  />
-                </View>
-              </View>
-              {canEdit ? (
-                <Button mode="contained" icon="family-tree" onPress={() => setRelationshipDialog({ visible: true, relationship: null })}>
-                  {t('Add relationship')}
-                </Button>
-              ) : null}
-            </View>
-
-            <HorizontalTabStrip
-              items={RELATIONSHIP_SECTION_TABS.map((item) => ({ ...item, label: t(item.label) }))}
-              activeKey={relationshipSectionTab}
-              onChange={setRelationshipSectionTab}
-              containerStyle={[styles.tabStripCard, styles.relationshipTabStripCard, { backgroundColor: theme.colors.surface }]}
-              contentContainerStyle={styles.tabStripContent}
-              itemStyle={styles.tabStripItem}
-            />
-
-            {relationshipSectionTab === 'insight' ? (
-              <RelationshipInsightCard
-                people={people}
-                relationships={relationships}
-                lockedFromPersonId={person.id}
-                title={t('How does {name} relate to...', { name: formatPersonName(person) })}
-              />
-            ) : relationshipEntries.length > 0 ? (
-              <>
-                <View style={styles.relationshipList}>
-                  {paginatedRelationships.map((entry) => (
-                    <View key={entry.relationship.id} style={[styles.relationshipCard, { backgroundColor: theme.colors.surface }]}>
-                      <View style={styles.relationshipRow}>
-                        <View style={styles.relationshipTextWrap}>
-                          <Chip compact style={styles.relationshipChip}>
-                            {entry.mode === 'parent-of' ? t('Parent of') : entry.mode === 'child-of' ? t('Child of') : t('Spouse of')}
-                          </Chip>
-                          <Text variant="titleMedium" style={styles.relationshipTitle}>{formatPersonName(entry.relatedPerson)}</Text>
-                          <Text variant="bodySmall" style={[styles.relationshipSubtitle, { color: theme.colors.onSurfaceVariant }]}>{entry.subtitle}</Text>
-                        </View>
-                        {canEdit ? (
-                          <View style={styles.rowActions}>
-                            <IconButton
-                              icon="pencil"
-                              onPress={() => setRelationshipDialog({ visible: true, relationship: entry.relationship })}
-                              disabled={mutating}
-                            />
-                          </View>
-                        ) : null}
-                      </View>
-                    </View>
-                  ))}
-                </View>
-
-                {totalRelationshipPages > 1 && (
-                  <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, marginTop: 12 }}>
-                    <IconButton
-                      icon="chevron-left"
-                      onPress={() => setRelationshipPage((p) => Math.max(1, p - 1))}
-                      disabled={relationshipPage === 1}
-                    />
-                    <Text variant="bodyMedium">{relationshipPage} / {totalRelationshipPages}</Text>
-                    <IconButton
-                      icon="chevron-right"
-                      onPress={() => setRelationshipPage((p) => Math.min(totalRelationshipPages, p + 1))}
-                      disabled={relationshipPage === totalRelationshipPages}
-                    />
-                  </View>
-                )}
-              </>
-            ) : (
-              <View style={styles.emptyState}>
-                <Text variant="titleMedium">{t('No relationships yet')}</Text>
-                <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>{t('Add parents, children, or spouses from this family member to grow the story around them.')}</Text>
-              </View>
-            )}
-          </Surface>
+          <PersonRelationshipsSection
+            person={person}
+            people={people}
+            relationships={relationships}
+            canEdit={canEdit}
+            mutating={mutating}
+            relationshipSectionTab={relationshipSectionTab}
+            setRelationshipSectionTab={setRelationshipSectionTab}
+            paginatedRelationships={paginatedRelationships}
+            relationshipPage={relationshipPage}
+            totalRelationshipPages={totalRelationshipPages}
+            setRelationshipPage={setRelationshipPage}
+            onOpenHelperDialog={() => openHelperDialog('relationships')}
+            onAddRelationship={() => setRelationshipDialog({ visible: true, relationship: null })}
+            onEditRelationship={(relationship) => setRelationshipDialog({ visible: true, relationship })}
+          />
         ) : null}
 
         {activeTab === 'descendant-tree' ? (
-          <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
-            <View style={styles.sectionHeader}>
-              <View style={styles.sectionHeaderText}>
-                <View style={styles.titleWithHelperRow}>
-                  <Text variant="titleLarge">{t('Descendant tree')}</Text>
-                  <IconButton
-                    icon="information-outline"
-                    size={20}
-                    style={styles.helperIconButton}
-                    onPress={() => openHelperDialog('descendant-tree')}
-                    accessibilityLabel={t('About descendant tree')}
-                  />
-                </View>
-                {descendantIds.length > 0 ? (
-                  <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-                    {descendantIds.length === 1 ? t('{count} descendant', { count: descendantIds.length }) : t('{count} descendants', { count: descendantIds.length })}
-                  </Text>
-                ) : null}
-              </View>
-            </View>
-            <FamilyTreeCanvas
-              people={people}
-              relationships={relationships}
-              onPressPerson={openFamilyMemberProfile}
-              currentUserPersonId={currentAssignedPerson?.id ?? undefined}
-              initialFocusPersonId={person.id}
-              descendantRootPersonId={person.id}
-              showMaidenFamilyInNodeTitle
-            />
-          </Surface>
+          <PersonLineageSection
+            title={t('Descendant tree')}
+            helperLabel={t('About descendant tree')}
+            count={descendantIds.length}
+            singularLabel="descendant"
+            pluralLabel="descendants"
+            person={person}
+            people={people}
+            relationships={relationships}
+            currentAssignedPersonId={currentAssignedPerson?.id ?? undefined}
+            onOpenHelperDialog={() => openHelperDialog('descendant-tree')}
+            onPressPerson={openFamilyMemberProfile}
+            mode="descendant"
+          />
         ) : null}
 
         {activeTab === 'ascendant-tree' ? (
-          <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
-            <View style={styles.sectionHeader}>
-              <View style={styles.sectionHeaderText}>
-                <View style={styles.titleWithHelperRow}>
-                  <Text variant="titleLarge">{t('Ascendant tree')}</Text>
-                  <IconButton
-                    icon="information-outline"
-                    size={20}
-                    style={styles.helperIconButton}
-                    onPress={() => openHelperDialog('ascendant-tree')}
-                    accessibilityLabel={t('About ascendant tree')}
-                  />
-                </View>
-                {ascendantIds.length > 0 ? (
-                  <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-                    {ascendantIds.length === 1 ? t('{count} ancestor', { count: ascendantIds.length }) : t('{count} ancestors', { count: ascendantIds.length })}
-                  </Text>
-                ) : null}
-              </View>
-            </View>
-            <FamilyTreeCanvas
-              people={people}
-              relationships={relationships}
-              onPressPerson={openFamilyMemberProfile}
-              currentUserPersonId={currentAssignedPerson?.id ?? undefined}
-              initialFocusPersonId={person.id}
-              ascendantRootPersonId={person.id}
-              showMaidenFamilyInNodeTitle
-            />
-          </Surface>
+          <PersonLineageSection
+            title={t('Ascendant tree')}
+            helperLabel={t('About ascendant tree')}
+            count={ascendantIds.length}
+            singularLabel="ancestor"
+            pluralLabel="ancestors"
+            person={person}
+            people={people}
+            relationships={relationships}
+            currentAssignedPersonId={currentAssignedPerson?.id ?? undefined}
+            onOpenHelperDialog={() => openHelperDialog('ascendant-tree')}
+            onPressPerson={openFamilyMemberProfile}
+            mode="ascendant"
+          />
         ) : null}
 
         {activeTab === 'memories-gallery' ? (
-          <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
-            <View style={styles.titleWithHelperRow}>
-                  <Text variant="titleLarge">{t('Memories & gallery')}</Text>
-              <IconButton
-                icon="information-outline"
-                size={20}
-                style={styles.helperIconButton}
-                onPress={() => openHelperDialog('memories-gallery')}
-                accessibilityLabel={t('About memories and gallery')}
-              />
-            </View>
-
-            <HorizontalTabStrip
-              items={MEMORY_SECTION_TABS.map((item) => ({ ...item, label: t(item.label) }))}
-              activeKey={memorySectionTab}
-              onChange={setMemorySectionTab}
-              containerStyle={[styles.tabStripCard, { backgroundColor: theme.colors.surface }]}
-              contentContainerStyle={styles.tabStripContent}
-              itemStyle={styles.tabStripItem}
-            />
-
-            {memorySectionTab === 'notes' ? (
-              <View style={[styles.notesBox, { backgroundColor: theme.colors.surfaceVariant }]}>
-                <View style={styles.sectionHeader}>
-                  <View style={styles.sectionHeaderText}>
-                    <Text variant="titleSmall">{t('Notes')}</Text>
-                  </View>
-                  {canEdit ? (
-                    <Button mode="contained-tonal" icon="pencil" onPress={openNotesDialog}>
-                      {person.notes ? t('Edit notes') : t('Add notes')}
-                    </Button>
-                  ) : null}
-                </View>
-                <Text variant="bodyMedium" style={[styles.notesText, { color: theme.colors.onSurfaceVariant }]}>
-                  {person.notes || t('No notes added yet.')}
-                </Text>
-              </View>
-            ) : null}
-
-            {memorySectionTab === 'photos' ? (
-              <View style={styles.gallerySection}>
-                <View style={styles.sectionHeader}>
-                  <View style={styles.sectionHeaderText}>
-                    <Text variant="titleSmall">{t('Photo gallery ({count})', { count: person.photos.length })}</Text>
-                  </View>
-                  {canEdit ? (
-                    <Button mode="contained-tonal" icon="image-plus" onPress={openPhotosDialog}>
-                      {person.photos.length > 0 ? t('Manage photos') : t('Add photos')}
-                    </Button>
-                  ) : null}
-                </View>
-                {person.photos.length > 0 ? (
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.galleryRow}>
-                    {person.photos.map((photo, index) => (
-                      <Pressable key={photo.id} onPress={() => setViewerIndex(index)}>
-                        <Card mode="elevated" style={[styles.photoCard, preferredPhoto?.id === photo.id && styles.photoCardPreferred]}>
-                          <Image source={{ uri: photo.url }} style={styles.photo} />
-                        </Card>
-                      </Pressable>
-                    ))}
-                  </ScrollView>
-                ) : (
-                  <View style={styles.emptyState}>
-                    <Text variant="titleMedium">{t('No photos yet')}</Text>
-                    <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>{t('Photos and scanned keepsakes will show up here.')}</Text>
-                  </View>
-                )}
-              </View>
-            ) : null}
-
-            {memorySectionTab === 'events' ? (
-              <View style={styles.lifeEventsSection}>
-                <View style={styles.sectionHeader}>
-                  <View style={styles.sectionHeaderText}>
-                    <Text variant="titleSmall">{t('Life events ({count})', { count: memoryTimeline.length })}</Text>
-                  </View>
-                  {canEdit ? (
-                    <Button mode="contained-tonal" icon="plus" onPress={() => setLifeEventDialog({ visible: true, event: null })}>
-                      {t('Add event')}
-                    </Button>
-                  ) : null}
-                </View>
-
-                {memoryTimeline.length > 0 ? (
-                  <View style={styles.relationshipList}>
-                    {memoryTimeline.map((item) => {
-                      const editableEvent = !item.system
-                        ? person.lifeEvents.find((event) => event.id === item.id) ?? null
-                        : null;
-                      return (
-                        <View key={item.id} style={[styles.relationshipCard, { backgroundColor: theme.colors.surface }]}>
-                          <View style={styles.relationshipRow}>
-                            <View style={styles.relationshipTextWrap}>
-                              <View style={styles.timelineChipRow}>
-                                <Chip compact>{item.badgeLabel}</Chip>
-                                <Chip compact icon="calendar">{formatPersonDate(item.date)}</Chip>
-                              </View>
-                              <Text variant="titleMedium" style={styles.relationshipTitle}>{item.title}</Text>
-                              <Text variant="bodySmall" style={[styles.relationshipSubtitle, { color: theme.colors.onSurfaceVariant }]}>{item.description}</Text>
-                            </View>
-                            {canEdit && editableEvent ? (
-                              <View style={styles.rowActions}>
-                                <IconButton
-                                  icon="pencil"
-                                  onPress={() => setLifeEventDialog({ visible: true, event: editableEvent })}
-                                  disabled={mutating}
-                                />
-                              </View>
-                            ) : null}
-                          </View>
-                        </View>
-                      );
-                    })}
-                  </View>
-                ) : (
-                  <View style={styles.emptyState}>
-                    <Text variant="titleMedium">{t('No memories yet')}</Text>
-                    <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>{t('Start with major milestones like marriage, divorce, moving house, graduation, or a treasured family story.')}</Text>
-                  </View>
-                )}
-              </View>
-            ) : null}
-          </Surface>
+          <PersonMemoriesSection
+            person={person}
+            preferredPhoto={preferredPhoto}
+            canEdit={canEdit}
+            mutating={mutating}
+            memorySectionTab={memorySectionTab}
+            setMemorySectionTab={setMemorySectionTab}
+            memoryTimeline={memoryTimeline}
+            onOpenHelperDialog={() => openHelperDialog('memories-gallery')}
+            onOpenNotesDialog={openNotesDialog}
+            onOpenPhotosDialog={openPhotosDialog}
+            onOpenViewer={setViewerIndex}
+            onAddLifeEvent={() => setLifeEventDialog({ visible: true, event: null })}
+            onEditLifeEvent={(event) => setLifeEventDialog({ visible: true, event })}
+          />
         ) : null}
       </ScrollView>
       {!isMainTabNavigation ? (
@@ -1466,109 +1185,32 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
         onSubmit={handleLifeEventSubmit}
       />
 
-      <Portal>
-        <Dialog
-          visible={notesDialogVisible}
-          onDismiss={mutating ? undefined : () => setNotesDialogVisible(false)}
-          style={[dialogChrome.dialog, styles.memoryDialog, { backgroundColor: theme.colors.surface }]}
-        >
-          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{t('Notes')}</Dialog.Title>
-          <IconButton icon="close" onPress={() => setNotesDialogVisible(false)} disabled={mutating} accessibilityLabel={t('Cancel')} style={dialogChrome.closeButton} />
-          <Dialog.ScrollArea style={styles.memoryDialogScrollArea}>
-            <ScrollView contentContainerStyle={styles.memoryDialogContent} keyboardShouldPersistTaps="handled">
-              <TextInput
-                mode="outlined"
-                label={t('Family notes')}
-                value={notesDraft}
-                onChangeText={setNotesDraft}
-                multiline
-                numberOfLines={6}
-                style={styles.memoryDialogInput}
-                disabled={mutating}
-              />
-            </ScrollView>
-          </Dialog.ScrollArea>
-          <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
-            <Button mode="contained" onPress={handleSaveNotes} disabled={mutating}>{t('Save notes')}</Button>
-          </Dialog.Actions>
-        </Dialog>
-      </Portal>
+      <PersonNotesDialog
+        visible={notesDialogVisible}
+        mutating={mutating}
+        notesDraft={notesDraft}
+        setNotesDraft={setNotesDraft}
+        onDismiss={() => setNotesDialogVisible(false)}
+        onSave={handleSaveNotes}
+      />
 
-      <Portal>
-        <Dialog
-          visible={photosDialogVisible}
-          onDismiss={mutating ? undefined : () => setPhotosDialogVisible(false)}
-          style={[dialogChrome.dialog, styles.memoryDialog, { backgroundColor: theme.colors.surface }]}
-        >
-          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{t('Manage photos')}</Dialog.Title>
-          <IconButton icon="close" onPress={() => setPhotosDialogVisible(false)} disabled={mutating} accessibilityLabel={t('Cancel')} style={dialogChrome.closeButton} />
-          <Dialog.ScrollArea style={styles.memoryDialogScrollArea}>
-            <ScrollView contentContainerStyle={styles.memoryDialogContent} keyboardShouldPersistTaps="handled">
-              <View style={styles.memoryDialogPhotoActions}>
-                <Button mode="outlined" icon="image-plus" onPress={handleAddPhotoFromLibrary} disabled={mutating || photoProcessing || photoEditorCount >= MAX_PHOTOS_PER_PERSON}>
-                  {t('Library')}
-                </Button>
-                <Button mode="outlined" icon="camera" onPress={handleCapturePhoto} disabled={mutating || photoProcessing || photoEditorCount >= MAX_PHOTOS_PER_PERSON}>
-                  {t('Camera')}
-                </Button>
-              </View>
-              <Text variant="bodySmall" style={styles.memoryDialogHint}>
-                {t('Add up to 5 photos. Every photo is compressed to stay under 2 MB. When you choose a preferred photo, that one is cropped to fit the circular tree avatar.')}
-              </Text>
-
-              {photoEditorCount > 0 ? (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.memoryDialogPhotoList}>
-                  {photoEditorExistingPhotos.map((photo) => (
-                    <View key={photo.id} style={styles.memoryDialogPhotoCard}>
-                      <Image source={{ uri: photo.url }} style={styles.memoryDialogPhoto} />
-                      <IconButton
-                        icon={photoEditorPreferredPhotoRef === photo.id ? 'star' : 'star-outline'}
-                        size={18}
-                        style={[styles.memoryDialogPhotoButton, styles.memoryDialogPhotoPrimaryButton]}
-                        onPress={() => setPhotoEditorPreferredPhotoRef((current) => current === photo.id ? '' : photo.id)}
-                        disabled={mutating}
-                      />
-                      <IconButton
-                        icon="close"
-                        size={16}
-                        style={[styles.memoryDialogPhotoButton, styles.memoryDialogPhotoRemoveButton]}
-                        onPress={() => handleRemoveExistingPhoto(photo)}
-                        disabled={mutating}
-                      />
-                    </View>
-                  ))}
-                  {photoEditorNewPhotoUris.map((uri) => (
-                    <View key={uri} style={styles.memoryDialogPhotoCard}>
-                      <Image source={{ uri }} style={styles.memoryDialogPhoto} />
-                      <IconButton
-                        icon={photoEditorPreferredPhotoRef === uri ? 'star' : 'star-outline'}
-                        size={18}
-                        style={[styles.memoryDialogPhotoButton, styles.memoryDialogPhotoPrimaryButton]}
-                        onPress={() => setPhotoEditorPreferredPhotoRef((current) => current === uri ? '' : uri)}
-                        disabled={mutating}
-                      />
-                      <IconButton
-                        icon="close"
-                        size={16}
-                        style={[styles.memoryDialogPhotoButton, styles.memoryDialogPhotoRemoveButton]}
-                        onPress={() => handleRemoveNewPhoto(uri)}
-                        disabled={mutating}
-                      />
-                    </View>
-                  ))}
-                </ScrollView>
-              ) : (
-                <Text variant="bodySmall" style={styles.memoryDialogHint}>
-                  {t('No photos added yet.')}
-                </Text>
-              )}
-            </ScrollView>
-          </Dialog.ScrollArea>
-          <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
-            <Button mode="contained" onPress={handleSavePhotos} disabled={mutating || photoProcessing || !canSavePhotoChanges}>{t('Save photos')}</Button>
-          </Dialog.Actions>
-        </Dialog>
-      </Portal>
+      <PersonPhotosDialog
+        visible={photosDialogVisible}
+        mutating={mutating}
+        photoProcessing={photoProcessing}
+        photoEditorCount={photoEditorCount}
+        canSavePhotoChanges={canSavePhotoChanges}
+        photoEditorExistingPhotos={photoEditorExistingPhotos}
+        photoEditorNewPhotoUris={photoEditorNewPhotoUris}
+        photoEditorPreferredPhotoRef={photoEditorPreferredPhotoRef}
+        onDismiss={() => setPhotosDialogVisible(false)}
+        onLibrary={handleAddPhotoFromLibrary}
+        onCamera={handleCapturePhoto}
+        onTogglePreferred={(value) => setPhotoEditorPreferredPhotoRef((current) => current === value ? '' : value)}
+        onRemoveExisting={handleRemoveExistingPhoto}
+        onRemoveNew={handleRemoveNewPhoto}
+        onSave={handleSavePhotos}
+      />
 
       <ConfirmDialog
         visible={confirmState.visible}
@@ -1580,57 +1222,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
         onConfirm={handleConfirm}
       />
 
-      <Modal
-        visible={viewerIndex !== null}
-        animationType="fade"
-        transparent
-        onRequestClose={() => setViewerIndex(null)}
-      >
-        <View style={styles.viewerBackdrop}>
-          <IconButton icon="close" iconColor="#FFFFFF" size={28} style={styles.viewerCloseButton} onPress={() => setViewerIndex(null)} />
-          {person.photos.length > 1 && viewerIndex !== null ? (
-            <>
-              <IconButton
-                icon="chevron-left"
-                iconColor="#FFFFFF"
-                size={32}
-                style={[styles.viewerNavButton, styles.viewerNavButtonLeft]}
-                onPress={() => setViewerIndex((current) => current === null ? current : Math.max(0, current - 1))}
-              />
-              <IconButton
-                icon="chevron-right"
-                iconColor="#FFFFFF"
-                size={32}
-                style={[styles.viewerNavButton, styles.viewerNavButtonRight]}
-                onPress={() => setViewerIndex((current) => current === null ? current : Math.min(person.photos.length - 1, current + 1))}
-              />
-            </>
-          ) : null}
-          {person.photos.length > 0 ? (
-            <ScrollView
-              key={viewerIndex ?? 0}
-              style={{ flex: 1 }}
-              horizontal
-              pagingEnabled
-              showsHorizontalScrollIndicator={false}
-              contentOffset={{ x: (viewerIndex ?? 0) * viewerWidth, y: 0 }}
-            >
-              {person.photos.map((photo) => (
-                <View key={`viewer-${photo.id}`} style={[styles.viewerSlide, { width: viewerWidth, height: viewerHeight }]}>
-                  <Image source={{ uri: photo.url }} style={styles.viewerImage} resizeMode="contain" />
-                </View>
-              ))}
-            </ScrollView>
-          ) : null}
-          {person.photos.length > 1 && viewerIndex !== null ? (
-            <View style={styles.viewerCounter}>
-              <Text variant="labelLarge" style={{ color: '#FFFFFF' }}>
-                {viewerIndex + 1} / {person.photos.length}
-              </Text>
-            </View>
-          ) : null}
-        </View>
-      </Modal>
+      <PersonPhotoViewerModal person={person} viewerIndex={viewerIndex} setViewerIndex={setViewerIndex} />
 
       <Portal>
         <Dialog

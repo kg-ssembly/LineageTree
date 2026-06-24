@@ -5,22 +5,22 @@ import { useTheme } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuthStore } from '../../stores/auth-store';
 import { useTreeStore } from '../../stores/tree-store';
-import LoginScreen from '../screens/auth/login-screen';
-import SignUpScreen from '../screens/auth/sign-up-screen';
+import LoginScreen from '../screens/auth/login';
+import SignUpScreen from '../screens/auth/sign-up';
 import type { RootStackParamList } from '../../components/dto/navigation';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 function getMainScreen() {
-  return require('../screens/main-screen').default;
+  return require('../screens/main').default;
 }
 
 function getTreeDetailScreen() {
-  return require('../screens/tree-detail-screen').default;
+  return require('../screens/tree-detail').default;
 }
 
 function getPersonProfileScreen() {
-  return require('../screens/person-profile-screen').default;
+  return require('../screens/person-profile').default;
 }
 
 export default function RootNavigator() {

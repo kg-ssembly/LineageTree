@@ -1,0 +1,44 @@
+import React from 'react';
+import { ScrollView } from 'react-native';
+import { Button, Dialog, IconButton, Portal, TextInput, useTheme } from 'react-native-paper';
+import { GlobalStyles } from '../../../../constants/styles';
+import { useI18n } from '../../../../hooks/use-i18n';
+
+const dialogChrome = GlobalStyles.dialogChrome;
+const styles = GlobalStyles.personProfile;
+
+export function PersonNotesDialog({
+  visible,
+  mutating,
+  notesDraft,
+  setNotesDraft,
+  onDismiss,
+  onSave,
+}: {
+  visible: boolean;
+  mutating: boolean;
+  notesDraft: string;
+  setNotesDraft: (value: string) => void;
+  onDismiss: () => void;
+  onSave: () => void;
+}) {
+  const theme = useTheme();
+  const { t } = useI18n();
+
+  return (
+    <Portal>
+      <Dialog visible={visible} onDismiss={mutating ? undefined : onDismiss} style={[dialogChrome.dialog, styles.memoryDialog, { backgroundColor: theme.colors.surface }]}>
+        <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{t('Notes')}</Dialog.Title>
+        <IconButton icon="close" onPress={onDismiss} disabled={mutating} accessibilityLabel={t('Cancel')} style={dialogChrome.closeButton} />
+        <Dialog.ScrollArea style={styles.memoryDialogScrollArea}>
+          <ScrollView contentContainerStyle={styles.memoryDialogContent} keyboardShouldPersistTaps="handled">
+            <TextInput mode="outlined" label={t('Family notes')} value={notesDraft} onChangeText={setNotesDraft} multiline numberOfLines={6} style={styles.memoryDialogInput} disabled={mutating} />
+          </ScrollView>
+        </Dialog.ScrollArea>
+        <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
+          <Button mode="contained" onPress={onSave} disabled={mutating}>{t('Save notes')}</Button>
+        </Dialog.Actions>
+      </Dialog>
+    </Portal>
+  );
+}

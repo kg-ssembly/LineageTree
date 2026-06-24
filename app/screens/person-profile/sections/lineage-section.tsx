@@ -1,0 +1,75 @@
+import React from 'react';
+import { View } from 'react-native';
+import { IconButton, Surface, Text, useTheme } from 'react-native-paper';
+import { FamilyTreeCanvas } from '../../../../components';
+import type { PersonRecord } from '../../../../components/dto/person';
+import type { RelationshipRecord } from '../../../../components/dto/relationship';
+import { GlobalStyles } from '../../../../constants/styles';
+import { useI18n } from '../../../../hooks/use-i18n';
+
+const styles = GlobalStyles.personProfile;
+
+export function PersonLineageSection({
+  title,
+  helperLabel,
+  count,
+  singularLabel,
+  pluralLabel,
+  person,
+  people,
+  relationships,
+  currentAssignedPersonId,
+  onOpenHelperDialog,
+  onPressPerson,
+  mode,
+}: {
+  title: string;
+  helperLabel: string;
+  count: number;
+  singularLabel: string;
+  pluralLabel: string;
+  person: PersonRecord;
+  people: PersonRecord[];
+  relationships: RelationshipRecord[];
+  currentAssignedPersonId?: string;
+  onOpenHelperDialog: () => void;
+  onPressPerson: (person: PersonRecord) => void;
+  mode: 'ascendant' | 'descendant';
+}) {
+  const theme = useTheme();
+  const { t } = useI18n();
+
+  return (
+    <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
+      <View style={styles.sectionHeader}>
+        <View style={styles.sectionHeaderText}>
+          <View style={styles.titleWithHelperRow}>
+            <Text variant="titleLarge">{title}</Text>
+            <IconButton
+              icon="information-outline"
+              size={20}
+              style={styles.helperIconButton}
+              onPress={onOpenHelperDialog}
+              accessibilityLabel={helperLabel}
+            />
+          </View>
+          {count > 0 ? (
+            <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
+              {count === 1 ? t('{count} ' + singularLabel, { count }) : t('{count} ' + pluralLabel, { count })}
+            </Text>
+          ) : null}
+        </View>
+      </View>
+      <FamilyTreeCanvas
+        people={people}
+        relationships={relationships}
+        onPressPerson={onPressPerson}
+        currentUserPersonId={currentAssignedPersonId}
+        initialFocusPersonId={person.id}
+        descendantRootPersonId={mode === 'descendant' ? person.id : undefined}
+        ascendantRootPersonId={mode === 'ascendant' ? person.id : undefined}
+        showMaidenFamilyInNodeTitle
+      />
+    </Surface>
+  );
+}

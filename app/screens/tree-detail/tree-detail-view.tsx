@@ -24,36 +24,36 @@ import {
   HorizontalTabStrip,
   PersonFormDialog,
   RelationshipDialog,
-} from '../../components';
-import type { PersonFormSubmission } from '../../components/person-form-dialog';
-import type { PendingRelationshipSubmission } from '../../components/person-form-dialog';
-import { useAuthStore } from '../../stores/auth-store';
-import { useTreeStore } from '../../stores/tree-store';
-import type { PersonPhoto, PersonRecord } from '../../components/dto/person';
-import { formatPersonDate, getDisplayPersonPhoto, getLifeEventTypeLabel, getPersonLifeSpanLabel, getPersonPresenceLabel } from '../../components/dto/person';
-import type { ParentChildRelationshipKind, SpouseRelationshipStatus } from '../../components/dto/relationship';
-import type { RelationshipRecord } from '../../components/dto/relationship';
-import type { RootStackParamList, TreeDetailTabParamList } from '../../components/dto/navigation';
-import { getUserDisplayLabel } from '../../components/dto/user';
-import { formatPersonName } from '../../components/person-formatting';
-import { findCrossSurnameChildren, extractSurname } from '../../components/family-tree-surname-clusters';
-import { canEditTreeContent, canManageTree, getAssignedPersonId, getTreeRole, type CollaboratorRole, type FamilyTree } from '../../components/dto/tree';
-import { computeRelationshipInsight } from '../../providers';
-import { getTreeBundle } from '../../providers/family-tree-service';
-import { GlobalStyles } from '../../constants/styles';
-import { useI18n } from '../../hooks/use-i18n';
+} from '../../../components';
+import type { PersonFormSubmission } from '../../../components/person-form-dialog';
+import type { PendingRelationshipSubmission } from '../../../components/person-form-dialog';
+import { useAuthStore } from '../../../stores/auth-store';
+import { useTreeStore } from '../../../stores/tree-store';
+import type { PersonPhoto, PersonRecord } from '../../../components/dto/person';
+import { formatPersonDate, getDisplayPersonPhoto, getLifeEventTypeLabel, getPersonLifeSpanLabel, getPersonPresenceLabel } from '../../../components/dto/person';
+import type { ParentChildRelationshipKind, SpouseRelationshipStatus } from '../../../components/dto/relationship';
+import type { RelationshipRecord } from '../../../components/dto/relationship';
+import type { RootStackParamList, TreeDetailTabParamList } from '../../../components/dto/navigation';
+import { getUserDisplayLabel } from '../../../components/dto/user';
+import { formatPersonName } from '../../../components/person-formatting';
+import { findCrossSurnameChildren, extractSurname } from '../../../components/family-tree-surname-clusters';
+import { canEditTreeContent, canManageTree, getAssignedPersonId, getTreeRole, type CollaboratorRole, type FamilyTree } from '../../../components/dto/tree';
+import { computeRelationshipInsight } from '../../../providers';
+import { getTreeBundle } from '../../../providers/family-tree-service';
+import { GlobalStyles } from '../../../constants/styles';
+import { useI18n } from '../../../hooks/use-i18n';
 import {
   buildSelfAssignmentSuggestions,
   PeopleRelationshipsTabContent,
   TreeSettingsTabContent,
   VisualisationTabContent,
   type SharedTabProps,
-} from './tree-tab-content';
+} from '../tree-tab-content';
 import {
   buildSelfPersonInitialValues,
   createPersonFromFormSubmission,
   findConnectedTreeForSurname,
-} from './tree-screen-helpers';
+} from '../tree-screen-helpers';
 const dialogChrome = GlobalStyles.dialogChrome;
 
 type Props = NativeStackScreenProps<RootStackParamList, 'TreeDetail'>;
