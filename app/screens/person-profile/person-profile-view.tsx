@@ -916,6 +916,16 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
       </View>
       <ScrollView contentContainerStyle={styles.content}>
         <Surface style={[styles.heroCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
+          {canEdit ? (
+            <IconButton
+              icon="pencil"
+              mode="contained-tonal"
+              size={22}
+              onPress={() => setEditorVisible(true)}
+              style={[styles.heroFloatingButton, styles.heroFloatingButtonRight]}
+              accessibilityLabel={t(K.personProfile.editFamilyMember)}
+            />
+          ) : null}
           <View style={styles.heroHeader}>
             <View style={styles.heroAvatarRow}>
               {preferredPhoto ? (
@@ -989,21 +999,11 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
           ) : null}
         </Surface>
 
-        {canEdit ? (
-          <View style={styles.sectionHeader}>
-            <View style={styles.sectionHeaderText}>
-              <Text variant="titleMedium">{t('Member actions')}</Text>
-            </View>
-            <Button mode="contained-tonal" icon="pencil" onPress={() => setEditorVisible(true)}>
-              {t('Edit member')}
-            </Button>
-          </View>
-        ) : null}
         <HorizontalTabStrip
           items={PROFILE_TABS.map((tab) => ({ ...tab, label: t(tab.label) }))}
           activeKey={activeTab}
           onChange={setActiveTab}
-          containerStyle={[styles.tabStripCard, { backgroundColor: theme.colors.surface, marginTop: canEdit ? 12 : 0 }]}
+          containerStyle={[styles.tabStripCard, { backgroundColor: theme.colors.surface }]}
           contentContainerStyle={styles.tabStripContent}
           itemStyle={styles.tabStripItem}
         />

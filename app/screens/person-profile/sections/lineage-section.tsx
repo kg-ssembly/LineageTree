@@ -70,6 +70,7 @@ export function PersonLineageSection({
         descendantRootPersonId={mode === 'descendant' ? person.id : undefined}
         ascendantRootPersonId={mode === 'ascendant' ? person.id : undefined}
         showMaidenFamilyInNodeTitle
+        floatingControls
       />
     </Surface>
   );
