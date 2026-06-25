@@ -53,7 +53,7 @@ export function MergesSection({
       <View style={styles.sectionHeader}>
         <View style={styles.titleWrap}>
           <View style={styles.titleWithHelperRow}>
-            <Text variant="titleLarge">{t('Collaborative merges')}</Text>
+            <Text variant="titleLarge">{t(K.notifications.merge)}</Text>
             <IconButton
               icon="information-outline"
               size={18}
@@ -69,7 +69,7 @@ export function MergesSection({
         <Card mode="elevated" style={[styles.collaboratorCard, { backgroundColor: theme.colors.surface, marginBottom: 16 }]}>
           <Card.Content>
             <View style={styles.titleWithHelperRow}>
-              <Text variant="titleMedium">{t('Merge invitations')}</Text>
+              <Text variant="titleMedium">{t(K.treeSettings.mergeInvitations)}</Text>
               <IconButton
                 icon="information-outline"
                 size={18}
@@ -89,7 +89,7 @@ export function MergesSection({
                     </View>
                     <View style={{ flexDirection: 'row', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
                       <Button mode="contained" onPress={() => handleUseMergeInvite(notification)} disabled={mutating || !canEdit || notification.sourceTreeId === selectedTree.id}>
-                        {t('Use this tree')}
+                        {t(K.treeSettings.useThisTree)}
                       </Button>
                       <Button mode="text" onPress={() => onRespondToMergeInvite(notification.id, 'dismissed')} disabled={mutating}>
                         {t(K.common.dismiss)}
@@ -105,7 +105,7 @@ export function MergesSection({
 
       <Card mode="elevated" style={[styles.selfAssignmentCard, { backgroundColor: theme.colors.surface, marginBottom: 16 }]}>
         <Card.Content>
-          <Text variant="titleMedium" style={{ marginBottom: 8 }}>{t('Invite another user to merge')}</Text>
+          <Text variant="titleMedium" style={{ marginBottom: 8 }}>{t(K.treeSettings.inviteAnotherUserToMerge)}</Text>
           <Text variant="labelMedium" style={{ marginTop: 12 }}>{t('Source tree')}</Text>
           <View style={[styles.collaboratorChipRow, { marginTop: 8 }]}>
             {availableMergeSourceTrees.map((tree) => (
@@ -116,14 +116,14 @@ export function MergesSection({
           </View>
           <TextInput
             mode="outlined"
-            label={t('Registered email or username')}
+            label={t(K.treeSettings.registeredEmailOrUsername)}
             value={mergeInviteIdentifier}
             onChangeText={setMergeInviteIdentifier}
             style={{ marginTop: 8 }}
           />
           <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
             <Button mode="contained-tonal" onPress={handleSendMergeInvite} disabled={mutating || !mergeInviteIdentifier.trim() || !mergeInviteSourceTreeId.trim()}>
-              {t('Send invitation')}
+              {t(K.treeSettings.sendInvitation)}
             </Button>
           </View>
         </Card.Content>
@@ -131,14 +131,14 @@ export function MergesSection({
 
       {mergePreview ? (
         <Button mode="outlined" icon="eye-outline" onPress={() => setMergePreviewVisible(true)} style={{ marginBottom: 16, alignSelf: 'flex-start' }}>
-          {t('View merge preview')}
+          {t(K.treeSettings.viewMergePreview)}
         </Button>
       ) : null}
 
       <View style={styles.sectionHeader}>
         <View style={styles.titleWrap}>
           <View style={styles.titleWithHelperRow}>
-            <Text variant="titleLarge">{t('Pending merge approvals')}</Text>
+            <Text variant="titleLarge">{t(K.treeSettings.pendingMergeApprovals)}</Text>
             <IconButton
               icon="information-outline"
               size={18}
@@ -160,7 +160,7 @@ export function MergesSection({
                 <Card.Content>
                   <Text variant="titleMedium">{request.preview.sourceTree.treeName} ↔ {request.preview.targetTree.treeName}</Text>
                   <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>
-                    {t('Suggested by {name}. {duplicates} strong duplicate candidates, {conflicts} conflicts.', {
+                    {t(K.treeSettings.suggestedMergeSummary, {
                       name: request.suggestedByLabel,
                       duplicates: request.preview.duplicateCount,
                       conflicts: request.preview.conflicts.length,
@@ -183,7 +183,7 @@ export function MergesSection({
                             <View style={[styles.collaboratorChipRow, { justifyContent: 'space-between' }]}>
                               <Text variant="bodySmall">{match.confidenceScore}% · {match.confidenceLabel}</Text>
                               <Chip compact icon={selected ? 'check-circle-outline' : 'circle-outline'}>
-                                {selected ? t('Merge') : t('Skip')}
+                                {selected ? t(K.treeSettings.mergeChoice) : t(K.treeSettings.skipMergeChoice)}
                               </Chip>
                             </View>
                           </Pressable>
@@ -192,18 +192,18 @@ export function MergesSection({
                       );
                     })}
                     <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>
-                      {t('{count} match(es) selected to merge', { count: selectedMatchIds.length })}
+                      {t(K.treeSettings.selectedMatchesToMerge, { count: selectedMatchIds.length })}
                     </Text>
                   </View>
                   <View style={{ flexDirection: 'row', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
                     <Button mode="contained" onPress={() => onApproveMergeRequest(request.id, undefined, selectedMatchIds)} disabled={mutating || selectedMatchIds.length === 0}>
-                      {t('Approve')}
+                      {t(K.treeSettings.approve)}
                     </Button>
-                    <Button mode="outlined" onPress={() => onRequestMergeChanges(request.id, t('Please review the selected merge matches and highlighted conflicts before merging.'), selectedMatchIds)} disabled={mutating}>
-                      {t('Request changes')}
+                    <Button mode="outlined" onPress={() => onRequestMergeChanges(request.id, t(K.treeSettings.requestMergeChangesMessage), selectedMatchIds)} disabled={mutating}>
+                      {t(K.treeSettings.requestChanges)}
                     </Button>
                     <Button mode="text" textColor={theme.colors.error} onPress={() => onRejectMergeRequest(request.id)} disabled={mutating}>
-                      {t('Reject')}
+                      {t(K.treeSettings.reject)}
                     </Button>
                   </View>
                 </Card.Content>
@@ -213,9 +213,9 @@ export function MergesSection({
         </View>
       ) : (
         <View style={styles.emptyState}>
-          <Text variant="titleMedium">{t('No pending merge reviews')}</Text>
+          <Text variant="titleMedium">{t(K.treeSettings.noPendingMergeReviews)}</Text>
           <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
-            {t('Merge suggestions with likely relative matches will appear here for joint editor approval.')}
+            {t(K.treeSettings.mergeSuggestionsAppearHere)}
           </Text>
         </View>
       )}
@@ -223,7 +223,7 @@ export function MergesSection({
       <Divider style={{ marginVertical: 16 }} />
 
       <Button mode="outlined" icon="history" onPress={() => setMergeHistoryVisible(true)} style={{ alignSelf: 'flex-start' }}>
-        {t('Merge history and undo')}
+        {t(K.treeSettings.mergeHistoryAndUndo)}
       </Button>
     </View>
   );

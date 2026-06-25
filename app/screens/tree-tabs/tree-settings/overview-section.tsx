@@ -68,7 +68,7 @@ export function OverviewSection({
                   size={18}
                   style={styles.helperIconButton}
                   onPress={() => onOpenHelperDialog('surname-variants')}
-                  accessibilityLabel={t('About surname variants')}
+                  accessibilityLabel={t(K.treeSettings.aboutSurnameVariants)}
                 />
               </View>
             </View>
@@ -83,7 +83,7 @@ export function OverviewSection({
           {isOwner || role === 'editor' ? (
             <View style={{ marginTop: 8 }}>
               <Button mode="outlined" icon="shape-plus-outline" onPress={onOpenSurnameVariantDialog} style={{ marginBottom: 8 }}>
-                {treeSurnameVariants.length > 0 ? t('Manage variants ({count})', { count: treeSurnameVariants.length }) : t('Manage variants')}
+                {treeSurnameVariants.length > 0 ? t(K.treeSettings.manageVariantsCount, { count: treeSurnameVariants.length }) : t(K.treeSettings.manageVariants)}
               </Button>
             </View>
           ) : null}
@@ -100,13 +100,13 @@ export function OverviewSection({
                 size={18}
                 style={styles.helperIconButton}
                 onPress={() => onOpenHelperDialog('my-place')}
-                accessibilityLabel={t('About my place in this tree')}
+                accessibilityLabel={t(K.treeSettings.aboutMyPlaceInTree)}
               />
             </View>
           </View>
           {!currentAssignedPerson ? (
             <Button mode="contained-tonal" icon="account-plus" onPress={onOpenAddSelf} disabled={mutating || !canCreateSelfProfile}>
-              {t('Add myself')}
+              {t(K.treeSettings.addMyself)}
             </Button>
           ) : null}
         </View>
@@ -122,12 +122,12 @@ export function OverviewSection({
                   <Chip compact icon="account">{currentUserLabel}</Chip>
                 </View>
                 <Text variant="titleMedium" style={styles.selfAssignmentTitle}>
-                  {currentAssignedPerson ? formatPersonName(currentAssignedPerson) : t('Choose an existing family member or create your own profile')}
+                  {currentAssignedPerson ? formatPersonName(currentAssignedPerson) : t(K.treeSettings.chooseExistingOrCreateOwn)}
                 </Text>
                 <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>
                   {currentAssignedPerson
-                    ? t('Open or unlink this family member from your account here.')
-                    : t('We will suggest name matches from your sign-in profile and let you link yourself manually if needed.')}
+                    ? t(K.treeSettings.openOrUnlinkProfile)
+                    : t(K.treeSettings.manualLinkIfNeeded)}
                 </Text>
               </View>
               {currentAssignedPerson ? (
@@ -156,7 +156,7 @@ export function OverviewSection({
                     {t(K.treeSettings.browseFamilyMembers)}
                   </Button>
                   <Button mode="outlined" icon="account-plus" onPress={onOpenAddSelf} disabled={mutating || !canCreateSelfProfile}>
-                    {t('Add myself')}
+                    {t(K.treeSettings.addMyself)}
                   </Button>
                 </View>
               )}
@@ -164,7 +164,7 @@ export function OverviewSection({
 
             {!canCreateSelfProfile ? (
               <Text variant="bodySmall" style={[styles.assignmentHelperText, { color: theme.colors.onSurfaceVariant }]}>
-                {t('You can link yourself to an existing person right now. Creating a new profile still requires editor access on this tree.')}
+                {t(K.treeSettings.linkYourselfEditorAccess)}
               </Text>
             ) : null}
           </Card.Content>
@@ -188,7 +188,7 @@ export function OverviewSection({
                         <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>{suggestion.reason}</Text>
                       </View>
                       <Button mode="contained" onPress={() => handleSelfLink(suggestion.person.id)} disabled={mutating || !userId}>
-                        {t('Link me')}
+                        {t(K.treeSettings.linkMe)}
                       </Button>
                     </View>
                   </Card.Content>
@@ -197,21 +197,21 @@ export function OverviewSection({
             </View>
           ) : (
             <Text variant="bodySmall" style={[styles.assignmentHelperText, { color: theme.colors.onSurfaceVariant }]}>
-              {t('No exact name-and-surname match was found yet, so you can browse the tree manually or create your own family member profile.')}
+              {t(K.treeSettings.noProfileMatchYet)}
             </Text>
           )
         ) : null}
 
         {!currentAssignedPerson && (showLinkChooser || !currentAssignedPerson) ? (
           <View style={styles.assignmentChooserWrap}>
-            <Text variant="titleMedium">{t('Link to an existing family member')}</Text>
+            <Text variant="titleMedium">{t(K.treeSettings.linkExistingFamilyMember)}</Text>
             <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-              {t('Search everyone in this tree and pick the profile that represents you best.')}
+              {t(K.treeSettings.searchEveryonePickBest)}
             </Text>
 
             <TextInput
               mode="outlined"
-              label={t('Search existing family members')}
+              label={t(K.treeSettings.searchExistingFamilyMembers)}
               value={linkSearchQuery}
               onChangeText={setLinkSearchQuery}
               style={styles.assignmentSearchInput}
@@ -234,7 +234,7 @@ export function OverviewSection({
                           </View>
                         </View>
                         <Button mode="contained-tonal" onPress={() => handleSelfLink(person.id)} disabled={mutating || !userId}>
-                          {t('Link me')}
+                          {t(K.treeSettings.linkMe)}
                         </Button>
                       </View>
                     </Card.Content>
@@ -243,7 +243,7 @@ export function OverviewSection({
               </View>
             ) : (
               <Text variant="bodySmall" style={[styles.assignmentHelperText, { color: theme.colors.onSurfaceVariant }]}>
-                {t('No available family members match that search yet.')}
+                {t(K.treeSettings.noAvailableFamilyMembersMatchSearch)}
               </Text>
             )}
 

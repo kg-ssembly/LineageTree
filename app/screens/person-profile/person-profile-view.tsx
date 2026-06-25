@@ -668,7 +668,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
 
       await addPhotoFromPickerResult(result);
     } catch {
-      Alert.alert(t(K.media.cameraUnavailable), t('The camera could not be opened on this device.'));
+      Alert.alert(t(K.media.cameraUnavailable), t(K.media.cameraOpenFailed));
     }
   };
 

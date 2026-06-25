@@ -2,7 +2,7 @@ import { I18N_KEYS as K } from '../../../../i18n/keys';
 
 export function validateEmail(email: string, t: (message: string) => string): string | null {
   if (!email.trim()) {
-    return t('Email is required.');
+    return t(K.auth.emailRequired);
   }
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -26,11 +26,11 @@ export function validateSignUpPassword(password: string, t: (message: string) =>
   }
 
   if (password.length < 8) {
-    return t('Use at least 8 characters.');
+    return t(K.auth.useAtLeastEightCharacters);
   }
 
   if (!/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/\d/.test(password)) {
-    return t('Use uppercase, lowercase, and a number.');
+    return t(K.auth.useUpperLowerNumber);
   }
 
   return null;
@@ -38,11 +38,11 @@ export function validateSignUpPassword(password: string, t: (message: string) =>
 
 export function validateDisplayName(name: string, t: (message: string) => string): string | null {
   if (!name.trim()) {
-    return t('Name is required.');
+    return t(K.auth.nameRequired);
   }
 
   if (name.trim().length < 2) {
-    return t('Name must be at least 2 characters.');
+    return t(K.auth.nameMinLength);
   }
 
   return null;

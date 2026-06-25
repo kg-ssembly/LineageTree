@@ -437,22 +437,22 @@ export default function PersonFormDialog({
   ], [gender, t]);
 
   const handleNextStep = () => {
-    const firstError = personValidationFeedback.errors.find((message) => message === t('First name is required.'));
+    const firstError = personValidationFeedback.errors.find((message) => message === t(K.personForm.firstNameRequiredError));
     if (firstError) {
       setFirstNameError(firstError);
       return;
     }
-    const futureBirthDateError = personValidationFeedback.errors.find((message) => message === t('Birth date cannot be in the future.'));
+    const futureBirthDateError = personValidationFeedback.errors.find((message) => message === t(K.personForm.birthDateInFuture));
     if (futureBirthDateError) {
       setBirthDateError(futureBirthDateError);
       return;
     }
-    const futureDeathDateError = personValidationFeedback.errors.find((message) => message === t('Death date cannot be in the future.'));
+    const futureDeathDateError = personValidationFeedback.errors.find((message) => message === t(K.personForm.deathDateInFuture));
     if (futureDeathDateError) {
       setDeathDateError(futureDeathDateError);
       return;
     }
-    const deathError = personValidationFeedback.errors.find((message) => message === t('Death date cannot be earlier than birth date.'));
+    const deathError = personValidationFeedback.errors.find((message) => message === t(K.personForm.deathDateBeforeBirth));
     if (deathError) {
       setDeathDateError(deathError);
       return;
@@ -461,17 +461,17 @@ export default function PersonFormDialog({
   };
 
   const handleSubmit = async () => {
-    const firstError = personValidationFeedback.errors.find((message) => message === t('First name is required.'));
+    const firstError = personValidationFeedback.errors.find((message) => message === t(K.personForm.firstNameRequiredError));
     if (firstError) {
       setFirstNameError(firstError);
       return;
     }
-    const futureBirthDateError = personValidationFeedback.errors.find((message) => message === t('Birth date cannot be in the future.'));
+    const futureBirthDateError = personValidationFeedback.errors.find((message) => message === t(K.personForm.birthDateInFuture));
     if (futureBirthDateError) {
       setBirthDateError(futureBirthDateError);
       return;
     }
-    const futureDeathDateError = personValidationFeedback.errors.find((message) => message === t('Death date cannot be in the future.'));
+    const futureDeathDateError = personValidationFeedback.errors.find((message) => message === t(K.personForm.deathDateInFuture));
     if (futureDeathDateError) {
       setDeathDateError(futureDeathDateError);
       return;
@@ -480,7 +480,7 @@ export default function PersonFormDialog({
     if (mode === 'create') {
       const hasIncompleteRelationship = pendingRelationships.some((draft) => !draft.relatedPersonId);
       if (hasIncompleteRelationship) {
-        setRelationshipError(t('Choose a family member for each relationship you want to create.'));
+        setRelationshipError(t(K.personForm.chooseFamilyMemberForRelationship));
         return;
       }
 
@@ -488,20 +488,20 @@ export default function PersonFormDialog({
       for (const draft of pendingRelationships) {
         const compositeKey = `${draft.mode}:${draft.relatedPersonId}`;
         if (duplicateKeys.has(compositeKey)) {
-          setRelationshipError(t('Remove duplicate pending relationships before saving.'));
+          setRelationshipError(t(K.personForm.removeDuplicatePendingRelationships));
           return;
         }
         duplicateKeys.add(compositeKey);
       }
     }
 
-    const deathError = personValidationFeedback.errors.find((message) => message === t('Death date cannot be earlier than birth date.'));
+    const deathError = personValidationFeedback.errors.find((message) => message === t(K.personForm.deathDateBeforeBirth));
     if (deathError) {
       setDeathDateError(deathError);
       return;
     }
 
-    const duplicateError = personValidationFeedback.errors.find((message) => message !== t('First name is required.') && message !== t('Death date cannot be earlier than birth date.'));
+    const duplicateError = personValidationFeedback.errors.find((message) => message !== t(K.personForm.firstNameRequiredError) && message !== t(K.personForm.deathDateBeforeBirth));
     if (duplicateError) {
       setRelationshipError(duplicateError);
       return;
@@ -544,12 +544,12 @@ export default function PersonFormDialog({
     const warningMessages = [...personValidationFeedback.warnings, ...relationshipWarnings];
     if (warningMessages.length > 0) {
       Alert.alert(
-        t('Please review before saving'),
+        t(K.personForm.pleaseReviewBeforeSaving),
         warningMessages.join('\n\n'),
         [
           { text: t('Go back'), style: 'cancel' },
           {
-            text: t('Save anyway'),
+            text: t(K.personForm.saveAnyway),
             onPress: () => {
               void onSubmit({
                 firstName,
@@ -620,7 +620,7 @@ export default function PersonFormDialog({
               <View style={[styles.stepLine, { backgroundColor: step >= 2 ? theme.colors.primary : theme.colors.outlineVariant }]} />
               <View style={[styles.stepDot, step >= 2 && { backgroundColor: theme.colors.primary }]} />
               <Text variant="labelSmall" style={[styles.stepLabel, { color: theme.colors.onSurfaceVariant }]}>
-                {t('Step {step} of 2', { step })}
+                {t(K.personForm.stepOfTwo, { step })}
               </Text>
             </View>
           ) : null}
@@ -700,7 +700,7 @@ export default function PersonFormDialog({
                 />
                 {mode === 'create' && suggestedLastName ? (
                   <HelperText type="info" visible>
-                    {t('Suggested surname from selected relationship: {name}', { name: suggestedLastName })}
+                    {t(K.personForm.suggestedSurnameFromRelationship, { name: suggestedLastName })}
                   </HelperText>
                 ) : null}
               </View>
@@ -738,7 +738,7 @@ export default function PersonFormDialog({
                         setBirthDateError(null);
                       }
                     }} disabled={loading}>
-                      {t('Clear')}
+                      {t(K.common.clear)}
                     </Button>
                   ) : null}
                 </View>
@@ -781,7 +781,7 @@ export default function PersonFormDialog({
                           }}
                           disabled={loading}
                         >
-                          {t('Clear')}
+                          {t(K.common.clear)}
                         </Button>
                       ) : null}
                     </View>
@@ -818,13 +818,13 @@ export default function PersonFormDialog({
               {mode === 'create' && relationshipCandidates.length > 0 ? (
                 <View style={styles.sectionSpacing}>
                   <View style={styles.relationshipHeader}>
-                    <Text variant="titleSmall">{t('Create relationships now')}</Text>
+                    <Text variant="titleSmall">{t(K.personForm.createRelationshipsNow)}</Text>
                     <Button onPress={() => setPendingRelationships((current) => [...current, createPendingRelationshipDraft()])}>
-                      {t('Add relationship')}
+                      {t(K.personForm.addRelationship)}
                     </Button>
                   </View>
                   <Text variant="bodyMedium" style={styles.helperText}>
-                    {t('Queue one or more relationships to create as soon as this family member is saved.')}
+                    {t(K.personForm.queueRelationshipsAfterSave)}
                   </Text>
 
                   {pendingRelationships.map((draft, index) => {
@@ -843,7 +843,7 @@ export default function PersonFormDialog({
                     return (
                       <View key={draft.key} style={styles.pendingRelationshipCard}>
                         <View style={styles.relationshipHeader}>
-                          <Text variant="titleSmall">{t('Relationship {number}', { number: index + 1 })}</Text>
+                          <Text variant="titleSmall">{t(K.personForm.relationshipNumber, { number: index + 1 })}</Text>
                           <IconButton
                             icon="delete"
                             size={18}
@@ -865,7 +865,7 @@ export default function PersonFormDialog({
                         />
                         {draft.mode !== 'spouse-of' ? (
                           <View style={styles.sectionSpacing}>
-                            <Text variant="bodyMedium">{t('Parent-child relationship type')}</Text>
+                            <Text variant="bodyMedium">{t(K.personForm.parentChildRelationshipType)}</Text>
                             <View style={styles.chipGroup}>
                               {[
                                 { value: 'biological', label: 'Biological' },
@@ -944,10 +944,10 @@ export default function PersonFormDialog({
                     <View style={[styles.coParentBanner, { backgroundColor: theme.colors.secondaryContainer, borderRadius: 8 }]}>
                       <View style={{ flex: 1 }}>
                         <Text variant="labelMedium" style={{ color: theme.colors.onSecondaryContainer }}>
-                          {t('Also add {name} as a parent?', { name: formatPersonName(coParentSuggestion) })}
+                          {t(K.personForm.alsoAddParent, { name: formatPersonName(coParentSuggestion) })}
                         </Text>
                         <Text variant="bodySmall" style={{ color: theme.colors.onSecondaryContainer, opacity: 0.8 }}>
-                          {t('They are a spouse of the selected parent.')}
+                          {t(K.personForm.spouseOfSelectedParent)}
                         </Text>
                       </View>
                       <Button
@@ -976,10 +976,10 @@ export default function PersonFormDialog({
                     <View style={[styles.coParentBanner, { backgroundColor: theme.colors.tertiaryContainer ?? theme.colors.secondaryContainer, borderRadius: 8 }]}>
                       <View style={{ flex: 1 }}>
                         <Text variant="labelMedium" style={{ color: (theme.colors as any).onTertiaryContainer ?? theme.colors.onSecondaryContainer }}>
-                          {t('Did their surname change at marriage?')}
+                          {t(K.personForm.didSurnameChangeAtMarriage)}
                         </Text>
                         <Text variant="bodySmall" style={{ color: (theme.colors as any).onTertiaryContainer ?? theme.colors.onSecondaryContainer, opacity: 0.8 }}>
-                          {t('Record their original surname as a maiden name in Step 1.')}
+                          {t(K.personForm.recordOriginalSurnameInStepOne)}
                         </Text>
                       </View>
                     </View>
@@ -1003,15 +1003,15 @@ export default function PersonFormDialog({
                 disabled={loading}
                 onPress={() => {
                   Alert.alert(
-                    t('Delete family member'),
-                    t('Remove this person and all their relationships? This cannot be undone.'),
+                    t(K.personForm.deleteFamilyMember),
+                    t(K.personForm.removePersonAndRelationships),
                     [
                       { text: t(K.common.cancel), style: 'cancel' },
                       { text: t(K.common.delete), style: 'destructive', onPress: () => void onDelete() },
                     ],
                   );
                 }}
-                accessibilityLabel={t('Delete member')}
+                accessibilityLabel={t(K.personForm.deleteMember)}
               />
             ) : mode === 'create' && step === 2 ? (
               <Button mode="outlined" onPress={() => setStep(1)} disabled={loading}>{t(K.common.back)}</Button>
@@ -1053,7 +1053,7 @@ export default function PersonFormDialog({
           }
         }}
         saveLabel={t(K.common.save)}
-        label={t('Select birth date')}
+        label={t(K.personForm.selectBirthDate)}
       />
 
       <DatePickerModal
@@ -1073,7 +1073,7 @@ export default function PersonFormDialog({
           }
         }}
         saveLabel={t(K.common.save)}
-        label={t('Select date of death')}
+        label={t(K.personForm.selectDateOfDeath)}
       />
     </>
   );

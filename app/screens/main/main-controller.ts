@@ -419,7 +419,7 @@ export function useMainScreenController({ navigation }: Props) {
         ].join('\n');
 
         openConfirm(
-          t('Delete family tree'),
+          t(K.app.deleteFamilyTree),
           details,
           t(K.common.delete),
           async () => {
@@ -431,8 +431,8 @@ export function useMainScreenController({ navigation }: Props) {
         );
       } catch {
         openConfirm(
-          t('Delete family tree'),
-          t('Delete "{treeName}" and everything attached to it, including family members, relationships, photos, collaborator access, approval history, merge records, and connected-tree links? This cannot be undone.', { treeName: tree.name }),
+          t(K.app.deleteFamilyTree),
+          t(K.app.deleteFamilyTreeWithContents, { treeName: tree.name }),
           t(K.common.delete),
           async () => {
             await removeTree(tree);

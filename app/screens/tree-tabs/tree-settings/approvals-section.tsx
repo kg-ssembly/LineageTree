@@ -4,6 +4,7 @@ import { Button, Card, Chip, IconButton, SegmentedButtons, Text, useTheme } from
 import { canUserReviewApprovalRequest, isApprovalExpired } from '../../../../components/dto/approval';
 import { GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
+import { I18N_KEYS as K } from '../../../../i18n/keys';
 import type { ApprovalsSectionProps } from './tree-settings-shared';
 
 const styles = GlobalStyles.treeDetail;
@@ -30,13 +31,13 @@ export function ApprovalsSection({
       <View style={styles.sectionHeader}>
         <View style={styles.titleWrap}>
           <View style={styles.titleWithHelperRow}>
-            <Text variant="titleLarge">{t('Approval settings')}</Text>
+            <Text variant="titleLarge">{t(K.treeSettings.approvalSettings)}</Text>
             <IconButton
               icon="information-outline"
               size={18}
               style={styles.helperIconButton}
               onPress={() => onOpenHelperDialog('approval-settings')}
-              accessibilityLabel={t('About approval settings')}
+              accessibilityLabel={t(K.treeSettings.approvalSettings)}
             />
           </View>
         </View>
@@ -44,7 +45,7 @@ export function ApprovalsSection({
 
       <View style={styles.summaryChipRow}>
         <Chip icon="timeline-clock-outline">
-          {approvalsDisabled ? t('Current window: off') : t('Current window: {hours}h', { hours: approvalWindowHours })}
+          {approvalsDisabled ? t(K.treeSettings.currentWindowOff) : t(K.treeSettings.currentWindowHours, { hours: approvalWindowHours })}
         </Chip>
       </View>
 
@@ -57,7 +58,7 @@ export function ApprovalsSection({
           void onSetApprovalWindowHours(Number(value));
         }}
         buttons={[
-          { value: '0', label: t('Off'), disabled: !isOwner || mutating },
+          { value: '0', label: t(K.treeSettings.off), disabled: !isOwner || mutating },
           { value: '12', label: '12h', disabled: !isOwner || mutating },
           { value: '24', label: '24h', disabled: !isOwner || mutating },
           { value: '48', label: '48h', disabled: !isOwner || mutating },
@@ -70,13 +71,13 @@ export function ApprovalsSection({
         <View style={styles.sectionHeader}>
           <View style={styles.titleWrap}>
             <View style={styles.titleWithHelperRow}>
-              <Text variant="titleLarge">{t('Pending approvals')}</Text>
+              <Text variant="titleLarge">{t(K.treeSettings.pendingApprovals)}</Text>
               <IconButton
                 icon="information-outline"
                 size={18}
                 style={styles.helperIconButton}
                 onPress={() => onOpenHelperDialog('pending-approvals')}
-                accessibilityLabel={t('About pending approvals')}
+                accessibilityLabel={t(K.treeSettings.aboutPendingApprovals)}
               />
             </View>
           </View>
@@ -95,27 +96,27 @@ export function ApprovalsSection({
                       <View style={styles.collaboratorTextWrap}>
                         <View style={styles.collaboratorChipRow}>
                           <Chip compact icon={canReview ? 'clipboard-check-outline' : 'clock-outline'}>
-                            {canReview ? t('Needs your review') : t('Awaiting review')}
+                            {canReview ? t(K.treeSettings.needsYourReview) : t(K.treeSettings.awaitingReview)}
                           </Chip>
                           <Chip compact icon={expiresSoon ? 'timer-alert-outline' : 'timer-outline'}>
-                            {t('Auto-approves {date}', { date: request.expiresAt.slice(0, 16).replace('T', ' ') })}
+                            {t(K.treeSettings.autoApprovesAt, { date: request.expiresAt.slice(0, 16).replace('T', ' ') })}
                           </Chip>
                         </View>
                         <Text variant="titleMedium" style={styles.selfAssignmentTitle}>{request.title}</Text>
                         <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>{request.description}</Text>
-                        <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>{t('Requested by {name}', { name: request.requestedByLabel })}</Text>
+                        <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>{t(K.treeSettings.requestedByName, { name: request.requestedByLabel })}</Text>
                       </View>
                       <View style={styles.approvalRequestActions}>
                         <Button mode="outlined" icon="eye-outline" onPress={() => setPreviewApprovalRequest(request)}>
-                          {t('Preview change')}
+                          {t(K.treeSettings.previewChange)}
                         </Button>
                         {canReview ? (
                           <>
                             <Button mode="contained" onPress={() => onApproveApprovalRequest(request.id)} disabled={mutating}>
-                              {t('Approve')}
+                              {t(K.treeSettings.approve)}
                             </Button>
                             <Button mode="outlined" textColor={theme.colors.error} onPress={() => onRejectApprovalRequest(request.id)} disabled={mutating}>
-                              {t('Reject')}
+                              {t(K.treeSettings.reject)}
                             </Button>
                           </>
                         ) : null}
@@ -128,9 +129,9 @@ export function ApprovalsSection({
           </View>
         ) : (
           <View style={styles.emptyState}>
-            <Text variant="titleMedium">{t('No pending approvals')}</Text>
+            <Text variant="titleMedium">{t(K.treeSettings.noPendingApprovals)}</Text>
             <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
-              {t('Any collaborator-submitted family member or relationship edits waiting for review will appear here.')}
+              {t(K.treeSettings.pendingApprovalEmpty)}
             </Text>
           </View>
         )}

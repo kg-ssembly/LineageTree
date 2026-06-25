@@ -83,11 +83,11 @@ export function TreeDetailNodeQuickActionsDialog({
             const isViewingMaiden = currentFamily === maiden;
             const targetSurname = isViewingMaiden ? marital : maiden;
             const label = isViewingMaiden
-              ? t('View {surname} (marital) family tree', { surname: marital })
-              : t('View {surname} (maiden) family tree', { surname: maiden });
+              ? t(K.relationship.viewMaritalFamilyTree, { surname: marital })
+              : t(K.relationship.viewMaidenFamilyTree, { surname: maiden });
             const description = isViewingMaiden
-              ? t('Switch to {surname} — their family by marriage', { surname: marital })
-              : t('Switch to {surname} — their birth family', { surname: maiden });
+              ? t(K.relationship.switchToFamilyByMarriage, { surname: marital })
+              : t(K.relationship.switchToBirthFamily, { surname: maiden });
             const linkedTree = findConnectedTreeForSurname(person, targetSurname, selectedTree, trees);
             return (
               <List.Item
@@ -115,8 +115,8 @@ export function TreeDetailNodeQuickActionsDialog({
             if (alreadyViewing) return null;
             return (
               <List.Item
-                title={t('View {surname} family tree', { surname })}
-                description={t('This person has parents from different families')}
+                title={t(K.relationship.viewSurnameFamilyTree, { surname })}
+                description={t(K.relationship.crossFamilyParentsHint)}
                 left={(props) => <List.Icon {...props} icon="source-branch" />}
                 onPress={() => {
                   closeNodeQuickActions();
@@ -128,22 +128,22 @@ export function TreeDetailNodeQuickActionsDialog({
           {canEdit && person ? (
             <>
               <List.Item
-                title={t('Add parent')}
-                description={t('Create a new parent for {name}', { name: formatPersonName(person) })}
+                title={t(K.relationship.addParent)}
+                description={t(K.relationship.createParentForName, { name: formatPersonName(person) })}
                 left={(props) => <List.Icon {...props} icon="account-arrow-up-outline" />}
                 onPress={() => openCreateRelativeDialog('parent-of', person)}
                 disabled={mutating}
               />
               <List.Item
-                title={t('Add child')}
-                description={t('Create a new child for {name}', { name: formatPersonName(person) })}
+                title={t(K.relationship.addChild)}
+                description={t(K.relationship.createChildForName, { name: formatPersonName(person) })}
                 left={(props) => <List.Icon {...props} icon="account-arrow-down-outline" />}
                 onPress={() => openCreateRelativeDialog('child-of', person)}
                 disabled={mutating}
               />
               <List.Item
-                title={t('Add spouse')}
-                description={t('Create a spouse for {name}', { name: formatPersonName(person) })}
+                title={t(K.relationship.addSpouse)}
+                description={t(K.relationship.createSpouseForName, { name: formatPersonName(person) })}
                 left={(props) => <List.Icon {...props} icon="account-heart-outline" />}
                 onPress={() => openCreateRelativeDialog('spouse-of', person)}
                 disabled={mutating}

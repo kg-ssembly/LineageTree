@@ -53,7 +53,7 @@ export function CollaboratorsSection({
               size={18}
               style={styles.helperIconButton}
               onPress={() => onOpenHelperDialog('collaborators')}
-              accessibilityLabel={t('About collaborators')}
+              accessibilityLabel={t(K.treeSettings.aboutCollaborators)}
             />
           </View>
         </View>
@@ -90,9 +90,9 @@ export function CollaboratorsSection({
                       icon="account-remove"
                       iconColor="#C62828"
                       onPress={() => openConfirm(
-                        t('Remove collaborator'),
-                        t('Remove {name} from this tree?', { name: collaborator.displayName || collaborator.email }),
-                        t('Remove'),
+                        t(K.treeSettings.removeCollaborator),
+                        t(K.treeSettings.removeFromTree, { name: collaborator.displayName || collaborator.email }),
+                        t(K.common.remove),
                         async () => onRemoveCollaborator(collaborator.userId),
                       )}
                       disabled={mutating}
@@ -102,9 +102,9 @@ export function CollaboratorsSection({
 
                 {isOwner && collaborator.userId !== userId && !linkedPerson ? (
                   <View style={styles.ownerSuggestionWrap}>
-                    <Text variant="titleSmall">{t('Suggest a matching family member')}</Text>
+                    <Text variant="titleSmall">{t(K.treeSettings.suggestMatchingFamilyMember)}</Text>
                     <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-                      {t('Help {name} get started by linking the family member that looks like them best.', { name: collaborator.displayName || collaborator.email })}
+                      {t(K.treeSettings.helpNameGetStarted, { name: collaborator.displayName || collaborator.email })}
                     </Text>
 
                     {collaboratorSuggestions.length > 0 ? (
@@ -124,7 +124,7 @@ export function CollaboratorsSection({
                                   <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>{suggestion.reason}</Text>
                                 </View>
                                 <Button mode="contained-tonal" onPress={() => handleOwnerLinkSuggestion(collaborator.userId, suggestion.person.id)} disabled={mutating}>
-                                  {t('Link')}
+                                  {t(K.treeSettings.link)}
                                 </Button>
                               </View>
                             </Card.Content>
@@ -165,7 +165,7 @@ export function CollaboratorsSection({
                                       ) : null}
                                     </View>
                                     <Button mode="contained" onPress={() => handleOwnerLinkSuggestion(collaborator.userId, person.id)} disabled={mutating}>
-                                      {t('Link')}
+                                      {t(K.treeSettings.link)}
                                     </Button>
                                   </View>
                                 </Card.Content>
@@ -174,7 +174,7 @@ export function CollaboratorsSection({
                           </View>
                         ) : (
                           <Text variant="bodySmall" style={[styles.assignmentHelperText, { color: theme.colors.onSurfaceVariant }]}>
-                            {t('No available family members match that search yet.')}
+                            {t(K.treeSettings.noAvailableFamilyMembersMatchSearch)}
                           </Text>
                         )}
                       </View>

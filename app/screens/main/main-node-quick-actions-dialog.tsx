@@ -58,11 +58,11 @@ export function MainNodeQuickActionsDialog({
             const isViewingMaiden = currentFamily === maiden;
             const targetSurname = isViewingMaiden ? marital : maiden;
             const label = isViewingMaiden
-              ? controller.t('View {surname} (marital) family tree', { surname: marital })
-              : controller.t('View {surname} (maiden) family tree', { surname: maiden });
+              ? controller.t(K.relationship.viewMaritalFamilyTree, { surname: marital })
+              : controller.t(K.relationship.viewMaidenFamilyTree, { surname: maiden });
             const description = isViewingMaiden
-              ? controller.t('Switch to {surname} — their family by marriage', { surname: marital })
-              : controller.t('Switch to {surname} — their birth family', { surname: maiden });
+              ? controller.t(K.relationship.switchToFamilyByMarriage, { surname: marital })
+              : controller.t(K.relationship.switchToBirthFamily, { surname: maiden });
             const linkedTree = controller.findConnectedTreeForSurname(person, targetSurname, controller.selectedTree, controller.sharedTabProps?.trees ?? []);
 
             return (
@@ -95,8 +95,8 @@ export function MainNodeQuickActionsDialog({
 
             return (
               <List.Item
-                title={controller.t('View {surname} family tree', { surname })}
-                description={controller.t('This person has parents from different families')}
+                title={controller.t(K.relationship.viewSurnameFamilyTree, { surname })}
+                description={controller.t(K.relationship.crossFamilyParentsHint)}
                 left={(props) => <List.Icon {...props} icon="source-branch" />}
                 onPress={() => {
                   controller.closeNodeQuickActions();
@@ -109,22 +109,22 @@ export function MainNodeQuickActionsDialog({
           {controller.canEdit && controller.nodeQuickActionState.person ? (
             <>
               <List.Item
-                title={controller.t('Add parent')}
-                description={controller.t('Create a new parent for {name}', { name: formatPersonName(controller.nodeQuickActionState.person) })}
+                title={controller.t(K.relationship.addParent)}
+                description={controller.t(K.relationship.createParentForName, { name: formatPersonName(controller.nodeQuickActionState.person) })}
                 left={(props) => <List.Icon {...props} icon="account-arrow-up-outline" />}
                 onPress={() => controller.openCreateRelativeDialog('parent-of', controller.nodeQuickActionState.person!)}
                 disabled={controller.mutating}
               />
               <List.Item
-                title={controller.t('Add child')}
-                description={controller.t('Create a new child for {name}', { name: formatPersonName(controller.nodeQuickActionState.person) })}
+                title={controller.t(K.relationship.addChild)}
+                description={controller.t(K.relationship.createChildForName, { name: formatPersonName(controller.nodeQuickActionState.person) })}
                 left={(props) => <List.Icon {...props} icon="account-arrow-down-outline" />}
                 onPress={() => controller.openCreateRelativeDialog('child-of', controller.nodeQuickActionState.person!)}
                 disabled={controller.mutating}
               />
               <List.Item
-                title={controller.t('Add spouse')}
-                description={controller.t('Create a spouse for {name}', { name: formatPersonName(controller.nodeQuickActionState.person) })}
+                title={controller.t(K.relationship.addSpouse)}
+                description={controller.t(K.relationship.createSpouseForName, { name: formatPersonName(controller.nodeQuickActionState.person) })}
                 left={(props) => <List.Icon {...props} icon="account-heart-outline" />}
                 onPress={() => controller.openCreateRelativeDialog('spouse-of', controller.nodeQuickActionState.person!)}
                 disabled={controller.mutating}

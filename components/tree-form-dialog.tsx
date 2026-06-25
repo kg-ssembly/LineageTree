@@ -45,7 +45,7 @@ export default function TreeFormDialog({
   const handleSubmit = async () => {
     const trimmedName = name.trim();
     if (!trimmedName) {
-      setError(t('Tree name is required.'));
+      setError(t(K.app.treeNameRequired));
       return;
     }
 
@@ -92,7 +92,7 @@ export default function TreeFormDialog({
               iconColor={theme.colors.error}
               onPress={onDelete}
               disabled={loading}
-              accessibilityLabel={t('Delete tree')}
+              accessibilityLabel={t(K.app.deleteTree)}
             />
           ) : (
             <View />

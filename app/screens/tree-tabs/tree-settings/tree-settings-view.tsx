@@ -580,21 +580,21 @@ function TreeSettingsContent({
           }}
           style={[dialogChrome.dialog, { backgroundColor: theme.colors.surface }]}
         >
-          <Dialog.Title style={dialogChrome.dialogTitle}>{t('Manage surname variants')}</Dialog.Title>
+          <Dialog.Title style={dialogChrome.dialogTitle}>{t(K.treeSettings.manageVariants)}</Dialog.Title>
           <Dialog.Content style={dialogChrome.content}>
             <Text variant="bodySmall" style={{ marginBottom: 12, color: theme.colors.onSurfaceVariant }}>
               {t('Add every alternate spelling or related surname that should be recognized anywhere in this tree.')}
             </Text>
-            <TextInput mode="outlined" label={t('Add variant')} value={surnameVariantDraft} onChangeText={setSurnameVariantDraft} onSubmitEditing={handleAddSurnameVariantDraft} style={{ marginBottom: 12 }} />
+            <TextInput mode="outlined" label={t(K.treeSettings.addVariant)} value={surnameVariantDraft} onChangeText={setSurnameVariantDraft} onSubmitEditing={handleAddSurnameVariantDraft} style={{ marginBottom: 12 }} />
             <Button mode="contained-tonal" icon="plus" onPress={handleAddSurnameVariantDraft} disabled={!surnameVariantDraft.trim()} style={{ marginBottom: 12 }}>
-              {t('Add variant')}
+              {t(K.treeSettings.addVariant)}
             </Button>
             <View style={styles.collaboratorChipRow}>
               {surnameVariantDrafts.length > 0 ? surnameVariantDrafts.map((variant) => (
                 <Chip key={`dialog-${variant}`} compact icon="close-circle-outline" onPress={() => handleRemoveSurnameVariantDraft(variant)}>
                   {variant}
                 </Chip>
-              )) : <Chip compact icon="information-outline">{t('Variants will appear here as chips')}</Chip>}
+              )) : <Chip compact icon="information-outline">{t(K.treeSettings.variantsAppearAsChips)}</Chip>}
             </View>
           </Dialog.Content>
           <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
@@ -641,7 +641,7 @@ function TreeSettingsContent({
                           {field.before !== undefined && field.before !== null ? <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>{t('Before: {value}', { value: field.before })}</Text> : null}
                           {field.after !== undefined && field.after !== null ? <Text variant="bodySmall" style={{ marginTop: 2 }}>{t('After: {value}', { value: field.after })}</Text> : null}
                         </View>
-                      )) : <Text variant="bodyMedium">{t('No field-level preview is available for this request.')}</Text>}
+                      )) : <Text variant="bodyMedium">{t(K.treeSettings.noFieldLevelPreview)}</Text>}
                     </View>
                   ) : (
                     <View style={{ marginTop: 16, gap: 12 }}>
@@ -651,7 +651,7 @@ function TreeSettingsContent({
                           {field.before !== undefined && field.before !== null ? <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>{t('Before: {value}', { value: field.before })}</Text> : null}
                           {field.after !== undefined && field.after !== null ? <Text variant="bodySmall" style={{ marginTop: 2 }}>{t('After: {value}', { value: field.after })}</Text> : null}
                         </View>
-                      )) : <Text variant="bodyMedium">{t('No field-level preview is available for this request.')}</Text>}
+                      )) : <Text variant="bodyMedium">{t(K.treeSettings.noFieldLevelPreview)}</Text>}
                     </View>
                   )}
                 </View>
@@ -706,7 +706,7 @@ function TreeSettingsContent({
         </Dialog>
 
         <Dialog visible={mergeHistoryVisible} onDismiss={() => setMergeHistoryVisible(false)} style={[dialogChrome.dialog, { backgroundColor: theme.colors.surface }]}>
-          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{t('Merge history and undo')}</Dialog.Title>
+          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{t(K.treeSettings.mergeHistoryAndUndo)}</Dialog.Title>
           <IconButton icon="close" size={20} onPress={() => setMergeHistoryVisible(false)} style={dialogChrome.closeButton} accessibilityLabel={t(K.common.close)} />
           <Dialog.ScrollArea style={dialogChrome.scrollArea}>
             <ScrollView contentContainerStyle={{ paddingBottom: 8 }} keyboardShouldPersistTaps="handled">

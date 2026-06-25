@@ -99,12 +99,12 @@ export default function LifeEventDialog({
   const handleSubmit = async () => {
     const trimmedTitle = title.trim();
     if (!trimmedTitle) {
-      setTitleError(t('Add a title for this life event.'));
+      setTitleError(t(K.personForm.addTitleForLifeEvent));
       return;
     }
 
     if (!date.trim()) {
-      setDateError(t('Pick a date for this life event.'));
+      setDateError(t(K.personForm.pickDateForLifeEvent));
       return;
     }
 

@@ -38,7 +38,7 @@ export function AppSettingsSection({ onSignOut, authLoading }: UserProfileTabPro
 
   const handleSaveName = async () => {
     if (!editName.trim()) {
-      setNameError(t('Display name cannot be empty.'));
+      setNameError(t(K.settings.displayNameEmpty));
       return;
     }
 
@@ -47,7 +47,7 @@ export function AppSettingsSection({ onSignOut, authLoading }: UserProfileTabPro
     try {
       await updateDisplayName(editName.trim());
     } catch {
-      setNameError(t('Failed to update name. Please try again.'));
+      setNameError(t(K.settings.failedToUpdateName));
     } finally {
       setSavingName(false);
     }
@@ -62,7 +62,7 @@ export function AppSettingsSection({ onSignOut, authLoading }: UserProfileTabPro
         </Text>
         <View style={homeStyles.editNameRow}>
           <TextInput
-            label={t('Display name')}
+            label={t(K.settings.displayName)}
             value={editName}
             onChangeText={(value) => {
               setEditName(value);

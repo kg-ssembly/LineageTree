@@ -90,7 +90,7 @@ export function useSignUpScreenController(navigation: SignUpNavigation) {
         setFieldErrors((current) => ({ ...current, password: null }));
       },
       error: fieldErrors.password,
-      helperText: fieldErrors.password ?? t('Use 8+ characters with uppercase, lowercase, and a number.'),
+      helperText: fieldErrors.password ?? t(K.auth.useEightPlusCharacters),
       helperTextType: fieldErrors.password ? 'error' : 'info',
       secureTextEntry: !passwordVisible,
       autoCapitalize: 'none',
