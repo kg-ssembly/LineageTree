@@ -50,6 +50,7 @@ export function LineageSection({
         relationships={relationships}
         onPressPerson={onPressPerson}
         currentUserPersonId={linkedPerson.id}
+        highlightedPersonId={linkedPerson.id}
         initialFocusPersonId={linkedPerson.id}
         descendantRootPersonId={mode === 'descendants' ? linkedPerson.id : undefined}
         ascendantRootPersonId={mode === 'ascendants' ? linkedPerson.id : undefined}

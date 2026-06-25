@@ -413,13 +413,13 @@ function TreeSettingsContent({
     const clipboard = (globalThis as { navigator?: { clipboard?: { writeText?: (value: string) => Promise<void> } } }).navigator?.clipboard;
     if (clipboard?.writeText) {
       await clipboard.writeText(treeId);
-      setCopyNoticeMessage(t('Tree ID copied'));
+      setCopyNoticeMessage(t(K.treeSettings.treeIdCopied));
       setCopyNoticeVisible(true);
       return;
     }
 
     await Share.share({ message: treeId });
-    setCopyNoticeMessage(t('Tree ID ready to share'));
+    setCopyNoticeMessage(t(K.treeSettings.treeIdReadyToShare));
     setCopyNoticeVisible(true);
   };
 
@@ -433,7 +433,7 @@ function TreeSettingsContent({
             size={20}
             style={styles.helperIconButton}
             onPress={() => openHelperDialog('tree-management')}
-            accessibilityLabel={t('About tree management')}
+            accessibilityLabel={t(K.treeSettings.aboutMyFamilyTrees)}
           />
         </View>
 
@@ -583,7 +583,7 @@ function TreeSettingsContent({
           <Dialog.Title style={dialogChrome.dialogTitle}>{t(K.treeSettings.manageVariants)}</Dialog.Title>
           <Dialog.Content style={dialogChrome.content}>
             <Text variant="bodySmall" style={{ marginBottom: 12, color: theme.colors.onSurfaceVariant }}>
-              {t('Add every alternate spelling or related surname that should be recognized anywhere in this tree.')}
+              {t(K.treeSettings.addAlternateSurnameHelper)}
             </Text>
             <TextInput mode="outlined" label={t(K.treeSettings.addVariant)} value={surnameVariantDraft} onChangeText={setSurnameVariantDraft} onSubmitEditing={handleAddSurnameVariantDraft} style={{ marginBottom: 12 }} />
             <Button mode="contained-tonal" icon="plus" onPress={handleAddSurnameVariantDraft} disabled={!surnameVariantDraft.trim()} style={{ marginBottom: 12 }}>
@@ -621,7 +621,7 @@ function TreeSettingsContent({
 
         <Dialog visible={!!previewApprovalRequest} onDismiss={() => setPreviewApprovalRequest(null)} style={[dialogChrome.dialog, { backgroundColor: theme.colors.surface }]}>
           <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>
-            {previewApprovalRequest?.title ?? t('Approval preview')}
+            {previewApprovalRequest?.title ?? t(K.treeSettings.approvalPreview)}
           </Dialog.Title>
           <IconButton icon="close" size={20} onPress={() => setPreviewApprovalRequest(null)} style={dialogChrome.closeButton} accessibilityLabel={t(K.common.close)} />
           <Dialog.ScrollArea style={dialogChrome.scrollArea}>
@@ -638,8 +638,8 @@ function TreeSettingsContent({
                       {previewPersonFields.length > 0 ? previewPersonFields.map((field) => (
                         <View key={`${previewApprovalRequest.id}-${field.label}`}>
                           <Text variant="labelLarge">{field.label}</Text>
-                          {field.before !== undefined && field.before !== null ? <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>{t('Before: {value}', { value: field.before })}</Text> : null}
-                          {field.after !== undefined && field.after !== null ? <Text variant="bodySmall" style={{ marginTop: 2 }}>{t('After: {value}', { value: field.after })}</Text> : null}
+                          {field.before !== undefined && field.before !== null ? <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>{t(K.treeSettings.beforeValue, { value: field.before })}</Text> : null}
+                          {field.after !== undefined && field.after !== null ? <Text variant="bodySmall" style={{ marginTop: 2 }}>{t(K.treeSettings.afterValue, { value: field.after })}</Text> : null}
                         </View>
                       )) : <Text variant="bodyMedium">{t(K.treeSettings.noFieldLevelPreview)}</Text>}
                     </View>
@@ -648,8 +648,8 @@ function TreeSettingsContent({
                       {previewRelationshipFields.length > 0 ? previewRelationshipFields.map((field) => (
                         <View key={`${previewApprovalRequest.id}-${field.label}`}>
                           <Text variant="labelLarge">{field.label}</Text>
-                          {field.before !== undefined && field.before !== null ? <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>{t('Before: {value}', { value: field.before })}</Text> : null}
-                          {field.after !== undefined && field.after !== null ? <Text variant="bodySmall" style={{ marginTop: 2 }}>{t('After: {value}', { value: field.after })}</Text> : null}
+                          {field.before !== undefined && field.before !== null ? <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>{t(K.treeSettings.beforeValue, { value: field.before })}</Text> : null}
+                          {field.after !== undefined && field.after !== null ? <Text variant="bodySmall" style={{ marginTop: 2 }}>{t(K.treeSettings.afterValue, { value: field.after })}</Text> : null}
                         </View>
                       )) : <Text variant="bodyMedium">{t(K.treeSettings.noFieldLevelPreview)}</Text>}
                     </View>
@@ -661,14 +661,14 @@ function TreeSettingsContent({
         </Dialog>
 
         <Dialog visible={mergePreviewVisible} onDismiss={() => setMergePreviewVisible(false)} style={[dialogChrome.dialog, { backgroundColor: theme.colors.surface }]}>
-          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{t('Merge preview')}</Dialog.Title>
+          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{t(K.treeSettings.mergePreview)}</Dialog.Title>
           <IconButton icon="close" size={20} onPress={() => setMergePreviewVisible(false)} style={dialogChrome.closeButton} accessibilityLabel={t(K.common.close)} />
           <Dialog.ScrollArea style={dialogChrome.scrollArea}>
             <ScrollView contentContainerStyle={{ paddingBottom: 8 }} keyboardShouldPersistTaps="handled">
               {mergePreview ? (
                 <View>
                   <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>
-                    {t('{source} ({sourceCount}) to {target} ({targetCount})', {
+                    {t(K.treeSettings.mergePreviewSummary, {
                       source: mergePreview.sourceTree.treeName,
                       sourceCount: mergePreview.sourceTree.personCount,
                       target: mergePreview.targetTree.treeName,
@@ -676,9 +676,9 @@ function TreeSettingsContent({
                     })}
                   </Text>
                   <View style={styles.summaryChipRow}>
-                    <Chip compact icon="account-switch">{t('{count} possible matches', { count: mergePreview.matches.length })}</Chip>
-                    <Chip compact icon="source-branch-plus">{t('{count} new branches', { count: mergePreview.newBranchCount })}</Chip>
-                    <Chip compact icon="alert-circle-outline">{t('{count} conflicts', { count: mergePreview.conflicts.length })}</Chip>
+                    <Chip compact icon="account-switch">{t(K.treeSettings.possibleMatchesCount, { count: mergePreview.matches.length })}</Chip>
+                    <Chip compact icon="source-branch-plus">{t(K.treeSettings.newBranchesCount, { count: mergePreview.newBranchCount })}</Chip>
+                    <Chip compact icon="alert-circle-outline">{t(K.treeSettings.conflictsCount, { count: mergePreview.conflicts.length })}</Chip>
                   </View>
                   {mergePreview.matches.slice(0, 6).map((match) => (
                     <View key={match.id} style={{ marginTop: 12 }}>
@@ -690,7 +690,7 @@ function TreeSettingsContent({
                       <Text variant="bodySmall" style={{ marginTop: 6 }}>{match.guidedQuestions[0]?.prompt}</Text>
                       {match.conflicts.length > 0 ? (
                         <Text variant="bodySmall" style={{ color: theme.colors.error, marginTop: 4 }}>
-                          {t('Conflicts: {fields}', { fields: match.conflicts.map((conflict) => conflict.field).join(', ') })}
+                          {t(K.treeSettings.conflictsFields, { fields: match.conflicts.map((conflict) => conflict.field).join(', ') })}
                         </Text>
                       ) : null}
                     </View>
@@ -698,7 +698,7 @@ function TreeSettingsContent({
                 </View>
               ) : (
                 <View style={styles.emptyState}>
-                  <Text variant="titleMedium">{t('No merge preview loaded')}</Text>
+                  <Text variant="titleMedium">{t(K.treeSettings.noMergePreviewLoaded)}</Text>
                 </View>
               )}
             </ScrollView>
@@ -730,7 +730,7 @@ function TreeSettingsContent({
                             <>
                               <Text variant="titleMedium">{entry.summary}</Text>
                               <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>
-                                {t('{matches} reviewed matches · {approvals} approval actions · {people} people changed', {
+                                {t(K.treeSettings.mergeHistorySummary, {
                                   matches: entry.preview.matches.length,
                                   approvals: entry.approvals.length,
                                   people: entry.changedPersonIds.length,
@@ -741,11 +741,11 @@ function TreeSettingsContent({
                                 <Chip compact icon="calendar-clock">{entry.createdAt.slice(0, 16).replace('T', ' ')}</Chip>
                               </View>
                               <Button mode="outlined" icon="undo" onPress={() => onUndoMerge(entry.mergeRequestId)} disabled={mutating || entry.status !== 'applied'} style={{ marginTop: 8 }}>
-                                {t('Preview and undo merge')}
+                                {t(K.treeSettings.previewAndUndoMerge)}
                               </Button>
                               {canGrantViewerAccess ? (
                                 <Button mode="contained-tonal" icon="account-eye-outline" onPress={() => onGrantMergeViewerAccess(entry.mergeRequestId, selectedTree.id)} disabled={mutating} style={{ marginTop: 8 }}>
-                                  {t('Grant viewer access to {name}', { name: mergeRequest?.suggestedByLabel ?? t('requester') })}
+                                  {t(K.treeSettings.grantViewerAccessToName, { name: mergeRequest?.suggestedByLabel ?? t(K.treeSettings.requester) })}
                                 </Button>
                               ) : null}
                             </>
@@ -757,9 +757,9 @@ function TreeSettingsContent({
                 </View>
               ) : (
                 <View style={styles.emptyState}>
-                  <Text variant="titleMedium">{t('No merge history yet')}</Text>
+                  <Text variant="titleMedium">{t(K.treeSettings.noMergeHistoryYet)}</Text>
                   <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
-                    {t('Applied or rejected merge activity, approval history, confidence scores, and undoable snapshots will appear here.')}
+                    {t(K.treeSettings.mergeHistoryEmpty)}
                   </Text>
                 </View>
               )}

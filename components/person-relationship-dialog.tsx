@@ -34,7 +34,7 @@ interface PersonRelationshipDialogProps {
 }
 
 function formatPersonName(person?: PersonRecord | null) {
-  if (!person) return translate('Unknown family member');
+  if (!person) return translate(K.relationship.unknownFamilyMember);
   return [person.firstName, person.middleNames ?? '', person.lastName].join(' ').replace(/\s+/g, ' ').trim();
 }
 
@@ -191,7 +191,7 @@ export default function PersonRelationshipDialog({
 
   const handleSubmit = async () => {
     if (!person) { setError(t('This family member could not be loaded.')); return; }
-    if (!relatedPersonId) { setError(t('Choose a related family member first.')); return; }
+    if (!relatedPersonId) { setError(t(K.relationship.chooseRelatedFamilyMemberFirst)); return; }
     if (validationMessage) { setError(validationMessage); return; }
     await onSubmit({
       mode,
@@ -335,12 +335,12 @@ export default function PersonRelationshipDialog({
                     </View>
                   ) : (
                     <View style={styles.emptyState}>
-                      <Text variant="bodyMedium">{t('No matching family members are available for this relationship type.')}</Text>
+                      <Text variant="bodyMedium">{t(K.relationship.noMatchingForRelationshipType)}</Text>
                     </View>
                   )}
                   {totalCandidateMatches > MAX_VISIBLE_RESULTS ? (
                     <Text variant="bodySmall" style={styles.resultsFooterText}>
-                      {t('Showing the first 3 matches. Add more search text to narrow the list.')}
+                      {t(K.relationship.showThreeMatchesAddSearch)}
                     </Text>
                   ) : null}
                 </>

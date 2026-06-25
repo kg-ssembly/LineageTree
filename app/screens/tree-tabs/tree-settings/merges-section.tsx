@@ -59,7 +59,7 @@ export function MergesSection({
               size={18}
               style={styles.helperIconButton}
               onPress={() => onOpenHelperDialog('merge-guidance')}
-              accessibilityLabel={t('About collaborative merges')}
+              accessibilityLabel={t(K.treeSettings.aboutCollaborativeMerges)}
             />
           </View>
         </View>
@@ -75,7 +75,7 @@ export function MergesSection({
                 size={18}
                 style={styles.helperIconButton}
                 onPress={() => onOpenHelperDialog('merge-invitations')}
-                accessibilityLabel={t('About merge invitations')}
+                accessibilityLabel={t(K.treeSettings.aboutMergeInvitations)}
               />
             </View>
             <View style={{ marginTop: 8 }}>
@@ -144,7 +144,7 @@ export function MergesSection({
               size={18}
               style={styles.helperIconButton}
               onPress={() => onOpenHelperDialog('merge-guidance')}
-              accessibilityLabel={t('About pending merge approvals')}
+              accessibilityLabel={t(K.treeSettings.aboutPendingMergeApprovals)}
             />
           </View>
         </View>

@@ -1,4 +1,4 @@
-import type { PersonInput, PersonMutationPayload, PersonRecord } from '../../components/dto/person';
+import type { NewPersonPhotoInput, PersonInput, PersonMutationPayload, PersonRecord } from '../../components/dto/person';
 import type { FamilyTree } from '../../components/dto/tree';
 import { getUserNameParts, type UserProfile } from '../../components/dto/user';
 import type { ParentChildRelationshipKind, SpouseRelationshipStatus } from '../../components/dto/relationship';
@@ -83,7 +83,7 @@ type CreatePersonFromFormSubmissionParams = {
     ownerId: string,
     treeId: string,
     input: PersonInput,
-    newPhotoUris: string[],
+    newPhotos: NewPersonPhotoInput[],
   ) => Promise<PersonRecord>;
   selectedTree: Pick<FamilyTree, 'id'> | null;
   userId?: string | null;
@@ -118,7 +118,7 @@ export async function createPersonFromFormSubmission(
       lifeEvents: payload.lifeEvents,
       preferredPhotoRef: payload.preferredPhotoRef,
     },
-    payload.newPhotoUris,
+    (payload.newPhotos ?? payload.newPhotoUris.map((uri) => ({ uri }))),
   );
 
   for (const pendingRelationship of payload.pendingRelationships) {

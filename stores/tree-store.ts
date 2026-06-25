@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import type { ApprovalRequest } from '../components/dto/approval';
 import type { MergeConflictChoice, MergeHistoryRecord, MergeRequestRecord } from '../components/dto/merge';
 import type { AppNotification, NotificationActivityState } from '../components/dto/notification';
-import type { PersonInput, PersonMutationPayload, PersonRecord } from '../components/dto/person';
+import type { NewPersonPhotoInput, PersonInput, PersonMutationPayload, PersonRecord } from '../components/dto/person';
 import type { ParentChildRelationshipKind, RelationshipRecord, SpouseRelationshipStatus } from '../components/dto/relationship';
 import type { CollaboratorRole, FamilyTree, SurnameVariantGroup } from '../components/dto/tree';
 import type { UserProfile } from '../components/dto/user';
@@ -119,7 +119,7 @@ interface TreeState {
   addCollaborator: (treeId: string, email: string, role: CollaboratorRole) => Promise<void>;
   removeCollaborator: (treeId: string, collaboratorUserId: string) => Promise<void>;
   removeTree: (tree: FamilyTree) => Promise<void>;
-  createPerson: (ownerId: string, treeId: string, input: PersonInput, newPhotoUris: string[]) => Promise<PersonRecord>;
+  createPerson: (ownerId: string, treeId: string, input: PersonInput, newPhotos: NewPersonPhotoInput[]) => Promise<PersonRecord>;
   updatePerson: (ownerId: string, person: PersonRecord, input: PersonMutationPayload) => Promise<void>;
   removePerson: (actorUserId: string, person: PersonRecord) => Promise<void>;
   addParentChildRelationship: (ownerId: string, treeId: string, parentId: string, childId: string, parentChildKind?: ParentChildRelationshipKind) => Promise<void>;
@@ -416,10 +416,10 @@ export const useTreeStore = create<TreeState>((set, get) => {
       }
     },
 
-    createPerson: async (ownerId, treeId, input, newPhotoUris) => {
+    createPerson: async (ownerId, treeId, input, newPhotos) => {
       set({ mutating: true, error: null });
       try {
-        const person = await createPerson(ownerId, treeId, input, newPhotoUris);
+        const person = await createPerson(ownerId, treeId, input, newPhotos);
         set({ mutating: false });
         return person;
       } catch (error) {

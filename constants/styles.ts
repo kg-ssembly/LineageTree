@@ -986,11 +986,22 @@ export class GlobalStyles {
             paddingTop: 12,
             paddingRight: 12,
         },
+        galleryGrid: {
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            gap: 12,
+            marginTop: 12,
+        },
         photoCard: {
             ...CARD_CHROME,
             marginRight: 12,
             overflow: 'hidden',
             borderRadius: 20,
+        },
+        photoGridCard: {
+            width: '48%',
+            minWidth: 160,
+            marginRight: 0,
         },
         photoCardPreferred: {
             shadowColor: F.photoPreferred,
@@ -1000,9 +1011,23 @@ export class GlobalStyles {
             elevation: 4,
         },
         photo: {
-            width: 220,
+            width: '100%',
             height: 180,
             backgroundColor: F.avatarBg,
+        },
+        photoMeta: {
+            padding: 12,
+            gap: 8,
+        },
+        photoMetaField: {
+            marginTop: 4,
+        },
+        photoActionRow: {
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 4,
         },
         lifeEventsSection: {
             marginTop: 12,

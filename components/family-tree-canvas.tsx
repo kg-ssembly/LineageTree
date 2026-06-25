@@ -93,6 +93,7 @@ interface FamilyTreeCanvasProps {
   currentTreeId?: string;
   onPressPerson: (person: PersonRecord) => void;
   currentUserPersonId?: string;
+  highlightedPersonId?: string;
   initialFocusPersonId?: string;
   descendantRootPersonId?: string;
   ascendantRootPersonId?: string;
@@ -240,6 +241,7 @@ type PersonNodeProps = {
   y: number;
   showMaidenFamilyInNodeTitle: boolean;
   isCurrentUser: boolean;
+  isFocusedPerson: boolean;
   isGhost: boolean;
   isCrossSurnameChild: boolean;
   isMaidenNameMember: boolean;
@@ -255,7 +257,7 @@ type PersonNodeProps = {
 };
 const PersonNode = React.memo(function PersonNode(props: PersonNodeProps) {
   const {
-    person, x, y, showMaidenFamilyInNodeTitle, isCurrentUser, isGhost, isCrossSurnameChild, isMaidenNameMember,
+    person, x, y, showMaidenFamilyInNodeTitle, isCurrentUser, isFocusedPerson, isGhost, isCrossSurnameChild, isMaidenNameMember,
     surfaceColor, outlineColor, primaryColor, tertiaryColor, onTertiaryColor,
     variantSurface, variantOnSurface, onPrimaryColor,
     onPress,
@@ -266,13 +268,15 @@ const PersonNode = React.memo(function PersonNode(props: PersonNodeProps) {
     onPress(person);
   }, [person, onPress]);
 
-  const isHighlighted = isMaidenNameMember || isCrossSurnameChild;
-  const borderColor = isHighlighted
+  const isHighlighted = isMaidenNameMember || isCrossSurnameChild || isFocusedPerson;
+  const borderColor = isFocusedPerson
+    ? primaryColor
+    : isHighlighted
     ? tertiaryColor
     : isGhost
     ? primaryColor
     : outlineColor;
-  const borderWidth = isHighlighted ? 2.5 : 1;
+  const borderWidth = isFocusedPerson ? 3 : isHighlighted ? 2.5 : 1;
 
   const badgeLabel = isMaidenNameMember
     ? `${person.maidenName!.trim()}`
@@ -303,6 +307,10 @@ const PersonNode = React.memo(function PersonNode(props: PersonNodeProps) {
         {isCurrentUser ? (
             <View style={[styles.nodeBadge, { backgroundColor: primaryColor }]}>
               <Text variant="labelSmall" style={[styles.nodeBadgeText, { color: onPrimaryColor }]}>{translate('You')}</Text>
+            </View>
+        ) : isFocusedPerson ? (
+            <View style={[styles.nodeBadge, { backgroundColor: primaryColor }]}>
+              <Text variant="labelSmall" style={[styles.nodeBadgeText, { color: onPrimaryColor }]}>{translate('Open')}</Text>
             </View>
         ) : badgeLabel ? (
             <View style={[styles.nodeBadge, { backgroundColor: tertiaryColor }]}>
@@ -342,6 +350,7 @@ function FamilyTreeCanvas({
                             currentTreeId,
                             onPressPerson,
                             currentUserPersonId,
+                            highlightedPersonId,
                             initialFocusPersonId,
                             descendantRootPersonId,
                             ascendantRootPersonId,
@@ -703,10 +712,6 @@ function FamilyTreeCanvas({
     zoomAt(vw / 2, vh / 2, scaleRef.current * (1 + delta));
   }, [zoomAt, isFullscreen, fullscreenViewportSize, inlineViewportSize]);
 
-  const resetView = useCallback(() => {
-    fitTo(activeViewportSize.width, activeViewportSize.height, effectiveFocusId, isFullscreen ? 'fullscreen' : 'inline');
-  }, [fitTo, activeViewportSize, effectiveFocusId, isFullscreen]);
-
   // ---- Web wheel: scroll = pan, ctrl/⌘+wheel = zoom ----
   const handleWheel = useCallback((e: any) => {
     if (Platform.OS !== 'web') return;
@@ -892,7 +897,6 @@ function FamilyTreeCanvas({
           <Chip compact icon="magnify">{scale.toFixed(2)}x</Chip>
           <IconButton icon="minus" size={18} mode="contained-tonal" onPress={() => zoomBy(-0.15)} />
           <IconButton icon="plus" size={18} mode="contained-tonal" onPress={() => zoomBy(0.15)} />
-          <Button compact mode="contained-tonal" onPress={resetView}>{t(K.common.reset)}</Button>
           {allowFullscreen ? (
               mode === 'fullscreen'
                   ? <Button compact mode="contained" icon="close" onPress={() => setIsFullscreen(false)}>{t(K.common.close)}</Button>
@@ -974,6 +978,7 @@ function FamilyTreeCanvas({
                     y={y}
                     showMaidenFamilyInNodeTitle={showMaidenFamilyInNodeTitle}
                     isCurrentUser={currentUserPersonId === person.id}
+                    isFocusedPerson={highlightedPersonId === person.id}
                     isGhost={ghostPersonIds.has(person.id)}
                     isCrossSurnameChild={crossSurnameChildIds.has(person.id)}
                     isMaidenNameMember={maidenNameMemberIds.has(person.id)}
@@ -1005,7 +1010,6 @@ function FamilyTreeCanvas({
                 <Chip compact icon="magnify-minus">{scale.toFixed(2)}x</Chip>
                 <Button compact mode="outlined" onPress={() => zoomBy(-0.15)}>-</Button>
                 <Button compact mode="outlined" onPress={() => zoomBy(0.15)}>+</Button>
-                <Button compact onPress={resetView}>{t(K.common.reset)}</Button>
                 {allowFullscreen ? <Button compact mode="contained-tonal" icon="fullscreen" onPress={() => setIsFullscreen(true)}>{t(K.common.fullscreen)}</Button> : null}
               </View>
             </View>

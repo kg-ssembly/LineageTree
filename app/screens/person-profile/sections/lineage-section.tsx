@@ -65,6 +65,7 @@ export function PersonLineageSection({
         relationships={relationships}
         onPressPerson={onPressPerson}
         currentUserPersonId={currentAssignedPersonId}
+        highlightedPersonId={person.id}
         initialFocusPersonId={person.id}
         descendantRootPersonId={mode === 'descendant' ? person.id : undefined}
         ascendantRootPersonId={mode === 'ascendant' ? person.id : undefined}

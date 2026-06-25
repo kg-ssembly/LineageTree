@@ -23,7 +23,7 @@ interface RelationshipInsightCardProps {
 
 function formatPersonName(person?: PersonRecord | null) {
   if (!person) {
-    return translate('Unknown family member');
+    return translate(K.relationship.unknownFamilyMember);
   }
 
   return [person.firstName, person.middleNames ?? '', person.lastName].join(' ').replace(/\s+/g, ' ').trim();
@@ -31,7 +31,7 @@ function formatPersonName(person?: PersonRecord | null) {
 
 function formatPersonMeta(person: PersonRecord) {
   const lifespan = getPersonLifeSpanLabel(person);
-  return lifespan === 'Unknown lifespan' ? translate('No dates recorded yet') : lifespan;
+  return lifespan === 'Unknown lifespan' ? translate(K.common.unknown) : lifespan;
 }
 
 function getPathRelationLabel(relation: 'parent' | 'child' | 'spouse') {
@@ -142,8 +142,6 @@ export default function RelationshipInsightCard({
   const fromPerson = peopleById.get(fromPersonId) ?? null;
   const toPerson = peopleById.get(toPersonId) ?? null;
   const canShowInsight = Boolean(fromPersonId && toPersonId);
-  const canResetSelection = Boolean(toPersonId || (!lockedFromPersonId && fromPersonId));
-
   const openPicker = (mode: 'from' | 'to') => {
     setPickerMode(mode);
     setPickerSearchQuery('');
@@ -213,20 +211,6 @@ export default function RelationshipInsightCard({
               accessibilityLabel={t('Swap')}
             />
           ) : null}
-          {canResetSelection ? (
-            <IconButton
-              icon="restart"
-              mode="contained-tonal"
-              onPress={() => {
-                if (!lockedFromPersonId) {
-                  setFromPersonId('');
-                }
-                setToPersonId('');
-                setShowPathDetails(false);
-              }}
-              accessibilityLabel={t(K.common.reset)}
-            />
-          ) : null}
         </View>
 
         {!canShowInsight ? (
@@ -252,7 +236,7 @@ export default function RelationshipInsightCard({
                 <Chip compact icon="account">{formatPersonName(fromPerson)}</Chip>
                 <Chip compact icon="arrow-right">{insight.relationship}</Chip>
                 <Chip compact icon="account">{formatPersonName(toPerson)}</Chip>
-                <Chip compact icon="source-branch">{Math.max(insight.pathPersonIds.length - 1, 0)} steps</Chip>
+                <Chip compact icon="source-branch">{Math.max(insight.pathPersonIds.length - 1, 0)} {t(K.common.steps)}</Chip>
               </View>
               <Button mode="text" onPress={() => setShowPathDetails((current) => !current)} style={{ alignSelf: 'flex-start', marginTop: 8 }}>
                 {showPathDetails ? t(K.relationshipInsight.hideSteps) : t(K.relationshipInsight.showSteps)}

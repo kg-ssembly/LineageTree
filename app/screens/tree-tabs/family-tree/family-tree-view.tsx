@@ -4,6 +4,7 @@ import { Text, useTheme } from 'react-native-paper';
 import { FamilyTreeCanvas } from '../../../../components';
 import { GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
+import { I18N_KEYS as K } from '../../../../i18n/keys';
 import type { SharedTabProps } from '../shared';
 
 const styles = GlobalStyles.treeDetail;
@@ -37,9 +38,9 @@ export function FamilyTreeView({
         />
       ) : (
         <View style={[styles.visualisationEmptyState, { backgroundColor: theme.colors.surface }]}>
-          <Text variant="titleMedium">{t('No visual tree yet')}</Text>
+          <Text variant="titleMedium">{t(K.lineage.noVisualTreeYet)}</Text>
           <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
-            {t('Add the first family member from the profile tools or link yourself to begin drawing this tree.')}
+            {t(K.lineage.startDrawingTree)}
           </Text>
         </View>
       )}

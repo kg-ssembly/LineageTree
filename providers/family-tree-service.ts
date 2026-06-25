@@ -25,7 +25,7 @@ import { db, storage } from './firebase-provider';
 import type { ApprovalRequest, ApprovalRequestPayload, ApprovalSubmissionResult } from '../components/dto/approval';
 import type { MergeApproval, MergeConflictChoice, MergeHistoryRecord, MergePreview, MergeRequestRecord, MergeRequestSnapshot, MergeReviewDecision } from '../components/dto/merge';
 import type { AppNotification, NotificationActivityState } from '../components/dto/notification';
-import type { PersonInput, PersonLifeEvent, PersonMutationPayload, PersonPhoto, PersonRecord } from '../components/dto/person';
+import type { NewPersonPhotoInput, PersonInput, PersonLifeEvent, PersonMutationPayload, PersonPhoto, PersonRecord } from '../components/dto/person';
 import { cropPhotoForPreferredDisplay, MAX_PHOTO_BYTES } from '../components/photo-utils';
 import type { ParentChildRelationshipKind, RelationshipRecord, SpouseRelationshipStatus } from '../components/dto/relationship';
 import { DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND, DEFAULT_SPOUSE_RELATIONSHIP_STATUS } from '../components/dto/relationship';
@@ -191,6 +191,8 @@ function mapPhoto(photo: any, index: number): PersonPhoto {
     path: photo?.path ?? '',
     displayUrl: photo?.displayUrl ?? '',
     displayPath: photo?.displayPath ?? '',
+    title: photo?.title ?? '',
+    description: photo?.description ?? '',
     createdAt: photo?.createdAt ?? nowIso(),
   };
 }
@@ -626,12 +628,13 @@ async function uploadPersonPhotos(
   actorUserId: string,
   treeId: string,
   personId: string,
-  newPhotoUris: string[],
+  newPhotos: NewPersonPhotoInput[],
 ): Promise<PersonPhoto[]> {
   const uploadedPhotos: PersonPhoto[] = [];
 
-  for (let index = 0; index < newPhotoUris.length; index += 1) {
-    const uri = newPhotoUris[index];
+  for (let index = 0; index < newPhotos.length; index += 1) {
+    const photoInput = newPhotos[index];
+    const uri = photoInput.uri;
     const extension = uri.split('.').pop()?.split('?')[0]?.toLowerCase() || 'jpg';
     const safeExtension = extension === 'jpg' ? 'jpeg' : extension;
     const photoId = `${Date.now()}-${index}`;
@@ -648,6 +651,8 @@ async function uploadPersonPhotos(
       id: photoId,
       url,
       path,
+      title: photoInput.title?.trim() ?? '',
+      description: photoInput.description?.trim() ?? '',
       createdAt: nowIso(),
     });
   }
@@ -701,7 +706,7 @@ function applyPreferredPhotoDisplayVariant(
 function resolvePreferredPhotoSourceUri(
   preferredPhotoRef: string | undefined,
   existingPhotos: PersonPhoto[],
-  newPhotoUris: string[],
+  newPhotos: NewPersonPhotoInput[],
 ) {
   if (!preferredPhotoRef) {
     return '';
@@ -712,7 +717,22 @@ function resolvePreferredPhotoSourceUri(
     return existingPhoto.url;
   }
 
-  return newPhotoUris.find((uri) => uri === preferredPhotoRef) ?? '';
+  return newPhotos.find((photo) => photo.uri === preferredPhotoRef)?.uri ?? '';
+}
+
+function normaliseNewPhotoInputs(
+  newPhotoUris: string[],
+  newPhotos?: NewPersonPhotoInput[],
+) {
+  if (Array.isArray(newPhotos) && newPhotos.length > 0) {
+    return newPhotos.map((photo) => ({
+      uri: photo.uri,
+      title: photo.title?.trim() ?? '',
+      description: photo.description?.trim() ?? '',
+    }));
+  }
+
+  return newPhotoUris.map((uri) => ({ uri, title: '', description: '' }));
 }
 
 async function deletePhotos(photos: PersonPhoto[]) {
@@ -1652,7 +1672,8 @@ async function preparePersonUpdatePreview(
   person: PersonRecord,
   input: PersonMutationPayload,
 ) {
-  const uploadedPhotos = await uploadPersonPhotos(actorUserId, person.treeId, person.id, input.newPhotoUris);
+  const newPhotoInputs = normaliseNewPhotoInputs(input.newPhotoUris, input.newPhotos);
+  const uploadedPhotos = await uploadPersonPhotos(actorUserId, person.treeId, person.id, newPhotoInputs);
   const preferredPhotoId = resolvePreferredPhotoId(
     input.preferredPhotoRef,
     input.existingPhotos,
@@ -1662,9 +1683,9 @@ async function preparePersonUpdatePreview(
   const preferredPhotoSourceUri = resolvePreferredPhotoSourceUri(
     input.preferredPhotoRef,
     input.existingPhotos,
-    input.newPhotoUris,
+    newPhotoInputs,
   );
-  const preferredDisplayPhoto = preferredPhotoId && preferredPhotoSourceUri
+  const preferredDisplayPhoto = preferredPhotoId && preferredPhotoSourceUri && input.cropPreferredPhotoRef === input.preferredPhotoRef
     ? await uploadPreferredPhotoDisplayVariant(actorUserId, person.treeId, person.id, preferredPhotoId, preferredPhotoSourceUri)
     : null;
   const nextPhotos = applyPreferredPhotoDisplayVariant(
@@ -2915,14 +2936,15 @@ export async function createPerson(
   actorUserId: string,
   treeId: string,
   input: PersonInput,
-  newPhotoUris: string[],
+  newPhotos: NewPersonPhotoInput[],
 ): Promise<PersonRecord> {
   const personRef = doc(collection(db, PEOPLE_COLLECTION));
   const timestamp = nowIso();
-  const uploadedPhotos = await uploadPersonPhotos(actorUserId, treeId, personRef.id, newPhotoUris);
+  const uploadedPhotos = await uploadPersonPhotos(actorUserId, treeId, personRef.id, newPhotos);
+  const newPhotoUris = newPhotos.map((photo) => photo.uri);
   const preferredPhotoId = resolvePreferredPhotoId(input.preferredPhotoRef, [], newPhotoUris, uploadedPhotos);
-  const preferredPhotoSourceUri = resolvePreferredPhotoSourceUri(input.preferredPhotoRef, [], newPhotoUris);
-  const preferredDisplayPhoto = preferredPhotoId && preferredPhotoSourceUri
+  const preferredPhotoSourceUri = resolvePreferredPhotoSourceUri(input.preferredPhotoRef, [], newPhotos);
+  const preferredDisplayPhoto = preferredPhotoId && preferredPhotoSourceUri && input.cropPreferredPhotoRef === input.preferredPhotoRef
     ? await uploadPreferredPhotoDisplayVariant(actorUserId, treeId, personRef.id, preferredPhotoId, preferredPhotoSourceUri)
     : null;
   const nextPhotos = applyPreferredPhotoDisplayVariant(uploadedPhotos, preferredPhotoId, preferredDisplayPhoto);

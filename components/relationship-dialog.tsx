@@ -35,7 +35,7 @@ function formatPersonName(person: PersonRecord) {
 
 function formatPersonMeta(person: PersonRecord) {
   const lifespan = getPersonLifeSpanLabel(person);
-  return lifespan === 'Unknown lifespan' ? translate('No dates recorded yet') : lifespan;
+  return lifespan === 'Unknown lifespan' ? translate(K.common.unknown) : lifespan;
 }
 
 export default function RelationshipDialog({
@@ -130,19 +130,19 @@ export default function RelationshipDialog({
 
   const handleSubmit = async () => {
     if (people.length < 2) {
-      setError(t('Add at least two family members before creating a relationship.'));
+      setError(t(K.relationship.addAtLeastTwoFamilyMembers));
       return;
     }
 
     if (!fromPersonId || !toPersonId) {
-      setError(t('Select both family members for this relationship.'));
+      setError(t(K.relationship.selectBothFamilyMembers));
       return;
     }
 
     if (fromPersonId === toPersonId) {
       setError(type === 'spouse'
-        ? t('A family member cannot be their own spouse.')
-        : t('A family member cannot be their own parent or child.'));
+        ? t(K.relationship.cannotBeOwnSpouse)
+        : t(K.relationship.cannotBeOwnParentOrChild));
       return;
     }
 
@@ -160,8 +160,8 @@ export default function RelationshipDialog({
     });
   };
 
-  const firstLabel = type === 'spouse' ? t('Select spouse A') : t('Select parent');
-  const secondLabel = type === 'spouse' ? t('Select spouse B') : t('Select child');
+  const firstLabel = type === 'spouse' ? t(K.relationship.selectSpouseA) : t(K.relationship.selectParent);
+  const secondLabel = type === 'spouse' ? t(K.relationship.selectSpouseB) : t(K.relationship.selectChild);
 
   return (
     <Portal>
@@ -182,8 +182,8 @@ export default function RelationshipDialog({
                   setError(null);
                 }}
                 buttons={[
-                  { value: 'parent-child', label: t('Parent -> Child') },
-                  { value: 'spouse', label: t('Spouse <-> Spouse') },
+                  { value: 'parent-child', label: t(K.relationship.parentToChild) },
+                  { value: 'spouse', label: t(K.relationship.spouseToSpouse) },
                 ]}
               />
             </View>
@@ -320,7 +320,7 @@ export default function RelationshipDialog({
                 left={<TextInput.Icon icon="magnify" />}
               />
               <Text variant="bodySmall" style={styles.helperCopy}>
-                {t('The current selection on the other side is automatically removed from these results.')}
+                {t(K.relationship.selectionOtherSideRemoved)}
               </Text>
               {selectedToPerson ? (
                 <View style={styles.selectedChipRow}>

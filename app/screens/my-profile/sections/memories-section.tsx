@@ -1,8 +1,8 @@
-import React from 'react';
-import { Image, Pressable, ScrollView, View } from 'react-native';
-import { Button, Card, Chip, Surface, Text, useTheme } from 'react-native-paper';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Image, Pressable, View } from 'react-native';
+import { Button, Card, Chip, IconButton, Surface, Text, TextInput, useTheme } from 'react-native-paper';
 import { HorizontalTabStrip } from '../../../../components';
-import type { PersonLifeEvent, PersonPhoto, PersonRecord } from '../../../../components/dto/person';
+import type { NewPersonPhotoInput, PersonLifeEvent, PersonPhoto, PersonRecord } from '../../../../components/dto/person';
 import { formatPersonDate } from '../../../../components/dto/person';
 import { GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
@@ -21,7 +21,12 @@ export function MemoriesSection({
   canEditLinkedProfile,
   mutating,
   onOpenNotesDialog,
-  onOpenPhotosDialog,
+  onAddPhotoFromLibrary,
+  onAddPhotoFromCamera,
+  onRemovePhoto,
+  onSetPreferredPhoto,
+  onUpdatePhotoDetails,
+  photoProcessing,
   onAddLifeEvent,
   onEditLifeEvent,
   onOpenViewer,
@@ -34,13 +39,35 @@ export function MemoriesSection({
   canEditLinkedProfile: boolean;
   mutating: boolean;
   onOpenNotesDialog: () => void;
-  onOpenPhotosDialog: () => void;
+  onAddPhotoFromLibrary: () => void;
+  onAddPhotoFromCamera: () => void;
+  onRemovePhoto: (photo: PersonPhoto) => void;
+  onSetPreferredPhoto: (photo: PersonPhoto, crop: boolean) => void;
+  onUpdatePhotoDetails: (photo: PersonPhoto, values: Pick<NewPersonPhotoInput, 'title' | 'description'>) => void;
+  photoProcessing: boolean;
   onAddLifeEvent: () => void;
   onEditLifeEvent: (event: PersonLifeEvent) => void;
   onOpenViewer: (index: number) => void;
 }) {
   const theme = useTheme();
   const { t } = useI18n();
+  const [photoDrafts, setPhotoDrafts] = useState<Record<string, { title: string; description: string }>>({});
+
+  useEffect(() => {
+    const nextDrafts = linkedPerson.photos.reduce<Record<string, { title: string; description: string }>>((acc, photo) => {
+      acc[photo.id] = {
+        title: photo.title ?? '',
+        description: photo.description ?? '',
+      };
+      return acc;
+    }, {});
+    setPhotoDrafts(nextDrafts);
+  }, [linkedPerson.photos]);
+
+  const photoCards = useMemo(
+    () => linkedPerson.photos.map((photo, index) => ({ photo, index, draft: photoDrafts[photo.id] ?? { title: photo.title ?? '', description: photo.description ?? '' } })),
+    [linkedPerson.photos, photoDrafts],
+  );
 
   return (
     <Surface style={[personProfileStyles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
@@ -84,21 +111,64 @@ export function MemoriesSection({
               <Text variant="titleSmall">{t(K.memories.photoGalleryCount, { count: linkedPerson.photos.length })}</Text>
             </View>
             {canEditLinkedProfile ? (
-              <Button mode="contained-tonal" icon="image-plus" onPress={onOpenPhotosDialog}>
-                {linkedPerson.photos.length > 0 ? t(K.memories.managePhotos) : t(K.memories.addPhotos)}
-              </Button>
+              <View style={personProfileStyles.memoryDialogPhotoActions}>
+                <Button mode="contained-tonal" icon="image" onPress={onAddPhotoFromLibrary} disabled={photoProcessing}>
+                  {t(K.common.library)}
+                </Button>
+                <Button mode="contained-tonal" icon="camera" onPress={onAddPhotoFromCamera} disabled={photoProcessing}>
+                  {t(K.common.camera)}
+                </Button>
+              </View>
             ) : null}
           </View>
           {linkedPerson.photos.length > 0 ? (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={personProfileStyles.galleryRow}>
-              {linkedPerson.photos.map((photo, index) => (
-                <Pressable key={photo.id} onPress={() => onOpenViewer(index)}>
-                  <Card mode="elevated" style={[personProfileStyles.photoCard, preferredPhoto?.id === photo.id && personProfileStyles.photoCardPreferred]}>
+            <View style={personProfileStyles.galleryGrid}>
+              {photoCards.map(({ photo, index, draft }) => (
+                <Card key={photo.id} mode="elevated" style={[personProfileStyles.photoCard, personProfileStyles.photoGridCard, preferredPhoto?.id === photo.id && personProfileStyles.photoCardPreferred]}>
+                  <Pressable onPress={() => onOpenViewer(index)}>
                     <Image source={{ uri: photo.url }} style={personProfileStyles.photo} />
-                  </Card>
-                </Pressable>
+                  </Pressable>
+                  <View style={personProfileStyles.photoMeta}>
+                    <Text variant="titleSmall">{draft.title || t('Untitled photo')}</Text>
+                    {draft.description ? (
+                      <Text variant="bodySmall" style={[personProfileStyles.relationshipSubtitle, { color: theme.colors.onSurfaceVariant }]}>
+                        {draft.description}
+                      </Text>
+                    ) : null}
+                    {canEditLinkedProfile ? (
+                      <>
+                        <TextInput
+                          mode="outlined"
+                          dense
+                          label={t('Photo title')}
+                          value={draft.title}
+                          onChangeText={(value) => setPhotoDrafts((current) => ({ ...current, [photo.id]: { ...current[photo.id], title: value, description: current[photo.id]?.description ?? draft.description } }))}
+                        />
+                        <TextInput
+                          mode="outlined"
+                          dense
+                          multiline
+                          label={t('Photo description')}
+                          value={draft.description}
+                          onChangeText={(value) => setPhotoDrafts((current) => ({ ...current, [photo.id]: { title: current[photo.id]?.title ?? draft.title, description: value } }))}
+                          style={personProfileStyles.photoMetaField}
+                        />
+                        <View style={personProfileStyles.photoActionRow}>
+                          <Button compact mode="text" onPress={() => onSetPreferredPhoto(photo, false)} disabled={photoProcessing}>
+                            {preferredPhoto?.id === photo.id ? t('Profile photo') : t('Set profile')}
+                          </Button>
+                          <Button compact mode="text" onPress={() => onSetPreferredPhoto(photo, true)} disabled={photoProcessing}>
+                            {t('Crop profile')}
+                          </Button>
+                          <IconButton icon="content-save-outline" size={18} onPress={() => onUpdatePhotoDetails(photo, draft)} disabled={photoProcessing} />
+                          <IconButton icon="trash-can-outline" size={18} onPress={() => onRemovePhoto(photo)} disabled={photoProcessing} />
+                        </View>
+                      </>
+                    ) : null}
+                  </View>
+                </Card>
               ))}
-            </ScrollView>
+            </View>
           ) : (
             <View style={personProfileStyles.emptyState}>
               <Text variant="titleMedium">{t(K.memories.noPhotosYet)}</Text>

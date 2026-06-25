@@ -20,7 +20,7 @@ import {
 } from '../../../components';
 import type { PersonRelationshipMode } from '../../../components/person-relationship-dialog';
 import type { RootStackParamList } from '../../../components/dto/navigation';
-import type { PersonLifeEvent, PersonMutationPayload, PersonPhoto, PersonRecord } from '../../../components/dto/person';
+import type { NewPersonPhotoInput, PersonLifeEvent, PersonMutationPayload, PersonPhoto, PersonRecord } from '../../../components/dto/person';
 import {
   formatPersonDate,
   getDisplayPersonPhoto,
@@ -30,7 +30,7 @@ import {
   getPersonTreeMembershipIds,
   isPersonDeceased,
 } from '../../../components/dto/person';
-import { cropPhotoForPreferredDisplay, MAX_PHOTOS_PER_PERSON, MAX_PHOTO_BYTES, preparePhotoForUpload } from '../../../components/photo-utils';
+import { MAX_PHOTOS_PER_PERSON, MAX_PHOTO_BYTES, preparePhotoForUpload } from '../../../components/photo-utils';
 import type { ParentChildRelationshipKind, RelationshipRecord, SpouseRelationshipStatus } from '../../../components/dto/relationship';
 import { canEditTreeContent, getAssignedPersonId } from '../../../components/dto/tree';
 import { getPersonValidationFeedback } from '../../../components/family-tree-validation';
@@ -42,12 +42,10 @@ import { useAuthStore } from '../../../stores/auth-store';
 import { useTreeStore } from '../../../stores/tree-store';
 import { NotesDialog } from './dialogs/notes-dialog';
 import { PhotoViewerModal } from './dialogs/photo-viewer-modal';
-import { PhotosDialog } from './dialogs/photos-dialog';
 import { AppSettingsSection, type UserProfileTabProps } from './sections/app-settings-section';
 import { LineageSection } from './sections/lineage-section';
 import { MemoriesSection, type MemorySectionTabKey } from './sections/memories-section';
 import { ProfileHeroSection } from './sections/profile-hero-section';
-import { ProfileOverviewSection } from './sections/profile-overview-section';
 import { RelationshipsSection, type RelationshipSectionTabKey } from './sections/relationships-section';
 
 const treeDetailStyles = GlobalStyles.treeDetail;
@@ -71,14 +69,13 @@ type LifeEventDialogState = {
   event: PersonLifeEvent | null;
 };
 
-type ProfileTabKey = 'profile' | 'relationships' | 'memories' | 'descendants' | 'ascendants' | 'app-settings';
+type ProfileTabKey = 'relationships' | 'memories' | 'descendants' | 'ascendants' | 'app-settings';
 
 const PROFILE_TABS: Array<{ key: ProfileTabKey; label: string }> = [
-  { key: 'profile', label: 'Profile' },
   { key: 'relationships', label: 'Relationships' },
   { key: 'memories', label: 'Memories' },
-  { key: 'descendants', label: 'Descendants' },
-  { key: 'ascendants', label: 'Ascendants' },
+  { key: 'descendants', label: K.lineage.descendants },
+  { key: 'ascendants', label: K.lineage.ascendants },
   { key: 'app-settings', label: 'App settings' },
 ];
 
@@ -105,6 +102,7 @@ function buildPersonMutationPayload(
     notes: person.notes,
     lifeEvents: person.lifeEvents,
     preferredPhotoRef: person.preferredPhotoId,
+    cropPreferredPhotoRef: '',
     existingPhotos: person.photos,
     removedPhotos: [],
     newPhotoUris: [],
@@ -198,7 +196,7 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
     selectTree,
   } = useTreeStore();
 
-  const [activeTab, setActiveTab] = useState<ProfileTabKey>('profile');
+  const [activeTab, setActiveTab] = useState<ProfileTabKey>('relationships');
   const [memorySectionTab, setMemorySectionTab] = useState<MemorySectionTabKey>('events');
   const [relationshipSectionTab, setRelationshipSectionTab] = useState<RelationshipSectionTabKey>('insight');
   const [editorVisible, setEditorVisible] = useState(false);
@@ -206,11 +204,6 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
   const [lifeEventDialog, setLifeEventDialog] = useState<LifeEventDialogState>({ visible: false, event: null });
   const [notesDialogVisible, setNotesDialogVisible] = useState(false);
   const [notesDraft, setNotesDraft] = useState('');
-  const [photosDialogVisible, setPhotosDialogVisible] = useState(false);
-  const [photoEditorExistingPhotos, setPhotoEditorExistingPhotos] = useState<PersonPhoto[]>([]);
-  const [photoEditorRemovedPhotos, setPhotoEditorRemovedPhotos] = useState<PersonPhoto[]>([]);
-  const [photoEditorNewPhotoUris, setPhotoEditorNewPhotoUris] = useState<string[]>([]);
-  const [photoEditorPreferredPhotoRef, setPhotoEditorPreferredPhotoRef] = useState('');
   const [photoProcessing, setPhotoProcessing] = useState(false);
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const [confirmState, setConfirmState] = useState<ConfirmState>({
@@ -382,22 +375,6 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
     () => [...new Set(people.map((person) => person.lastName.trim()).filter(Boolean))].sort((left, right) => left.localeCompare(right)),
     [people],
   );
-  const photoEditorCount = useMemo(
-    () => photoEditorExistingPhotos.length + photoEditorNewPhotoUris.length,
-    [photoEditorExistingPhotos, photoEditorNewPhotoUris],
-  );
-  const canSavePhotoChanges = useMemo(
-    () => Boolean(
-      linkedPerson
-      && (
-        photoEditorRemovedPhotos.length > 0
-        || photoEditorNewPhotoUris.length > 0
-        || photoEditorPreferredPhotoRef !== (linkedPerson.preferredPhotoId ?? '')
-      )
-    ),
-    [linkedPerson, photoEditorNewPhotoUris.length, photoEditorPreferredPhotoRef, photoEditorRemovedPhotos.length],
-  );
-
   const relationshipEntries = useMemo(() => {
     if (!linkedPerson) {
       return [];
@@ -566,24 +543,16 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
     }
   };
 
-  const openPhotosDialog = () => {
-    if (!linkedPerson) {
-      return;
-    }
-
-    setPhotoEditorExistingPhotos(linkedPerson.photos);
-    setPhotoEditorRemovedPhotos([]);
-    setPhotoEditorNewPhotoUris([]);
-    setPhotoEditorPreferredPhotoRef(linkedPerson.preferredPhotoId ?? '');
-    setPhotosDialogVisible(true);
-  };
-
   const addPhotoFromPickerResult = async (result: ImagePicker.ImagePickerResult) => {
     if (result.canceled || result.assets.length === 0) {
       return;
     }
 
-    if (photoEditorCount >= MAX_PHOTOS_PER_PERSON) {
+    if (!user?.id || !linkedPerson) {
+      return;
+    }
+
+    if (linkedPerson.photos.length >= MAX_PHOTOS_PER_PERSON) {
       Alert.alert(t(K.media.photoLimitReached), t(K.media.photoLimitSummary));
       return;
     }
@@ -597,7 +566,10 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
         return;
       }
 
-      setPhotoEditorNewPhotoUris((current) => [...current, preparedPhoto.uri]);
+      await updatePerson(user.id, linkedPerson, buildPersonMutationPayload(linkedPerson, {
+        newPhotoUris: [preparedPhoto.uri],
+        newPhotos: [{ uri: preparedPhoto.uri }],
+      }));
     } catch {
       Alert.alert(t(K.media.photoProcessingFailed), t(K.media.photoProcessingFailedSummary));
     } finally {
@@ -645,18 +617,7 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
     }
   };
 
-  const handleRemoveExistingPhoto = (photo: PersonPhoto) => {
-    setPhotoEditorExistingPhotos((current) => current.filter((currentPhoto) => currentPhoto.id !== photo.id));
-    setPhotoEditorRemovedPhotos((current) => [...current, photo]);
-    setPhotoEditorPreferredPhotoRef((current) => (current === photo.id ? '' : current));
-  };
-
-  const handleRemoveNewPhoto = (uri: string) => {
-    setPhotoEditorNewPhotoUris((current) => current.filter((item) => item !== uri));
-    setPhotoEditorPreferredPhotoRef((current) => (current === uri ? '' : current));
-  };
-
-  const handleSavePhotos = async () => {
+  const handleRemovePhoto = async (photo: PersonPhoto) => {
     if (!user?.id || !linkedPerson) {
       return;
     }
@@ -664,54 +625,56 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
     setPhotoProcessing(true);
 
     try {
-      let nextNewPhotoUris = [...photoEditorNewPhotoUris];
-      let nextPreferredPhotoRef = photoEditorPreferredPhotoRef;
-
-      const preferredNewPhotoIndex = nextNewPhotoUris.findIndex((uri) => uri === nextPreferredPhotoRef);
-      if (preferredNewPhotoIndex >= 0) {
-        const croppedPreferred = await cropPhotoForPreferredDisplay(nextNewPhotoUris[preferredNewPhotoIndex]);
-        if (croppedPreferred.sizeBytes > MAX_PHOTO_BYTES) {
-          Alert.alert(t(K.media.photoTooLarge), t(K.media.preferredPhotoTooLargeSummary));
-          return;
-        }
-
-        nextNewPhotoUris[preferredNewPhotoIndex] = croppedPreferred.uri;
-        nextPreferredPhotoRef = croppedPreferred.uri;
-      }
-
       const nextPayload = buildPersonMutationPayload(linkedPerson, {
-        existingPhotos: photoEditorExistingPhotos,
-        removedPhotos: photoEditorRemovedPhotos,
-        newPhotoUris: nextNewPhotoUris,
-        preferredPhotoRef: nextPreferredPhotoRef,
+        existingPhotos: linkedPerson.photos.filter((currentPhoto) => currentPhoto.id !== photo.id),
+        removedPhotos: [photo],
+        preferredPhotoRef: linkedPerson.preferredPhotoId === photo.id ? '' : linkedPerson.preferredPhotoId,
       });
-      const photoValidation = getPersonValidationFeedback({
-        people,
-        relationships,
-        person: {
-          firstName: nextPayload.firstName,
-          middleNames: nextPayload.middleNames,
-          lastName: nextPayload.lastName,
-          maidenName: nextPayload.maidenName ?? '',
-          birthDate: nextPayload.birthDate,
-          deathDate: nextPayload.deathDate,
-          notes: nextPayload.notes,
-          lifeEvents: nextPayload.lifeEvents,
-        },
-        existingPhotos: nextPayload.existingPhotos,
-        removedPhotos: nextPayload.removedPhotos,
-        newPhotoUris: nextPayload.newPhotoUris,
-        ignorePersonId: linkedPerson.id,
-      });
-      if (photoValidation.errors.length > 0) {
-        Alert.alert(t(K.personProfile.cannotSavePhotos), photoValidation.errors[0]);
-        return;
-      }
-
       await updatePerson(user.id, linkedPerson, nextPayload);
-      setPhotosDialogVisible(false);
     } catch {
-      // surfaced by store snackbar
+      Alert.alert(t(K.media.photoProcessingFailed), t(K.media.photoProcessingFailedSummary));
+    } finally {
+      setPhotoProcessing(false);
+    }
+  };
+
+  const handleSetPreferredPhoto = async (photo: PersonPhoto, crop: boolean) => {
+    if (!user?.id || !linkedPerson) {
+      return;
+    }
+
+    setPhotoProcessing(true);
+
+    try {
+      await updatePerson(user.id, linkedPerson, buildPersonMutationPayload(linkedPerson, {
+        preferredPhotoRef: photo.id,
+        cropPreferredPhotoRef: crop ? photo.id : '',
+      }));
+    } catch {
+      Alert.alert(t(K.media.photoProcessingFailed), t(K.media.photoProcessingFailedSummary));
+    } finally {
+      setPhotoProcessing(false);
+    }
+  };
+
+  const handleUpdatePhotoDetails = async (photo: PersonPhoto, values: Pick<NewPersonPhotoInput, 'title' | 'description'>) => {
+    if (!user?.id || !linkedPerson) {
+      return;
+    }
+
+    setPhotoProcessing(true);
+
+    try {
+      const nextExistingPhotos = linkedPerson.photos.map((currentPhoto) => (
+        currentPhoto.id === photo.id
+          ? { ...currentPhoto, title: values.title?.trim() ?? '', description: values.description?.trim() ?? '' }
+          : currentPhoto
+      ));
+      await updatePerson(user.id, linkedPerson, buildPersonMutationPayload(linkedPerson, {
+        existingPhotos: nextExistingPhotos,
+      }));
+    } catch {
+      Alert.alert(t(K.media.photoProcessingFailed), t(K.media.photoProcessingFailedSummary));
     } finally {
       setPhotoProcessing(false);
     }
@@ -854,19 +817,14 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
           fallbackSummary={fallbackProfileState.summary}
         />
 
-        <Surface style={[treeDetailStyles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
-          <Text variant="titleMedium" style={{ color: theme.colors.onSurface, marginBottom: 8 }}>
-            {shouldShowLinkedProfileTabs ? t(K.personProfile.yourProfileWorkspace) : t(K.common.availableRightNow)}
-          </Text>
-          <HorizontalTabStrip
-            items={shouldShowLinkedProfileTabs ? profileTabs : profileTabs.filter((tab) => tab.key === 'app-settings')}
-            activeKey={activeTab}
-            onChange={setActiveTab}
-            containerStyle={[personProfileStyles.tabStripCard, { backgroundColor: theme.colors.surface }]}
-            contentContainerStyle={personProfileStyles.tabStripContent}
-            itemStyle={personProfileStyles.tabStripItem}
-          />
-        </Surface>
+        <HorizontalTabStrip
+          items={shouldShowLinkedProfileTabs ? profileTabs : profileTabs.filter((tab) => tab.key === 'app-settings')}
+          activeKey={activeTab}
+          onChange={setActiveTab}
+          containerStyle={[personProfileStyles.tabStripCard, { backgroundColor: theme.colors.surface }]}
+          contentContainerStyle={personProfileStyles.tabStripContent}
+          itemStyle={personProfileStyles.tabStripItem}
+        />
 
         {!shouldShowLinkedProfileTabs ? (
           <Surface style={[treeDetailStyles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
@@ -878,10 +836,6 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
               {fallbackProfileState.detail}
             </Text>
           </Surface>
-        ) : null}
-
-        {shouldShowLinkedProfileTabs && activeTab === 'profile' && linkedPerson ? (
-          <ProfileOverviewSection linkedPerson={linkedPerson} preferredPhoto={preferredPhoto} />
         ) : null}
 
         {shouldShowLinkedProfileTabs && activeTab === 'relationships' && linkedPerson ? (
@@ -909,7 +863,12 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
             canEditLinkedProfile={canEditLinkedProfile}
             mutating={mutating}
             onOpenNotesDialog={openNotesDialog}
-            onOpenPhotosDialog={openPhotosDialog}
+            onAddPhotoFromLibrary={handleAddPhotoFromLibrary}
+            onAddPhotoFromCamera={handleCapturePhoto}
+            onRemovePhoto={handleRemovePhoto}
+            onSetPreferredPhoto={handleSetPreferredPhoto}
+            onUpdatePhotoDetails={handleUpdatePhotoDetails}
+            photoProcessing={photoProcessing}
             onAddLifeEvent={() => setLifeEventDialog({ visible: true, event: null })}
             onEditLifeEvent={(event) => setLifeEventDialog({ visible: true, event })}
             onOpenViewer={setViewerIndex}
@@ -918,7 +877,7 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
 
         {shouldShowLinkedProfileTabs && activeTab === 'descendants' && linkedPerson ? (
           <LineageSection
-            title={t('Descendants')}
+            title={t(K.lineage.descendants)}
             count={descendantIds.length}
             countSingular="descendant"
             countPlural="descendants"
@@ -932,7 +891,7 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
 
         {shouldShowLinkedProfileTabs && activeTab === 'ascendants' && linkedPerson ? (
           <LineageSection
-            title={t('Ascendants')}
+            title={t(K.lineage.ascendants)}
             count={ascendantIds.length}
             countSingular="ancestor"
             countPlural="ancestors"
@@ -1020,24 +979,6 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
         setNotesDraft={setNotesDraft}
         onDismiss={() => setNotesDialogVisible(false)}
         onSave={handleSaveNotes}
-      />
-
-      <PhotosDialog
-        visible={photosDialogVisible}
-        mutating={mutating}
-        photoProcessing={photoProcessing}
-        photoEditorCount={photoEditorCount}
-        canSavePhotoChanges={canSavePhotoChanges}
-        photoEditorExistingPhotos={photoEditorExistingPhotos}
-        photoEditorNewPhotoUris={photoEditorNewPhotoUris}
-        photoEditorPreferredPhotoRef={photoEditorPreferredPhotoRef}
-        onDismiss={() => setPhotosDialogVisible(false)}
-        onLibrary={handleAddPhotoFromLibrary}
-        onCamera={handleCapturePhoto}
-        onTogglePreferred={(value) => setPhotoEditorPreferredPhotoRef((current) => current === value ? '' : value)}
-        onRemoveExisting={handleRemoveExistingPhoto}
-        onRemoveNew={handleRemoveNewPhoto}
-        onSave={handleSavePhotos}
       />
 
       <ConfirmDialog

@@ -79,7 +79,7 @@ export function PersonRelationshipsSection({
       <HorizontalTabStrip
         items={[
           { key: 'insight', label: t(K.personProfile.howRelated) },
-          { key: 'list', label: t(K.personProfile.allLinks) },
+          { key: 'list', label: t('All relationships') },
         ]}
         activeKey={relationshipSectionTab}
         onChange={(value) => setRelationshipSectionTab(value as PersonRelationshipSectionTabKey)}

@@ -60,6 +60,12 @@ interface PersonFormDialogProps {
   onDelete?: () => void | Promise<void>;
 }
 
+type SubmissionPreviewState = {
+  visible: boolean;
+  payload: PersonFormSubmission | null;
+  warnings: string[];
+};
+
 const genderOptions: Array<{ label: string; value: PersonGender }> = [
   { label: 'Unspecified', value: 'unspecified' },
   { label: 'Female', value: 'female' },
@@ -217,6 +223,7 @@ export default function PersonFormDialog({
   const [surnameMenuVisible, setSurnameMenuVisible] = useState(false);
   const [lastNameTouched, setLastNameTouched] = useState(false);
   const [preferredPhotoRef, setPreferredPhotoRef] = useState('');
+  const [previewState, setPreviewState] = useState<SubmissionPreviewState>({ visible: false, payload: null, warnings: [] });
 
   // Track the last open-event key so we reinitialise only once per open, not
   // on every re-render, preventing the Portal infinite-update loop.
@@ -268,8 +275,31 @@ export default function PersonFormDialog({
     setSurnameMenuVisible(false);
     setLastNameTouched(false);
     setPreferredPhotoRef(person?.preferredPhotoId ?? initialValues?.preferredPhotoRef ?? '');
+    setPreviewState({ visible: false, payload: null, warnings: [] });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, mode, person?.id]);
+
+  const buildSubmissionPayload = () => ({
+    firstName,
+    middleNames,
+    lastName,
+    maidenName,
+    birthDate,
+    deathDate: isPresent ? '' : deathDate,
+    gender,
+    notes,
+    lifeEvents,
+    preferredPhotoRef,
+    cropPreferredPhotoRef: '',
+    existingPhotos,
+    removedPhotos,
+    newPhotoUris,
+    pendingRelationships: pendingRelationships.map(({ mode: relationshipMode, relatedPersonId, parentChildKind }) => ({
+      mode: relationshipMode,
+      relatedPersonId,
+      parentChildKind: relationshipMode === 'spouse-of' ? undefined : parentChildKind,
+    })),
+  } satisfies PersonFormSubmission);
 
   const selectedBirthDate = useMemo(() => parseIsoDate(birthDate), [birthDate]);
   const selectedDeathDate = useMemo(() => parseIsoDate(deathDate), [deathDate]);
@@ -541,62 +571,10 @@ export default function PersonFormDialog({
       return;
     }
 
-    const warningMessages = [...personValidationFeedback.warnings, ...relationshipWarnings];
-    if (warningMessages.length > 0) {
-      Alert.alert(
-        t(K.personForm.pleaseReviewBeforeSaving),
-        warningMessages.join('\n\n'),
-        [
-          { text: t('Go back'), style: 'cancel' },
-          {
-            text: t(K.personForm.saveAnyway),
-            onPress: () => {
-              void onSubmit({
-                firstName,
-                middleNames,
-                lastName,
-                maidenName,
-                birthDate,
-                deathDate: isPresent ? '' : deathDate,
-                gender,
-                notes,
-                lifeEvents,
-                preferredPhotoRef,
-                existingPhotos,
-                removedPhotos,
-                newPhotoUris,
-                pendingRelationships: pendingRelationships.map(({ mode: relationshipMode, relatedPersonId, parentChildKind }) => ({
-                  mode: relationshipMode,
-                  relatedPersonId,
-                  parentChildKind: relationshipMode === 'spouse-of' ? undefined : parentChildKind,
-                })),
-              });
-            },
-          },
-        ],
-      );
-      return;
-    }
-
-    await onSubmit({
-      firstName,
-      middleNames,
-      lastName,
-      maidenName,
-      birthDate,
-      deathDate: isPresent ? '' : deathDate,
-      gender,
-      notes,
-      lifeEvents,
-      preferredPhotoRef,
-      existingPhotos,
-      removedPhotos,
-      newPhotoUris,
-      pendingRelationships: pendingRelationships.map(({ mode: relationshipMode, relatedPersonId, parentChildKind }) => ({
-        mode: relationshipMode,
-        relatedPersonId,
-        parentChildKind: relationshipMode === 'spouse-of' ? undefined : parentChildKind,
-      })),
+    setPreviewState({
+      visible: true,
+      payload: buildSubmissionPayload(),
+      warnings: [...personValidationFeedback.warnings, ...relationshipWarnings],
     });
   };
 
@@ -1075,6 +1053,69 @@ export default function PersonFormDialog({
         saveLabel={t(K.common.save)}
         label={t(K.personForm.selectDateOfDeath)}
       />
+      <Portal>
+        <Dialog
+          visible={previewState.visible}
+          onDismiss={loading ? undefined : () => setPreviewState({ visible: false, payload: null, warnings: [] })}
+          style={[dialogChrome.dialog, styles.dialog, { backgroundColor: theme.colors.surface }]}
+        >
+          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose, styles.dialogTitle]}>
+            {t('Preview changes')}
+          </Dialog.Title>
+          <IconButton icon="close" onPress={() => setPreviewState({ visible: false, payload: null, warnings: [] })} disabled={loading} accessibilityLabel={t(K.common.cancel)} style={dialogChrome.closeButton} />
+          <Dialog.ScrollArea style={[dialogChrome.scrollArea, styles.scrollArea]}>
+            <ScrollView contentContainerStyle={styles.content}>
+              {previewState.payload ? (
+                <>
+                  <Text variant="titleMedium">{[previewState.payload.firstName, previewState.payload.middleNames, previewState.payload.lastName].join(' ').replace(/\s+/g, ' ').trim()}</Text>
+                  <Text variant="bodyMedium" style={styles.helperText}>{previewState.payload.gender}</Text>
+                  {previewState.payload.birthDate ? <Text variant="bodyMedium">{t('Birth')}: {formatPersonDate(previewState.payload.birthDate)}</Text> : null}
+                  {previewState.payload.deathDate ? <Text variant="bodyMedium">{t('Death')}: {formatPersonDate(previewState.payload.deathDate)}</Text> : null}
+                  {previewState.payload.maidenName ? <Text variant="bodyMedium">{t('Maiden name')}: {previewState.payload.maidenName}</Text> : null}
+                  {previewState.payload.notes ? <Text variant="bodyMedium">{t('Notes')}: {previewState.payload.notes}</Text> : null}
+                  <Text variant="bodyMedium">{t('Life events')}: {previewState.payload.lifeEvents.length}</Text>
+                  <Text variant="bodyMedium">{t('Photos')}: {previewState.payload.existingPhotos.length + previewState.payload.newPhotoUris.length - previewState.payload.removedPhotos.length}</Text>
+                  {previewState.payload.pendingRelationships.length > 0 ? (
+                    <View style={styles.sectionSpacing}>
+                      <Text variant="titleSmall">{t('Relationships to add')}</Text>
+                      {previewState.payload.pendingRelationships.map((relationship, index) => {
+                        const relatedPerson = relationshipCandidatesById.get(relationship.relatedPersonId);
+                        return (
+                          <Text key={`${relationship.relatedPersonId}-${index}`} variant="bodyMedium">
+                            {index + 1}. {relationship.mode} {relatedPerson ? formatPersonName(relatedPerson) : relationship.relatedPersonId}
+                          </Text>
+                        );
+                      })}
+                    </View>
+                  ) : null}
+                  {previewState.warnings.length > 0 ? (
+                    <View style={styles.sectionSpacing}>
+                      <Text variant="titleSmall">{t('Please review')}</Text>
+                      {previewState.warnings.map((warning) => (
+                        <Text key={warning} variant="bodyMedium" style={styles.helperText}>{warning}</Text>
+                      ))}
+                    </View>
+                  ) : null}
+                </>
+              ) : null}
+            </ScrollView>
+          </Dialog.ScrollArea>
+          <Dialog.Actions style={[dialogChrome.dialogActions, styles.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
+            <Button onPress={() => setPreviewState({ visible: false, payload: null, warnings: [] })} disabled={loading}>{t(K.common.back)}</Button>
+            <Button
+              mode="contained"
+              onPress={() => {
+                if (previewState.payload) {
+                  void onSubmit(previewState.payload);
+                }
+              }}
+              disabled={loading || !previewState.payload}
+            >
+              {mode === 'create' ? t(K.common.create) : t(K.common.save)}
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
     </>
   );
 }

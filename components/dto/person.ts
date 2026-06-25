@@ -18,7 +18,15 @@ export interface PersonPhoto {
   path: string;
   displayUrl?: string;
   displayPath?: string;
+  title?: string;
+  description?: string;
   createdAt: string;
+}
+
+export interface NewPersonPhotoInput {
+  uri: string;
+  title?: string;
+  description?: string;
 }
 
 export interface PersonTreeMembership {
@@ -71,12 +79,14 @@ export interface PersonInput {
   notes: string;
   lifeEvents: PersonLifeEvent[];
   preferredPhotoRef?: string;
+  cropPreferredPhotoRef?: string;
 }
 
 export interface PersonMutationPayload extends PersonInput {
   existingPhotos: PersonPhoto[];
   removedPhotos: PersonPhoto[];
   newPhotoUris: string[];
+  newPhotos?: NewPersonPhotoInput[];
 }
 
 export function getPreferredPersonPhoto(person?: PersonRecord | null) {

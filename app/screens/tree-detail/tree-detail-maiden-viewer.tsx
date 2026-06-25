@@ -85,7 +85,7 @@ export function TreeDetailMaidenViewer({
         }}
       >
         <Button mode="contained-tonal" icon="arrow-left" onPress={navigationGoBack} style={{ borderRadius: 999 }} contentStyle={{ paddingHorizontal: 6 }}>
-          {t('Back to {treeName}', { treeName: returnTreeName ?? t('original tree') })}
+          {t('Back to {treeName}', { treeName: returnTreeName ?? t(K.common.originalTree) })}
         </Button>
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <IconButton
@@ -131,7 +131,7 @@ export function TreeDetailMaidenViewer({
                 <View style={styles.emptyState}>
                   <Text variant="titleMedium">{t(K.tree.familyMembers.noMatches)}</Text>
                   <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
-                    {t('Try adjusting the search.')}
+                    {t(K.tree.familyMembers.adjustSearchOrFilters)}
                   </Text>
                 </View>
               ) : (
@@ -175,11 +175,11 @@ export function TreeDetailMaidenViewer({
                   </ScrollView>
                   {maidenMembersTotalPages > 1 ? (
                     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                      <IconButton icon="chevron-left" onPress={() => setMaidenMembersPage((page) => Math.max(1, page - 1))} disabled={maidenMembersPage === 1} accessibilityLabel={t('Previous page')} />
+                      <IconButton icon="chevron-left" onPress={() => setMaidenMembersPage((page) => Math.max(1, page - 1))} disabled={maidenMembersPage === 1} accessibilityLabel={t(K.tree.familyMembers.previousPage)} />
                       <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-                        {t('Page {current} of {total}', { current: maidenMembersPage, total: maidenMembersTotalPages })}
+                        {t(K.tree.familyMembers.pageOf, { current: maidenMembersPage, total: maidenMembersTotalPages })}
                       </Text>
-                      <IconButton icon="chevron-right" onPress={() => setMaidenMembersPage((page) => Math.min(maidenMembersTotalPages, page + 1))} disabled={maidenMembersPage === maidenMembersTotalPages} accessibilityLabel={t('Next page')} />
+                      <IconButton icon="chevron-right" onPress={() => setMaidenMembersPage((page) => Math.min(maidenMembersTotalPages, page + 1))} disabled={maidenMembersPage === maidenMembersTotalPages} accessibilityLabel={t(K.tree.familyMembers.nextPage)} />
                     </View>
                   ) : null}
                 </>
@@ -201,7 +201,7 @@ export function TreeDetailMaidenViewer({
             style={{ alignSelf: 'flex-start', marginTop: 8, marginLeft: 8 }}
             contentStyle={{ justifyContent: 'flex-start' }}
           >
-            {t('Back to members')}
+            {t(K.personProfile.backToMemberSearch)}
           </Button>
           <IconButton icon="close" size={20} onPress={closeViewerPersonDialog} style={dialogChrome.closeButton} accessibilityLabel={t(K.common.close)} />
           {viewerPerson ? (
@@ -238,7 +238,7 @@ export function TreeDetailMaidenViewer({
                   <View style={{ gap: 12 }}>
                     <Card mode="contained" style={{ borderRadius: 12 }}>
                       <Card.Content>
-                        <Text variant="titleMedium">{t('How you relate')}</Text>
+                        <Text variant="titleMedium">{t(K.personProfile.howRelated)}</Text>
                         <Text variant="bodyMedium" style={{ marginTop: 8 }}>
                           {returnTreeAssignedPerson && viewerRelationshipInsight
                             ? t('{name} is your {relationship}', {
@@ -259,7 +259,7 @@ export function TreeDetailMaidenViewer({
                           {viewerPerson.deathDate ? <Chip icon="calendar-remove">{formatPersonDate(viewerPerson.deathDate)}</Chip> : null}
                         </View>
                         <Text variant="bodyMedium" style={{ marginTop: 12, color: theme.colors.onSurfaceVariant }}>
-                          {viewerPerson.notes?.trim() || t('No notes added yet.')}
+                          {viewerPerson.notes?.trim() || t(K.memories.noNotesAddedYet)}
                         </Text>
                       </Card.Content>
                     </Card>
@@ -307,9 +307,10 @@ export function TreeDetailMaidenViewer({
                     </ScrollView>
                   ) : (
                     <View style={{ paddingVertical: 12 }}>
-                      <Text variant="titleMedium">{t('No photos yet')}</Text>
+                      <Text variant="titleMedium">{t(K.memories.noPhotosYet)}
+                      </Text>
                       <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
-                        {t('Photos and scanned keepsakes will show up here.')}
+                        {t(K.memories.photosAndKeepsakes)}
                       </Text>
                     </View>
                   )

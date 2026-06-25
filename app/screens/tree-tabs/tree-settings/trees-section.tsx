@@ -34,13 +34,13 @@ export function TreesSection({
         <Card mode="elevated" style={[styles.collaboratorCard, { backgroundColor: theme.colors.surface, marginBottom: 16 }]}>
           <Card.Content>
             <View style={styles.titleWithHelperRow}>
-              <Text variant="titleMedium">{t('Suggested maiden surname trees')}</Text>
+              <Text variant="titleMedium">{t(K.treeSettings.suggestedMaidenSurnameTrees)}</Text>
               <IconButton
                 icon="information-outline"
                 size={18}
                 style={styles.helperIconButton}
                 onPress={() => onOpenHelperDialog('maiden-surname-trees')}
-                accessibilityLabel={t('About suggested maiden surname trees')}
+                accessibilityLabel={t(K.treeSettings.aboutSuggestedMaidenSurnameTrees)}
               />
             </View>
             <View style={{ marginTop: 8 }}>
@@ -49,11 +49,11 @@ export function TreesSection({
                   <Card.Content>
                     <Text variant="titleSmall">{suggestion.surname}</Text>
                     <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                      {t('{count} member(s) reference this as a maiden surname.', { count: suggestion.count })}
+                      {t(K.treeSettings.maidenSurnameReferenceCount, { count: suggestion.count })}
                     </Text>
                     <View style={{ flexDirection: 'row', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
                       <Button mode="contained-tonal" onPress={() => onCreateSurnameTree(suggestion.surname)} disabled={mutating}>
-                        {t('Create tree')}
+                        {t(K.treeSettings.createTree)}
                       </Button>
                     </View>
                   </Card.Content>
@@ -67,13 +67,13 @@ export function TreesSection({
       <View style={styles.sectionHeader}>
         <View style={styles.titleWrap}>
           <View style={styles.titleWithHelperRow}>
-            <Text variant="titleMedium">{t('My Family Trees')}</Text>
+            <Text variant="titleMedium">{t(K.treeSettings.myFamilyTrees)}</Text>
             <IconButton
               icon="information-outline"
               size={18}
               style={styles.helperIconButton}
               onPress={() => onOpenHelperDialog('my-trees')}
-              accessibilityLabel={t('About my family trees')}
+              accessibilityLabel={t(K.treeSettings.aboutMyFamilyTrees)}
             />
           </View>
         </View>
@@ -85,13 +85,13 @@ export function TreesSection({
         </View>
       ) : (trees ?? []).length === 0 ? (
         <View style={styles.emptyState}>
-          <Text variant="titleMedium">{t('No trees yet')}</Text>
+          <Text variant="titleMedium">{t(K.treeSettings.noTreesYet)}</Text>
           <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
-            {t('Create your first family tree to start building.')}
+            {t(K.treeSettings.createFirstFamilyTreeToStartBuilding)}
           </Text>
           {onCreateTree ? (
             <Button mode="contained" icon="plus" onPress={onCreateTree} disabled={mutating} style={styles.emptyStateButton}>
-              {t('Create a tree')}
+              {t(K.treeSettings.createATree)}
             </Button>
           ) : null}
         </View>
@@ -108,14 +108,14 @@ export function TreesSection({
                   <View style={{ flex: 1 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                       <Text variant="titleMedium" style={isSelected ? { color: theme.colors.onPrimaryContainer } : undefined}>{tree.name}</Text>
-                      {isDefault ? <Chip compact style={{ backgroundColor: theme.colors.secondaryContainer }}>{t('Default')}</Chip> : null}
-                      {isSelected ? <Chip compact icon="check-circle" style={{ backgroundColor: theme.colors.primaryContainer }}>{t('Active')}</Chip> : null}
+                      {isDefault ? <Chip compact style={{ backgroundColor: theme.colors.secondaryContainer }}>{t(K.treeSettings.defaultTree)}</Chip> : null}
+                      {isSelected ? <Chip compact icon="check-circle" style={{ backgroundColor: theme.colors.primaryContainer }}>{t(K.treeSettings.active)}</Chip> : null}
                     </View>
                     <Text variant="bodySmall" style={{ color: isSelected ? theme.colors.onPrimaryContainer : theme.colors.onSurfaceVariant, marginTop: 2 }}>
                       {t(K.tree.trees.memberCountWithRole, { count: tree.memberIds?.length ?? 0, role: formatRole(treeRole) })}
                     </Text>
                     <Text selectable variant="bodySmall" style={{ color: isSelected ? theme.colors.onPrimaryContainer : theme.colors.onSurfaceVariant, marginTop: 4 }}>
-                      {t('Tree ID: {id}', { id: tree.id })}
+                      {t(K.treeSettings.treeId, { id: tree.id })}
                     </Text>
                   </View>
                   <View style={{ flexDirection: 'row', gap: 4 }}>
