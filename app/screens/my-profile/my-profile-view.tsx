@@ -34,6 +34,7 @@ import { useI18n } from '../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../i18n/keys';
 import { useAuthStore } from '../../../stores/auth-store';
 import { useTreeStore } from '../../../stores/tree-store';
+import { useShallow } from 'zustand/react/shallow';
 import { NotesDialog } from './dialogs/notes-dialog';
 import { PhotoViewerModal } from './dialogs/photo-viewer-modal';
 import { AppSettingsSection, type UserProfileTabProps } from './sections/app-settings-section';
@@ -188,7 +189,22 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
     editRelationship,
     removeRelationship,
     selectTree,
-  } = useTreeStore();
+  } = useTreeStore(useShallow((state) => ({
+    trees: state.trees,
+    selectedTreeId: state.selectedTreeId,
+    people: state.people,
+    relationships: state.relationships,
+    loadingTrees: state.loadingTrees,
+    loadingTreeData: state.loadingTreeData,
+    mutating: state.mutating,
+    updatePerson: state.updatePerson,
+    removePerson: state.removePerson,
+    addParentChildRelationship: state.addParentChildRelationship,
+    addSpouseRelationship: state.addSpouseRelationship,
+    editRelationship: state.editRelationship,
+    removeRelationship: state.removeRelationship,
+    selectTree: state.selectTree,
+  })));
 
   const [activeTab, setActiveTab] = useState<ProfileTabKey>('biography');
   const [memorySectionTab, setMemorySectionTab] = useState<MemorySectionTabKey>('events');

@@ -136,6 +136,8 @@ type PositionedPerson = {
 const MAX_TREE_CACHE_ENTRIES = 12;
 const layoutCache = new Map<string, ReturnType<typeof layoutFamilyTree>>();
 const connectorCache = new Map<string, ReturnType<typeof buildConnectors>>();
+const objectIdentityMap = new WeakMap<object, number>();
+let nextObjectIdentity = 1;
 
 function getCachedValue<T>(cache: Map<string, T>, key: string, compute: () => T) {
   const existing = cache.get(key);
@@ -156,24 +158,16 @@ function getCachedValue<T>(cache: Map<string, T>, key: string, compute: () => T)
   return nextValue;
 }
 
-function buildLayoutCacheKey(people: PersonRecord[], relationships: RelationshipRecord[]) {
-  const peopleKey = [...people]
-    .sort((left, right) => left.id.localeCompare(right.id))
-    .map((person) => `${person.id}:${person.updatedAt}:${person.lastName}:${person.maidenName}`)
-    .join('|');
-  const relationshipKey = [...relationships]
-    .sort((left, right) => left.id.localeCompare(right.id))
-    .map((relationship) => [
-      relationship.id,
-      relationship.type,
-      relationship.fromPersonId,
-      relationship.toPersonId,
-      relationship.relationshipStatus ?? '',
-      relationship.parentChildKind ?? '',
-    ].join(':'))
-    .join('|');
+function getObjectIdentity(value: object) {
+  const existingIdentity = objectIdentityMap.get(value);
+  if (existingIdentity) {
+    return existingIdentity;
+  }
 
-  return `${peopleKey}::${relationshipKey}`;
+  const nextIdentity = nextObjectIdentity;
+  nextObjectIdentity += 1;
+  objectIdentityMap.set(value, nextIdentity);
+  return nextIdentity;
 }
 
 // ---------------------------------------------------------------------------
@@ -510,10 +504,7 @@ function FamilyTreeCanvas({
     }
   }, [activeFamilyRef, activeSurnames]);
 
-  const layoutCacheKey = useMemo(
-    () => buildLayoutCacheKey(clusterPeople, clusterRelationships),
-    [clusterPeople, clusterRelationships],
-  );
+  const layoutCacheKey = `${getObjectIdentity(clusterPeople)}:${getObjectIdentity(clusterRelationships)}`;
 
   // ---- Layout (tidy tree) ----
   const layout = useMemo(
@@ -573,7 +564,8 @@ function FamilyTreeCanvas({
 
   // ---- Connectors (lane-allocated) ----
   const connectorCacheKey = useMemo(() => [
-    layoutCacheKey,
+    getObjectIdentity(layout),
+    getObjectIdentity(clusterRelationships),
     [...ghostPersonIds].sort().join('|'),
     theme.colors.primary,
     theme.colors.secondary,
@@ -581,7 +573,7 @@ function FamilyTreeCanvas({
     '#B7791F',
     '#2E7D6B',
     theme.colors.outline,
-  ].join('::'), [ghostPersonIds, layoutCacheKey, theme.colors.outline, theme.colors.primary, theme.colors.secondary, theme.colors.tertiary]);
+  ].join('::'), [clusterRelationships, ghostPersonIds, layout, theme.colors.outline, theme.colors.primary, theme.colors.secondary, theme.colors.tertiary]);
   const { spouseConnectors, parentChildConnectors } = useMemo(
       () => getCachedValue(connectorCache, connectorCacheKey, () => buildConnectors(clusterRelationships, layout, C, {
         parentChild: theme.colors.primary,

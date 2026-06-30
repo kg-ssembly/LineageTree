@@ -83,6 +83,80 @@ export interface SharedTabProps {
   activeFamilyRef?: React.MutableRefObject<string | null>;
 }
 
+type ActivityNotificationCountInput = {
+  approvalRequests: ApprovalRequest[];
+  mergeRequests: MergeRequestRecord[];
+  mergeHistory: MergeHistoryRecord[];
+  notifications: AppNotification[];
+  notificationActivityStates: NotificationActivityState[];
+  trees?: FamilyTree[];
+  userId?: string;
+};
+
+export function getActivityNotificationCount({
+  approvalRequests,
+  mergeRequests,
+  mergeHistory,
+  notifications,
+  notificationActivityStates,
+  trees,
+  userId,
+}: ActivityNotificationCountInput) {
+  const actionedStateKeys = new Set(
+    notificationActivityStates
+      .filter((state) => Boolean(state.actionedAt))
+      .map((state) => `${state.sourceKind}:${state.sourceId}`),
+  );
+
+  let unseenDirectCount = 0;
+  for (const notification of notifications) {
+    if (!notification.seenAt) {
+      unseenDirectCount += 1;
+    }
+  }
+
+  let unactionedApprovalCount = 0;
+  for (const request of approvalRequests) {
+    if (!actionedStateKeys.has(`approval:${request.id}`)) {
+      unactionedApprovalCount += 1;
+    }
+  }
+
+  let unactionedMergeRequestCount = 0;
+  for (const request of mergeRequests) {
+    if (!actionedStateKeys.has(`merge-request:${request.id}`)) {
+      unactionedMergeRequestCount += 1;
+    }
+  }
+
+  let unactionedMergeHistoryCount = 0;
+  for (const entry of mergeHistory) {
+    if (!actionedStateKeys.has(`merge-history:${entry.id}`)) {
+      unactionedMergeHistoryCount += 1;
+    }
+  }
+
+  let unactionedMembershipCount = 0;
+  for (const tree of trees ?? []) {
+    for (const entry of tree.membershipHistory) {
+      const canSeeEntry = !userId || entry.userId === userId || entry.action === 'invited' || entry.action === 'role-changed';
+      if (!canSeeEntry) {
+        continue;
+      }
+
+      if (!actionedStateKeys.has(`membership:${tree.id}-${entry.id}`)) {
+        unactionedMembershipCount += 1;
+      }
+    }
+  }
+
+  return unseenDirectCount
+    + unactionedApprovalCount
+    + unactionedMergeRequestCount
+    + unactionedMergeHistoryCount
+    + unactionedMembershipCount;
+}
+
 function normaliseComparableName(value: string) {
   return value
     .trim()

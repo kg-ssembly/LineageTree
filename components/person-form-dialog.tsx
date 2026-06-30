@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, ScrollView, View } from 'react-native';
 import {
   Button,
@@ -26,6 +26,7 @@ import { I18N_KEYS as K } from '../i18n/keys';
 
 const styles = GlobalStyles.personFormDialog;
 const dialogChrome = GlobalStyles.dialogChrome;
+const MAX_RELATIONSHIP_CANDIDATES = 20;
 
 export type PendingRelationshipMode = 'parent-of' | 'child-of' | 'spouse-of';
 
@@ -311,6 +312,13 @@ export default function PersonFormDialog({
     () => new Map(relationshipCandidates.map((candidate) => [candidate.id, candidate])),
     [relationshipCandidates],
   );
+  const relationshipCandidateSearchIndex = useMemo(
+    () => relationshipCandidates.map((candidate) => ({
+      candidate,
+      searchableName: formatPersonName(candidate).toLowerCase(),
+    })),
+    [relationshipCandidates],
+  );
   const validationPersonRecord = useMemo(
     () => createValidationPersonRecord({
       firstName,
@@ -327,62 +335,127 @@ export default function PersonFormDialog({
     [birthDate, deathDate, firstName, gender, isPresent, lastName, lifeEvents, maidenName, middleNames, notes, person],
   );
   const pendingValidationRelationships = useMemo(() => createPendingValidationRelationships(pendingRelationships), [pendingRelationships]);
+  const deferredValidationInput = useDeferredValue({
+    firstName,
+    middleNames,
+    lastName,
+    maidenName,
+    birthDate,
+    deathDate: isPresent ? '' : deathDate,
+    notes,
+    lifeEvents,
+    existingPhotos,
+    removedPhotos,
+    newPhotoUris,
+    pendingRelationships,
+    pendingValidationRelationships,
+    personId: person?.id,
+    requireIdentityContext: mode === 'create',
+  });
   const personValidationFeedback = useMemo(
     () => getPersonValidationFeedback({
       people: relationshipCandidates,
-      relationships: [...relationships, ...pendingValidationRelationships],
+      relationships: [...relationships, ...deferredValidationInput.pendingValidationRelationships],
       person: {
-        firstName,
-        middleNames,
-        lastName,
-        maidenName,
-        birthDate,
-        deathDate: isPresent ? '' : deathDate,
-        notes,
-        lifeEvents,
+        firstName: deferredValidationInput.firstName,
+        middleNames: deferredValidationInput.middleNames,
+        lastName: deferredValidationInput.lastName,
+        maidenName: deferredValidationInput.maidenName,
+        birthDate: deferredValidationInput.birthDate,
+        deathDate: deferredValidationInput.deathDate,
+        notes: deferredValidationInput.notes,
+        lifeEvents: deferredValidationInput.lifeEvents,
       },
-      pendingRelationships,
-      existingPhotos,
-      removedPhotos,
-      newPhotoUris,
-      requireIdentityContext: mode === 'create',
-      ignorePersonId: person?.id,
+      pendingRelationships: deferredValidationInput.pendingRelationships,
+      existingPhotos: deferredValidationInput.existingPhotos,
+      removedPhotos: deferredValidationInput.removedPhotos,
+      newPhotoUris: deferredValidationInput.newPhotoUris,
+      requireIdentityContext: deferredValidationInput.requireIdentityContext,
+      ignorePersonId: deferredValidationInput.personId,
     }),
-    [birthDate, deathDate, existingPhotos, firstName, isPresent, lastName, lifeEvents, maidenName, middleNames, mode, newPhotoUris, notes, pendingRelationships, pendingValidationRelationships, person?.id, relationshipCandidates, relationships, removedPhotos],
+    [deferredValidationInput, relationshipCandidates, relationships],
   );
   const validationPeople = useMemo(
-    () => [
-      validationPersonRecord,
-      ...relationshipCandidates.filter((candidate, index, current) => current.findIndex((item) => item.id === candidate.id) === index),
-    ],
+    () => [validationPersonRecord, ...new Map(relationshipCandidates.map((candidate) => [candidate.id, candidate])).values()],
     [relationshipCandidates, validationPersonRecord],
   );
-  const relationshipWarnings = useMemo(() => pendingRelationships.flatMap((draft) => {
-    if (!draft.relatedPersonId) {
-      return [];
-    }
+  const pendingRelationshipFeedbackByKey = useMemo(() => {
+    const allRelationships = [...relationships, ...pendingValidationRelationships];
+    const feedbackByKey = new Map<string, { warnings: string[]; errors: string[] }>();
 
-    const relatedPerson = relationshipCandidatesById.get(draft.relatedPersonId);
-    if (!relatedPerson) {
-      return [];
-    }
+    pendingRelationships.forEach((draft) => {
+      if (!draft.relatedPersonId) {
+        feedbackByKey.set(draft.key, { warnings: [], errors: [] });
+        return;
+      }
 
-    const ageFeedback = getRelationshipValidationFeedback({
-      people: validationPeople,
-      relationships: [...relationships, ...pendingValidationRelationships],
-      type: draft.mode === 'spouse-of' ? 'spouse' : 'parent-child',
-      fromPersonId: draft.mode === 'child-of' ? draft.relatedPersonId : '__new-person__',
-      toPersonId: draft.mode === 'child-of' ? '__new-person__' : draft.relatedPersonId,
-      parentChildKind: draft.mode === 'spouse-of' ? undefined : draft.parentChildKind,
-      ignoreRelationshipId: pendingValidationRelationships.find((relationship) =>
-        relationship.type === (draft.mode === 'spouse-of' ? 'spouse' : 'parent-child')
-        && relationship.fromPersonId === (draft.mode === 'child-of' ? draft.relatedPersonId : '__new-person__')
-        && relationship.toPersonId === (draft.mode === 'child-of' ? '__new-person__' : draft.relatedPersonId),
-      )?.id,
+      const relatedPerson = relationshipCandidatesById.get(draft.relatedPersonId);
+      if (!relatedPerson) {
+        feedbackByKey.set(draft.key, { warnings: [], errors: [] });
+        return;
+      }
+
+      const relationshipType = draft.mode === 'spouse-of' ? 'spouse' : 'parent-child';
+      const fromPersonId = draft.mode === 'child-of' ? draft.relatedPersonId : '__new-person__';
+      const toPersonId = draft.mode === 'child-of' ? '__new-person__' : draft.relatedPersonId;
+      const ignoreRelationshipId = pendingValidationRelationships.find((relationship) =>
+        relationship.type === relationshipType
+        && relationship.fromPersonId === fromPersonId
+        && relationship.toPersonId === toPersonId
+      )?.id;
+
+      const feedback = getRelationshipValidationFeedback({
+        people: validationPeople,
+        relationships: allRelationships,
+        type: relationshipType,
+        fromPersonId,
+        toPersonId,
+        parentChildKind: draft.mode === 'spouse-of' ? undefined : draft.parentChildKind,
+        ignoreRelationshipId,
+      });
+
+      feedbackByKey.set(draft.key, {
+        warnings: feedback.warnings.map((warning) => `${formatPersonName(relatedPerson)}: ${warning}`),
+        errors: feedback.errors.map((error) => `${formatPersonName(relatedPerson)}: ${error}`),
+      });
     });
 
-    return ageFeedback.warnings.map((warning) => `${formatPersonName(relatedPerson)}: ${warning}`);
-  }), [pendingRelationships, pendingValidationRelationships, relationshipCandidatesById, relationships, validationPeople]);
+    return feedbackByKey;
+  }, [pendingRelationships, pendingValidationRelationships, relationshipCandidatesById, relationships, validationPeople]);
+  const relationshipWarnings = useMemo(
+    () => pendingRelationships.flatMap((draft) => pendingRelationshipFeedbackByKey.get(draft.key)?.warnings ?? []),
+    [pendingRelationships, pendingRelationshipFeedbackByKey],
+  );
+  const relationshipSearchResultsByKey = useMemo(() => {
+    const resultsByKey = new Map<string, PersonRecord[]>();
+
+    pendingRelationships.forEach((draft) => {
+      if (draft.relatedPersonId) {
+        resultsByKey.set(draft.key, []);
+        return;
+      }
+
+      const normalizedQuery = draft.searchQuery.trim().toLowerCase();
+      if (!normalizedQuery) {
+        resultsByKey.set(draft.key, relationshipCandidates.slice(0, MAX_RELATIONSHIP_CANDIDATES));
+        return;
+      }
+
+      const matches: PersonRecord[] = [];
+      for (const entry of relationshipCandidateSearchIndex) {
+        if (entry.searchableName.includes(normalizedQuery)) {
+          matches.push(entry.candidate);
+          if (matches.length >= MAX_RELATIONSHIP_CANDIDATES) {
+            break;
+          }
+        }
+      }
+
+      resultsByKey.set(draft.key, matches);
+    });
+
+    return resultsByKey;
+  }, [pendingRelationships, relationshipCandidateSearchIndex, relationshipCandidates]);
 
   const suggestedLastName = useMemo(() => {
     if (mode !== 'create') {
@@ -538,32 +611,7 @@ export default function PersonFormDialog({
     }
 
     const pendingRelationshipError = pendingRelationships
-      .map((draft) => {
-        if (!draft.relatedPersonId) {
-          return null;
-        }
-
-        const relatedPerson = relationshipCandidatesById.get(draft.relatedPersonId);
-        if (!relatedPerson) {
-          return null;
-        }
-
-        const feedback = getRelationshipValidationFeedback({
-          people: validationPeople,
-          relationships: [...relationships, ...pendingValidationRelationships],
-          type: draft.mode === 'spouse-of' ? 'spouse' : 'parent-child',
-          fromPersonId: draft.mode === 'child-of' ? draft.relatedPersonId : '__new-person__',
-          toPersonId: draft.mode === 'child-of' ? '__new-person__' : draft.relatedPersonId,
-          parentChildKind: draft.mode === 'spouse-of' ? undefined : draft.parentChildKind,
-          ignoreRelationshipId: pendingValidationRelationships.find((relationship) =>
-            relationship.type === (draft.mode === 'spouse-of' ? 'spouse' : 'parent-child')
-            && relationship.fromPersonId === (draft.mode === 'child-of' ? draft.relatedPersonId : '__new-person__')
-            && relationship.toPersonId === (draft.mode === 'child-of' ? '__new-person__' : draft.relatedPersonId),
-          )?.id,
-        });
-
-        return feedback.errors[0] ? `${formatPersonName(relatedPerson)}: ${feedback.errors[0]}` : null;
-      })
+      .map((draft) => pendingRelationshipFeedbackByKey.get(draft.key)?.errors[0] ?? null)
       .find(Boolean);
 
     if (pendingRelationshipError) {
@@ -806,13 +854,9 @@ export default function PersonFormDialog({
                   </Text>
 
                   {pendingRelationships.map((draft, index) => {
-                    const filteredCandidates = draft.relatedPersonId
-                      ? []
-                      : relationshipCandidates.filter((candidate) =>
-                          formatPersonName(candidate).toLowerCase().includes(draft.searchQuery.trim().toLowerCase()),
-                        );
+                    const filteredCandidates = relationshipSearchResultsByKey.get(draft.key) ?? [];
                     const selectedPerson = draft.relatedPersonId
-                      ? relationshipCandidates.find((c) => c.id === draft.relatedPersonId)
+                      ? relationshipCandidatesById.get(draft.relatedPersonId) ?? null
                       : null;
                     const clearSelection = () =>
                       setPendingRelationships((current) =>

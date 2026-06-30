@@ -9,6 +9,7 @@ import type { MainTabParamList } from '../../../../components/dto/navigation';
 import type { AppTheme } from '../../../../constants/theme';
 import { GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
+import { getActivityNotificationCount } from '../shared';
 import type { SharedTabProps } from '../shared';
 import { FamilyHighlightsPanel } from '../tree-settings/family-highlights-panel';
 import { NotificationsView } from '../notifications/notifications-view';
@@ -402,27 +403,15 @@ export function HomeDashboardView(props: SharedTabProps) {
     return items.sort((left, right) => right.createdAt.localeCompare(left.createdAt));
   }, [approvalRequests, mergeRequests, notifications]);
   const activityNotificationCount = useMemo(() => {
-    const unseenDirectCount = notifications.filter((notification) => !notification.seenAt).length;
-    const actionedStateKeys = new Set(
-      notificationActivityStates
-        .filter((state) => Boolean(state.actionedAt))
-        .map((state) => `${state.sourceKind}:${state.sourceId}`),
-    );
-
-    const unactionedApprovalCount = approvalRequests.filter((request) => !actionedStateKeys.has(`approval:${request.id}`)).length;
-    const unactionedMergeRequestCount = mergeRequests.filter((request) => !actionedStateKeys.has(`merge-request:${request.id}`)).length;
-    const unactionedMergeHistoryCount = mergeHistory.filter((entry) => !actionedStateKeys.has(`merge-history:${entry.id}`)).length;
-    const unactionedMembershipCount = (trees ?? [])
-      .flatMap((tree) => tree.membershipHistory.map((entry) => ({ tree, entry })))
-      .filter(({ entry }) => !userId || entry.userId === userId || entry.action === 'invited' || entry.action === 'role-changed')
-      .filter(({ tree, entry }) => !actionedStateKeys.has(`membership:${tree.id}-${entry.id}`))
-      .length;
-
-    return unseenDirectCount
-      + unactionedApprovalCount
-      + unactionedMergeRequestCount
-      + unactionedMergeHistoryCount
-      + unactionedMembershipCount;
+    return getActivityNotificationCount({
+      approvalRequests,
+      mergeRequests,
+      mergeHistory,
+      notifications,
+      notificationActivityStates,
+      trees,
+      userId,
+    });
   }, [approvalRequests, mergeHistory, mergeRequests, notificationActivityStates, notifications, trees, userId]);
   const latestActivityAttentionItem = activityAttentionItems[0] ?? null;
   const [deeperExpanded, setDeeperExpanded] = useState(false);

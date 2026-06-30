@@ -33,6 +33,7 @@ import { getTreeBundle } from '../../../providers/family-tree-service';
 import { GlobalStyles } from '../../../constants/styles';
 import { useI18n } from '../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../i18n/keys';
+import { useShallow } from 'zustand/react/shallow';
 import {
   buildSelfAssignmentSuggestions,
   PeopleRelationshipsTabContent,
@@ -135,7 +136,52 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     undoMerge,
     clearError,
     clearNotice,
-  } = useTreeStore();
+  } = useTreeStore(useShallow((state) => ({
+    trees: state.trees,
+    selectedTreeId: state.selectedTreeId,
+    people: state.people,
+    relationships: state.relationships,
+    approvalRequests: state.approvalRequests,
+    mergeRequests: state.mergeRequests,
+    mergeHistory: state.mergeHistory,
+    notifications: state.notifications,
+    notificationActivityStates: state.notificationActivityStates,
+    mergePreview: state.mergePreview,
+    loadingTrees: state.loadingTrees,
+    loadingTreeData: state.loadingTreeData,
+    mutating: state.mutating,
+    error: state.error,
+    notice: state.notice,
+    selectTree: state.selectTree,
+    addCollaborator: state.addCollaborator,
+    removeCollaborator: state.removeCollaborator,
+    createPerson: state.createPerson,
+    createTreeFromSurname: state.createTreeFromSurname,
+    assignPersonToUser: state.assignPersonToUser,
+    clearSelfAssignment: state.clearSelfAssignment,
+    updatePerson: state.updatePerson,
+    removePerson: state.removePerson,
+    addParentChildRelationship: state.addParentChildRelationship,
+    addSpouseRelationship: state.addSpouseRelationship,
+    approveApprovalRequest: state.approveApprovalRequest,
+    rejectApprovalRequest: state.rejectApprovalRequest,
+    setApprovalWindowHours: state.setApprovalWindowHours,
+    setSurnameVariantGroups: state.setSurnameVariantGroups,
+    createMergeRequest: state.createMergeRequest,
+    sendMergeInvite: state.sendMergeInvite,
+    respondToMergeInvite: state.respondToMergeInvite,
+    markNotificationSeen: state.markNotificationSeen,
+    markNotificationOpened: state.markNotificationOpened,
+    markNotificationActivityActioned: state.markNotificationActivityActioned,
+    loadMergePreview: state.loadMergePreview,
+    approveMergeRequest: state.approveMergeRequest,
+    grantMergeViewerAccess: state.grantMergeViewerAccess,
+    rejectMergeRequest: state.rejectMergeRequest,
+    requestMergeChanges: state.requestMergeChanges,
+    undoMerge: state.undoMerge,
+    clearError: state.clearError,
+    clearNotice: state.clearNotice,
+  })));
 
   const [personDialog, setPersonDialog] = useState<PersonDialogState>({
     visible: false,

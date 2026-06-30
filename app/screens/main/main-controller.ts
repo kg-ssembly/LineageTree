@@ -22,8 +22,10 @@ import { useI18n } from '../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../i18n/keys';
 import { useAuthStore } from '../../../stores/auth-store';
 import { useTreeStore } from '../../../stores/tree-store';
+import { useShallow } from 'zustand/react/shallow';
 import { getTreeDeletionImpact } from '../../../providers/family-tree-service';
 import type { SharedTabProps } from '../tree-tab-content';
+import { getActivityNotificationCount } from '../tree-tabs/shared';
 import { buildSelfPersonInitialValues, createPersonFromFormSubmission, findConnectedTreeForSurname } from '../tree-screen-helpers';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Main'>;
@@ -125,7 +127,55 @@ export function useMainScreenController({ navigation }: Props) {
     undoMerge,
     clearError,
     clearNotice,
-  } = useTreeStore();
+  } = useTreeStore(useShallow((state) => ({
+    trees: state.trees,
+    selectedTreeId: state.selectedTreeId,
+    people: state.people,
+    relationships: state.relationships,
+    approvalRequests: state.approvalRequests,
+    mergeRequests: state.mergeRequests,
+    mergeHistory: state.mergeHistory,
+    notifications: state.notifications,
+    notificationActivityStates: state.notificationActivityStates,
+    mergePreview: state.mergePreview,
+    loadingTrees: state.loadingTrees,
+    loadingTreeData: state.loadingTreeData,
+    mutating: state.mutating,
+    error: state.error,
+    notice: state.notice,
+    selectTree: state.selectTree,
+    addCollaborator: state.addCollaborator,
+    removeCollaborator: state.removeCollaborator,
+    createPerson: state.createPerson,
+    createTree: state.createTree,
+    createTreeFromSurname: state.createTreeFromSurname,
+    renameTree: state.renameTree,
+    removeTree: state.removeTree,
+    assignPersonToUser: state.assignPersonToUser,
+    clearSelfAssignment: state.clearSelfAssignment,
+    updatePerson: state.updatePerson,
+    removePerson: state.removePerson,
+    addParentChildRelationship: state.addParentChildRelationship,
+    addSpouseRelationship: state.addSpouseRelationship,
+    approveApprovalRequest: state.approveApprovalRequest,
+    rejectApprovalRequest: state.rejectApprovalRequest,
+    setApprovalWindowHours: state.setApprovalWindowHours,
+    setSurnameVariantGroups: state.setSurnameVariantGroups,
+    createMergeRequest: state.createMergeRequest,
+    sendMergeInvite: state.sendMergeInvite,
+    respondToMergeInvite: state.respondToMergeInvite,
+    markNotificationSeen: state.markNotificationSeen,
+    markNotificationOpened: state.markNotificationOpened,
+    markNotificationActivityActioned: state.markNotificationActivityActioned,
+    loadMergePreview: state.loadMergePreview,
+    approveMergeRequest: state.approveMergeRequest,
+    grantMergeViewerAccess: state.grantMergeViewerAccess,
+    rejectMergeRequest: state.rejectMergeRequest,
+    requestMergeChanges: state.requestMergeChanges,
+    undoMerge: state.undoMerge,
+    clearError: state.clearError,
+    clearNotice: state.clearNotice,
+  })));
 
   const [personDialog, setPersonDialog] = useState<PersonDialogState>({
     visible: false,
@@ -196,27 +246,15 @@ export function useMainScreenController({ navigation }: Props) {
   );
 
   const notificationBadgeCount = useMemo(() => {
-    const unseenDirectCount = notifications.filter((notification) => !notification.seenAt).length;
-    const actionedStateKeys = new Set(
-      notificationActivityStates
-        .filter((state) => Boolean(state.actionedAt))
-        .map((state) => `${state.sourceKind}:${state.sourceId}`),
-    );
-
-    const unactionedApprovalCount = approvalRequests.filter((request) => !actionedStateKeys.has(`approval:${request.id}`)).length;
-    const unactionedMergeRequestCount = mergeRequests.filter((request) => !actionedStateKeys.has(`merge-request:${request.id}`)).length;
-    const unactionedMergeHistoryCount = mergeHistory.filter((entry) => !actionedStateKeys.has(`merge-history:${entry.id}`)).length;
-    const unactionedMembershipCount = trees
-      .flatMap((tree) => tree.membershipHistory.map((entry) => ({ tree, entry })))
-      .filter(({ entry }) => !user?.id || entry.userId === user.id || entry.action === 'invited' || entry.action === 'role-changed')
-      .filter(({ tree, entry }) => !actionedStateKeys.has(`membership:${tree.id}-${entry.id}`))
-      .length;
-
-    return unseenDirectCount
-      + unactionedApprovalCount
-      + unactionedMergeRequestCount
-      + unactionedMergeHistoryCount
-      + unactionedMembershipCount;
+    return getActivityNotificationCount({
+      approvalRequests,
+      mergeRequests,
+      mergeHistory,
+      notifications,
+      notificationActivityStates,
+      trees,
+      userId: user?.id,
+    });
   }, [approvalRequests, mergeHistory, mergeRequests, notificationActivityStates, notifications, trees, user?.id]);
 
   const availableSelfLinkPeople = useMemo(

@@ -37,6 +37,7 @@ import { computeRelationshipInsight } from '../../../providers';
 import { GlobalStyles } from '../../../constants/styles';
 import { useI18n } from '../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../i18n/keys';
+import { useShallow } from 'zustand/react/shallow';
 import { PersonNotesDialog } from './dialogs/notes-dialog';
 import { PersonPhotoViewerModal } from './dialogs/photo-viewer-modal';
 import { PersonLineageSection } from './sections/lineage-section';
@@ -266,7 +267,28 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
     removeRelationship,
     clearError,
     clearNotice,
-  } = useTreeStore();
+  } = useTreeStore(useShallow((state) => ({
+    trees: state.trees,
+    selectedTreeId: state.selectedTreeId,
+    people: state.people,
+    relationships: state.relationships,
+    loadingTrees: state.loadingTrees,
+    loadingTreeData: state.loadingTreeData,
+    mutating: state.mutating,
+    error: state.error,
+    notice: state.notice,
+    selectTree: state.selectTree,
+    assignPersonToUser: state.assignPersonToUser,
+    clearSelfAssignment: state.clearSelfAssignment,
+    updatePerson: state.updatePerson,
+    removePerson: state.removePerson,
+    addParentChildRelationship: state.addParentChildRelationship,
+    addSpouseRelationship: state.addSpouseRelationship,
+    editRelationship: state.editRelationship,
+    removeRelationship: state.removeRelationship,
+    clearError: state.clearError,
+    clearNotice: state.clearNotice,
+  })));
 
   const [editorVisible, setEditorVisible] = useState(false);
   const [relationshipDialog, setRelationshipDialog] = useState<RelationshipDialogState>({ visible: false, relationship: null });
