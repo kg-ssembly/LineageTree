@@ -79,9 +79,6 @@ export function TreesSection({
             />
           </View>
         </View>
-      <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-        Keep each family space distinct, then move between them when stories overlap or branches reconnect.
-      </Text>
       </View>
 
       {loadingTrees ? (

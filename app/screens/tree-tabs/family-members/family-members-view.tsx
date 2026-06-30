@@ -270,9 +270,6 @@ export function FamilyMembersView({
                 accessibilityLabel={t(K.tree.familyMembers.aboutLabel)}
               />
             </View>
-            <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-              {t(K.tree.familyMembers.about)}
-            </Text>
           </View>
           {canEdit ? (
             <Button mode="contained" icon="account-plus" onPress={onOpenAddPerson} disabled={mutating}>

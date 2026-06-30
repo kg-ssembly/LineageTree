@@ -44,9 +44,6 @@ export function ApprovalsSection({
           </View>
         </View>
       </View>
-      <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-        Set the pace for shared changes so everyone has room to notice, respond, and keep the story accurate.
-      </Text>
 
       <View style={styles.summaryChipRow}>
         <Chip icon="timeline-clock-outline">

@@ -76,9 +76,6 @@ export function PersonRelationshipsSection({
           </Button>
         ) : null}
       </View>
-      <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-        {t(K.relationship.manageConnectionsDirectly, { name: formatPersonName(person) })}
-      </Text>
 
       <HorizontalTabStrip
         items={[

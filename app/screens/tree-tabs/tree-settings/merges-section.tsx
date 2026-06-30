@@ -66,9 +66,6 @@ export function MergesSection({
           </View>
         </View>
       </View>
-      <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-        Bring related trees together carefully, compare matching people, and decide where stories truly belong together.
-      </Text>
 
       {pendingMergeInvites.length > 0 ? (
         <Card mode="elevated" style={[styles.collaboratorCard, { backgroundColor: theme.colors.surface, marginBottom: 16 }]}>

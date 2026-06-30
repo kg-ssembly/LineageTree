@@ -83,9 +83,6 @@ export function PersonMemoriesSection({
           accessibilityLabel={t(K.memories.aboutMemoriesAndGallery)}
         />
       </View>
-      <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-        {t(K.memories.momentsPhotosFragments)}
-      </Text>
 
       <HorizontalTabStrip
         items={[

@@ -276,9 +276,6 @@ export function NotificationsView({
                   accessibilityLabel={t(K.notifications.notifications)}
                 />
               </View>
-              <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-                Stay close to new invites, shared edits, and the moments that are unfolding across your tree.
-              </Text>
             </View>
           </View>
         ) : null}
