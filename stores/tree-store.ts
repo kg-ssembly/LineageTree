@@ -1,4 +1,6 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
+import { createJSONStorage, persist } from 'zustand/middleware';
 import type { ApprovalRequest } from '../components/dto/approval';
 import type { MergeConflictChoice, MergeHistoryRecord, MergeRequestRecord } from '../components/dto/merge';
 import type { AppNotification, NotificationActivityState } from '../components/dto/notification';
@@ -56,6 +58,8 @@ let unsubscribeNotifications: (() => void) | null = null;
 let unsubscribeNotificationActivity: (() => void) | null = null;
 let subscribedTreeId: string | null = null;
 const expiryProcessingTreeIds = new Set<string>();
+const TREE_STORE_STORAGE_KEY = 'lineagetree-tree-store';
+const TREE_STORE_CACHE_VERSION = 1;
 
 function normaliseError(error: unknown) {
   if (error instanceof Error && error.message) {
@@ -148,7 +152,12 @@ interface TreeState {
   reset: () => void;
 }
 
-export const useTreeStore = create<TreeState>((set, get) => {
+type PersistedTreeState = Pick<
+  TreeState,
+  'currentUserId' | 'trees' | 'selectedTreeId' | 'people' | 'relationships'
+>;
+
+export const useTreeStore = create<TreeState>()(persist((set, get) => {
   const subscribeToTreeData = (treeId: string | null) => {
     if (treeId && subscribedTreeId === treeId && get().trees.some((tree) => tree.id === treeId)) {
       set({ selectedTreeId: treeId, loadingTreeData: false });
@@ -277,7 +286,37 @@ export const useTreeStore = create<TreeState>((set, get) => {
         return;
       }
 
-      set({ currentUserId: userId, loadingTrees: true, loadingTreeData: false, error: null, notice: null });
+      const state = get();
+      const hasCachedTrees = state.currentUserId === userId && state.trees.length > 0;
+      const hasCachedTreeSelection = hasCachedTrees
+        && Boolean(state.selectedTreeId)
+        && state.people.length > 0;
+
+      if (state.currentUserId !== userId) {
+        set({
+          currentUserId: userId,
+          trees: [],
+          selectedTreeId: null,
+          people: [],
+          relationships: [],
+          approvalRequests: [],
+          mergeRequests: [],
+          mergeHistory: [],
+          mergePreview: null,
+          loadingTrees: true,
+          loadingTreeData: false,
+          error: null,
+          notice: null,
+        });
+      } else {
+        set({
+          currentUserId: userId,
+          loadingTrees: !hasCachedTrees,
+          loadingTreeData: false,
+          error: null,
+          notice: null,
+        });
+      }
 
       unsubscribeTrees = subscribeToTrees(
         userId,
@@ -289,12 +328,16 @@ export const useTreeStore = create<TreeState>((set, get) => {
 
           set({ trees, selectedTreeId: nextSelectedTreeId, loadingTrees: false });
 
-          if (nextSelectedTreeId !== previousSelectedTreeId) {
+          if (nextSelectedTreeId !== previousSelectedTreeId || (nextSelectedTreeId && subscribedTreeId !== nextSelectedTreeId)) {
             subscribeToTreeData(nextSelectedTreeId);
           }
         },
         (error) => set({ error: normaliseError(error), loadingTrees: false }),
       );
+
+      if (hasCachedTreeSelection && state.selectedTreeId) {
+        set({ loadingTreeData: false });
+      }
 
       unsubscribeNotifications = subscribeToNotifications(
         userId,
@@ -700,4 +743,15 @@ export const useTreeStore = create<TreeState>((set, get) => {
       });
     },
   };
-});
+}, {
+  name: TREE_STORE_STORAGE_KEY,
+  version: TREE_STORE_CACHE_VERSION,
+  storage: createJSONStorage(() => AsyncStorage),
+  partialize: (state): PersistedTreeState => ({
+    currentUserId: state.currentUserId,
+    trees: state.trees,
+    selectedTreeId: state.selectedTreeId,
+    people: state.people,
+    relationships: state.relationships,
+  }),
+}));
