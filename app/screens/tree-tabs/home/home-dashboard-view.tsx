@@ -286,22 +286,46 @@ export function HomeDashboardView(props: SharedTabProps) {
   const [promptsHydrated, setPromptsHydrated] = useState(false);
   const [celebrationMessage, setCelebrationMessage] = useState<string | null>(null);
   const [lastVisitAt, setLastVisitAt] = useState<string | null>(null);
-  const completedTasks = useMemo(() => tasks.filter((task) => task.done), [tasks]);
-  const completedTaskIds = useMemo(
-    () => completedTasks.map((task) => task.id).sort(),
-    [completedTasks],
-  );
-  const visibleStoryTasks = storyTasks.filter((task) => !task.done && !dismissedTaskIds.includes(task.id));
-  const visibleTreeTasks = treeTasks.filter((task) => !task.done && !dismissedTaskIds.includes(task.id));
-  const visibleRemainingTasks = [...visibleStoryTasks, ...visibleTreeTasks]
-    .sort((left, right) => right.score - left.score || left.title.localeCompare(right.title));
-  const bestStoryStep = visibleStoryTasks[0] ?? null;
-  const bestTreeStep = visibleTreeTasks[0] ?? null;
-  const bestNextStep = visibleRemainingTasks[0] ?? null;
-  const storyCompletedCount = storyTasks.filter((task) => task.done).length;
-  const treeCompletedCount = treeTasks.filter((task) => task.done).length;
-  const storyProgress = storyTasks.length > 0 ? storyCompletedCount / storyTasks.length : 0;
-  const treeProgress = treeTasks.length > 0 ? treeCompletedCount / treeTasks.length : 0;
+  const taskMetrics = useMemo(() => {
+    const dismissedTaskIdSet = new Set(dismissedTaskIds);
+    const completedTasks = tasks.filter((task) => task.done);
+    const completedTaskIds = completedTasks.map((task) => task.id).sort();
+    const visibleStoryTasks = storyTasks.filter((task) => !task.done && !dismissedTaskIdSet.has(task.id));
+    const visibleTreeTasks = treeTasks.filter((task) => !task.done && !dismissedTaskIdSet.has(task.id));
+    const visibleRemainingTasks = [...visibleStoryTasks, ...visibleTreeTasks]
+      .sort((left, right) => right.score - left.score || left.title.localeCompare(right.title));
+    const storyCompletedCount = storyTasks.filter((task) => task.done).length;
+    const treeCompletedCount = treeTasks.filter((task) => task.done).length;
+
+    return {
+      completedTasks,
+      completedTaskIds,
+      visibleStoryTasks,
+      visibleTreeTasks,
+      visibleRemainingTasks,
+      bestStoryStep: visibleStoryTasks[0] ?? null,
+      bestTreeStep: visibleTreeTasks[0] ?? null,
+      bestNextStep: visibleRemainingTasks[0] ?? null,
+      storyCompletedCount,
+      treeCompletedCount,
+      storyProgress: storyTasks.length > 0 ? storyCompletedCount / storyTasks.length : 0,
+      treeProgress: treeTasks.length > 0 ? treeCompletedCount / treeTasks.length : 0,
+    };
+  }, [dismissedTaskIds, storyTasks, tasks, treeTasks]);
+  const {
+    completedTasks,
+    completedTaskIds,
+    visibleStoryTasks,
+    visibleTreeTasks,
+    visibleRemainingTasks,
+    bestStoryStep,
+    bestTreeStep,
+    bestNextStep,
+    storyCompletedCount,
+    treeCompletedCount,
+    storyProgress,
+    treeProgress,
+  } = taskMetrics;
   const setupSteps = useMemo<SetupStep[]>(() => {
     const hasLinkedProfile = Boolean(currentAssignedPerson);
     const hasOtherFamilyMember = currentAssignedPerson
@@ -352,56 +376,94 @@ export function HomeDashboardView(props: SharedTabProps) {
   const setupProgress = setupSteps.length > 0 ? setupCompletedCount / setupSteps.length : 0;
   const nextSetupStep = setupSteps.find((step) => !step.done) ?? null;
   const isSetupMode = !currentAssignedPerson || people.length <= 2 || relationships.length === 0 || setupCompletedCount < setupSteps.length;
-  const pendingApprovals = approvalRequests.filter((request) => request.status === 'pending').length;
-  const pendingInvites = notifications.filter((notification) => notification.type === 'merge-invite' && notification.status === 'pending').length;
-  const activeMergeReviews = mergeRequests.filter((request) => request.status === 'pending' || request.status === 'changes-requested').length;
-  const firstPendingApproval = approvalRequests.find((request) => request.status === 'pending') ?? null;
-  const firstPendingMergeReview = mergeRequests.find((request) => request.status === 'pending' || request.status === 'changes-requested') ?? null;
-  const needsAttentionCount = pendingApprovals + pendingInvites + activeMergeReviews;
+  const activityMetrics = useMemo(() => {
+    const activityAttentionItems: ActivityAttentionItem[] = [];
+    let pendingApprovals = 0;
+    let pendingInvites = 0;
+    let activeMergeReviews = 0;
+    let firstPendingApproval: typeof approvalRequests[number] | null = null;
+    let firstPendingMergeReview: typeof mergeRequests[number] | null = null;
+
+    for (const notification of notifications) {
+      if (notification.status !== 'pending') {
+        continue;
+      }
+
+      if (notification.type === 'merge-invite') {
+        pendingInvites += 1;
+      }
+
+      activityAttentionItems.push({
+        id: `notification-${notification.id}`,
+        title: 'Merge invitation',
+        description: notification.message,
+        createdAt: notification.createdAt,
+        actionKey: 'activity-feed',
+      });
+    }
+
+    for (const request of approvalRequests) {
+      if (request.status !== 'pending') {
+        continue;
+      }
+
+      pendingApprovals += 1;
+      if (!firstPendingApproval) {
+        firstPendingApproval = request;
+      }
+      activityAttentionItems.push({
+        id: `approval-${request.id}`,
+        title: 'Approval request',
+        description: `${request.title} · ${request.description}`,
+        createdAt: request.updatedAt,
+        actionKey: 'approvals',
+      });
+    }
+
+    for (const request of mergeRequests) {
+      if (request.status !== 'pending' && request.status !== 'changes-requested') {
+        continue;
+      }
+
+      activeMergeReviews += 1;
+      if (!firstPendingMergeReview) {
+        firstPendingMergeReview = request;
+      }
+      activityAttentionItems.push({
+        id: `merge-${request.id}`,
+        title: 'Merge review',
+        description: `${request.preview.sourceTree.treeName} ↔ ${request.preview.targetTree.treeName}`,
+        createdAt: request.updatedAt,
+        actionKey: 'merge-reviews',
+      });
+    }
+
+    activityAttentionItems.sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+
+    return {
+      pendingApprovals,
+      pendingInvites,
+      activeMergeReviews,
+      firstPendingApproval,
+      firstPendingMergeReview,
+      needsAttentionCount: pendingApprovals + pendingInvites + activeMergeReviews,
+      activityAttentionItems,
+      latestActivityAttentionItem: activityAttentionItems[0] ?? null,
+    };
+  }, [approvalRequests, mergeRequests, notifications]);
+  const {
+    pendingApprovals,
+    pendingInvites,
+    activeMergeReviews,
+    firstPendingApproval,
+    firstPendingMergeReview,
+    needsAttentionCount,
+    activityAttentionItems,
+    latestActivityAttentionItem,
+  } = activityMetrics;
   const approvalsTone = pendingApprovals > 0 ? getUrgencyTone(theme, pendingApprovals > 2 ? 'urgent' : 'attention') : getUrgencyTone(theme, 'calm');
   const invitesTone = pendingInvites > 0 ? getUrgencyTone(theme, 'attention') : getUrgencyTone(theme, 'calm');
   const mergeTone = activeMergeReviews > 0 ? getUrgencyTone(theme, activeMergeReviews > 1 ? 'urgent' : 'attention') : getUrgencyTone(theme, 'calm');
-  const activityAttentionItems = useMemo<ActivityAttentionItem[]>(() => {
-    const items: ActivityAttentionItem[] = [];
-
-    notifications
-      .filter((notification) => notification.status === 'pending')
-      .forEach((notification) => {
-        items.push({
-          id: `notification-${notification.id}`,
-          title: 'Merge invitation',
-          description: notification.message,
-          createdAt: notification.createdAt,
-          actionKey: 'activity-feed',
-        });
-      });
-
-    approvalRequests
-      .filter((request) => request.status === 'pending')
-      .forEach((request) => {
-        items.push({
-          id: `approval-${request.id}`,
-          title: 'Approval request',
-          description: `${request.title} · ${request.description}`,
-          createdAt: request.updatedAt,
-          actionKey: 'approvals',
-        });
-      });
-
-    mergeRequests
-      .filter((request) => request.status === 'pending' || request.status === 'changes-requested')
-      .forEach((request) => {
-        items.push({
-          id: `merge-${request.id}`,
-          title: 'Merge review',
-          description: `${request.preview.sourceTree.treeName} ↔ ${request.preview.targetTree.treeName}`,
-          createdAt: request.updatedAt,
-          actionKey: 'merge-reviews',
-        });
-      });
-
-    return items.sort((left, right) => right.createdAt.localeCompare(left.createdAt));
-  }, [approvalRequests, mergeRequests, notifications]);
   const activityNotificationCount = useMemo(() => {
     return getActivityNotificationCount({
       approvalRequests,
@@ -413,7 +475,6 @@ export function HomeDashboardView(props: SharedTabProps) {
       userId,
     });
   }, [approvalRequests, mergeHistory, mergeRequests, notificationActivityStates, notifications, trees, userId]);
-  const latestActivityAttentionItem = activityAttentionItems[0] ?? null;
   const [deeperExpanded, setDeeperExpanded] = useState(false);
   const [activityModalVisible, setActivityModalVisible] = useState(false);
   const [buildInfoVisible, setBuildInfoVisible] = useState(false);

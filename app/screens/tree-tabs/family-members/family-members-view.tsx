@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { FlatList, Image, ScrollView, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
@@ -126,6 +126,7 @@ export function FamilyMembersView({
   const [currentPage, setCurrentPage] = useState(1);
   const [birthDateFromPickerVisible, setBirthDateFromPickerVisible] = useState(false);
   const [birthDateToPickerVisible, setBirthDateToPickerVisible] = useState(false);
+  const deferredSearchQuery = useDeferredValue(searchQuery);
 
   const activeFilterCount = useMemo(() => countActiveFilters(filters), [filters]);
   const selectedBirthDateFrom = useMemo(() => parsePersonDate(draftFilters.birthDateFrom) ?? undefined, [draftFilters.birthDateFrom]);
@@ -147,11 +148,13 @@ export function FamilyMembersView({
     return { parentOf, childOf, spouseOf };
   }, [relationships]);
 
-  const filteredPeople = useMemo(
-    () => people.filter((person) => {
-      const normalizedQuery = searchQuery.trim().toLowerCase();
-      if (normalizedQuery) {
-        const searchableText = [
+  const searchablePeople = useMemo(
+    () => people.map((person) => {
+      const presenceLabel = getPersonPresenceLabel(person);
+      return {
+        person,
+        presenceLabel,
+        searchableText: [
           formatPersonName(person),
           person.firstName,
           person.lastName,
@@ -166,41 +169,52 @@ export function FamilyMembersView({
           person.birthDate,
           person.deathDate,
           person.notes,
-          getPersonPresenceLabel(person),
-        ].join(' ').toLowerCase();
-        if (!searchableText.includes(normalizedQuery)) {
-          return false;
-        }
-      }
-
-      if (filters.gender !== 'all' && person.gender !== filters.gender) return false;
-      if (filters.presence === 'present' && person.deathDate) return false;
-      if (filters.presence === 'deceased' && !person.deathDate) return false;
-      if (filters.hasNotes === true && !person.notes.trim()) return false;
-      if (filters.hasNotes === false && person.notes.trim()) return false;
-      if (filters.hasParents === true && !personRelStats.childOf.has(person.id)) return false;
-      if (filters.hasParents === false && personRelStats.childOf.has(person.id)) return false;
-      if (filters.hasChildren === true && !personRelStats.parentOf.has(person.id)) return false;
-      if (filters.hasChildren === false && personRelStats.parentOf.has(person.id)) return false;
-      if (filters.hasSpouse === true && !personRelStats.spouseOf.has(person.id)) return false;
-      if (filters.hasSpouse === false && personRelStats.spouseOf.has(person.id)) return false;
-
-      if (filters.birthDateFrom || filters.birthDateTo) {
-        if (!person.birthDate) return false;
-        if (filters.birthDateFrom && person.birthDate < filters.birthDateFrom) return false;
-        if (filters.birthDateTo && person.birthDate > filters.birthDateTo) return false;
-      }
-
-      return true;
+          presenceLabel,
+        ].join(' ').toLowerCase(),
+      };
     }),
-    [filters, people, searchQuery, personRelStats],
+    [people],
+  );
+
+  const filteredPeople = useMemo(
+    () => {
+      const normalizedQuery = deferredSearchQuery.trim().toLowerCase();
+      return searchablePeople
+        .filter(({ person, searchableText }) => {
+          if (normalizedQuery && !searchableText.includes(normalizedQuery)) {
+            return false;
+          }
+
+          if (filters.gender !== 'all' && person.gender !== filters.gender) return false;
+          if (filters.presence === 'present' && person.deathDate) return false;
+          if (filters.presence === 'deceased' && !person.deathDate) return false;
+          if (filters.hasNotes === true && !person.notes.trim()) return false;
+          if (filters.hasNotes === false && person.notes.trim()) return false;
+          if (filters.hasParents === true && !personRelStats.childOf.has(person.id)) return false;
+          if (filters.hasParents === false && personRelStats.childOf.has(person.id)) return false;
+          if (filters.hasChildren === true && !personRelStats.parentOf.has(person.id)) return false;
+          if (filters.hasChildren === false && personRelStats.parentOf.has(person.id)) return false;
+          if (filters.hasSpouse === true && !personRelStats.spouseOf.has(person.id)) return false;
+          if (filters.hasSpouse === false && personRelStats.spouseOf.has(person.id)) return false;
+
+          if (filters.birthDateFrom || filters.birthDateTo) {
+            if (!person.birthDate) return false;
+            if (filters.birthDateFrom && person.birthDate < filters.birthDateFrom) return false;
+            if (filters.birthDateTo && person.birthDate > filters.birthDateTo) return false;
+          }
+
+          return true;
+        })
+        .map(({ person }) => person);
+    },
+    [deferredSearchQuery, filters, personRelStats, searchablePeople],
   );
 
   const totalPages = Math.max(1, Math.ceil(filteredPeople.length / MEMBERS_PER_PAGE));
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, filters, people, selectedTree.id]);
+  }, [deferredSearchQuery, filters, people, selectedTree.id]);
 
   useEffect(() => {
     setCurrentPage((page) => Math.min(page, totalPages));
