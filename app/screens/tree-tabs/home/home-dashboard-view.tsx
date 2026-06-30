@@ -1208,15 +1208,17 @@ export function HomeDashboardView(props: SharedTabProps) {
             accessibilityLabel="Close family activities"
           />
           <Dialog.ScrollArea style={dialogChrome.scrollArea}>
-            <ScrollView contentContainerStyle={{ paddingBottom: 8 }}>
-              <NotificationsView
-                {...props}
-                embedded
-                navigation={{
-                  navigate: (name) => navigation.navigate(name),
-                }}
-              />
-            </ScrollView>
+            {activityModalVisible ? (
+              <ScrollView contentContainerStyle={{ paddingBottom: 8 }}>
+                <NotificationsView
+                  {...props}
+                  embedded
+                  navigation={{
+                    navigate: (name) => navigation.navigate(name),
+                  }}
+                />
+              </ScrollView>
+            ) : null}
           </Dialog.ScrollArea>
         </Dialog>
       </Portal>

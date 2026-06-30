@@ -21,6 +21,8 @@ import type { SharedTabProps } from '../shared';
 const dialogChrome = GlobalStyles.dialogChrome;
 const styles = GlobalStyles.treeDetail;
 const ACTIVITY_PAGE_SIZE = 5;
+const EMBEDDED_ATTENTION_LIMIT = 6;
+const EMBEDDED_COMPLETED_LIMIT = 4;
 
 type NotificationFeedKind = 'merge-invite' | 'approval' | 'merge-request' | 'merge-history' | 'membership';
 
@@ -40,6 +42,53 @@ type NotificationFeedItem = {
   opened?: boolean;
   actioned?: boolean;
 };
+
+function formatCompactTimestamp(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value.slice(0, 10);
+  }
+
+  const diffMs = Date.now() - date.getTime();
+  const diffMinutes = Math.max(0, Math.floor(diffMs / 60000));
+
+  if (diffMinutes < 1) {
+    return 'Now';
+  }
+  if (diffMinutes < 60) {
+    return `${diffMinutes}m`;
+  }
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) {
+    return `${diffHours}h`;
+  }
+
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) {
+    return `${diffDays}d`;
+  }
+
+  return date.toLocaleDateString('en-CA', { month: 'short', day: 'numeric' });
+}
+
+function getItemCategoryLabel(item: NotificationFeedItem, t: ReturnType<typeof useI18n>['t']) {
+  if (item.kind === 'approval') {
+    return t(K.notifications.approval);
+  }
+  if (item.kind === 'membership') {
+    return t(K.notifications.access);
+  }
+  return t(K.notifications.merge);
+}
+
+function isItemComplete(item: NotificationFeedItem) {
+  if (item.notificationId) {
+    return Boolean(item.opened || item.seen);
+  }
+
+  return Boolean(item.actioned);
+}
 
 export function NotificationsView({
   selectedTree,
@@ -153,17 +202,53 @@ export function NotificationsView({
     ].sort((left, right) => right.createdAt.localeCompare(left.createdAt));
   }, [activityStateByKey, approvalRequests, mergeHistory, mergeRequests, notifications, selectedTree.name, t, trees, userId]);
 
+  const feedMetrics = useMemo(() => {
+    const unseenDirectIds: string[] = [];
+    const unopenedDirectIds: string[] = [];
+    const unactionedDerivedItems: Array<{ sourceKind: NotificationActivityState['sourceKind']; sourceId: string }> = [];
+    const attentionItems: NotificationFeedItem[] = [];
+    const completedItems: NotificationFeedItem[] = [];
+
+    for (const item of notificationFeed) {
+      if (item.notificationId && !item.seen) {
+        unseenDirectIds.push(item.notificationId);
+      }
+
+      if (item.notificationId && !item.opened) {
+        unopenedDirectIds.push(item.notificationId);
+      }
+
+      if (item.sourceKind && item.sourceId && !item.actioned) {
+        unactionedDerivedItems.push({
+          sourceKind: item.sourceKind,
+          sourceId: item.sourceId,
+        });
+      }
+
+      if (isItemComplete(item)) {
+        completedItems.push(item);
+      } else {
+        attentionItems.push(item);
+      }
+    }
+
+    return {
+      unseenDirectIds,
+      unopenedDirectIds,
+      unactionedDerivedItems,
+      attentionItems,
+      completedItems,
+      embeddedAttentionItems: attentionItems.slice(0, EMBEDDED_ATTENTION_LIMIT),
+      embeddedCompletedItems: completedItems.slice(0, EMBEDDED_COMPLETED_LIMIT),
+    };
+  }, [notificationFeed]);
+
   const openNotification = async (item: NotificationFeedItem) => {
     setSelectedNotification(item);
     if (item.notificationId && userId) {
       await onMarkNotificationOpened(item.notificationId);
     }
   };
-
-  const unseenDirectNotifications = useMemo(
-    () => notificationFeed.filter((item) => item.notificationId && !item.seen).map((item) => item.notificationId as string),
-    [notificationFeed],
-  );
 
   const totalPages = Math.max(1, Math.ceil(notificationFeed.length / ACTIVITY_PAGE_SIZE));
 
@@ -180,32 +265,20 @@ export function NotificationsView({
     return notificationFeed.slice(startIndex, startIndex + ACTIVITY_PAGE_SIZE);
   }, [currentPage, notificationFeed]);
 
-  const unopenedDirectNotifications = useMemo(
-    () => notificationFeed.filter((item) => item.notificationId && !item.opened).map((item) => item.notificationId as string),
-    [notificationFeed],
-  );
-
-  const unactionedDerivedNotifications = useMemo(
-    () => notificationFeed
-      .filter((item) => item.sourceKind && item.sourceId && !item.actioned)
-      .map((item) => ({ sourceKind: item.sourceKind as NotificationActivityState['sourceKind'], sourceId: item.sourceId as string })),
-    [notificationFeed],
-  );
-
   const handleMarkAllSeen = async () => {
-    for (const notificationId of unseenDirectNotifications) {
+    for (const notificationId of feedMetrics.unseenDirectIds) {
       await onMarkNotificationSeen(notificationId);
     }
   };
 
   const handleMarkAllOpened = async () => {
-    for (const notificationId of unopenedDirectNotifications) {
+    for (const notificationId of feedMetrics.unopenedDirectIds) {
       await onMarkNotificationOpened(notificationId);
     }
   };
 
   const handleMarkAllActioned = async () => {
-    for (const item of unactionedDerivedNotifications) {
+    for (const item of feedMetrics.unactionedDerivedItems) {
       await onMarkNotificationActivityActioned(item.sourceKind, item.sourceId);
     }
   };
@@ -238,6 +311,68 @@ export function NotificationsView({
       navigation.navigate('treeSettings' satisfies keyof MainTabParamList);
       setSelectedNotification(null);
     }
+  };
+
+  const renderCompactRow = (item: NotificationFeedItem) => {
+    const categoryLabel = getItemCategoryLabel(item, t);
+    const complete = isItemComplete(item);
+    const primaryActionLabel = item.kind === 'approval' ? 'Review' : 'Open';
+    const canOpenTarget = item.kind === 'approval' || item.kind === 'merge-request' || item.kind === 'merge-history';
+
+    return (
+      <Pressable
+        key={item.id}
+        onPress={() => { void openNotification(item); }}
+        style={{
+          borderWidth: 1,
+          borderColor: theme.colors.outlineVariant,
+          borderRadius: 14,
+          paddingHorizontal: 12,
+          paddingVertical: 11,
+          backgroundColor: complete ? theme.colors.surface : theme.colors.elevation.level1,
+        }}
+      >
+        <View style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-start' }}>
+          <View
+            style={{
+              width: 10,
+              height: 10,
+              borderRadius: 999,
+              marginTop: 5,
+              backgroundColor: complete ? theme.colors.outline : theme.colors.primary,
+            }}
+          />
+          <View style={{ flex: 1, gap: 4 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <Text variant="titleSmall" numberOfLines={1} style={{ flex: 1 }}>
+                {item.title}
+              </Text>
+              <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                {formatCompactTimestamp(item.createdAt)}
+              </Text>
+            </View>
+            <Text variant="bodySmall" numberOfLines={2} style={{ color: theme.colors.onSurfaceVariant, lineHeight: 18 }}>
+              {item.message}
+            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 2 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                <Chip compact style={{ height: 28 }}>
+                  {complete ? 'Done' : 'Needs action'}
+                </Chip>
+                <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }} numberOfLines={1}>
+                  {categoryLabel}{item.treeName ? ` · ${item.treeName}` : ''}
+                </Text>
+              </View>
+              {!complete && canOpenTarget ? (
+                <Button compact mode="text" onPress={() => { void handleOpenTarget(item); }} disabled={mutating}>
+                  {primaryActionLabel}
+                </Button>
+              ) : null}
+            </View>
+          </View>
+        </View>
+      </Pressable>
+    );
   };
 
   useEffect(() => {
@@ -280,7 +415,76 @@ export function NotificationsView({
           </View>
         ) : null}
 
-        {notificationFeed.length > 0 ? (
+        {embedded ? (
+          notificationFeed.length > 0 ? (
+            <View style={{ gap: 12, paddingBottom: 8 }}>
+              <View
+                style={{
+                  borderWidth: 1,
+                  borderColor: theme.colors.outlineVariant,
+                  borderRadius: 16,
+                  paddingHorizontal: 14,
+                  paddingVertical: 12,
+                  backgroundColor: theme.colors.elevation.level1,
+                  gap: 8,
+                }}
+              >
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+                  <View style={{ flex: 1 }}>
+                    <Text variant="titleSmall">Activity overview</Text>
+                    <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 2 }}>
+                      {feedMetrics.attentionItems.length} need attention • {feedMetrics.unseenDirectIds.length} new • {notificationFeed.length} total
+                    </Text>
+                  </View>
+                  {feedMetrics.unactionedDerivedItems.length > 0 ? (
+                    <Button compact mode="text" onPress={() => { void handleMarkAllActioned(); }} disabled={mutating}>
+                      Mark done
+                    </Button>
+                  ) : null}
+                </View>
+              </View>
+
+              <View style={{ gap: 8 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+                  <Text variant="titleSmall">Needs attention</Text>
+                  <Chip compact>{feedMetrics.attentionItems.length}</Chip>
+                </View>
+                {feedMetrics.embeddedAttentionItems.length > 0 ? feedMetrics.embeddedAttentionItems.map(renderCompactRow) : (
+                  <View style={{ borderWidth: 1, borderColor: theme.colors.outlineVariant, borderRadius: 14, padding: 14 }}>
+                    <Text variant="bodyMedium">Everything here is caught up.</Text>
+                  </View>
+                )}
+                {feedMetrics.attentionItems.length > feedMetrics.embeddedAttentionItems.length ? (
+                  <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                    Showing the latest {feedMetrics.embeddedAttentionItems.length} items first.
+                  </Text>
+                ) : null}
+              </View>
+
+              {feedMetrics.completedItems.length > 0 ? (
+                <View style={{ gap: 8 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+                    <Text variant="titleSmall">Done</Text>
+                    <Chip compact>{feedMetrics.completedItems.length}</Chip>
+                  </View>
+                  {feedMetrics.embeddedCompletedItems.map(renderCompactRow)}
+                  {feedMetrics.completedItems.length > feedMetrics.embeddedCompletedItems.length ? (
+                    <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                      {feedMetrics.completedItems.length - feedMetrics.embeddedCompletedItems.length} more completed items are still in your full activity view.
+                    </Text>
+                  ) : null}
+                </View>
+              ) : null}
+            </View>
+          ) : (
+            <View style={styles.emptyState}>
+              <Text variant="titleMedium">Your family activity feed is quiet</Text>
+              <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
+                Invites, edits, and merge moments will appear here as more people join in and your story grows.
+              </Text>
+            </View>
+          )
+        ) : notificationFeed.length > 0 ? (
           <Reveal delay={60}>
           <Card mode="outlined" style={{ marginBottom: 16, backgroundColor: theme.colors.surface, borderRadius: 16 }}>
             <Card.Content style={{ gap: 12 }}>
@@ -291,18 +495,18 @@ export function NotificationsView({
                 </Chip>
               </View>
               <View style={[styles.collaboratorChipRow, { justifyContent: 'space-between' }]}>
-                <Chip compact icon="bell-ring-outline">{unseenDirectNotifications.length} new</Chip>
-                <Chip compact icon="email-open-outline">{unopenedDirectNotifications.length} unopened</Chip>
-                <Chip compact icon="check-decagram-outline">{unactionedDerivedNotifications.length} to follow up</Chip>
+                <Chip compact icon="bell-ring-outline">{feedMetrics.unseenDirectIds.length} new</Chip>
+                <Chip compact icon="email-open-outline">{feedMetrics.unopenedDirectIds.length} unopened</Chip>
+                <Chip compact icon="check-decagram-outline">{feedMetrics.unactionedDerivedItems.length} to follow up</Chip>
               </View>
               <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-                <Button mode="outlined" onPress={() => { void handleMarkAllSeen(); }} disabled={mutating || unseenDirectNotifications.length === 0}>
+                <Button mode="outlined" onPress={() => { void handleMarkAllSeen(); }} disabled={mutating || feedMetrics.unseenDirectIds.length === 0}>
                   Quiet new alerts
                 </Button>
-                <Button mode="outlined" onPress={() => { void handleMarkAllOpened(); }} disabled={mutating || unopenedDirectNotifications.length === 0}>
+                <Button mode="outlined" onPress={() => { void handleMarkAllOpened(); }} disabled={mutating || feedMetrics.unopenedDirectIds.length === 0}>
                   Open everything
                 </Button>
-                <Button mode="outlined" onPress={() => { void handleMarkAllActioned(); }} disabled={mutating || unactionedDerivedNotifications.length === 0}>
+                <Button mode="outlined" onPress={() => { void handleMarkAllActioned(); }} disabled={mutating || feedMetrics.unactionedDerivedItems.length === 0}>
                   Mark follow-up done
                 </Button>
               </View>
@@ -311,7 +515,7 @@ export function NotificationsView({
           </Reveal>
         ) : null}
 
-        {notificationFeed.length > 0 ? (
+        {!embedded && notificationFeed.length > 0 ? (
           <View style={styles.collaboratorList}>
             {paginatedFeed.map((item, index) => (
               <Reveal key={item.id} delay={80 + index * 35}>
@@ -391,14 +595,14 @@ export function NotificationsView({
               </View>
             ) : null}
           </View>
-        ) : (
+        ) : !embedded ? (
           <View style={styles.emptyState}>
             <Text variant="titleMedium">Your family activity feed is quiet</Text>
             <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
               Invites, edits, and merge moments will appear here as more people join in and your story grows.
             </Text>
           </View>
-        )}
+        ) : null}
       </View>
 
       <Portal>
