@@ -36,7 +36,7 @@ const styles = GlobalStyles.treeDetail;
 
 const settingsTabStripStyles = StyleSheet.create({
   card: {
-    borderRadius: 28,
+    borderRadius: 20,
     marginTop: 8,
     marginBottom: 16,
     overflow: 'hidden',

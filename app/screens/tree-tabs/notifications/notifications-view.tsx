@@ -20,6 +20,7 @@ import type { SharedTabProps } from '../shared';
 
 const dialogChrome = GlobalStyles.dialogChrome;
 const styles = GlobalStyles.treeDetail;
+const ACTIVITY_PAGE_SIZE = 5;
 
 type NotificationFeedKind = 'merge-invite' | 'approval' | 'merge-request' | 'merge-history' | 'membership';
 
@@ -62,6 +63,7 @@ export function NotificationsView({
   const { t } = useI18n();
   const [selectedNotification, setSelectedNotification] = useState<NotificationFeedItem | null>(null);
   const [helperVisible, setHelperVisible] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const activityStateByKey = useMemo(
     () => new Map(notificationActivityStates.map((state) => [`${state.sourceKind}:${state.sourceId}`, state])),
@@ -162,6 +164,21 @@ export function NotificationsView({
     () => notificationFeed.filter((item) => item.notificationId && !item.seen).map((item) => item.notificationId as string),
     [notificationFeed],
   );
+
+  const totalPages = Math.max(1, Math.ceil(notificationFeed.length / ACTIVITY_PAGE_SIZE));
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [notificationFeed.length]);
+
+  useEffect(() => {
+    setCurrentPage((page) => Math.min(page, totalPages));
+  }, [totalPages]);
+
+  const paginatedFeed = useMemo(() => {
+    const startIndex = (currentPage - 1) * ACTIVITY_PAGE_SIZE;
+    return notificationFeed.slice(startIndex, startIndex + ACTIVITY_PAGE_SIZE);
+  }, [currentPage, notificationFeed]);
 
   const unopenedDirectNotifications = useMemo(
     () => notificationFeed.filter((item) => item.notificationId && !item.opened).map((item) => item.notificationId as string),
@@ -270,6 +287,12 @@ export function NotificationsView({
           <Reveal delay={60}>
           <Card mode="outlined" style={{ marginBottom: 16, backgroundColor: theme.colors.surface, borderRadius: 16 }}>
             <Card.Content style={{ gap: 12 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                <Text variant="titleSmall">Most recent family activity</Text>
+                <Chip compact icon="timeline-clock-outline">
+                  {notificationFeed.length} total
+                </Chip>
+              </View>
               <View style={[styles.collaboratorChipRow, { justifyContent: 'space-between' }]}>
                 <Chip compact icon="bell-ring-outline">{unseenDirectNotifications.length} new</Chip>
                 <Chip compact icon="email-open-outline">{unopenedDirectNotifications.length} unopened</Chip>
@@ -293,58 +316,82 @@ export function NotificationsView({
 
         {notificationFeed.length > 0 ? (
           <View style={styles.collaboratorList}>
-            {notificationFeed.map((item, index) => (
-              <Reveal key={item.id} delay={80 + index * 35}>
-              <Card mode="elevated" style={[styles.collaboratorCard, { backgroundColor: theme.colors.surface }]}>
-                <Card.Content>
+            {paginatedFeed.map((item) => (
+              <Card
+                key={item.id}
+                mode="outlined"
+                style={[styles.collaboratorCard, { backgroundColor: theme.colors.surface, borderRadius: 12, marginBottom: 10 }]}
+              >
+                <Card.Content style={{ paddingVertical: 10, paddingHorizontal: 12 }}>
                   <Pressable onPress={() => { void openNotification(item); }}>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
                       <View style={{ flex: 1 }}>
-                        <Text variant="titleMedium">{item.title}</Text>
-                        <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>
-                          {item.createdAt.slice(0, 16).replace('T', ' ')}
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                          <Text variant="titleSmall">{item.title}</Text>
+                          <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                            {item.createdAt.slice(0, 16).replace('T', ' ')}
+                          </Text>
+                        </View>
+                        <Text
+                          variant="bodySmall"
+                          numberOfLines={2}
+                          style={{ color: theme.colors.onSurfaceVariant, marginTop: 4, lineHeight: 18 }}
+                        >
+                          {item.message}
                         </Text>
                       </View>
-                      <View style={styles.collaboratorChipRow}>
-                        {item.notificationId && !item.opened && !item.seen ? <Chip compact icon="bell-ring-outline">{t(K.notifications.new)}</Chip> : null}
-                        {item.notificationId && item.seen && !item.opened ? <Chip compact icon="eye-check-outline">{t(K.notifications.seen)}</Chip> : null}
-                        {item.actioned ? <Chip compact icon="check-circle-outline">{t(K.notifications.actioned)}</Chip> : null}
-                        {item.status ? <Chip compact icon="bell-outline">{item.status}</Chip> : null}
+                      <View style={[styles.collaboratorChipRow, { justifyContent: 'flex-end', maxWidth: '42%' }]}>
+                        {item.notificationId && !item.opened && !item.seen ? <Chip compact>{t(K.notifications.new)}</Chip> : null}
+                        {item.notificationId && item.seen && !item.opened ? <Chip compact>{t(K.notifications.seen)}</Chip> : null}
+                        {item.actioned ? <Chip compact>{t(K.notifications.actioned)}</Chip> : null}
+                        {item.status ? <Chip compact>{item.status}</Chip> : null}
                       </View>
                     </View>
                   </Pressable>
-                  <View style={[styles.collaboratorChipRow, { marginTop: 8 }]}>
-                    {item.treeName ? <Chip compact icon="family-tree">{item.treeName}</Chip> : null}
-                    {item.kind === 'approval' ? <Chip compact icon="clipboard-check-outline">{t(K.notifications.approval)}</Chip> : null}
-                    {item.kind === 'merge-request' || item.kind === 'merge-history' || item.kind === 'merge-invite' ? <Chip compact icon="source-merge">{t(K.notifications.merge)}</Chip> : null}
-                    {item.kind === 'membership' ? <Chip compact icon="account-key-outline">{t(K.notifications.access)}</Chip> : null}
+                  <View style={[styles.collaboratorChipRow, { marginTop: 6 }]}>
+                    {item.kind === 'approval' ? <Chip compact>{t(K.notifications.approval)}</Chip> : null}
+                    {item.kind === 'merge-request' || item.kind === 'merge-history' || item.kind === 'merge-invite' ? <Chip compact>{t(K.notifications.merge)}</Chip> : null}
+                    {item.kind === 'membership' ? <Chip compact>{t(K.notifications.access)}</Chip> : null}
+                    {item.treeName ? <Chip compact>{item.treeName}</Chip> : null}
                   </View>
-                  <View style={{ flexDirection: 'row', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+                  <View style={{ flexDirection: 'row', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
                     {item.notificationId && !item.seen && !item.opened ? (
-                      <Button mode="text" onPress={() => onMarkNotificationSeen(item.notificationId!)} disabled={mutating}>
-                        Mark noticed
+                      <Button compact mode="text" onPress={() => onMarkNotificationSeen(item.notificationId!)} disabled={mutating}>
+                        Notice
                       </Button>
                     ) : null}
                     {item.notificationId && !item.opened ? (
-                      <Button mode="text" onPress={() => onMarkNotificationOpened(item.notificationId!)} disabled={mutating}>
-                        Open it
+                      <Button compact mode="text" onPress={() => onMarkNotificationOpened(item.notificationId!)} disabled={mutating}>
+                        Open
                       </Button>
                     ) : null}
                     {item.sourceKind && item.sourceId && !item.actioned ? (
-                      <Button mode="text" onPress={() => { void handleMarkActioned(item); }} disabled={mutating}>
-                        Mark followed up
+                      <Button compact mode="text" onPress={() => { void handleMarkActioned(item); }} disabled={mutating}>
+                        Done
                       </Button>
                     ) : null}
                     {(item.kind === 'approval' || item.kind === 'merge-request' || item.kind === 'merge-history') ? (
-                      <Button mode="contained-tonal" onPress={() => { void handleOpenTarget(item); }} disabled={mutating}>
-                        {item.kind === 'approval' ? 'Open review' : 'Open merge story'}
+                      <Button compact mode="contained-tonal" onPress={() => { void handleOpenTarget(item); }} disabled={mutating}>
+                        {item.kind === 'approval' ? 'Review' : 'Open'}
                       </Button>
                     ) : null}
                   </View>
                 </Card.Content>
               </Card>
-              </Reveal>
             ))}
+            {totalPages > 1 ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingTop: 4 }}>
+                <Button compact mode="outlined" onPress={() => setCurrentPage((page) => Math.max(1, page - 1))} disabled={currentPage === 1}>
+                  Previous
+                </Button>
+                <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                  Page {currentPage} of {totalPages}
+                </Text>
+                <Button compact mode="outlined" onPress={() => setCurrentPage((page) => Math.min(totalPages, page + 1))} disabled={currentPage === totalPages}>
+                  Next
+                </Button>
+              </View>
+            ) : null}
           </View>
         ) : (
           <View style={styles.emptyState}>

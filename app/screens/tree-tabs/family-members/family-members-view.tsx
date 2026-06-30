@@ -152,6 +152,9 @@ export function FamilyMembersView({
       if (normalizedQuery) {
         const searchableText = [
           formatPersonName(person),
+          person.firstName,
+          person.lastName,
+          person.maidenName ?? '',
           person.middleNames ?? '',
           person.nicknames?.join(' ') ?? '',
           person.birthPlace ?? '',
@@ -159,7 +162,6 @@ export function FamilyMembersView({
           person.familyBranch ?? '',
           person.clanName ?? '',
           person.surnameVariantHints?.join(' ') ?? '',
-          ...(selectedTree?.surnameVariantGroups.flatMap((group) => [group.primarySurname, ...group.variants]) ?? []),
           person.birthDate,
           person.deathDate,
           person.notes,
@@ -190,7 +192,7 @@ export function FamilyMembersView({
 
       return true;
     }),
-    [filters, people, searchQuery, personRelStats, selectedTree?.surnameVariantGroups],
+    [filters, people, searchQuery, personRelStats],
   );
 
   const totalPages = Math.max(1, Math.ceil(filteredPeople.length / MEMBERS_PER_PAGE));
@@ -291,19 +293,11 @@ export function FamilyMembersView({
           />
           <Button
             mode={activeFilterCount > 0 ? 'contained' : 'outlined'}
+            icon="tune"
             onPress={openFilterModal}
             style={styles.filterButton}
             contentStyle={styles.filterButtonContent}
-            compact
-          >
-            <View style={styles.filterButtonInner}>
-              <MaterialCommunityIcons name="tune" size={18} color={activeFilterCount > 0 ? theme.colors.onPrimary : theme.colors.primary} />
-              {activeFilterCount > 0 ? (
-                <Text variant="labelLarge" style={{ color: theme.colors.onPrimary }}>
-                  ({activeFilterCount})
-                </Text>
-              ) : null}
-            </View>
+            compact>''
           </Button>
         </View>
 

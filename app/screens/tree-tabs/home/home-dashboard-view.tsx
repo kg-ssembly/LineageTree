@@ -254,6 +254,10 @@ export function HomeDashboardView(props: SharedTabProps) {
     approvalRequests,
     notifications,
     mergeRequests,
+    mergeHistory,
+    notificationActivityStates,
+    trees,
+    userId,
     loadingTreeData,
     currentAssignedPerson,
     currentSelfAssignmentSuggestions,
@@ -398,6 +402,29 @@ export function HomeDashboardView(props: SharedTabProps) {
     return items.sort((left, right) => right.createdAt.localeCompare(left.createdAt));
   }, [approvalRequests, mergeRequests, notifications]);
   const activityAttentionCount = activityAttentionItems.length;
+  const activityNotificationCount = useMemo(() => {
+    const unseenDirectCount = notifications.filter((notification) => !notification.seenAt).length;
+    const actionedStateKeys = new Set(
+      notificationActivityStates
+        .filter((state) => Boolean(state.actionedAt))
+        .map((state) => `${state.sourceKind}:${state.sourceId}`),
+    );
+
+    const unactionedApprovalCount = approvalRequests.filter((request) => !actionedStateKeys.has(`approval:${request.id}`)).length;
+    const unactionedMergeRequestCount = mergeRequests.filter((request) => !actionedStateKeys.has(`merge-request:${request.id}`)).length;
+    const unactionedMergeHistoryCount = mergeHistory.filter((entry) => !actionedStateKeys.has(`merge-history:${entry.id}`)).length;
+    const unactionedMembershipCount = (trees ?? [])
+      .flatMap((tree) => tree.membershipHistory.map((entry) => ({ tree, entry })))
+      .filter(({ entry }) => !userId || entry.userId === userId || entry.action === 'invited' || entry.action === 'role-changed')
+      .filter(({ tree, entry }) => !actionedStateKeys.has(`membership:${tree.id}-${entry.id}`))
+      .length;
+
+    return unseenDirectCount
+      + unactionedApprovalCount
+      + unactionedMergeRequestCount
+      + unactionedMergeHistoryCount
+      + unactionedMembershipCount;
+  }, [approvalRequests, mergeHistory, mergeRequests, notificationActivityStates, notifications, trees, userId]);
   const latestActivityAttentionItem = activityAttentionItems[0] ?? null;
   const [deeperExpanded, setDeeperExpanded] = useState(false);
   const [activityModalVisible, setActivityModalVisible] = useState(false);
@@ -603,10 +630,10 @@ export function HomeDashboardView(props: SharedTabProps) {
     () => [
       { key: 'overview', label: 'Overview' },
       { key: 'highlights', label: 'Highlights' },
-      { key: 'activity', label: activityAttentionCount > 0 ? `Activity (${activityAttentionCount})` : 'Activity' },
+      { key: 'activity', label: activityNotificationCount > 0 ? `Activity (${activityNotificationCount})` : 'Activity' },
       { key: 'build', label: 'Build' },
     ],
-    [activityAttentionCount],
+    [activityNotificationCount],
   );
 
   const openFamilyActivity = () => {
@@ -1038,19 +1065,6 @@ export function HomeDashboardView(props: SharedTabProps) {
             </Reveal>
           ) : null}
 
-          <Reveal delay={135}>
-            <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
-              <Text variant="titleLarge">Family activities</Text>
-              <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-                Open the full family activity feed to review notifications, shared edits, merge invites, and follow-up items.
-              </Text>
-              <View style={[styles.dashboardActionRow, { marginTop: 14 }]}>
-                <Button mode="contained" onPress={openFamilyActivity}>
-                  Open activities
-                </Button>
-              </View>
-            </Surface>
-          </Reveal>
         </>
       ) : null}
 

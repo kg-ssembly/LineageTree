@@ -475,11 +475,6 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
   useEffect(() => {
     if (!shouldShowLinkedProfileTabs && activeTab !== 'app-settings') {
       setActiveTab('app-settings');
-      return;
-    }
-
-    if (shouldShowLinkedProfileTabs && activeTab === 'app-settings') {
-      setActiveTab('biography');
     }
   }, [activeTab, shouldShowLinkedProfileTabs]);
 

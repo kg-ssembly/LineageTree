@@ -515,7 +515,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
   }, [navigation, person]);
 
   useEffect(() => {
-    setActiveTab('relationships');
+    setActiveTab('biography');
     setRelationshipPage(1);
     setRelationshipInsightVisible(false);
   }, [route.params.personId]);
@@ -955,7 +955,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
                 {showAutomaticRelationshipChip ? (
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
                     <Chip compact icon="account-switch" onPress={() => setRelationshipInsightVisible(true)}>
-                      {automaticRelationshipInsight ? automaticRelationshipInsight.relationship : t(K.relationshipInsight.howYouRelate)}
+                      {automaticRelationshipInsight ? `Your ${automaticRelationshipInsight.relationship.toLowerCase()}` : t(K.relationshipInsight.howYouRelate)}
                     </Chip>
                   </View>
                 ) : null}
