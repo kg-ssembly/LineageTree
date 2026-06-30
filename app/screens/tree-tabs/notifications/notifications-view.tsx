@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
 import {
   Button,
   Card,
@@ -56,10 +55,11 @@ export function NotificationsView({
   onMarkNotificationOpened,
   onMarkNotificationActivityActioned,
   onOpenTreeSettingsTarget,
-}: SharedTabProps) {
+  embedded = false,
+  navigation,
+}: SharedTabProps & { embedded?: boolean; navigation: { navigate: (name: keyof MainTabParamList) => void } }) {
   const theme = useTheme();
   const { t } = useI18n();
-  const navigation = useNavigation<any>();
   const [selectedNotification, setSelectedNotification] = useState<NotificationFeedItem | null>(null);
   const [helperVisible, setHelperVisible] = useState(false);
 
@@ -243,26 +243,28 @@ export function NotificationsView({
     }
   }, [notificationFeed, selectedNotification]);
 
-  return (
-    <ScrollView contentContainerStyle={styles.content}>
+  const content = (
+    <>
       <View>
-        <View style={styles.sectionHeader}>
-          <View style={styles.titleWrap}>
-            <View style={styles.titleWithHelperRow}>
-              <Text variant="headlineSmall">Family activity</Text>
-              <IconButton
-                icon="information-outline"
-                size={18}
-                style={styles.helperIconButton}
-                onPress={() => setHelperVisible(true)}
-                accessibilityLabel={t(K.notifications.notifications)}
-              />
+        {!embedded ? (
+          <View style={styles.sectionHeader}>
+            <View style={styles.titleWrap}>
+              <View style={styles.titleWithHelperRow}>
+                <Text variant="headlineSmall">Family activity</Text>
+                <IconButton
+                  icon="information-outline"
+                  size={18}
+                  style={styles.helperIconButton}
+                  onPress={() => setHelperVisible(true)}
+                  accessibilityLabel={t(K.notifications.notifications)}
+                />
+              </View>
+              <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
+                Stay close to new invites, shared edits, and the moments that are unfolding across your tree.
+              </Text>
             </View>
-            <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-              Stay close to new invites, shared edits, and the moments that are unfolding across your tree.
-            </Text>
           </View>
-        </View>
+        ) : null}
 
         {notificationFeed.length > 0 ? (
           <Reveal delay={60}>
@@ -433,6 +435,16 @@ export function NotificationsView({
           </Dialog.Actions>
         </Dialog>
       </Portal>
+    </>
+  );
+
+  if (embedded) {
+    return content;
+  }
+
+  return (
+    <ScrollView contentContainerStyle={styles.content}>
+      {content}
     </ScrollView>
   );
 }

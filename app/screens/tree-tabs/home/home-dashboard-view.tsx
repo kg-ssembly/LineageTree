@@ -11,9 +11,11 @@ import { GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
 import type { SharedTabProps } from '../shared';
 import { FamilyHighlightsPanel } from '../tree-settings/family-highlights-panel';
+import { NotificationsView } from '../notifications/notifications-view';
 
 const styles = GlobalStyles.treeDetail;
 const profileStyles = GlobalStyles.personProfile;
+const dialogChrome = GlobalStyles.dialogChrome;
 const DASHBOARD_PROMPTS_STORAGE_KEY = 'lineagetree-dashboard-hidden-prompts';
 const DASHBOARD_LAST_VISIT_STORAGE_KEY = 'lineagetree-dashboard-last-visit';
 
@@ -41,6 +43,21 @@ type DashboardSectionKey = 'since-last-visit' | 'keep-building' | 'family-highli
 type DashboardLens = 'focus' | 'activity' | 'growth';
 type DashboardTabKey = 'overview' | 'highlights' | 'activity' | 'build';
 
+type ActivityAttentionItem = {
+  id: string;
+  title: string;
+  description: string;
+  createdAt: string;
+  actionKey: 'activity-feed' | 'approvals' | 'merge-reviews';
+};
+
+type HeroAction = {
+  label: string;
+  description: string;
+  action: () => void;
+  buttonLabel?: string;
+};
+
 function getUrgencyTone(theme: AppTheme, level: 'urgent' | 'attention' | 'calm') {
   if (level === 'urgent') {
     return {
@@ -63,41 +80,6 @@ function getUrgencyTone(theme: AppTheme, level: 'urgent' | 'attention' | 'calm')
     textColor: theme.colors.onTertiaryContainer,
     borderColor: theme.colors.tertiary,
   };
-}
-
-function DashboardSection({
-  title,
-  subtitle,
-  expanded,
-  onToggle,
-  children,
-}: {
-  title: string;
-  subtitle: string;
-  expanded: boolean;
-  onToggle: () => void;
-  children: React.ReactNode;
-}) {
-  const theme = useTheme();
-
-  return (
-    <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
-      <View style={styles.sectionHeader}>
-        <View style={styles.titleWrap}>
-          <Text variant="titleLarge">{title}</Text>
-          <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-            {subtitle}
-          </Text>
-        </View>
-        <IconButton
-          icon={expanded ? 'chevron-up' : 'chevron-down'}
-          onPress={onToggle}
-          accessibilityLabel={expanded ? `Collapse ${title}` : `Expand ${title}`}
-        />
-      </View>
-      {expanded ? children : null}
-    </Surface>
-  );
 }
 
 function buildDashboardTasks(props: SharedTabProps) {
@@ -282,14 +264,27 @@ export function HomeDashboardView(props: SharedTabProps) {
     onOpenTreeSettingsTarget,
   } = props;
 
-  const { storyTasks, treeTasks } = useMemo(() => buildDashboardTasks(props), [props]);
+  const { storyTasks, treeTasks } = useMemo(() => buildDashboardTasks(props), [
+    props.people,
+    props.currentAssignedPerson,
+    props.currentSelfAssignmentSuggestions,
+    props.relationships,
+    props.canEdit,
+    props.onOpenAddPerson,
+    props.onOpenAddSelf,
+    props.openPersonProfile,
+    props.onOpenRelationshipDialog,
+  ]);
   const tasks = useMemo(() => [...storyTasks, ...treeTasks], [storyTasks, treeTasks]);
   const [dismissedTaskIds, setDismissedTaskIds] = useState<string[]>([]);
   const [promptsHydrated, setPromptsHydrated] = useState(false);
   const [celebrationMessage, setCelebrationMessage] = useState<string | null>(null);
   const [lastVisitAt, setLastVisitAt] = useState<string | null>(null);
-  const completedCount = tasks.filter((task) => task.done).length;
-  const completedTasks = tasks.filter((task) => task.done);
+  const completedTasks = useMemo(() => tasks.filter((task) => task.done), [tasks]);
+  const completedTaskIds = useMemo(
+    () => completedTasks.map((task) => task.id).sort(),
+    [completedTasks],
+  );
   const visibleStoryTasks = storyTasks.filter((task) => !task.done && !dismissedTaskIds.includes(task.id));
   const visibleTreeTasks = treeTasks.filter((task) => !task.done && !dismissedTaskIds.includes(task.id));
   const visibleRemainingTasks = [...visibleStoryTasks, ...visibleTreeTasks]
@@ -360,7 +355,51 @@ export function HomeDashboardView(props: SharedTabProps) {
   const approvalsTone = pendingApprovals > 0 ? getUrgencyTone(theme, pendingApprovals > 2 ? 'urgent' : 'attention') : getUrgencyTone(theme, 'calm');
   const invitesTone = pendingInvites > 0 ? getUrgencyTone(theme, 'attention') : getUrgencyTone(theme, 'calm');
   const mergeTone = activeMergeReviews > 0 ? getUrgencyTone(theme, activeMergeReviews > 1 ? 'urgent' : 'attention') : getUrgencyTone(theme, 'calm');
+  const activityAttentionItems = useMemo<ActivityAttentionItem[]>(() => {
+    const items: ActivityAttentionItem[] = [];
+
+    notifications
+      .filter((notification) => notification.status === 'pending')
+      .forEach((notification) => {
+        items.push({
+          id: `notification-${notification.id}`,
+          title: 'Merge invitation',
+          description: notification.message,
+          createdAt: notification.createdAt,
+          actionKey: 'activity-feed',
+        });
+      });
+
+    approvalRequests
+      .filter((request) => request.status === 'pending')
+      .forEach((request) => {
+        items.push({
+          id: `approval-${request.id}`,
+          title: 'Approval request',
+          description: `${request.title} · ${request.description}`,
+          createdAt: request.updatedAt,
+          actionKey: 'approvals',
+        });
+      });
+
+    mergeRequests
+      .filter((request) => request.status === 'pending' || request.status === 'changes-requested')
+      .forEach((request) => {
+        items.push({
+          id: `merge-${request.id}`,
+          title: 'Merge review',
+          description: `${request.preview.sourceTree.treeName} ↔ ${request.preview.targetTree.treeName}`,
+          createdAt: request.updatedAt,
+          actionKey: 'merge-reviews',
+        });
+      });
+
+    return items.sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+  }, [approvalRequests, mergeRequests, notifications]);
+  const activityAttentionCount = activityAttentionItems.length;
+  const latestActivityAttentionItem = activityAttentionItems[0] ?? null;
   const [deeperExpanded, setDeeperExpanded] = useState(false);
+  const [activityModalVisible, setActivityModalVisible] = useState(false);
   const [buildInfoVisible, setBuildInfoVisible] = useState(false);
   const [dashboardTab, setDashboardTab] = useState<DashboardTabKey>(needsAttentionCount > 0 ? 'activity' : 'overview');
   const promptStorageId = `${selectedTree.id}:${currentAssignedPerson?.id ?? 'unlinked'}`;
@@ -371,9 +410,13 @@ export function HomeDashboardView(props: SharedTabProps) {
     'keep-building': 0,
     'family-highlights': 0,
   });
+  const previousCompletedTaskIdsRef = useRef<string[] | null>(null);
 
   useEffect(() => {
-    setDismissedTaskIds((current) => current.filter((taskId) => tasks.some((task) => task.id === taskId && !task.done)));
+    setDismissedTaskIds((current) => {
+      const next = current.filter((taskId) => tasks.some((task) => task.id === taskId && !task.done));
+      return next.length === current.length && next.every((taskId, index) => taskId === current[index]) ? current : next;
+    });
   }, [tasks]);
 
   useEffect(() => {
@@ -392,7 +435,11 @@ export function HomeDashboardView(props: SharedTabProps) {
         const parsed = JSON.parse(stored) as Record<string, string[]>;
         const next = Array.isArray(parsed[promptStorageId]) ? parsed[promptStorageId] : [];
         if (!cancelled) {
-          setDismissedTaskIds(next);
+          setDismissedTaskIds((current) => (
+            current.length === next.length && current.every((taskId, index) => taskId === next[index])
+              ? current
+              : next
+          ));
         }
       } catch {
         if (!cancelled) {
@@ -476,10 +523,8 @@ export function HomeDashboardView(props: SharedTabProps) {
     })();
   }, [dismissedTaskIds, promptStorageId, promptsHydrated]);
 
-  const [completedTaskIdsSnapshot, setCompletedTaskIdsSnapshot] = useState<string[]>([]);
-
   useEffect(() => {
-    setCompletedTaskIdsSnapshot([]);
+    previousCompletedTaskIdsRef.current = null;
     setCelebrationMessage(null);
   }, [promptStorageId]);
 
@@ -488,13 +533,13 @@ export function HomeDashboardView(props: SharedTabProps) {
       return;
     }
 
-    const nextCompletedIds = completedTasks.map((task) => task.id).sort();
-    if (completedTaskIdsSnapshot.length === 0) {
-      setCompletedTaskIdsSnapshot(nextCompletedIds);
+    if (!previousCompletedTaskIdsRef.current) {
+      previousCompletedTaskIdsRef.current = completedTaskIds;
       return;
     }
 
-    const newlyCompletedId = nextCompletedIds.find((taskId) => !completedTaskIdsSnapshot.includes(taskId));
+    const previousCompletedTaskIds = previousCompletedTaskIdsRef.current;
+    const newlyCompletedId = completedTaskIds.find((taskId) => !previousCompletedTaskIds.includes(taskId));
     if (newlyCompletedId) {
       const completedTask = completedTasks.find((task) => task.id === newlyCompletedId);
       if (completedTask) {
@@ -502,12 +547,12 @@ export function HomeDashboardView(props: SharedTabProps) {
       }
     }
 
-    const snapshotChanged = nextCompletedIds.length !== completedTaskIdsSnapshot.length
-      || nextCompletedIds.some((taskId, index) => taskId !== completedTaskIdsSnapshot[index]);
+    const snapshotChanged = completedTaskIds.length !== previousCompletedTaskIds.length
+      || completedTaskIds.some((taskId, index) => taskId !== previousCompletedTaskIds[index]);
     if (snapshotChanged) {
-      setCompletedTaskIdsSnapshot(nextCompletedIds);
+      previousCompletedTaskIdsRef.current = completedTaskIds;
     }
-  }, [completedTaskIdsSnapshot, completedTasks, promptsHydrated]);
+  }, [completedTaskIds, completedTasks, promptsHydrated]);
 
   const dismissTask = (taskId: string) => {
     setDismissedTaskIds((current) => (current.includes(taskId) ? current : [...current, taskId]));
@@ -557,11 +602,16 @@ export function HomeDashboardView(props: SharedTabProps) {
     () => [
       { key: 'overview', label: 'Overview' },
       { key: 'highlights', label: 'Highlights' },
-      { key: 'activity', label: needsAttentionCount > 0 ? `Activity (${needsAttentionCount})` : 'Activity' },
+      { key: 'activity', label: activityAttentionCount > 0 ? `Activity (${activityAttentionCount})` : 'Activity' },
       { key: 'build', label: 'Build' },
     ],
-    [needsAttentionCount],
+    [activityAttentionCount],
   );
+
+  const openFamilyActivity = () => {
+    setDashboardTab('activity');
+    setActivityModalVisible(true);
+  };
 
   const openApprovals = () => {
     if (firstPendingApproval && onOpenTreeSettingsTarget) {
@@ -584,41 +634,29 @@ export function HomeDashboardView(props: SharedTabProps) {
   };
 
   const openMergeInvites = () => {
-    if (pendingInvites > 0) {
-      navigation.navigate('notifications' satisfies keyof MainTabParamList);
-      return;
-    }
-
-    navigation.navigate('notifications' satisfies keyof MainTabParamList);
+    openFamilyActivity();
   };
 
-  const heroAction = useMemo(() => {
+  const heroAction = useMemo<HeroAction>(() => {
     if (dashboardLens === 'activity') {
-      if (pendingApprovals > 0) {
+      if (latestActivityAttentionItem) {
+        const action = latestActivityAttentionItem.actionKey === 'approvals'
+          ? openApprovals
+          : latestActivityAttentionItem.actionKey === 'merge-reviews'
+            ? openMergeReviews
+            : openFamilyActivity;
         return {
-          label: 'Review approvals',
-          description: 'Shared edits are waiting for your attention.',
-          action: openApprovals,
-        };
-      }
-      if (pendingInvites > 0) {
-        return {
-          label: 'Open invites',
-          description: 'There are merge invites waiting in your activity feed.',
-          action: openMergeInvites,
-        };
-      }
-      if (activeMergeReviews > 0) {
-        return {
-          label: 'Open merge reviews',
-          description: 'There are active merge decisions ready to review.',
-          action: openMergeReviews,
+          label: latestActivityAttentionItem.title,
+          description: latestActivityAttentionItem.description,
+          action,
+          buttonLabel: 'Open activities',
         };
       }
       return {
         label: 'View family activity',
         description: 'Everything is calm right now, but you can still open the activity areas.',
-        action: () => navigation.navigate('notifications' satisfies keyof MainTabParamList),
+        action: openFamilyActivity,
+        buttonLabel: 'Open activities',
       };
     }
 
@@ -685,6 +723,7 @@ export function HomeDashboardView(props: SharedTabProps) {
     openPersonProfile,
     pendingApprovals,
     pendingInvites,
+    latestActivityAttentionItem,
   ]);
 
   const lensSubtitle = isSetupMode
@@ -857,7 +896,7 @@ export function HomeDashboardView(props: SharedTabProps) {
               </Text>
               <View style={styles.dashboardActionRow}>
                 <Button mode="contained" onPress={heroAction.action} style={styles.dashboardInlineAction}>
-                  {isSetupMode ? 'Continue setup' : heroAction.label}
+                  {isSetupMode ? 'Continue setup' : heroAction.buttonLabel ?? heroAction.label}
                 </Button>
                 {!isSetupMode && dashboardLens === 'focus' ? (
                   <Button mode="text" onPress={() => dismissTask((bestStoryStep ?? bestNextStep).id)} style={styles.dashboardInlineAction}>
@@ -945,16 +984,7 @@ export function HomeDashboardView(props: SharedTabProps) {
                 </View>
               </Surface>
             </Reveal>
-          ) : (
-            <Reveal delay={105}>
-              <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
-                <Text variant="titleLarge">Activity is calm right now</Text>
-                <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-                  New additions, approvals, and merge invitations will appear here when something changes.
-                </Text>
-              </Surface>
-            </Reveal>
-          )}
+          ) : null}
 
           {needsAttentionCount > 0 ? (
             <Reveal delay={120}>
@@ -998,6 +1028,20 @@ export function HomeDashboardView(props: SharedTabProps) {
               </Surface>
             </Reveal>
           ) : null}
+
+          <Reveal delay={135}>
+            <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
+              <Text variant="titleLarge">Family activities</Text>
+              <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
+                Open the full family activity feed to review notifications, shared edits, merge invites, and follow-up items.
+              </Text>
+              <View style={[styles.dashboardActionRow, { marginTop: 14 }]}>
+                <Button mode="contained" onPress={openFamilyActivity}>
+                  Open activities
+                </Button>
+              </View>
+            </Surface>
+          </Reveal>
         </>
       ) : null}
 
@@ -1126,6 +1170,34 @@ export function HomeDashboardView(props: SharedTabProps) {
           </Reveal>
         )
       ) : null}
+
+      <Portal>
+        <Dialog
+          visible={activityModalVisible}
+          onDismiss={() => setActivityModalVisible(false)}
+          style={[dialogChrome.dialog, { backgroundColor: theme.colors.surface, maxHeight: '88%' }]}
+        >
+          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>Family activities</Dialog.Title>
+          <IconButton
+            icon="close"
+            size={20}
+            onPress={() => setActivityModalVisible(false)}
+            style={dialogChrome.closeButton}
+            accessibilityLabel="Close family activities"
+          />
+          <Dialog.ScrollArea style={dialogChrome.scrollArea}>
+            <ScrollView contentContainerStyle={{ paddingBottom: 8 }}>
+              <NotificationsView
+                {...props}
+                embedded
+                navigation={{
+                  navigate: (name) => navigation.navigate(name),
+                }}
+              />
+            </ScrollView>
+          </Dialog.ScrollArea>
+        </Dialog>
+      </Portal>
       <Portal>
         <Dialog visible={buildInfoVisible} onDismiss={() => setBuildInfoVisible(false)}>
           <Dialog.Title>{isSetupMode ? 'About setup wizard' : 'About build your family'}</Dialog.Title>

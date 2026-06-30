@@ -241,7 +241,6 @@ const APP_TAB_ROUTES: Array<{
   { key: 'tree', title: 'Tree', focusedIcon: 'family-tree', unfocusedIcon: 'family-tree' },
   { key: 'members', title: 'Members', focusedIcon: 'account-group-outline', unfocusedIcon: 'account-group-outline' },
   { key: 'treeSettings', title: 'Settings', focusedIcon: 'cog-outline', unfocusedIcon: 'cog-outline' },
-  { key: 'notifications', title: 'Notifications', focusedIcon: 'bell-outline', unfocusedIcon: 'bell-outline' },
   { key: 'myProfile', title: 'My profile', focusedIcon: 'account-circle-outline', unfocusedIcon: 'account-circle-outline' },
 ];
 

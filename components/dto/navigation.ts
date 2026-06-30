@@ -4,7 +4,6 @@ export type MainTabParamList = {
   home: undefined;
   tree: undefined;
   members: undefined;
-  notifications: undefined;
   treeSettings: undefined;
   myProfile: undefined;
 };

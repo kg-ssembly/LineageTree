@@ -66,7 +66,7 @@ type MemberProfileParams = {
   personId: string;
 };
 
-const MAIN_TAB_NAMES = ['home', 'tree', 'members', 'notifications', 'treeSettings', 'myProfile'] as const;
+const MAIN_TAB_NAMES = ['home', 'tree', 'members', 'treeSettings', 'myProfile'] as const;
 
 function isMainTabName(name: string): name is typeof MAIN_TAB_NAMES[number] {
   return (MAIN_TAB_NAMES as readonly string[]).includes(name);
