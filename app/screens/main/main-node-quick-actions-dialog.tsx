@@ -23,7 +23,7 @@ export function MainNodeQuickActionsDialog({
         style={[dialogChrome.dialog, styles.quickActionDialog, { backgroundColor: controller.theme.colors.surface }]}
       >
         <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>
-          {controller.nodeQuickActionState.person ? formatPersonName(controller.nodeQuickActionState.person) : controller.t('Quick actions')}
+          {controller.nodeQuickActionState.person ? formatPersonName(controller.nodeQuickActionState.person) : controller.t(K.relationship.quickActions)}
         </Dialog.Title>
         <IconButton
           icon="close"
@@ -34,7 +34,7 @@ export function MainNodeQuickActionsDialog({
         />
         <Dialog.Content style={dialogChrome.content}>
           <Text variant="bodyMedium" style={[styles.quickActionSubtitle, { color: controller.theme.colors.onSurfaceVariant }]}>
-            {controller.t('Choose what you want to do with this family member.')}
+            {controller.t(K.relationship.quickActionsMember)}
           </Text>
           <List.Item
             title={controller.t(K.relationship.openProfile)}

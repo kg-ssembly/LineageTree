@@ -114,7 +114,7 @@ export function MergesSection({
           <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
             Invite someone who holds another branch of the story and compare where your trees overlap.
           </Text>
-          <Text variant="labelMedium" style={{ marginTop: 12 }}>{t('Source tree')}</Text>
+          <Text variant="labelMedium" style={{ marginTop: 12 }}>{t(K.treeSettings.sourceTree)}</Text>
           <View style={[styles.collaboratorChipRow, { marginTop: 8 }]}>
             {availableMergeSourceTrees.map((tree) => (
               <Chip key={tree.id} compact selected={tree.id === mergeInviteSourceTreeId} showSelectedOverlay onPress={() => setMergeInviteSourceTreeId(tree.id)}>

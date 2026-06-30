@@ -72,18 +72,18 @@ export function PersonRelationshipsSection({
         </View>
         {canEdit ? (
           <Button mode="contained" icon="family-tree" onPress={onAddRelationship}>
-            Connect family
+            {t(K.personProfile.addRelationship)}
           </Button>
         ) : null}
       </View>
       <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-        Follow the people closest to {formatPersonName(person)} and discover how each branch meets the next.
+        {t(K.relationship.manageConnectionsDirectly, { name: formatPersonName(person) })}
       </Text>
 
       <HorizontalTabStrip
         items={[
           { key: 'insight', label: t(K.personProfile.howRelated) },
-          { key: 'list', label: t('All relationships') },
+          { key: 'list', label: t(K.personProfile.allRelationships) },
         ]}
         activeKey={relationshipSectionTab}
         onChange={(value) => setRelationshipSectionTab(value as PersonRelationshipSectionTabKey)}

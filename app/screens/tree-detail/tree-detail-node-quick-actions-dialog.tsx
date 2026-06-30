@@ -52,7 +52,7 @@ export function TreeDetailNodeQuickActionsDialog({
         onDismiss={closeNodeQuickActions}
         style={[dialogChrome.dialog, styles.quickActionDialog, { backgroundColor: theme.colors.surface }]}
       >
-        <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{person ? formatPersonName(person) : 'Quick actions'}</Dialog.Title>
+        <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{person ? formatPersonName(person) : t(K.relationship.quickActions)}</Dialog.Title>
         <IconButton
           icon="close"
           size={20}
@@ -62,7 +62,7 @@ export function TreeDetailNodeQuickActionsDialog({
         />
         <Dialog.Content style={dialogChrome.content}>
           <Text variant="bodyMedium" style={[styles.quickActionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-            {t('Choose what you want to do with this family member in the tree.')}
+            {t(K.relationship.quickActionsTreeMember)}
           </Text>
           <List.Item
             title={t(K.relationship.openProfile)}

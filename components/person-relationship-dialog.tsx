@@ -190,7 +190,7 @@ export default function PersonRelationshipDialog({
   }, [editingRelationship?.id, mode, parentChildKind, people, person, relatedPersonId, relationshipStatus, relationships]);
 
   const handleSubmit = async () => {
-    if (!person) { setError(t('This family member could not be loaded.')); return; }
+    if (!person) { setError(t(K.relationship.familyMemberCouldNotBeLoaded)); return; }
     if (!relatedPersonId) { setError(t(K.relationship.chooseRelatedFamilyMemberFirst)); return; }
     if (validationMessage) { setError(validationMessage); return; }
     await onSubmit({
@@ -214,7 +214,7 @@ export default function PersonRelationshipDialog({
         onDismiss={loading ? undefined : onDismiss}
         style={[dialogChrome.dialog, styles.dialog, { backgroundColor: theme.colors.surface }]}
       >
-        <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{editingRelationship ? t('Edit relationship') : t(K.relationship.addRelationship)}</Dialog.Title>
+        <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{editingRelationship ? t(K.relationship.editRelationship) : t(K.relationship.addRelationship)}</Dialog.Title>
         <IconButton icon="close" onPress={onDismiss} disabled={loading} accessibilityLabel={t(K.common.cancel)} style={dialogChrome.closeButton} />
         <Dialog.ScrollArea style={[dialogChrome.scrollArea, styles.scrollArea]}>
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>

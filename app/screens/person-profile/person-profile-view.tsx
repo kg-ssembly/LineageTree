@@ -400,10 +400,10 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
               : relationship.fromPersonId;
         const relatedPerson = peopleById.get(relatedPersonId) ?? null;
         const title = mode === 'parent-of'
-          ? t('Parent of {name}', { name: formatPersonName(relatedPerson) })
+          ? t(K.relationship.parentOfName, { name: formatPersonName(relatedPerson) })
           : mode === 'child-of'
-            ? t('Child of {name}', { name: formatPersonName(relatedPerson) })
-            : t('Spouse of {name}', { name: formatPersonName(relatedPerson) });
+            ? t(K.relationship.childOfName, { name: formatPersonName(relatedPerson) })
+            : t(K.relationship.spouseOfName, { name: formatPersonName(relatedPerson) });
         const subtitle = relationship.type === 'spouse'
           ? t(K.personProfile.partnerConnection)
           : mode === 'parent-of'
@@ -956,7 +956,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
                 {showAutomaticRelationshipChip ? (
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
                     <Chip compact icon="account-switch" onPress={() => setRelationshipInsightVisible(true)}>
-                      {automaticRelationshipInsight ? automaticRelationshipInsight.relationship : t('How you relate')}
+                      {automaticRelationshipInsight ? automaticRelationshipInsight.relationship : t(K.relationshipInsight.howYouRelate)}
                     </Chip>
                   </View>
                 ) : null}
@@ -1246,7 +1246,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
           style={[dialogChrome.dialog, { backgroundColor: theme.colors.surface }]}
         >
           <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>
-            {t('How you relate')}
+            {t(K.relationshipInsight.howYouRelate)}
           </Dialog.Title>
           <IconButton
             icon="close"
@@ -1261,11 +1261,11 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
                 <View>
                   <Text variant="bodyMedium">
                     {automaticRelationshipInsight
-                      ? t('{name} is your {relationship}.', {
+                      ? t(K.relationshipInsight.nameIsYourRelationship, {
                         name: formatPersonName(person),
                         relationship: automaticRelationshipInsight.relationship.toLowerCase(),
                       })
-                      : t('No relationship path found yet between you and {name}.', { name: formatPersonName(person) })}
+                      : t(K.relationshipInsight.noPathYetWithName, { name: formatPersonName(person) })}
                   </Text>
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
                     <Chip compact icon="account">{formatPersonName(currentAssignedPerson)}</Chip>
@@ -1283,7 +1283,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
                   {automaticRelationshipInsight && automaticRelationshipPathLabel ? (
                     <>
                       <Divider style={{ marginVertical: 16 }} />
-                      <Text variant="titleSmall">{t('Relationship path')}</Text>
+                      <Text variant="titleSmall">{t(K.relationshipInsight.relationshipPath)}</Text>
                       <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 6 }}>
                         {automaticRelationshipPathLabel}
                       </Text>
@@ -1298,7 +1298,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
               ) : (
                 <View>
                   <Text variant="bodyMedium">
-                    {t('Link yourself to a family member profile to see how you relate to other relatives.')}
+                    {t(K.relationshipInsight.linkYourselfToSeeRelation)}
                   </Text>
                 </View>
               )}

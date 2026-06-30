@@ -208,7 +208,7 @@ export default function RelationshipInsightCard({
                 setToPersonId(nextTo);
               }}
               disabled={!fromPersonId || !toPersonId}
-              accessibilityLabel={t('Swap')}
+              accessibilityLabel={t(K.common.swap)}
             />
           ) : null}
         </View>
@@ -223,7 +223,7 @@ export default function RelationshipInsightCard({
           insight ? (
             <View style={[styles.resultBox, { backgroundColor: theme.colors.surfaceVariant }]}>
               <Text variant="titleMedium">
-                {t('{person} is {relative}’s {relationship}', {
+                {t(K.relationshipInsight.personIsRelativesRelationship, {
                   person: formatPersonName(toPerson),
                   relative: formatPersonName(fromPerson),
                   relationship: insight.relationship.toLowerCase(),
@@ -318,7 +318,7 @@ export default function RelationshipInsightCard({
                   >
                     <Text variant="titleSmall" style={styles.resultRowTitle}>{formatPersonName(person)}</Text>
                     <Text variant="bodySmall" style={styles.resultRowMeta}>
-                      {formatPersonMeta(person) === 'No dates recorded yet' ? t('No dates recorded yet') : formatPersonMeta(person)}
+                      {formatPersonMeta(person) === 'No dates recorded yet' ? t(K.relationshipInsight.noDatesRecordedYet) : formatPersonMeta(person)}
                     </Text>
                   </Pressable>
                 ))}

@@ -124,12 +124,12 @@ export default function LifeEventDialog({
           onDismiss={loading ? undefined : onDismiss}
           style={[dialogChrome.dialog, styles.dialog, { backgroundColor: theme.colors.surface }]}
         >
-          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{event ? t('Edit life event') : t('Add life event')}</Dialog.Title>
+          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{event ? t(K.memories.editLifeEvent) : t(K.memories.addLifeEvent)}</Dialog.Title>
           <IconButton icon="close" onPress={onDismiss} disabled={loading} accessibilityLabel={t(K.common.cancel)} style={dialogChrome.closeButton} />
           <Dialog.ScrollArea style={[dialogChrome.scrollArea, styles.scrollArea]}>
             <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
               <Text variant="bodyMedium" style={styles.helperText}>
-                {t('Capture milestones like marriage, divorce, moves, or other memorable family moments.')}
+                {t(K.memories.captureMilestones)}
               </Text>
 
               <View style={styles.typeWrap}>
@@ -148,7 +148,7 @@ export default function LifeEventDialog({
 
               <TextInput
                 mode="outlined"
-                label={t('Event title')}
+                label={t(K.memories.eventTitle)}
                 value={title}
                 onChangeText={(value) => {
                   setTitle(value);
@@ -165,7 +165,7 @@ export default function LifeEventDialog({
               </HelperText>
 
               <View style={styles.fieldSpacing}>
-                <Text variant="titleSmall">{t('Event date')}</Text>
+                <Text variant="titleSmall">{t(K.memories.eventDate)}</Text>
                 <View style={styles.dateActions}>
                   <Button mode="outlined" icon="calendar" onPress={() => setDatePickerVisible(true)} disabled={loading}>
                   {t(formatDateButtonLabel(date))}
@@ -183,7 +183,7 @@ export default function LifeEventDialog({
 
               <TextInput
                 mode="outlined"
-                label={t('Details')}
+                label={t(K.memories.eventDetails)}
                 value={description}
                 onChangeText={setDescription}
                 style={styles.fieldSpacing}
@@ -225,7 +225,7 @@ export default function LifeEventDialog({
           }
         }}
         saveLabel={t(K.common.save)}
-        label={t('Select event date')}
+        label={t(K.common.selectEventDate)}
       />
     </>
   );

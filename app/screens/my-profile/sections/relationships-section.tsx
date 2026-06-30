@@ -53,18 +53,18 @@ export function RelationshipsSection({
         </View>
         {canEditLinkedProfile ? (
           <Button mode="contained" icon="family-tree" onPress={onAddRelationship}>
-            Connect family
+            {t(K.personProfile.addRelationship)}
           </Button>
         ) : null}
       </View>
       <Text variant="bodyMedium" style={[personProfileStyles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-        Explore how your story is connected, then add the missing links that make your branch clearer.
+        {t(K.relationshipInsight.connectionFound)}
       </Text>
 
       <HorizontalTabStrip
         items={[
           { key: 'insight', label: t(K.personProfile.howRelated) },
-          { key: 'list', label: t('All relationships') },
+          { key: 'list', label: t(K.personProfile.allRelationships) },
         ]}
         activeKey={relationshipSectionTab}
         onChange={(value) => setRelationshipSectionTab(value as RelationshipSectionTabKey)}

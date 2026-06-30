@@ -5,7 +5,6 @@ import { FamilyTreeCanvas } from '../../../../components';
 import type { PersonRecord } from '../../../../components/dto/person';
 import type { RelationshipRecord } from '../../../../components/dto/relationship';
 import { GlobalStyles } from '../../../../constants/styles';
-import { useI18n } from '../../../../hooks/use-i18n';
 
 const styles = GlobalStyles.personProfile;
 
@@ -37,8 +36,6 @@ export function PersonLineageSection({
   mode: 'ascendant' | 'descendant';
 }) {
   const theme = useTheme();
-  const { t } = useI18n();
-
   return (
     <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
       <View style={styles.sectionHeader}>
@@ -55,7 +52,7 @@ export function PersonLineageSection({
           </View>
           {count > 0 ? (
             <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-              {count === 1 ? t('{count} ' + singularLabel, { count }) : t('{count} ' + pluralLabel, { count })}
+              {count}
             </Text>
           ) : null}
         </View>

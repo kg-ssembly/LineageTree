@@ -7,6 +7,7 @@ import { formatPersonDate, parsePersonDate } from '../../../../components/dto/pe
 import { formatPersonName } from '../../../../components/person-formatting';
 import { GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
+import { I18N_KEYS as K } from '../../../../i18n/keys';
 
 const styles = GlobalStyles.treeDetail;
 
@@ -16,6 +17,8 @@ type HighlightAnniversary = {
   title: string;
   subtitle: string;
 };
+
+type HighlightPanelKey = 'recent' | 'anniversary' | 'growth';
 
 function getAnniversaryDateForYear(dateValue: string, year: number) {
   if (!dateValue) {
@@ -72,12 +75,14 @@ export function FamilyHighlightsPanel({
   const theme = useTheme();
   const { t } = useI18n();
   const pageSize = 3;
-  const [recentExpanded, setRecentExpanded] = useState(true);
-  const [anniversaryExpanded, setAnniversaryExpanded] = useState(true);
-  const [growthExpanded, setGrowthExpanded] = useState(true);
+  const [expandedPanel, setExpandedPanel] = useState<HighlightPanelKey | null>(null);
   const [recentPage, setRecentPage] = useState(0);
   const [anniversaryPage, setAnniversaryPage] = useState(0);
   const [growthPage, setGrowthPage] = useState(0);
+
+  const togglePanel = (panel: HighlightPanelKey) => {
+    setExpandedPanel((current) => (current === panel ? null : panel));
+  };
 
   const recentAdditions = useMemo(
     () => [...people]
@@ -117,7 +122,7 @@ export function FamilyHighlightsPanel({
           id: `${person.id}-${event.id}`,
           date: date.toISOString(),
           title: event.title || `${formatPersonName(person)} memory`,
-          subtitle: `${formatPersonName(person)} • ${event.description || t('A remembered family milestone')}`,
+          subtitle: `${formatPersonName(person)} • ${event.description || t(K.memories.rememberedFamilyMoment)}`,
         });
       });
     });
@@ -136,6 +141,10 @@ export function FamilyHighlightsPanel({
   const recentPageItems = paginateItems(recentAdditions, recentPage, pageSize);
   const anniversaryPageItems = paginateItems(anniversaries, anniversaryPage, pageSize);
   const growthPageItems = paginateItems(branchGrowth, growthPage, pageSize);
+
+  const recentExpanded = expandedPanel === 'recent';
+  const anniversaryExpanded = expandedPanel === 'anniversary';
+  const growthExpanded = expandedPanel === 'growth';
 
   return (
     <Reveal delay={80}>
@@ -162,7 +171,7 @@ export function FamilyHighlightsPanel({
                 <IconButton
                   icon={recentExpanded ? 'chevron-up' : 'chevron-down'}
                   size={20}
-                  onPress={() => setRecentExpanded((current) => !current)}
+                  onPress={() => togglePanel('recent')}
                 />
               </View>
             </View>
@@ -212,7 +221,7 @@ export function FamilyHighlightsPanel({
                 <IconButton
                   icon={anniversaryExpanded ? 'chevron-up' : 'chevron-down'}
                   size={20}
-                  onPress={() => setAnniversaryExpanded((current) => !current)}
+                  onPress={() => togglePanel('anniversary')}
                 />
               </View>
             </View>
@@ -262,7 +271,7 @@ export function FamilyHighlightsPanel({
                 <IconButton
                   icon={growthExpanded ? 'chevron-up' : 'chevron-down'}
                   size={20}
-                  onPress={() => setGrowthExpanded((current) => !current)}
+                  onPress={() => togglePanel('growth')}
                 />
               </View>
             </View>
@@ -271,7 +280,7 @@ export function FamilyHighlightsPanel({
                 <View style={[styles.highlightStoryCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant }]}>
                   <Text variant="titleSmall">{branch.surname}</Text>
                   <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                    {t('{count} family members', { count: branch.total })}
+                    {t(K.treeSettings.familyMembersCount, { count: branch.total })}
                   </Text>
                   <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
                     {branch.fresh > 0 ? `${branch.fresh} new this season` : 'Steady and well-rooted'}

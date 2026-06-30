@@ -85,7 +85,7 @@ export function TreeDetailMaidenViewer({
         }}
       >
         <Button mode="contained-tonal" icon="arrow-left" onPress={navigationGoBack} style={{ borderRadius: 999 }} contentStyle={{ paddingHorizontal: 6 }}>
-          {t('Back to {treeName}', { treeName: returnTreeName ?? t(K.common.originalTree) })}
+          {t(K.treeSettings.backToTreeName, { treeName: returnTreeName ?? t(K.common.originalTree) })}
         </Button>
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <IconButton
@@ -241,13 +241,13 @@ export function TreeDetailMaidenViewer({
                         <Text variant="titleMedium">{t(K.personProfile.howRelated)}</Text>
                         <Text variant="bodyMedium" style={{ marginTop: 8 }}>
                           {returnTreeAssignedPerson && viewerRelationshipInsight
-                            ? t('{name} is your {relationship}', {
+                            ? t(K.relationshipInsight.nameIsYourRelationship, {
                               name: viewerPerson.firstName || formatPersonName(viewerPerson),
                               relationship: viewerRelationshipInsight.relationship.toLowerCase(),
                             })
                             : returnTreeAssignedPerson
-                              ? t('No family connection found in this tree yet.')
-                              : t('No linked profile found in the original tree.')}
+                              ? t(K.relationshipInsight.noRelationInTreeYet)
+                              : t(K.relationshipInsight.noLinkedProfileInOriginalTree)}
                         </Text>
                       </Card.Content>
                     </Card>
@@ -286,9 +286,9 @@ export function TreeDetailMaidenViewer({
                     </View>
                   ) : (
                     <View style={{ paddingVertical: 12 }}>
-                      <Text variant="titleMedium">{t('No life events yet')}</Text>
+                      <Text variant="titleMedium">{t(K.memories.noLifeEventsYet)}</Text>
                       <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
-                        {t('Life milestones and memories will appear here.')}
+                        {t(K.memories.startWithMilestones)}
                       </Text>
                     </View>
                   )

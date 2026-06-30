@@ -864,7 +864,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
         </Tab.Screen>
         <Tab.Screen
           name="HomeTab"
-          options={{ title: t('Home') }}
+          options={{ title: t(K.navigation.home) }}
           listeners={() => ({
             tabPress: (event) => {
               event.preventDefault();

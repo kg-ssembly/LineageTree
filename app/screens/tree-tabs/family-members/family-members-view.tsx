@@ -274,7 +274,7 @@ export function FamilyMembersView({
           </View>
           {canEdit ? (
             <Button mode="contained" icon="account-plus" onPress={onOpenAddPerson} disabled={mutating}>
-              {t('Add')}
+              {t(K.common.add)}
             </Button>
           ) : null}
         </View>
@@ -391,7 +391,7 @@ export function FamilyMembersView({
           <Dialog.Title style={dialogChrome.dialogTitle}>{t(K.tree.familyMembers.filterMembers)}</Dialog.Title>
           <Dialog.ScrollArea style={dialogChrome.scrollArea}>
             <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={dialogChrome.content}>
-              <Text variant="titleSmall" style={{ marginTop: 8, marginBottom: 4 }}>{t('Gender')}</Text>
+              <Text variant="titleSmall" style={{ marginTop: 8, marginBottom: 4 }}>{t(K.personForm.gender)}</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
                 {(['all', 'female', 'male', 'non-binary', 'other', 'unspecified'] as const).map((gender) => (
                   <Chip

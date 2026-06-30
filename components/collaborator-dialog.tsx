@@ -40,7 +40,7 @@ export default function CollaboratorDialog({
   const handleSubmit = async () => {
     const trimmedEmail = email.trim();
     if (!trimmedEmail) {
-      setError(t('Collaborator email is required.'));
+      setError(t(K.treeSettings.collaboratorEmailRequired));
       return;
     }
 

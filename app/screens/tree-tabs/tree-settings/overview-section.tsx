@@ -52,9 +52,9 @@ export function OverviewSection({
     <>
       <View style={styles.summaryChipRow}>
         <Chip icon="account-key">{formatRole(role)}</Chip>
-        <Chip icon="account-group">{t('{count} family members', { count: people.length })}</Chip>
-        <Chip icon="account-multiple">{t('{count} collaborators', { count: selectedTree.collaborators.length })}</Chip>
-        {unlinkedCollaboratorCount > 0 ? <Chip icon="account-clock">{t('{count} awaiting link', { count: unlinkedCollaboratorCount })}</Chip> : null}
+        <Chip icon="account-group">{t(K.treeSettings.familyMembersCount, { count: people.length })}</Chip>
+        <Chip icon="account-multiple">{t(K.treeSettings.collaboratorsCount, { count: selectedTree.collaborators.length })}</Chip>
+        {unlinkedCollaboratorCount > 0 ? <Chip icon="account-clock">{t(K.treeSettings.awaitingLinkCount, { count: unlinkedCollaboratorCount })}</Chip> : null}
       </View>
 
       <Card mode="elevated" style={[styles.selfAssignmentCard, { backgroundColor: theme.colors.surface, marginBottom: 16 }]}>
@@ -140,8 +140,8 @@ export function OverviewSection({
                     icon="link-off"
                     textColor={theme.colors.error}
                     onPress={() => openConfirm(
-                      t('Unlink your profile'),
-                      t('Remove the connection between your account and this family member profile?'),
+                      t(K.treeSettings.unlinkYourProfile),
+                      t(K.treeSettings.unlinkYourProfileConfirm),
                       t(K.common.unlink),
                       onClearSelfAssignment,
                     )}

@@ -43,7 +43,7 @@ export function MemberProfileSection({
       <View style={styles.sectionHeader}>
         <View style={styles.sectionHeaderText}>
           <View style={styles.titleWithHelperRow}>
-            <Text variant="titleLarge">Biography</Text>
+            <Text variant="titleLarge">{t(K.personProfile.biography)}</Text>
             <IconButton
               icon="information-outline"
               size={20}
@@ -55,7 +55,7 @@ export function MemberProfileSection({
         </View>
         {canEdit ? (
           <Button mode="contained-tonal" icon="pencil" onPress={onEdit}>
-            Shape this story
+            {t(K.personProfile.shapeThisStory)}
           </Button>
         ) : null}
       </View>
@@ -70,31 +70,31 @@ export function MemberProfileSection({
         {person.canonicalPersonId?.trim() ? <Chip compact icon="merge">{t(K.personProfile.mergedCanonicalProfile)}</Chip> : null}
       </View>
       <Text variant="bodyLarge" style={styles.biographyLead}>
-        {biographyLead || `${formatPersonName(person)}'s page is waiting for the first story fragment, place, or memory to give it more voice.`}
+        {biographyLead || t(K.personProfile.waitingForFirstStory, { name: formatPersonName(person) })}
       </Text>
 
       <View style={[styles.biographyBlock, { backgroundColor: theme.colors.elevation.level1 }]}>
-        <Text variant="titleSmall">Known details</Text>
+        <Text variant="titleSmall">{t(K.personProfile.knownDetails)}</Text>
         <View style={styles.biographyFactRow}>
           <View style={[styles.biographyFactCard, { backgroundColor: theme.colors.surface }]}>
-            <Text variant="labelMedium" style={styles.detailLabel}>Born</Text>
+            <Text variant="labelMedium" style={styles.detailLabel}>{t(K.personProfile.born)}</Text>
             <Text variant="titleMedium">{person.birthDate ? formatPersonDate(person.birthDate) : t(K.common.unknown)}</Text>
           </View>
           <View style={[styles.biographyFactCard, { backgroundColor: theme.colors.surface }]}>
-            <Text variant="labelMedium" style={styles.detailLabel}>Name trail</Text>
+            <Text variant="labelMedium" style={styles.detailLabel}>{t(K.personProfile.nameTrail)}</Text>
             <Text variant="titleMedium">{person.maidenName?.trim() || person.lastName || t(K.common.unknown)}</Text>
           </View>
           <View style={[styles.biographyFactCard, { backgroundColor: theme.colors.surface }]}>
-            <Text variant="labelMedium" style={styles.detailLabel}>Family circle</Text>
+            <Text variant="labelMedium" style={styles.detailLabel}>{t(K.personProfile.familyCircle)}</Text>
             <Text variant="titleMedium">{getPersonTreeMembershipIds(person).join(', ') || t(K.personProfile.currentTreeOnly)}</Text>
           </View>
         </View>
       </View>
 
       <View style={[styles.notesBox, { backgroundColor: theme.colors.surfaceVariant }]}>
-        <Text variant="titleSmall">Story note</Text>
+        <Text variant="titleSmall">{t(K.personProfile.storyNote)}</Text>
         <Text variant="bodyMedium" style={[styles.notesText, { color: theme.colors.onSurfaceVariant }]}>
-          {person.notes || t('Add a memory, phrase, or detail that makes this person feel real.')}
+          {person.notes || t(K.personProfile.addRealDetail)}
         </Text>
       </View>
       </Surface>

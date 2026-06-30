@@ -945,7 +945,7 @@ export default function PersonFormDialog({
                         }}
                         disabled={loading}
                       >
-                        {t('Add')}
+                        {t(K.common.add)}
                       </Button>
                     </View>
                   ) : null}
@@ -1060,7 +1060,7 @@ export default function PersonFormDialog({
           style={[dialogChrome.dialog, styles.dialog, { backgroundColor: theme.colors.surface }]}
         >
           <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose, styles.dialogTitle]}>
-            {t('Preview changes')}
+            {t(K.personForm.previewChanges)}
           </Dialog.Title>
           <IconButton icon="close" onPress={() => setPreviewState({ visible: false, payload: null, warnings: [] })} disabled={loading} accessibilityLabel={t(K.common.cancel)} style={dialogChrome.closeButton} />
           <Dialog.ScrollArea style={[dialogChrome.scrollArea, styles.scrollArea]}>
@@ -1069,15 +1069,15 @@ export default function PersonFormDialog({
                 <>
                   <Text variant="titleMedium">{[previewState.payload.firstName, previewState.payload.middleNames, previewState.payload.lastName].join(' ').replace(/\s+/g, ' ').trim()}</Text>
                   <Text variant="bodyMedium" style={styles.helperText}>{previewState.payload.gender}</Text>
-                  {previewState.payload.birthDate ? <Text variant="bodyMedium">{t('Birth')}: {formatPersonDate(previewState.payload.birthDate)}</Text> : null}
-                  {previewState.payload.deathDate ? <Text variant="bodyMedium">{t('Death')}: {formatPersonDate(previewState.payload.deathDate)}</Text> : null}
-                  {previewState.payload.maidenName ? <Text variant="bodyMedium">{t('Maiden name')}: {previewState.payload.maidenName}</Text> : null}
-                  {previewState.payload.notes ? <Text variant="bodyMedium">{t('Notes')}: {previewState.payload.notes}</Text> : null}
-                  <Text variant="bodyMedium">{t('Life events')}: {previewState.payload.lifeEvents.length}</Text>
-                  <Text variant="bodyMedium">{t('Photos')}: {previewState.payload.existingPhotos.length + previewState.payload.newPhotoUris.length - previewState.payload.removedPhotos.length}</Text>
+                  {previewState.payload.birthDate ? <Text variant="bodyMedium">{t(K.personProfile.birth)}: {formatPersonDate(previewState.payload.birthDate)}</Text> : null}
+                  {previewState.payload.deathDate ? <Text variant="bodyMedium">{t(K.personProfile.inMemory)}: {formatPersonDate(previewState.payload.deathDate)}</Text> : null}
+                  {previewState.payload.maidenName ? <Text variant="bodyMedium">{t(K.personForm.maidenName)}: {previewState.payload.maidenName}</Text> : null}
+                  {previewState.payload.notes ? <Text variant="bodyMedium">{t(K.memories.notes)}: {previewState.payload.notes}</Text> : null}
+                  <Text variant="bodyMedium">{t(K.memories.lifeEvents)}: {previewState.payload.lifeEvents.length}</Text>
+                  <Text variant="bodyMedium">{t(K.memories.photos)}: {previewState.payload.existingPhotos.length + previewState.payload.newPhotoUris.length - previewState.payload.removedPhotos.length}</Text>
                   {previewState.payload.pendingRelationships.length > 0 ? (
                     <View style={styles.sectionSpacing}>
-                      <Text variant="titleSmall">{t('Relationships to add')}</Text>
+                      <Text variant="titleSmall">{t(K.personForm.relationshipsToAdd)}</Text>
                       {previewState.payload.pendingRelationships.map((relationship, index) => {
                         const relatedPerson = relationshipCandidatesById.get(relationship.relatedPersonId);
                         return (
@@ -1090,7 +1090,7 @@ export default function PersonFormDialog({
                   ) : null}
                   {previewState.warnings.length > 0 ? (
                     <View style={styles.sectionSpacing}>
-                      <Text variant="titleSmall">{t('Please review')}</Text>
+                      <Text variant="titleSmall">{t(K.personForm.pleaseReviewBeforeSaving)}</Text>
                       {previewState.warnings.map((warning) => (
                         <Text key={warning} variant="bodyMedium" style={styles.helperText}>{warning}</Text>
                       ))}

@@ -84,7 +84,7 @@ export function PersonMemoriesSection({
         />
       </View>
       <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-        Moments, photographs, and story fragments that make this page feel human.
+        {t(K.memories.momentsPhotosFragments)}
       </Text>
 
       <HorizontalTabStrip
@@ -108,12 +108,12 @@ export function PersonMemoriesSection({
             </View>
             {canEdit ? (
               <Button mode="contained-tonal" icon="pencil" onPress={onOpenNotesDialog}>
-                {person.notes ? 'Shape the story' : 'Add the first story note'}
+                {person.notes ? t(K.personProfile.shapeThisStory) : t(K.memories.addFirstStoryNote)}
               </Button>
             ) : null}
           </View>
           <Text variant="bodyMedium" style={[styles.notesText, { color: theme.colors.onSurfaceVariant }]}>
-            {person.notes || t('No story note yet. A single detail, phrase, or memory can make this page feel instantly alive.')}
+            {person.notes || t(K.memories.noStoryNoteYet)}
           </Text>
         </View>
       ) : null}
@@ -127,10 +127,10 @@ export function PersonMemoriesSection({
             {canEdit ? (
               <View style={styles.memoryDialogPhotoActions}>
                 <Button mode="contained-tonal" icon="image" onPress={onAddPhotoFromLibrary} disabled={photoProcessing}>
-                  Bring in photos
+                  {t(K.memories.bringInPhotos)}
                 </Button>
                 <Button mode="contained-tonal" icon="camera" onPress={onAddPhotoFromCamera} disabled={photoProcessing}>
-                  Capture a moment
+                  {t(K.memories.captureMoment)}
                 </Button>
               </View>
             ) : null}
@@ -144,7 +144,7 @@ export function PersonMemoriesSection({
                     <Image source={{ uri: photo.url }} style={styles.photo} />
                   </Pressable>
                   <View style={styles.photoMeta}>
-                    <Text variant="titleSmall">{draft.title || t('Untitled photo')}</Text>
+                    <Text variant="titleSmall">{draft.title || t(K.memories.untitledPhoto)}</Text>
                     {draft.description ? (
                       <Text variant="bodySmall" style={[styles.relationshipSubtitle, { color: theme.colors.onSurfaceVariant }]}>{draft.description}</Text>
                     ) : null}
@@ -153,7 +153,7 @@ export function PersonMemoriesSection({
                         <TextInput
                           mode="outlined"
                           dense
-                          label={t('Photo title')}
+                          label={t(K.memories.photoTitle)}
                           value={draft.title}
                           onChangeText={(value) => setPhotoDrafts((current) => ({ ...current, [photo.id]: { ...current[photo.id], title: value, description: current[photo.id]?.description ?? draft.description } }))}
                         />
@@ -161,17 +161,17 @@ export function PersonMemoriesSection({
                           mode="outlined"
                           dense
                           multiline
-                          label={t('Photo description')}
+                          label={t(K.memories.photoDescription)}
                           value={draft.description}
                           onChangeText={(value) => setPhotoDrafts((current) => ({ ...current, [photo.id]: { title: current[photo.id]?.title ?? draft.title, description: value } }))}
                           style={styles.photoMetaField}
                         />
                         <View style={styles.photoActionRow}>
                           <Button compact mode="text" onPress={() => onSetPreferredPhoto(photo, false)} disabled={photoProcessing}>
-                            {preferredPhoto?.id === photo.id ? 'Featured portrait' : 'Feature this'}
+                            {preferredPhoto?.id === photo.id ? t(K.memories.featuredPortrait) : t(K.memories.featureThis)}
                           </Button>
                           <Button compact mode="text" onPress={() => onSetPreferredPhoto(photo, true)} disabled={photoProcessing}>
-                            Refine crop
+                            {t(K.memories.refineCrop)}
                           </Button>
                           <IconButton icon="content-save-outline" size={18} onPress={() => onUpdatePhotoDetails(photo, draft)} disabled={photoProcessing} />
                           <IconButton icon="trash-can-outline" size={18} onPress={() => onRemovePhoto(photo)} disabled={photoProcessing} />
@@ -187,7 +187,7 @@ export function PersonMemoriesSection({
             <View style={styles.emptyState}>
               <Text variant="titleMedium">{t(K.memories.noPhotosYet)}</Text>
               <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
-                Start with one portrait, keepsake, or candid memory and the gallery will begin to feel lived in.
+                {t(K.memories.startGalleryStory)}
               </Text>
             </View>
           )}
@@ -202,7 +202,7 @@ export function PersonMemoriesSection({
             </View>
             {canEdit ? (
               <Button mode="contained-tonal" icon="plus" onPress={onAddLifeEvent}>
-                Add a memory
+                {t(K.memories.addLifeEvent)}
               </Button>
             ) : null}
           </View>
@@ -225,10 +225,10 @@ export function PersonMemoriesSection({
                           <Chip compact icon="calendar">{formatPersonDate(item.date)}</Chip>
                         </View>
                         <Text variant="titleMedium" style={styles.relationshipTitle}>{item.title}</Text>
-                        <Text variant="bodyMedium" style={[styles.relationshipSubtitle, { color: theme.colors.onSurfaceVariant }]}>{item.description || 'A remembered family moment.'}</Text>
+                        <Text variant="bodyMedium" style={[styles.relationshipSubtitle, { color: theme.colors.onSurfaceVariant }]}>{item.description || t(K.memories.rememberedFamilyMoment)}</Text>
                         {canEdit && editableEvent ? (
                           <Button mode="text" onPress={() => onEditLifeEvent(editableEvent)} disabled={mutating} compact style={styles.timelineAction}>
-                            Refine this memory
+                            {t(K.memories.refineThisMemory)}
                           </Button>
                         ) : null}
                       </View>
@@ -241,7 +241,7 @@ export function PersonMemoriesSection({
             <View style={styles.emptyState}>
               <Text variant="titleMedium">{t(K.memories.noMemoriesYet)}</Text>
               <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
-                Begin with a birth, a move, a wedding, or a quiet memory only close family would know.
+                {t(K.memories.timelineStartingPrompt)}
               </Text>
             </View>
           )}

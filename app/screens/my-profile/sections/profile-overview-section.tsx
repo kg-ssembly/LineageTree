@@ -30,7 +30,7 @@ export function ProfileOverviewSection({
   return (
     <Reveal delay={70}>
       <Surface style={[personProfileStyles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
-      <Text variant="titleLarge">Biography</Text>
+      <Text variant="titleLarge">{t(K.personProfile.biography)}</Text>
       <View style={personProfileStyles.metadataRow}>
         {linkedPerson.gender !== 'unspecified' ? <Chip compact>{formatPersonGender(linkedPerson.gender)}</Chip> : null}
         <Chip compact icon={isPersonDeceased(linkedPerson) ? 'flower-outline' : 'heart-pulse'}>{getPersonPresenceLabel(linkedPerson)}</Chip>
@@ -39,31 +39,31 @@ export function ProfileOverviewSection({
         {preferredPhoto ? <Chip compact icon="star">{t(K.personProfile.preferredPhotoSelected)}</Chip> : null}
       </View>
       <Text variant="bodyLarge" style={personProfileStyles.biographyLead}>
-        {biographyLead || `${linkedPerson.firstName}'s story is still unfolding. Add memories, places, and milestones to bring it to life.`}
+        {biographyLead || t(K.personProfile.waitingForFirstStory, { name: linkedPerson.firstName })}
       </Text>
 
       <View style={[personProfileStyles.biographyBlock, { backgroundColor: theme.colors.elevation.level1 }]}>
-        <Text variant="titleSmall">Story details</Text>
+        <Text variant="titleSmall">{t(K.personProfile.storyDetails)}</Text>
         <View style={personProfileStyles.biographyFactRow}>
           <View style={[personProfileStyles.biographyFactCard, { backgroundColor: theme.colors.surface }]}>
-            <Text variant="labelMedium" style={personProfileStyles.detailLabel}>Born</Text>
+            <Text variant="labelMedium" style={personProfileStyles.detailLabel}>{t(K.personProfile.born)}</Text>
             <Text variant="titleMedium">{linkedPerson.birthDate ? formatPersonDate(linkedPerson.birthDate) : t(K.common.unknown)}</Text>
           </View>
           <View style={[personProfileStyles.biographyFactCard, { backgroundColor: theme.colors.surface }]}>
-            <Text variant="labelMedium" style={personProfileStyles.detailLabel}>Surname story</Text>
+            <Text variant="labelMedium" style={personProfileStyles.detailLabel}>{t(K.personProfile.surnameStory)}</Text>
             <Text variant="titleMedium">{linkedPerson.maidenName?.trim() || linkedPerson.lastName || t(K.common.unknown)}</Text>
           </View>
           <View style={[personProfileStyles.biographyFactCard, { backgroundColor: theme.colors.surface }]}>
-            <Text variant="labelMedium" style={personProfileStyles.detailLabel}>Belongs to</Text>
+            <Text variant="labelMedium" style={personProfileStyles.detailLabel}>{t(K.personProfile.belongsTo)}</Text>
             <Text variant="titleMedium">{linkedPerson.familyBranch?.trim() || t(K.personProfile.currentTreeOnly)}</Text>
           </View>
         </View>
       </View>
 
       <View style={[personProfileStyles.notesBox, { backgroundColor: theme.colors.surfaceVariant }]}>
-        <Text variant="titleSmall">Story note</Text>
+        <Text variant="titleSmall">{t(K.personProfile.storyNote)}</Text>
         <Text variant="bodyMedium" style={[personProfileStyles.notesText, { color: theme.colors.onSurfaceVariant }]}>
-          {linkedPerson.notes || t('This page is ready for the first memory, detail, or family anecdote.')}
+          {linkedPerson.notes || t(K.personProfile.addRealDetail)}
         </Text>
       </View>
       </Surface>
