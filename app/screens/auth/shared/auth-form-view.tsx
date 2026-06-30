@@ -11,6 +11,7 @@ import {
   TextInput,
   useTheme,
 } from 'react-native-paper';
+import { Reveal } from '../../../../components';
 import { GlobalStyles } from '../../../../constants/styles';
 
 const loginStyles = GlobalStyles.login;
@@ -99,17 +100,18 @@ export function AuthFormView({
           </Text>
         </View>
 
-        <Surface style={[styles.card, {
-          backgroundColor: theme.colors.surface,
-          borderColor: theme.colors.outlineVariant,
-          borderWidth: 1,
-        }]} elevation={2}>
-          <Text variant="headlineMedium" style={[styles.title, { color: theme.colors.onSurface }]}>
-            {title}
-          </Text>
-          <Text variant="bodyMedium" style={[styles.subtitle, { color: theme.colors.onSurfaceVariant }]}>
-            {subtitle}
-          </Text>
+        <Reveal delay={70}>
+          <Surface style={[styles.card, {
+            backgroundColor: theme.colors.surface,
+            borderColor: theme.colors.outlineVariant,
+            borderWidth: 1,
+          }]} elevation={2}>
+            <Text variant="headlineMedium" style={[styles.title, { color: theme.colors.onSurface }]}>
+              {title}
+            </Text>
+            <Text variant="bodyMedium" style={[styles.subtitle, { color: theme.colors.onSurfaceVariant }]}>
+              {subtitle}
+            </Text>
 
           {fields.map((field) => (
             <React.Fragment key={field.key}>
@@ -137,22 +139,23 @@ export function AuthFormView({
             </React.Fragment>
           ))}
 
-          <Button
-            mode="contained"
-            onPress={onSubmit}
-            disabled={submitLoading}
-            contentStyle={styles.buttonContent}
-            style={styles.button}
-          >
-            {submitLoading
-              ? <ActivityIndicator color={theme.colors.onPrimary} size="small" />
-              : submitLabel}
-          </Button>
+            <Button
+              mode="contained"
+              onPress={onSubmit}
+              disabled={submitLoading}
+              contentStyle={styles.buttonContent}
+              style={styles.button}
+            >
+              {submitLoading
+                ? <ActivityIndicator color={theme.colors.onPrimary} size="small" />
+                : submitLabel}
+            </Button>
 
-          <Button mode="text" onPress={onSecondaryAction} style={styles.linkButton}>
-            {secondaryActionLabel}
-          </Button>
-        </Surface>
+            <Button mode="text" onPress={onSecondaryAction} style={styles.linkButton}>
+              {secondaryActionLabel}
+            </Button>
+          </Surface>
+        </Reveal>
       </ScrollView>
 
       <Snackbar

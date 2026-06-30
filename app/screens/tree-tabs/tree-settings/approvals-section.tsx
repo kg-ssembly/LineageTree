@@ -1,8 +1,8 @@
 import React from 'react';
 import { View } from 'react-native';
 import { Button, Card, Chip, IconButton, SegmentedButtons, Text, useTheme } from 'react-native-paper';
-import { canUserReviewApprovalRequest, isApprovalExpired } from '../../../../components/dto/approval';
 import { Reveal } from '../../../../components';
+import { canUserReviewApprovalRequest, isApprovalExpired } from '../../../../components/dto/approval';
 import { GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
@@ -87,13 +87,14 @@ export function ApprovalsSection({
 
         {pendingApprovalRequests.length > 0 ? (
           <View style={styles.collaboratorList}>
-            {pendingApprovalRequests.map((request) => {
+            {pendingApprovalRequests.map((request, index) => {
               const canReview = canUserReviewApprovalRequest(request, userId);
               const expiresSoon = isApprovalExpired(request);
 
               return (
-                <Card key={request.id} mode="elevated" style={[styles.collaboratorCard, { backgroundColor: canReview ? theme.colors.surfaceVariant : theme.colors.surface }]}>
-                  <Card.Content>
+                <Reveal key={request.id} delay={120 + index * 25}>
+                  <Card mode="elevated" style={[styles.collaboratorCard, { backgroundColor: canReview ? theme.colors.surfaceVariant : theme.colors.surface }]}>
+                    <Card.Content>
                     <View style={styles.approvalRequestHeader}>
                       <View style={styles.collaboratorTextWrap}>
                         <View style={styles.collaboratorChipRow}>
@@ -124,8 +125,9 @@ export function ApprovalsSection({
                         ) : null}
                       </View>
                     </View>
-                  </Card.Content>
-                </Card>
+                    </Card.Content>
+                  </Card>
+                </Reveal>
               );
             })}
           </View>

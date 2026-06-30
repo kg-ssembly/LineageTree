@@ -14,7 +14,6 @@ import {
   Snackbar,
   Surface,
   Text,
-  TextInput,
   useTheme,
 } from 'react-native-paper';
 import { ConfirmDialog, HorizontalTabStrip, LifeEventDialog, PersonFormDialog, PersonRelationshipDialog } from '../../../components';
@@ -23,12 +22,9 @@ import { useAuthStore } from '../../../stores/auth-store';
 import { useTreeStore } from '../../../stores/tree-store';
 import type { NewPersonPhotoInput, PersonLifeEvent, PersonMutationPayload, PersonPhoto, PersonRecord } from '../../../components/dto/person';
 import {
-  formatPersonDate,
   getDisplayPersonPhoto,
   getLifeEventTypeLabel,
   getPersonLifeSpanLabel,
-  getPersonPresenceLabel,
-  getPersonTreeMembershipIds,
   isPersonDeceased,
 } from '../../../components/dto/person';
 import type { ParentChildRelationshipKind, RelationshipRecord, SpouseRelationshipStatus } from '../../../components/dto/relationship';
@@ -36,7 +32,7 @@ import type { MainTabParamList } from '../../../components/dto/navigation';
 import { canEditTreeContent, getAssignedPersonId, getAssignedUserIdForPerson } from '../../../components/dto/tree';
 import { getPersonValidationFeedback } from '../../../components/family-tree-validation';
 import { MAX_PHOTOS_PER_PERSON, MAX_PHOTO_BYTES, preparePhotoForUpload } from '../../../components/photo-utils';
-import { formatPersonGender, formatPersonName } from '../../../components/person-formatting';
+import { formatPersonName } from '../../../components/person-formatting';
 import { computeRelationshipInsight } from '../../../providers';
 import { GlobalStyles } from '../../../constants/styles';
 import { useI18n } from '../../../hooks/use-i18n';
@@ -1046,8 +1042,6 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
             title={t(K.lineage.descendantTree)}
             helperLabel={t(K.lineage.aboutDescendantTree)}
             count={descendantIds.length}
-            singularLabel="descendant"
-            pluralLabel="descendants"
             person={person}
             people={people}
             relationships={relationships}
@@ -1063,8 +1057,6 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
             title={t(K.lineage.ascendantTree)}
             helperLabel={t(K.lineage.aboutAscendantTree)}
             count={ascendantIds.length}
-            singularLabel="ancestor"
-            pluralLabel="ancestors"
             person={person}
             people={people}
             relationships={relationships}

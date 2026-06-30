@@ -33,8 +33,9 @@ export function TreesSection({
     <Reveal delay={80}>
     <View>
       {maidenSurnameSuggestions.length > 0 ? (
-        <Card mode="elevated" style={[styles.collaboratorCard, { backgroundColor: theme.colors.surface, marginBottom: 16 }]}>
-          <Card.Content>
+        <Reveal delay={80}>
+          <Card mode="elevated" style={[styles.collaboratorCard, { backgroundColor: theme.colors.surface, marginBottom: 16 }]}>
+            <Card.Content>
             <View style={styles.titleWithHelperRow}>
               <Text variant="titleMedium">{t(K.treeSettings.suggestedMaidenSurnameTrees)}</Text>
               <IconButton
@@ -62,8 +63,9 @@ export function TreesSection({
                 </Card>
               ))}
             </View>
-          </Card.Content>
-        </Card>
+            </Card.Content>
+          </Card>
+        </Reveal>
       ) : null}
 
         <View style={styles.sectionHeader}>
@@ -98,14 +100,15 @@ export function TreesSection({
           ) : null}
         </View>
       ) : (
-        (trees ?? []).map((tree) => {
+        (trees ?? []).map((tree, index) => {
           const isDefault = tree.id === defaultTreeId;
           const isSelected = tree.id === selectedTree.id;
           const treeRole = getTreeRole(tree, userId);
 
           return (
-            <Card key={tree.id} style={[styles.personCard, { backgroundColor: isSelected ? theme.colors.primaryContainer : theme.colors.surface }]} mode="elevated">
-              <Card.Content>
+            <Reveal key={tree.id} delay={100 + index * 25}>
+              <Card style={[styles.personCard, { backgroundColor: isSelected ? theme.colors.primaryContainer : theme.colors.surface }]} mode="elevated">
+                <Card.Content>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                   <View style={{ flex: 1 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -130,8 +133,9 @@ export function TreesSection({
                     ) : null}
                   </View>
                 </View>
-              </Card.Content>
-            </Card>
+                </Card.Content>
+              </Card>
+            </Reveal>
           );
         })
       )}

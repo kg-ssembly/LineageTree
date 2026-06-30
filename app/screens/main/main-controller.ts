@@ -8,7 +8,7 @@ import type { RootStackParamList } from '../../../components/dto/navigation';
 import type { ParentChildRelationshipKind, SpouseRelationshipStatus } from '../../../components/dto/relationship';
 import { getUserDisplayLabel } from '../../../components/dto/user';
 import { formatPersonName } from '../../../components/person-formatting';
-import { extractSurname, findCrossSurnameChildren } from '../../../components/family-tree-surname-clusters';
+import { findCrossSurnameChildren } from '../../../components/family-tree-surname-clusters';
 import {
   canSetDefaultTree,
   canEditTreeContent,

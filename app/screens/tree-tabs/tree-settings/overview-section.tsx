@@ -1,6 +1,7 @@
 import React from 'react';
 import { View } from 'react-native';
 import { Button, Card, Chip, IconButton, Text, TextInput, useTheme } from 'react-native-paper';
+import { Reveal } from '../../../../components';
 import { isPersonDeceased } from '../../../../components/dto/person';
 import { formatPersonName } from '../../../../components/person-formatting';
 import { GlobalStyles } from '../../../../constants/styles';
@@ -57,8 +58,9 @@ export function OverviewSection({
         {unlinkedCollaboratorCount > 0 ? <Chip icon="account-clock">{t(K.treeSettings.awaitingLinkCount, { count: unlinkedCollaboratorCount })}</Chip> : null}
       </View>
 
-      <Card mode="elevated" style={[styles.selfAssignmentCard, { backgroundColor: theme.colors.surface, marginBottom: 16 }]}>
-        <Card.Content>
+      <Reveal delay={80}>
+        <Card mode="elevated" style={[styles.selfAssignmentCard, { backgroundColor: theme.colors.surface, marginBottom: 16 }]}>
+          <Card.Content>
           <View style={styles.sectionHeader}>
             <View style={styles.titleWrap}>
               <View style={styles.titleWithHelperRow}>
@@ -87,8 +89,9 @@ export function OverviewSection({
               </Button>
             </View>
           ) : null}
-        </Card.Content>
-      </Card>
+          </Card.Content>
+        </Card>
+      </Reveal>
 
       <View style={styles.selfAssignmentSectionWrap}>
         <View style={styles.sectionHeader}>
@@ -111,8 +114,9 @@ export function OverviewSection({
           ) : null}
         </View>
 
-        <Card mode="elevated" style={[styles.selfAssignmentCard, { backgroundColor: theme.colors.surface }]}>
-          <Card.Content>
+        <Reveal delay={100}>
+          <Card mode="elevated" style={[styles.selfAssignmentCard, { backgroundColor: theme.colors.surface }]}>
+            <Card.Content>
             <View style={styles.selfAssignmentHeader}>
               <View style={styles.selfAssignmentTextWrap}>
                 <View style={styles.collaboratorChipRow}>
@@ -167,15 +171,17 @@ export function OverviewSection({
                 {t(K.treeSettings.linkYourselfEditorAccess)}
               </Text>
             ) : null}
-          </Card.Content>
-        </Card>
+            </Card.Content>
+          </Card>
+        </Reveal>
 
         {!currentAssignedPerson ? (
           currentSelfAssignmentSuggestions.length > 0 ? (
             <View style={styles.assignmentSuggestionList}>
-              {currentSelfAssignmentSuggestions.slice(0, 3).map((suggestion) => (
-                <Card key={`suggestion-${suggestion.person.id}`} mode="elevated" style={[styles.assignmentSuggestionCard, { backgroundColor: theme.colors.surface }]}>
-                  <Card.Content>
+              {currentSelfAssignmentSuggestions.slice(0, 3).map((suggestion, index) => (
+                <Reveal key={`suggestion-${suggestion.person.id}`} delay={120 + index * 20}>
+                  <Card mode="elevated" style={[styles.assignmentSuggestionCard, { backgroundColor: theme.colors.surface }]}>
+                    <Card.Content>
                     <View style={styles.assignmentSuggestionRow}>
                       <View style={styles.assignmentSuggestionTextWrap}>
                         <View style={styles.collaboratorChipRow}>
@@ -191,8 +197,9 @@ export function OverviewSection({
                         {t(K.treeSettings.linkMe)}
                       </Button>
                     </View>
-                  </Card.Content>
-                </Card>
+                    </Card.Content>
+                  </Card>
+                </Reveal>
               ))}
             </View>
           ) : (

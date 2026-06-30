@@ -401,7 +401,6 @@ export function HomeDashboardView(props: SharedTabProps) {
 
     return items.sort((left, right) => right.createdAt.localeCompare(left.createdAt));
   }, [approvalRequests, mergeRequests, notifications]);
-  const activityAttentionCount = activityAttentionItems.length;
   const activityNotificationCount = useMemo(() => {
     const unseenDirectCount = notifications.filter((notification) => !notification.seenAt).length;
     const actionedStateKeys = new Set(

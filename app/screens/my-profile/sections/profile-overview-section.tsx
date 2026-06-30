@@ -30,42 +30,42 @@ export function ProfileOverviewSection({
   return (
     <Reveal delay={70}>
       <Surface style={[personProfileStyles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
-      <Text variant="titleLarge">{t(K.personProfile.biography)}</Text>
-      <View style={personProfileStyles.metadataRow}>
-        {linkedPerson.gender !== 'unspecified' ? <Chip compact>{formatPersonGender(linkedPerson.gender)}</Chip> : null}
-        <Chip compact icon={isPersonDeceased(linkedPerson) ? 'flower-outline' : 'heart-pulse'}>{getPersonPresenceLabel(linkedPerson)}</Chip>
-        <Chip compact icon="image-multiple">{t(K.memories.photoGalleryCount, { count: linkedPerson.photos.length })}</Chip>
-        <Chip compact icon="source-branch">{t(K.personProfile.treeMemberships)}: {getPersonTreeMembershipIds(linkedPerson).length}</Chip>
-        {preferredPhoto ? <Chip compact icon="star">{t(K.personProfile.preferredPhotoSelected)}</Chip> : null}
-      </View>
-      <Text variant="bodyLarge" style={personProfileStyles.biographyLead}>
-        {biographyLead || t(K.personProfile.waitingForFirstStory, { name: linkedPerson.firstName })}
-      </Text>
+        <Text variant="titleLarge">{t(K.personProfile.biography)}</Text>
+        <View style={personProfileStyles.metadataRow}>
+          {linkedPerson.gender !== 'unspecified' ? <Chip compact>{formatPersonGender(linkedPerson.gender)}</Chip> : null}
+          <Chip compact icon={isPersonDeceased(linkedPerson) ? 'flower-outline' : 'heart-pulse'}>{getPersonPresenceLabel(linkedPerson)}</Chip>
+          <Chip compact icon="image-multiple">{t(K.memories.photoGalleryCount, { count: linkedPerson.photos.length })}</Chip>
+          <Chip compact icon="source-branch">{t(K.personProfile.treeMemberships)}: {getPersonTreeMembershipIds(linkedPerson).length}</Chip>
+          {preferredPhoto ? <Chip compact icon="star">{t(K.personProfile.preferredPhotoSelected)}</Chip> : null}
+        </View>
+        <Text variant="bodyLarge" style={personProfileStyles.biographyLead}>
+          {biographyLead || t(K.personProfile.waitingForFirstStory, { name: linkedPerson.firstName })}
+        </Text>
 
-      <View style={[personProfileStyles.biographyBlock, { backgroundColor: theme.colors.elevation.level1 }]}>
-        <Text variant="titleSmall">{t(K.personProfile.storyDetails)}</Text>
-        <View style={personProfileStyles.biographyFactRow}>
-          <View style={[personProfileStyles.biographyFactCard, { backgroundColor: theme.colors.surface }]}>
-            <Text variant="labelMedium" style={personProfileStyles.detailLabel}>{t(K.personProfile.born)}</Text>
-            <Text variant="titleMedium">{linkedPerson.birthDate ? formatPersonDate(linkedPerson.birthDate) : t(K.common.unknown)}</Text>
-          </View>
-          <View style={[personProfileStyles.biographyFactCard, { backgroundColor: theme.colors.surface }]}>
-            <Text variant="labelMedium" style={personProfileStyles.detailLabel}>{t(K.personProfile.surnameStory)}</Text>
-            <Text variant="titleMedium">{linkedPerson.maidenName?.trim() || linkedPerson.lastName || t(K.common.unknown)}</Text>
-          </View>
-          <View style={[personProfileStyles.biographyFactCard, { backgroundColor: theme.colors.surface }]}>
-            <Text variant="labelMedium" style={personProfileStyles.detailLabel}>{t(K.personProfile.belongsTo)}</Text>
-            <Text variant="titleMedium">{linkedPerson.familyBranch?.trim() || t(K.personProfile.currentTreeOnly)}</Text>
+        <View style={[personProfileStyles.biographyBlock, { backgroundColor: theme.colors.elevation.level1 }]}>
+          <Text variant="titleSmall">{t(K.personProfile.storyDetails)}</Text>
+          <View style={personProfileStyles.biographyFactRow}>
+            <View style={[personProfileStyles.biographyFactCard, { backgroundColor: theme.colors.surface }]}>
+              <Text variant="labelMedium" style={personProfileStyles.detailLabel}>{t(K.personProfile.born)}</Text>
+              <Text variant="titleMedium">{linkedPerson.birthDate ? formatPersonDate(linkedPerson.birthDate) : t(K.common.unknown)}</Text>
+            </View>
+            <View style={[personProfileStyles.biographyFactCard, { backgroundColor: theme.colors.surface }]}>
+              <Text variant="labelMedium" style={personProfileStyles.detailLabel}>{t(K.personProfile.surnameStory)}</Text>
+              <Text variant="titleMedium">{linkedPerson.maidenName?.trim() || linkedPerson.lastName || t(K.common.unknown)}</Text>
+            </View>
+            <View style={[personProfileStyles.biographyFactCard, { backgroundColor: theme.colors.surface }]}>
+              <Text variant="labelMedium" style={personProfileStyles.detailLabel}>{t(K.personProfile.belongsTo)}</Text>
+              <Text variant="titleMedium">{linkedPerson.familyBranch?.trim() || t(K.personProfile.currentTreeOnly)}</Text>
+            </View>
           </View>
         </View>
-      </View>
 
-      <View style={[personProfileStyles.notesBox, { backgroundColor: theme.colors.surfaceVariant }]}>
-        <Text variant="titleSmall">{t(K.personProfile.storyNote)}</Text>
-        <Text variant="bodyMedium" style={[personProfileStyles.notesText, { color: theme.colors.onSurfaceVariant }]}>
-          {linkedPerson.notes || t(K.personProfile.addRealDetail)}
-        </Text>
-      </View>
+        <View style={[personProfileStyles.notesBox, { backgroundColor: theme.colors.surfaceVariant }]}>
+          <Text variant="titleSmall">{t(K.personProfile.storyNote)}</Text>
+          <Text variant="bodyMedium" style={[personProfileStyles.notesText, { color: theme.colors.onSurfaceVariant }]}>
+            {linkedPerson.notes || t(K.personProfile.addRealDetail)}
+          </Text>
+        </View>
       </Surface>
     </Reveal>
   );

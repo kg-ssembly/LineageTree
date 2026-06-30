@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { Button, Chip, SegmentedButtons, Surface, Text, TextInput, useTheme } from 'react-native-paper';
+import { Reveal } from '../../../../components';
 import type { ThemePreference } from '../../../../constants/theme';
 import { GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
@@ -55,7 +56,8 @@ export function AppSettingsSection({ onSignOut, authLoading }: UserProfileTabPro
 
   return (
     <>
-      <Surface style={[treeDetailStyles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
+      <Reveal delay={80}>
+        <Surface style={[treeDetailStyles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
         <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>{t(K.settings.editProfile)}</Text>
         <Text variant="bodySmall" style={[treeDetailStyles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
           {t(K.settings.changeDisplayName)}
@@ -78,9 +80,11 @@ export function AppSettingsSection({ onSignOut, authLoading }: UserProfileTabPro
           </Button>
         </View>
         {nameError ? <Text variant="bodySmall" style={{ color: theme.colors.error, marginTop: 4 }}>{nameError}</Text> : null}
-      </Surface>
+        </Surface>
+      </Reveal>
 
-      <Surface style={[treeDetailStyles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
+      <Reveal delay={100}>
+        <Surface style={[treeDetailStyles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
         <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>{t(K.settings.appearance)}</Text>
         <Text variant="bodySmall" style={[treeDetailStyles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
           {t(K.settings.switchLightDarkModes)}
@@ -98,9 +102,11 @@ export function AppSettingsSection({ onSignOut, authLoading }: UserProfileTabPro
         <View style={[homeStyles.appearanceHint, { backgroundColor: theme.colors.surfaceVariant }]}>
           <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>{appearanceSummary}</Text>
         </View>
-      </Surface>
+        </Surface>
+      </Reveal>
 
-      <Surface style={[treeDetailStyles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
+      <Reveal delay={120}>
+        <Surface style={[treeDetailStyles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
         <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>{t(K.settings.appLanguage)}</Text>
         <Text variant="bodySmall" style={[treeDetailStyles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
           {t(K.settings.chooseLanguage)}
@@ -118,7 +124,8 @@ export function AppSettingsSection({ onSignOut, authLoading }: UserProfileTabPro
             </Chip>
           ))}
         </View>
-      </Surface>
+        </Surface>
+      </Reveal>
 
       <Button mode="contained-tonal" icon="logout" onPress={onSignOut} disabled={authLoading} contentStyle={homeStyles.signOutButtonContent} style={homeStyles.signOutButton}>
         {t(K.common.logOut)}

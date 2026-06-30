@@ -5,14 +5,12 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as ImagePicker from 'expo-image-picker';
 import {
   ActivityIndicator,
-  Button,
   Surface,
   Text,
   useTheme,
 } from 'react-native-paper';
 import {
   ConfirmDialog,
-  FamilyTreeCanvas,
   HorizontalTabStrip,
   LifeEventDialog,
   PersonFormDialog,
@@ -22,13 +20,8 @@ import type { PersonRelationshipMode } from '../../../components/person-relation
 import type { RootStackParamList } from '../../../components/dto/navigation';
 import type { NewPersonPhotoInput, PersonLifeEvent, PersonMutationPayload, PersonPhoto, PersonRecord } from '../../../components/dto/person';
 import {
-  formatPersonDate,
   getDisplayPersonPhoto,
   getLifeEventTypeLabel,
-  getPersonLifeSpanLabel,
-  getPersonPresenceLabel,
-  getPersonTreeMembershipIds,
-  isPersonDeceased,
 } from '../../../components/dto/person';
 import { MAX_PHOTOS_PER_PERSON, MAX_PHOTO_BYTES, preparePhotoForUpload } from '../../../components/photo-utils';
 import type { ParentChildRelationshipKind, RelationshipRecord, SpouseRelationshipStatus } from '../../../components/dto/relationship';
@@ -187,8 +180,6 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
     loadingTrees,
     loadingTreeData,
     mutating,
-    error,
-    notice,
     updatePerson,
     removePerson,
     addParentChildRelationship,

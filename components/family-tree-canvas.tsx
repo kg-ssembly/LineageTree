@@ -64,9 +64,7 @@ import {
   extractSurname,
   filterForActiveSurnames,
   findCrossSurnameChildren,
-  findFamilyBridges,
   findMaidenNameMembers,
-  getConnectedSurnames,
   getSortedSurnames,
 } from './family-tree-surname-clusters';
 import { useI18n } from '../hooks/use-i18n';
@@ -438,10 +436,6 @@ function FamilyTreeCanvas({
   const sortedSurnames = useMemo(
     () => getSortedSurnames(surnameClusters),
     [surnameClusters],
-  );
-  const allBridges = useMemo(
-    () => findFamilyBridges(renderedPeople, renderedRelationships, currentTreeId),
-    [currentTreeId, renderedPeople, renderedRelationships],
   );
 
   // Determine the "seed" person for initial surname selection (doesn't depend on layout).

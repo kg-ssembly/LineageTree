@@ -12,8 +12,6 @@ export function PersonLineageSection({
   title,
   helperLabel,
   count,
-  singularLabel,
-  pluralLabel,
   person,
   people,
   relationships,
@@ -25,8 +23,6 @@ export function PersonLineageSection({
   title: string;
   helperLabel: string;
   count: number;
-  singularLabel: string;
-  pluralLabel: string;
   person: PersonRecord;
   people: PersonRecord[];
   relationships: RelationshipRecord[];

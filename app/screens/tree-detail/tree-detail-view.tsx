@@ -1,24 +1,17 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Image, Pressable, ScrollView, View } from 'react-native';
+import { View } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   ActivityIndicator,
-  Button,
-  Chip,
-  Dialog,
-  IconButton,
-  Portal,
   Snackbar,
-  Text,
   useTheme,
 } from 'react-native-paper';
 import {
   CollaboratorDialog,
   ConfirmDialog,
-  HorizontalTabStrip,
   PersonFormDialog,
   RelationshipDialog,
 } from '../../../components';
@@ -26,15 +19,15 @@ import type { PersonFormSubmission } from '../../../components/person-form-dialo
 import type { PendingRelationshipSubmission } from '../../../components/person-form-dialog';
 import { useAuthStore } from '../../../stores/auth-store';
 import { useTreeStore } from '../../../stores/tree-store';
-import type { PersonPhoto, PersonRecord } from '../../../components/dto/person';
-import { formatPersonDate, getDisplayPersonPhoto, getLifeEventTypeLabel, getPersonLifeSpanLabel, getPersonPresenceLabel } from '../../../components/dto/person';
+import type { PersonRecord } from '../../../components/dto/person';
+import { getDisplayPersonPhoto, getLifeEventTypeLabel, getPersonPresenceLabel } from '../../../components/dto/person';
 import type { ParentChildRelationshipKind, SpouseRelationshipStatus } from '../../../components/dto/relationship';
 import type { RelationshipRecord } from '../../../components/dto/relationship';
 import type { RootStackParamList, TreeDetailTabParamList } from '../../../components/dto/navigation';
 import { getUserDisplayLabel } from '../../../components/dto/user';
 import { formatPersonName } from '../../../components/person-formatting';
-import { findCrossSurnameChildren, extractSurname } from '../../../components/family-tree-surname-clusters';
-import { canEditTreeContent, canManageTree, getAssignedPersonId, getTreeRole, type CollaboratorRole, type FamilyTree } from '../../../components/dto/tree';
+import { findCrossSurnameChildren } from '../../../components/family-tree-surname-clusters';
+import { canEditTreeContent, canManageTree, getAssignedPersonId, getTreeRole, type CollaboratorRole } from '../../../components/dto/tree';
 import { computeRelationshipInsight } from '../../../providers';
 import { getTreeBundle } from '../../../providers/family-tree-service';
 import { GlobalStyles } from '../../../constants/styles';
@@ -54,7 +47,6 @@ import {
 } from '../tree-screen-helpers';
 import { TreeDetailMaidenViewer } from './tree-detail-maiden-viewer';
 import { TreeDetailNodeQuickActionsDialog } from './tree-detail-node-quick-actions-dialog';
-const dialogChrome = GlobalStyles.dialogChrome;
 
 type Props = NativeStackScreenProps<RootStackParamList, 'TreeDetail'>;
 

@@ -243,42 +243,6 @@ function needsTreeMembershipBackfill(data: DocumentData, treeId: string) {
   return !(Array.isArray(data.treeMembershipIds) && data.treeMembershipIds.includes(treeId));
 }
 
-function buildTreeMembershipBackfill(person: PersonRecord, treeId: string) {
-  const nextTreeMembershipIds = [...new Set([...(Array.isArray(person.treeMembershipIds) ? person.treeMembershipIds : []), treeId])];
-  const existingMemberships = Array.isArray(person.treeMemberships) ? person.treeMemberships : [];
-  const hasMembershipEntry = existingMemberships.some((membership) => membership?.treeId === treeId);
-
-  return {
-    treeMembershipIds: nextTreeMembershipIds,
-    treeMemberships: hasMembershipEntry
-      ? existingMemberships
-      : [...existingMemberships, {
-        treeId,
-        role: 'subject' as const,
-        joinedAt: person.createdAt ?? nowIso(),
-        addedByUserId: person.ownerId || undefined,
-        source: 'manual' as const,
-      }],
-  };
-}
-
-async function backfillLegacyPeopleMemberships(treeId: string, people: PersonRecord[]) {
-  if (people.length === 0) {
-    return;
-  }
-
-  for (let index = 0; index < people.length; index += 450) {
-    const batch = writeBatch(db);
-    people.slice(index, index + 450).forEach((person) => {
-      batch.update(doc(db, PEOPLE_COLLECTION, person.id), {
-        ...buildTreeMembershipBackfill(person, treeId),
-        updatedAt: person.updatedAt ?? nowIso(),
-      });
-    });
-    await batch.commit();
-  }
-}
-
 async function getLegacyPeopleNeedingBackfill(treeId: string) {
   const snapshot = await getDocs(query(collection(db, PEOPLE_COLLECTION), where('treeId', '==', treeId)));
   return snapshot.docs

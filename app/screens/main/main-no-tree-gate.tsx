@@ -2,6 +2,7 @@ import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Button, Chip, Surface, Text } from 'react-native-paper';
+import { Reveal } from '../../../components';
 import { GlobalStyles } from '../../../constants/styles';
 import { I18N_KEYS as K } from '../../../i18n/keys';
 import type { useMainScreenController } from './main-controller';
@@ -79,30 +80,32 @@ export function MainNoTreeGate({
         backgroundColor: controller.theme.colors.tertiaryContainer,
       }]} />
 
-      <Surface style={[localStyles.card, {
-        backgroundColor: controller.theme.colors.surface,
-        borderColor: controller.theme.colors.outlineVariant,
-      }]} elevation={2}>
-        <View style={[localStyles.crest, { backgroundColor: controller.theme.colors.primaryContainer }]}>
-          <MaterialCommunityIcons name="family-tree" size={48} color={controller.theme.colors.primary} />
-        </View>
+      <Reveal delay={60}>
+        <Surface style={[localStyles.card, {
+          backgroundColor: controller.theme.colors.surface,
+          borderColor: controller.theme.colors.outlineVariant,
+        }]} elevation={2}>
+          <View style={[localStyles.crest, { backgroundColor: controller.theme.colors.primaryContainer }]}>
+            <MaterialCommunityIcons name="family-tree" size={48} color={controller.theme.colors.primary} />
+          </View>
 
-        <View style={localStyles.chipRow}>
-          <Chip compact icon="account-group-outline">{controller.t(K.navigation.members)}</Chip>
-          <Chip compact icon="timeline-text-outline">{controller.t(K.navigation.tree)}</Chip>
-          <Chip compact icon="image-outline">Memories</Chip>
-        </View>
+          <View style={localStyles.chipRow}>
+            <Chip compact icon="account-group-outline">{controller.t(K.navigation.members)}</Chip>
+            <Chip compact icon="timeline-text-outline">{controller.t(K.navigation.tree)}</Chip>
+            <Chip compact icon="image-outline">Memories</Chip>
+          </View>
 
-        <Text variant="headlineMedium" style={[localStyles.noTreeGateText, localStyles.title, { color: controller.theme.colors.onSurface }]}>
-          {controller.t(K.app.noFamilyTreeYet)}
-        </Text>
-        <Text variant="bodyLarge" style={[localStyles.noTreeGateText, localStyles.body, { color: controller.theme.colors.onSurfaceVariant }]}>
-          {controller.t(K.app.createFirstFamilyTree)}
-        </Text>
-        <Button mode="contained" icon="plus" onPress={onCreateTree} contentStyle={homeStyles.headerButtonContent}>
-          {controller.t(K.app.createFamilyTree)}
-        </Button>
-      </Surface>
+          <Text variant="headlineMedium" style={[localStyles.noTreeGateText, localStyles.title, { color: controller.theme.colors.onSurface }]}>
+            {controller.t(K.app.noFamilyTreeYet)}
+          </Text>
+          <Text variant="bodyLarge" style={[localStyles.noTreeGateText, localStyles.body, { color: controller.theme.colors.onSurfaceVariant }]}>
+            {controller.t(K.app.createFirstFamilyTree)}
+          </Text>
+          <Button mode="contained" icon="plus" onPress={onCreateTree} contentStyle={homeStyles.headerButtonContent}>
+            {controller.t(K.app.createFamilyTree)}
+          </Button>
+        </Surface>
+      </Reveal>
     </View>
   );
 }

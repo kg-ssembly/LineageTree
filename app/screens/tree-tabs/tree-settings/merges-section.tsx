@@ -68,8 +68,9 @@ export function MergesSection({
       </View>
 
       {pendingMergeInvites.length > 0 ? (
-        <Card mode="elevated" style={[styles.collaboratorCard, { backgroundColor: theme.colors.surface, marginBottom: 16 }]}>
-          <Card.Content>
+        <Reveal delay={90}>
+          <Card mode="elevated" style={[styles.collaboratorCard, { backgroundColor: theme.colors.surface, marginBottom: 16 }]}>
+            <Card.Content>
             <View style={styles.titleWithHelperRow}>
               <Text variant="titleMedium">{t(K.treeSettings.mergeInvitations)}</Text>
               <IconButton
@@ -101,12 +102,14 @@ export function MergesSection({
                 </Card>
               ))}
             </View>
-          </Card.Content>
-        </Card>
+            </Card.Content>
+          </Card>
+        </Reveal>
       ) : null}
 
-      <Card mode="elevated" style={[styles.selfAssignmentCard, { backgroundColor: theme.colors.surface, marginBottom: 16 }]}>
-        <Card.Content>
+      <Reveal delay={110}>
+        <Card mode="elevated" style={[styles.selfAssignmentCard, { backgroundColor: theme.colors.surface, marginBottom: 16 }]}>
+          <Card.Content>
           <Text variant="titleMedium" style={{ marginBottom: 8 }}>{t(K.treeSettings.inviteAnotherUserToMerge)}</Text>
           <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
             Invite someone who holds another branch of the story and compare where your trees overlap.
@@ -131,8 +134,9 @@ export function MergesSection({
               {t(K.treeSettings.sendInvitation)}
             </Button>
           </View>
-        </Card.Content>
-      </Card>
+          </Card.Content>
+        </Card>
+      </Reveal>
 
       {mergePreview ? (
         <Button mode="outlined" icon="eye-outline" onPress={() => setMergePreviewVisible(true)} style={{ marginBottom: 16, alignSelf: 'flex-start' }}>
@@ -157,12 +161,13 @@ export function MergesSection({
 
       {pendingMergeRequests.length > 0 ? (
         <View style={styles.collaboratorList}>
-          {pendingMergeRequests.map((request) => {
+          {pendingMergeRequests.map((request, index) => {
             const selectedMatchIds = mergeSelectionDrafts[request.id] ?? request.selectedMatchIds;
 
             return (
-              <Card key={request.id} mode="elevated" style={[styles.collaboratorCard, { backgroundColor: request.id === highlightedMergeRequestId ? theme.colors.surfaceVariant : theme.colors.surface }]}>
-                <Card.Content>
+              <Reveal key={request.id} delay={130 + index * 25}>
+                <Card mode="elevated" style={[styles.collaboratorCard, { backgroundColor: request.id === highlightedMergeRequestId ? theme.colors.surfaceVariant : theme.colors.surface }]}>
+                  <Card.Content>
                   <Text variant="titleMedium">{request.preview.sourceTree.treeName} ↔ {request.preview.targetTree.treeName}</Text>
                   <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>
                     {t(K.treeSettings.suggestedMergeSummary, {
@@ -211,8 +216,9 @@ export function MergesSection({
                       {t(K.treeSettings.reject)}
                     </Button>
                   </View>
-                </Card.Content>
-              </Card>
+                  </Card.Content>
+                </Card>
+              </Reveal>
             );
           })}
         </View>

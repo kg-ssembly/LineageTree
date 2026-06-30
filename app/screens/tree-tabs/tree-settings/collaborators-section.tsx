@@ -16,7 +16,6 @@ export function CollaboratorsSection({
   people,
   assignedPersonByUserId,
   assignedUserIdByPersonId,
-  role,
   isOwner,
   userId,
   mutating,

@@ -313,13 +313,13 @@ export function NotificationsView({
 
         {notificationFeed.length > 0 ? (
           <View style={styles.collaboratorList}>
-            {paginatedFeed.map((item) => (
-              <Card
-                key={item.id}
-                mode="outlined"
-                style={[styles.collaboratorCard, { backgroundColor: theme.colors.surface, borderRadius: 12, marginBottom: 10 }]}
-              >
-                <Card.Content style={{ paddingVertical: 10, paddingHorizontal: 12 }}>
+            {paginatedFeed.map((item, index) => (
+              <Reveal key={item.id} delay={80 + index * 35}>
+                <Card
+                  mode="outlined"
+                  style={[styles.collaboratorCard, { backgroundColor: theme.colors.surface, borderRadius: 12, marginBottom: 10 }]}
+                >
+                  <Card.Content style={{ paddingVertical: 10, paddingHorizontal: 12 }}>
                   <Pressable onPress={() => { void openNotification(item); }}>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
                       <View style={{ flex: 1 }}>
@@ -373,8 +373,9 @@ export function NotificationsView({
                       </Button>
                     ) : null}
                   </View>
-                </Card.Content>
-              </Card>
+                  </Card.Content>
+                </Card>
+              </Reveal>
             ))}
             {totalPages > 1 ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingTop: 4 }}>
