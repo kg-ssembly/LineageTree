@@ -700,48 +700,15 @@ function FamilyTreeCanvas({
     scheduleViewportState(clampPanToViewport(np, ns, activeViewportSize.width, activeViewportSize.height), ns);
   }, [activeViewportSize.height, activeViewportSize.width, clampPanToViewport, scheduleViewportState]);
 
-  const focusPersonInViewport = useCallback((personId: string, nextScale = Math.min(MAX_SCALE, Math.max(scaleRef.current, 0.92))) => {
-    if (activeViewportSize.width <= 0 || activeViewportSize.height <= 0) {
-      return;
-    }
-
-    const focusPoint = positionsByPersonId.get(personId);
-    if (!focusPoint) {
-      return;
-    }
-
-    const targetPan = clampPanToViewport({
-      x: activeViewportSize.width / 2 / nextScale - (focusPoint.x + C.NODE_WIDTH / 2),
-      y: activeViewportSize.height / 2 / nextScale - (focusPoint.y + C.NODE_HEIGHT / 2),
-    }, nextScale, activeViewportSize.width, activeViewportSize.height, CONTENT_BOUNDARY_PADDING);
-
-    Animated.parallel([
-      Animated.timing(scaleAnim, {
-        toValue: nextScale,
-        duration: 240,
-        useNativeDriver: true,
-      }),
-      Animated.timing(panXAnim, {
-        toValue: targetPan.x * nextScale,
-        duration: 240,
-        useNativeDriver: true,
-      }),
-      Animated.timing(panYAnim, {
-        toValue: targetPan.y * nextScale,
-        duration: 240,
-        useNativeDriver: true,
-      }),
-    ]).start(() => {
-      scheduleViewportState(targetPan, nextScale);
-      flushViewportState();
-    });
-  }, [activeViewportSize.height, activeViewportSize.width, clampPanToViewport, flushViewportState, panXAnim, panYAnim, positionsByPersonId, scaleAnim, scheduleViewportState]);
-
   const zoomBy = useCallback((delta: number) => {
     const vw = (isFullscreen ? fullscreenViewportSize : inlineViewportSize).width;
     const vh = (isFullscreen ? fullscreenViewportSize : inlineViewportSize).height;
     zoomAt(vw / 2, vh / 2, scaleRef.current * (1 + delta));
   }, [zoomAt, isFullscreen, fullscreenViewportSize, inlineViewportSize]);
+
+  const handlePersonPress = useCallback((pressedPerson: PersonRecord) => {
+    onPressPerson(pressedPerson);
+  }, [onPressPerson]);
 
   // ---- Web wheel: scroll = pan, ctrl/⌘+wheel = zoom ----
   const handleWheel = useCallback((e: any) => {
@@ -1021,10 +988,7 @@ function FamilyTreeCanvas({
                     variantSurface={theme.colors.surfaceVariant}
                     variantOnSurface={theme.colors.onSurfaceVariant}
                     onPrimaryColor={theme.colors.onPrimary}
-                    onPress={(pressedPerson) => {
-                      focusPersonInViewport(pressedPerson.id);
-                      setTimeout(() => onPressPerson(pressedPerson), 170);
-                    }}
+                    onPress={handlePersonPress}
                 />
             );
           })}

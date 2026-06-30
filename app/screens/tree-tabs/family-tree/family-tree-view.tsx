@@ -1,6 +1,6 @@
 import React from 'react';
 import { View } from 'react-native';
-import { Chip, Text, useTheme } from 'react-native-paper';
+import { ActivityIndicator, Chip, Text, useTheme } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { FamilyTreeCanvas } from '../../../../components';
 import { GlobalStyles } from '../../../../constants/styles';
@@ -16,6 +16,7 @@ export function FamilyTreeView({
   relationships,
   onOpenPersonQuickActions,
   currentAssignedPerson,
+  loadingTreeData,
   familySwitchRef,
   activeFamilyRef,
 }: SharedTabProps) {
@@ -37,6 +38,13 @@ export function FamilyTreeView({
           familySwitchRef={familySwitchRef}
           activeFamilyRef={activeFamilyRef}
         />
+      ) : loadingTreeData ? (
+        <View style={[styles.visualisationEmptyState, { backgroundColor: theme.colors.surface }]}>
+          <ActivityIndicator color={theme.colors.primary} />
+          <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant, marginTop: 14 }]}>
+            {t(K.tree.familyMembers.loading)}
+          </Text>
+        </View>
       ) : (
         <View style={[styles.visualisationEmptyState, { backgroundColor: theme.colors.surface }]}>
           <View style={{
