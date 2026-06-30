@@ -1,4 +1,5 @@
 import { translate } from '../../i18n';
+import { I18N_KEYS as K } from '../../i18n/keys';
 
 export type PersonGender = 'unspecified' | 'female' | 'male' | 'non-binary' | 'other';
 
@@ -174,7 +175,7 @@ export function parsePersonDate(value: string) {
 export function formatPersonDate(value: string) {
   const parsed = parsePersonDate(value);
   if (!parsed) {
-    return value || translate('Unknown');
+    return value || translate(K.common.unknown);
   }
 
   return formatDate(parsed);
@@ -195,41 +196,41 @@ export function isPersonDeceased(person?: PersonRecord | null) {
 
 export function getPersonPresenceLabel(person?: PersonRecord | null) {
   if (person?.deathDate) {
-    return translate('In memory • {date}', { date: formatPersonDate(person.deathDate) });
+    return `${translate(K.personProfile.inMemory)} • ${formatPersonDate(person.deathDate)}`;
   }
 
-  return translate('Present');
+  return translate(K.common.present);
 }
 
 export function getPersonLifeSpanLabel(person?: PersonRecord | null) {
   if (!person) {
-    return translate('Unknown lifespan');
+    return translate(K.personProfile.unknownLifespan);
   }
 
-  const birthLabel = person.birthDate ? formatPersonDate(person.birthDate) : translate('Birth date unknown');
-  const deathLabel = person.deathDate ? formatPersonDate(person.deathDate) : translate('Present');
+  const birthLabel = person.birthDate ? formatPersonDate(person.birthDate) : translate(K.personProfile.birthDateUnknown);
+  const deathLabel = person.deathDate ? formatPersonDate(person.deathDate) : translate(K.common.present);
   return `${birthLabel} - ${deathLabel}`;
 }
 
 export function getLifeEventTypeLabel(type: PersonLifeEventType) {
   switch (type) {
     case 'married':
-      return translate('Married');
+      return translate(K.memories.eventTypeMarried);
     case 'divorced':
-      return translate('Divorced');
+      return translate(K.memories.eventTypeDivorced);
     case 'moved':
-      return translate('Moved');
+      return translate(K.memories.eventTypeMoved);
     case 'graduated':
-      return translate('Graduated');
+      return translate(K.memories.eventTypeGraduated);
     case 'retired':
-      return translate('Retired');
+      return translate(K.memories.eventTypeRetired);
     case 'milestone':
-      return translate('Milestone');
+      return translate(K.memories.eventTypeMilestone);
     case 'death':
-      return translate('Death');
+      return translate(K.memories.eventTypeDeath);
     case 'child-born':
-      return translate('Had a child');
+      return translate(K.memories.eventTypeChildBorn);
     default:
-      return translate('Custom');
+      return translate(K.memories.eventTypeCustom);
   }
 }

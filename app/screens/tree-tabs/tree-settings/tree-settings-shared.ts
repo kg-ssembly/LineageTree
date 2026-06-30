@@ -4,6 +4,7 @@ import type { RelationshipRecord } from '../../../../components/dto/relationship
 import { formatPersonDate } from '../../../../components/dto/person';
 import { formatPersonGender, formatPersonName } from '../../../../components/person-formatting';
 import { translate } from '../../../../i18n';
+import { I18N_KEYS as K } from '../../../../i18n/keys';
 import type { SharedTabProps } from '../shared';
 
 export type TreeManagementTabKey = 'overview' | 'collaborators' | 'approvals' | 'merges' | 'trees';
@@ -20,59 +21,59 @@ export type TreeHelperDialogKey =
   | 'my-trees';
 
 export const TREE_MANAGEMENT_TABS: Array<{ key: TreeManagementTabKey; label: string }> = [
-  { key: 'overview', label: 'Overview' },
-  { key: 'collaborators', label: 'Collaborators' },
-  { key: 'approvals', label: 'Approvals' },
-  { key: 'merges', label: 'Merges' },
-  { key: 'trees', label: 'My Trees' },
+  { key: 'overview', label: K.treeSettings.overviewTab },
+  { key: 'collaborators', label: K.treeSettings.collaboratorsTab },
+  { key: 'approvals', label: K.treeSettings.approvalsTab },
+  { key: 'merges', label: K.treeSettings.mergesTab },
+  { key: 'trees', label: K.treeSettings.myTreesTab },
 ];
 
 export const TREE_HELPER_COPY: Record<TreeHelperDialogKey, { title: string; message: string }> = {
   'tree-management': {
-    title: 'Tree home',
-    message: 'Overview brings together the tree-wide setup pieces such as surname variants and your linked place in this family space. Collaborators shows who is part of the circle. Approvals and merges help shared work move forward smoothly.',
+    title: K.treeSettings.treeHomeTitle,
+    message: K.treeSettings.treeHomeMessage,
   },
   'surname-variants': {
-    title: 'Surname variants',
-    message: 'Surname variants belong to this tree as one shared list. Add alternate spellings or related surnames here so search and merge suggestions can recognize them across the whole tree.',
+    title: K.treeSettings.surnameVariantsTitle,
+    message: K.treeSettings.surnameVariantsMessage,
   },
   'my-place': {
-    title: 'My place in this tree',
-    message: 'Link your account to the family member profile that represents you in this tree. Once connected, you can jump into your branch quickly and see how your story connects with the wider family.',
+    title: K.treeSettings.myPlaceInThisTreeTitle,
+    message: K.treeSettings.myPlaceInThisTreeMessage,
   },
   'approval-settings': {
-    title: 'Review rhythm',
-    message: 'Choose how shared edits move through this tree. Turning review off lets changes land right away. A 12, 24, or 48 hour window gives everyone a chance to look before changes settle in automatically.',
+    title: K.treeSettings.reviewRhythmTitle,
+    message: K.treeSettings.reviewRhythmMessage,
   },
   collaborators: {
-    title: 'Family circle',
-    message: 'This is the circle of people helping shape the tree. Editors can add and refine stories, viewers can explore, and owners can help everyone find the right linked profile.',
+    title: K.treeSettings.familyCircleTitle,
+    message: K.treeSettings.familyCircleMessage,
   },
   'pending-approvals': {
-    title: 'Waiting for a look',
-    message: 'Shared profile and relationship edits that need a quick review appear here. If no one responds before the review window ends, they settle in automatically.',
+    title: K.treeSettings.waitingForALookTitle,
+    message: K.treeSettings.waitingForALookMessage,
   },
   'merge-guidance': {
-    title: 'Collaborative merges',
-    message: 'Choose which of your trees to offer for merge, then invite a registered user by email or username. They will preview the merge after choosing their own tree. Each merge needs at least one editor approval from each affected tree before anything is applied.',
+    title: K.treeSettings.collaborativeMergesTitle,
+    message: K.treeSettings.collaborativeMergesMessage,
   },
   'merge-invitations': {
-    title: 'Merge invitations',
-    message: 'When another user invites you to merge, choose which of your trees should participate, then load that invitation into the merge review flow.',
+    title: K.treeSettings.mergeInvitationsTitle,
+    message: K.treeSettings.mergeInvitationsMessage,
   },
   'maiden-surname-trees': {
-    title: 'Suggested maiden surname trees',
-    message: 'These maiden surnames appear in this tree but are not part of its surname identity. Create a separate tree for later merge review.',
+    title: K.treeSettings.suggestedMaidenSurnameTreesTitle,
+    message: K.treeSettings.suggestedMaidenSurnameTreesMessage,
   },
   'my-trees': {
-    title: 'My family trees',
-    message: 'Move between your family spaces here, copy a tree ID when you need to share it, and jump into the tree that feels most relevant right now.',
+    title: K.treeSettings.myFamilyTreesTitle,
+    message: K.treeSettings.myFamilyTreesMessage,
   },
 };
 
 export function formatRole(role: string | null | undefined) {
   if (!role) {
-    return translate('Shared');
+    return translate(K.treeSettings.sharedRole);
   }
 
   return role.charAt(0).toUpperCase() + role.slice(1);
@@ -88,7 +89,7 @@ type ApprovalPreviewField = {
   after?: string | null;
 };
 
-function formatApprovalValue(value?: string | null, emptyLabel = 'Not provided') {
+function formatApprovalValue(value?: string | null, emptyLabel: string = K.treeSettings.notProvided) {
   if (!value?.trim()) {
     return translate(emptyLabel);
   }
@@ -96,7 +97,7 @@ function formatApprovalValue(value?: string | null, emptyLabel = 'Not provided')
   return value.trim();
 }
 
-function formatApprovalList(values?: string[] | null, emptyLabel = 'None') {
+function formatApprovalList(values?: string[] | null, emptyLabel: string = K.common.none) {
   if (!values?.length) {
     return translate(emptyLabel);
   }
@@ -106,18 +107,18 @@ function formatApprovalList(values?: string[] | null, emptyLabel = 'None') {
 
 function formatApprovalLifeEvents(person?: PersonRecord | null) {
   if (!person?.lifeEvents?.length) {
-    return translate('None');
+    return translate(K.common.none);
   }
 
-  return translate('{count} recorded', { count: person.lifeEvents.length });
+  return translate(K.treeSettings.countRecorded, { count: person.lifeEvents.length });
 }
 
 function formatApprovalPhotos(person?: PersonRecord | null) {
   if (!person?.photos?.length) {
-    return translate('None');
+    return translate(K.common.none);
   }
 
-  return translate('{count} photo(s)', { count: person.photos.length });
+  return translate(K.treeSettings.countPhotos, { count: person.photos.length });
 }
 
 export function buildPersonApprovalPreviewFields(beforePerson?: PersonRecord | null, afterPerson?: PersonRecord | null): ApprovalPreviewField[] {
@@ -126,20 +127,20 @@ export function buildPersonApprovalPreviewFields(beforePerson?: PersonRecord | n
   }
 
   const fields: ApprovalPreviewField[] = [
-    { label: translate('Name'), before: beforePerson ? formatPersonName(beforePerson) : null, after: afterPerson ? formatPersonName(afterPerson) : null },
-    { label: translate('Middle names'), before: formatApprovalValue(beforePerson?.middleNames), after: formatApprovalValue(afterPerson?.middleNames) },
-    { label: translate('Maiden name'), before: formatApprovalValue(beforePerson?.maidenName), after: formatApprovalValue(afterPerson?.maidenName) },
-    { label: translate('Nicknames'), before: formatApprovalList(beforePerson?.nicknames), after: formatApprovalList(afterPerson?.nicknames) },
-    { label: translate('Gender'), before: beforePerson ? formatPersonGender(beforePerson.gender) : null, after: afterPerson ? formatPersonGender(afterPerson.gender) : null },
-    { label: translate('Birth date'), before: beforePerson?.birthDate ? formatPersonDate(beforePerson.birthDate) : translate('Unknown'), after: afterPerson?.birthDate ? formatPersonDate(afterPerson.birthDate) : translate('Unknown') },
-    { label: translate('Death date'), before: beforePerson?.deathDate ? formatPersonDate(beforePerson.deathDate) : translate('Present'), after: afterPerson?.deathDate ? formatPersonDate(afterPerson.deathDate) : translate('Present') },
-    { label: translate('Birth place'), before: formatApprovalValue(beforePerson?.birthPlace), after: formatApprovalValue(afterPerson?.birthPlace) },
-    { label: translate('Hometown'), before: formatApprovalValue(beforePerson?.hometown), after: formatApprovalValue(afterPerson?.hometown) },
-    { label: translate('Clan name'), before: formatApprovalValue(beforePerson?.clanName), after: formatApprovalValue(afterPerson?.clanName) },
-    { label: translate('Family branch'), before: formatApprovalValue(beforePerson?.familyBranch), after: formatApprovalValue(afterPerson?.familyBranch) },
-    { label: translate('Life events'), before: formatApprovalLifeEvents(beforePerson), after: formatApprovalLifeEvents(afterPerson) },
-    { label: translate('Photos'), before: formatApprovalPhotos(beforePerson), after: formatApprovalPhotos(afterPerson) },
-    { label: translate('Notes'), before: formatApprovalValue(beforePerson?.notes, translate('No notes')), after: formatApprovalValue(afterPerson?.notes, translate('No notes')) },
+    { label: translate(K.common.name), before: beforePerson ? formatPersonName(beforePerson) : null, after: afterPerson ? formatPersonName(afterPerson) : null },
+    { label: translate(K.treeSettings.middleNames), before: formatApprovalValue(beforePerson?.middleNames), after: formatApprovalValue(afterPerson?.middleNames) },
+    { label: translate(K.personForm.maidenName), before: formatApprovalValue(beforePerson?.maidenName), after: formatApprovalValue(afterPerson?.maidenName) },
+    { label: translate(K.treeSettings.nicknames), before: formatApprovalList(beforePerson?.nicknames), after: formatApprovalList(afterPerson?.nicknames) },
+    { label: translate(K.personForm.gender), before: beforePerson ? formatPersonGender(beforePerson.gender) : null, after: afterPerson ? formatPersonGender(afterPerson.gender) : null },
+    { label: translate(K.personForm.birthDate), before: beforePerson?.birthDate ? formatPersonDate(beforePerson.birthDate) : translate(K.common.unknown), after: afterPerson?.birthDate ? formatPersonDate(afterPerson.birthDate) : translate(K.common.unknown) },
+    { label: translate(K.treeSettings.deathDate), before: beforePerson?.deathDate ? formatPersonDate(beforePerson.deathDate) : translate(K.common.present), after: afterPerson?.deathDate ? formatPersonDate(afterPerson.deathDate) : translate(K.common.present) },
+    { label: translate(K.treeSettings.birthPlace), before: formatApprovalValue(beforePerson?.birthPlace), after: formatApprovalValue(afterPerson?.birthPlace) },
+    { label: translate(K.treeSettings.hometown), before: formatApprovalValue(beforePerson?.hometown), after: formatApprovalValue(afterPerson?.hometown) },
+    { label: translate(K.treeSettings.clanName), before: formatApprovalValue(beforePerson?.clanName), after: formatApprovalValue(afterPerson?.clanName) },
+    { label: translate(K.treeSettings.familyBranch), before: formatApprovalValue(beforePerson?.familyBranch), after: formatApprovalValue(afterPerson?.familyBranch) },
+    { label: translate(K.treeSettings.lifeEvents), before: formatApprovalLifeEvents(beforePerson), after: formatApprovalLifeEvents(afterPerson) },
+    { label: translate(K.treeSettings.photos), before: formatApprovalPhotos(beforePerson), after: formatApprovalPhotos(afterPerson) },
+    { label: translate(K.treeSettings.notes), before: formatApprovalValue(beforePerson?.notes, translate(K.treeSettings.noNotes)), after: formatApprovalValue(afterPerson?.notes, translate(K.treeSettings.noNotes)) },
   ];
 
   if (!beforePerson || !afterPerson) {
@@ -150,12 +151,12 @@ export function buildPersonApprovalPreviewFields(beforePerson?: PersonRecord | n
 }
 
 function formatRelationshipType(type: RelationshipRecord['type']) {
-  return type === 'spouse' ? translate('Spouse') : translate('Parent-child');
+  return type === 'spouse' ? translate(K.treeSettings.spouseLabel) : translate(K.treeSettings.parentChild);
 }
 
 function formatRelationshipStatus(value?: RelationshipRecord['relationshipStatus']) {
   if (!value) {
-    return translate('Not set');
+    return translate(K.treeSettings.notSet);
   }
 
   return value.charAt(0).toUpperCase() + value.slice(1);
@@ -163,7 +164,7 @@ function formatRelationshipStatus(value?: RelationshipRecord['relationshipStatus
 
 function formatParentChildKind(value?: RelationshipRecord['parentChildKind']) {
   if (!value) {
-    return translate('Not set');
+    return translate(K.treeSettings.notSet);
   }
 
   return value.charAt(0).toUpperCase() + value.slice(1);
@@ -174,7 +175,7 @@ function formatRelationshipPeople(
   peopleById: Map<string, PersonRecord>,
 ) {
   if (!relationship) {
-    return translate('Unknown people');
+    return translate(K.treeSettings.unknownPeople);
   }
 
   const fromPerson = peopleById.get(relationship.fromPersonId);
@@ -198,22 +199,22 @@ export function buildRelationshipApprovalPreviewFields(
 
   const fields: ApprovalPreviewField[] = [
     {
-      label: translate('Relationship type'),
+      label: translate(K.treeSettings.relationshipType),
       before: beforeRelationship ? formatRelationshipType(beforeRelationship.type) : null,
       after: afterRelationship ? formatRelationshipType(afterRelationship.type) : null,
     },
     {
-      label: beforeRelationship?.type === 'spouse' || afterRelationship?.type === 'spouse' ? translate('People') : translate('Parent -> child'),
+      label: beforeRelationship?.type === 'spouse' || afterRelationship?.type === 'spouse' ? translate(K.treeSettings.people) : translate(K.treeSettings.parentToChildLabel),
       before: formatRelationshipPeople(beforeRelationship, peopleById),
       after: formatRelationshipPeople(afterRelationship, peopleById),
     },
     {
-      label: translate('Spouse status'),
+      label: translate(K.treeSettings.spouseStatus),
       before: formatRelationshipStatus(beforeRelationship?.relationshipStatus),
       after: formatRelationshipStatus(afterRelationship?.relationshipStatus),
     },
     {
-      label: translate('Parent-child kind'),
+      label: translate(K.treeSettings.parentChildKind),
       before: formatParentChildKind(beforeRelationship?.parentChildKind),
       after: formatParentChildKind(afterRelationship?.parentChildKind),
     },
@@ -229,15 +230,15 @@ export function buildRelationshipApprovalPreviewFields(
 export function getApprovalOperationLabel(operation: ApprovalRequest['operation']) {
   switch (operation) {
     case 'update-person':
-      return translate('Update profile');
+      return translate(K.treeSettings.updateProfileOperation);
     case 'delete-person':
-      return translate('Delete profile');
+      return translate(K.treeSettings.deleteProfileOperation);
     case 'create-relationship':
-      return translate('Create relationship');
+      return translate(K.treeSettings.createRelationshipOperation);
     case 'update-relationship':
-      return translate('Update relationship');
+      return translate(K.treeSettings.updateRelationshipOperation);
     case 'delete-relationship':
-      return translate('Delete relationship');
+      return translate(K.treeSettings.deleteRelationshipOperation);
     default:
       return operation;
   }

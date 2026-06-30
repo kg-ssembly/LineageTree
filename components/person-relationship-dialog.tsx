@@ -40,7 +40,7 @@ function formatPersonName(person?: PersonRecord | null) {
 
 function formatPersonMeta(person: PersonRecord) {
   const lifespan = getPersonLifeSpanLabel(person);
-  return lifespan === 'Unknown lifespan' ? translate('No dates recorded yet') : lifespan;
+  return lifespan === translate(K.personProfile.unknownLifespan) ? translate(K.relationshipInsight.noDatesRecordedYet) : lifespan;
 }
 
 function getDraftFromRelationship(personId: string, relationship?: RelationshipRecord | null) {
@@ -239,11 +239,11 @@ export default function PersonRelationshipDialog({
                 <Text variant="titleSmall">{t(K.relationship.relationshipStatus)}</Text>
                 <View style={styles.choiceWrap}>
                   {[
-                    { value: 'partner', label: 'Partner' },
-                    { value: 'married', label: 'Married' },
-                    { value: 'separated', label: 'Separated' },
-                    { value: 'divorced', label: 'Divorced' },
-                    { value: 'widowed', label: 'Widowed' },
+                    { value: 'partner', label: K.relationship.partnerLabel },
+                    { value: 'married', label: K.relationship.marriedLabel },
+                    { value: 'separated', label: K.relationship.separatedLabel },
+                    { value: 'divorced', label: K.relationship.divorcedLabel },
+                    { value: 'widowed', label: K.relationship.widowedLabel },
                   ].map((option) => (
                     <Chip
                       key={option.value}
@@ -262,12 +262,12 @@ export default function PersonRelationshipDialog({
                 <Text variant="titleSmall">{t(K.relationship.childRelationship)}</Text>
                 <View style={styles.choiceWrap}>
                   {[
-                    { value: 'biological', label: 'Biological' },
-                    { value: 'non-biological', label: 'Non-biological' },
-                    { value: 'step', label: 'Step' },
-                    { value: 'adopted', label: 'Adopted' },
-                    { value: 'foster', label: 'Foster' },
-                    { value: 'guardian', label: 'Guardian' },
+                    { value: 'biological', label: K.relationship.biologicalLabel },
+                    { value: 'non-biological', label: K.relationship.nonBiologicalLabel },
+                    { value: 'step', label: K.relationship.stepLabel },
+                    { value: 'adopted', label: K.relationship.adoptedLabel },
+                    { value: 'foster', label: K.relationship.fosterLabel },
+                    { value: 'guardian', label: K.relationship.guardianLabel },
                   ].map((option) => (
                     <Chip
                       key={option.value}

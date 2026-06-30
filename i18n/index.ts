@@ -1,6 +1,11 @@
 import af from './locales/af';
 import en from './locales/en';
 import nr from './locales/nr';
+import it from './locales/it';
+import es from './locales/es';
+import fr from './locales/fr';
+import de from './locales/de';
+import pt from './locales/pt';
 import nso from './locales/nso';
 import ss from './locales/ss';
 import st from './locales/st';
@@ -24,6 +29,11 @@ export const LANGUAGE_OPTIONS: LanguageOption[] = [
   { code: 'ss', englishName: 'siSwati', nativeName: 'siSwati' },
   { code: 've', englishName: 'Tshivenda', nativeName: 'Tshivenda' },
   { code: 'nr', englishName: 'isiNdebele', nativeName: 'isiNdebele' },
+  { code: 'it', englishName: 'Italian', nativeName: 'Italiano' },
+  { code: 'es', englishName: 'Spanish', nativeName: 'Español' },
+  { code: 'fr', englishName: 'French', nativeName: 'Français' },
+  { code: 'de', englishName: 'German', nativeName: 'Deutsch' },
+  { code: 'pt', englishName: 'Portuguese', nativeName: 'Português' },
 ];
 
 const SUPPLEMENTAL_TRANSLATIONS_BY_PHRASE: Record<string, Partial<Record<AppLanguage, string>>> = {
@@ -2143,6 +2153,11 @@ const TRANSLATIONS: Record<AppLanguage, TranslationMap> = {
   ss: { ...ss, ...SUPPLEMENTAL_TRANSLATIONS.ss },
   ve: { ...ve, ...SUPPLEMENTAL_TRANSLATIONS.ve },
   nr: { ...nr, ...SUPPLEMENTAL_TRANSLATIONS.nr },
+  it: { ...it, ...SUPPLEMENTAL_TRANSLATIONS.it },
+  es: { ...es, ...SUPPLEMENTAL_TRANSLATIONS.es },
+  fr: { ...fr, ...SUPPLEMENTAL_TRANSLATIONS.fr },
+  de: { ...de, ...SUPPLEMENTAL_TRANSLATIONS.de },
+  pt: { ...pt, ...SUPPLEMENTAL_TRANSLATIONS.pt },
 };
 
 let activeLanguage: AppLanguage = 'en';

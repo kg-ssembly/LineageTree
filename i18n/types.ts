@@ -1,3 +1,5 @@
+import type { TranslationKey } from './keys';
+
 export type AppLanguage =
   | 'en'
   | 'af'
@@ -9,9 +11,14 @@ export type AppLanguage =
   | 'ts'
   | 'ss'
   | 've'
-  | 'nr';
+  | 'nr'
+  | 'it'
+  | 'es'
+  | 'fr'
+  | 'de'
+  | 'pt';
 
-export type TranslationMap = Record<string, string>;
+export type TranslationMap = Partial<Record<TranslationKey, string>>;
 
 export type LanguageOption = {
   code: AppLanguage;

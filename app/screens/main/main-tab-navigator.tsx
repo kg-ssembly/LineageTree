@@ -48,7 +48,7 @@ export function MainTabNavigator({
       <Tab.Screen
         name="home"
         options={{
-          title: 'Home',
+          title: controller.t(K.navigation.home),
           tabBarBadge: controller.notificationBadgeCount > 0 ? controller.notificationBadgeCount : undefined,
         }}
       >

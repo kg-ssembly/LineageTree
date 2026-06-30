@@ -31,17 +31,17 @@ function formatPersonName(person?: PersonRecord | null) {
 
 function formatPersonMeta(person: PersonRecord) {
   const lifespan = getPersonLifeSpanLabel(person);
-  return lifespan === 'Unknown lifespan' ? translate(K.common.unknown) : lifespan;
+  return lifespan === translate(K.personProfile.unknownLifespan) ? translate(K.common.unknown) : lifespan;
 }
 
 function getPathRelationLabel(relation: 'parent' | 'child' | 'spouse') {
   switch (relation) {
     case 'parent':
-      return translate('parent');
+      return translate(K.relationship.parent);
     case 'child':
-      return translate('child');
+      return translate(K.relationship.child);
     default:
-      return translate('spouse');
+      return translate(K.relationship.spouse);
   }
 }
 
@@ -318,7 +318,7 @@ export default function RelationshipInsightCard({
                   >
                     <Text variant="titleSmall" style={styles.resultRowTitle}>{formatPersonName(person)}</Text>
                     <Text variant="bodySmall" style={styles.resultRowMeta}>
-                      {formatPersonMeta(person) === 'No dates recorded yet' ? t(K.relationshipInsight.noDatesRecordedYet) : formatPersonMeta(person)}
+                      {formatPersonMeta(person)}
                     </Text>
                   </Pressable>
                 ))}

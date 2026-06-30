@@ -306,11 +306,11 @@ const PersonNode = React.memo(function PersonNode(props: PersonNodeProps) {
       >
         {isCurrentUser ? (
             <View style={[styles.nodeBadge, { backgroundColor: primaryColor }]}>
-              <Text variant="labelSmall" style={[styles.nodeBadgeText, { color: onPrimaryColor }]}>{translate('You')}</Text>
+              <Text variant="labelSmall" style={[styles.nodeBadgeText, { color: onPrimaryColor }]}>{translate(K.common.you)}</Text>
             </View>
         ) : isFocusedPerson ? (
             <View style={[styles.nodeBadge, { backgroundColor: primaryColor }]}>
-              <Text variant="labelSmall" style={[styles.nodeBadgeText, { color: onPrimaryColor }]}>{translate('Open')}</Text>
+              <Text variant="labelSmall" style={[styles.nodeBadgeText, { color: onPrimaryColor }]}>{translate(K.common.open)}</Text>
             </View>
         ) : badgeLabel ? (
             <View style={[styles.nodeBadge, { backgroundColor: tertiaryColor }]}>

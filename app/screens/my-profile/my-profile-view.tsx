@@ -73,12 +73,12 @@ type LifeEventDialogState = {
 type ProfileTabKey = 'biography' | 'relationships' | 'memories' | 'descendants' | 'ascendants' | 'app-settings';
 
 const PROFILE_TABS: Array<{ key: ProfileTabKey; label: string }> = [
-  { key: 'biography', label: 'Biography' },
-  { key: 'relationships', label: 'Relationships' },
-  { key: 'memories', label: 'Memories' },
+  { key: 'biography', label: K.personProfile.biography },
+  { key: 'relationships', label: K.personProfile.relationships },
+  { key: 'memories', label: K.memories.memories },
   { key: 'descendants', label: K.lineage.descendants },
   { key: 'ascendants', label: K.lineage.ascendants },
-  { key: 'app-settings', label: 'App settings' },
+  { key: 'app-settings', label: K.personProfile.appSettings },
 ];
 
 function getRelationshipModeForPerson(personId: string, relationship: RelationshipRecord): PersonRelationshipMode {

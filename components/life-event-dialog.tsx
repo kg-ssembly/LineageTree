@@ -29,26 +29,26 @@ function formatIsoDate(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
-function getDefaultTitle(type: PersonLifeEventType) {
+function getDefaultTitleKey(type: PersonLifeEventType) {
   switch (type) {
     case 'married':
-      return 'Marriage';
+      return K.memories.lifeEventMarriageTitle;
     case 'divorced':
-      return 'Divorce';
+      return K.memories.lifeEventDivorceTitle;
     case 'moved':
-      return 'Moved home';
+      return K.memories.lifeEventMovedHomeTitle;
     case 'graduated':
-      return 'Graduation';
+      return K.memories.lifeEventGraduationTitle;
     case 'retired':
-      return 'Retirement';
+      return K.memories.lifeEventRetirementTitle;
     case 'milestone':
-      return 'Family milestone';
+      return K.memories.lifeEventFamilyMilestoneTitle;
     case 'death':
-      return 'Passed away';
+      return K.memories.lifeEventPassedAwayTitle;
     case 'child-born':
-      return 'Welcomed a child';
+      return K.memories.lifeEventWelcomedChildTitle;
     default:
-      return 'Life event';
+      return K.memories.lifeEventDefaultTitle;
   }
 }
 
@@ -67,7 +67,7 @@ export default function LifeEventDialog({
   const theme = useTheme();
   const { t } = useI18n();
   const [type, setType] = useState<PersonLifeEventType>('married');
-  const [title, setTitle] = useState('Marriage');
+  const [title, setTitle] = useState('');
   const [date, setDate] = useState('');
   const [description, setDescription] = useState('');
   const [titleError, setTitleError] = useState<string | null>(null);
@@ -81,7 +81,7 @@ export default function LifeEventDialog({
 
     const nextType = event?.type ?? 'married';
     setType(nextType);
-    setTitle(event?.title ?? getDefaultTitle(nextType));
+    setTitle(event?.title ?? t(getDefaultTitleKey(nextType)));
     setDate(event?.date ?? '');
     setDescription(event?.description ?? '');
     setTitleError(null);
@@ -93,7 +93,7 @@ export default function LifeEventDialog({
 
   const handleTypeChange = (nextType: PersonLifeEventType) => {
     setType(nextType);
-    setTitle((current) => (!current || current === getDefaultTitle(type) ? getDefaultTitle(nextType) : current));
+    setTitle((current) => (!current || current === t(getDefaultTitleKey(type)) ? t(getDefaultTitleKey(nextType)) : current));
   };
 
   const handleSubmit = async () => {

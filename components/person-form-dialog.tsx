@@ -67,11 +67,11 @@ type SubmissionPreviewState = {
 };
 
 const genderOptions: Array<{ label: string; value: PersonGender }> = [
-  { label: 'Unspecified', value: 'unspecified' },
-  { label: 'Female', value: 'female' },
-  { label: 'Male', value: 'male' },
-  { label: 'Non-binary', value: 'non-binary' },
-  { label: 'Other', value: 'other' },
+  { label: K.common.unspecified, value: 'unspecified' },
+  { label: K.common.female, value: 'female' },
+  { label: K.common.male, value: 'male' },
+  { label: K.common.nonBinary, value: 'non-binary' },
+  { label: K.common.other, value: 'other' },
 ];
 
 
@@ -846,12 +846,12 @@ export default function PersonFormDialog({
                             <Text variant="bodyMedium">{t(K.personForm.parentChildRelationshipType)}</Text>
                             <View style={styles.chipGroup}>
                               {[
-                                { value: 'biological', label: 'Biological' },
-                                { value: 'non-biological', label: 'Non-biological' },
-                                { value: 'step', label: 'Step' },
-                                { value: 'adopted', label: 'Adopted' },
-                                { value: 'foster', label: 'Foster' },
-                                { value: 'guardian', label: 'Guardian' },
+                                { value: 'biological', label: K.relationship.biologicalLabel },
+                                { value: 'non-biological', label: K.relationship.nonBiologicalLabel },
+                                { value: 'step', label: K.relationship.stepLabel },
+                                { value: 'adopted', label: K.relationship.adoptedLabel },
+                                { value: 'foster', label: K.relationship.fosterLabel },
+                                { value: 'guardian', label: K.relationship.guardianLabel },
                               ].map((option) => (
                                 <Chip
                                   key={`${draft.key}-${option.value}`}
