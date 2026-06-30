@@ -45,7 +45,7 @@ export default function RootNavigator() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }} edges={['top', 'bottom']}>
       <Stack.Navigator
         screenOptions={{
           animation: 'fade_from_bottom',
