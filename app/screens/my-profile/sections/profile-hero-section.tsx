@@ -71,6 +71,10 @@ export function ProfileHeroSection({
               <Text variant="bodyMedium" style={[personProfileStyles.heroSubtext, { color: theme.colors.onSurfaceVariant }]}>
                 {linkedPerson ? getPersonLifeSpanLabel(linkedPerson) : t(K.personProfile.linkYourselfToManageProfile)}
               </Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
+                <Chip compact icon="timeline-text-outline">Family story</Chip>
+                <Chip compact icon="account-heart-outline">Your branch</Chip>
+              </View>
             </View>
           </View>
         </View>
@@ -100,6 +104,10 @@ export function ProfileHeroSection({
           <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
             {fallbackSummary}
           </Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
+            <Chip compact icon="account-group-outline">Family circle</Chip>
+            <Chip compact icon="image-multiple-outline">Memories</Chip>
+          </View>
         </View>
       </View>
     </Surface>

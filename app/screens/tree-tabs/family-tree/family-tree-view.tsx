@@ -1,6 +1,7 @@
 import React from 'react';
 import { View } from 'react-native';
-import { Text, useTheme } from 'react-native-paper';
+import { Chip, Text, useTheme } from 'react-native-paper';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { FamilyTreeCanvas } from '../../../../components';
 import { GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
@@ -38,6 +39,21 @@ export function FamilyTreeView({
         />
       ) : (
         <View style={[styles.visualisationEmptyState, { backgroundColor: theme.colors.surface }]}>
+          <View style={{
+            width: 84,
+            height: 84,
+            borderRadius: 42,
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: 18,
+            backgroundColor: theme.colors.primaryContainer,
+          }}>
+            <MaterialCommunityIcons name="family-tree" size={40} color={theme.colors.primary} />
+          </View>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
+            <Chip compact icon="gesture-pinch">Zoom</Chip>
+            <Chip compact icon="gesture-tap">Tap to explore</Chip>
+          </View>
           <Text variant="titleMedium">{t(K.lineage.noVisualTreeYet)}</Text>
           <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
             {t(K.lineage.startDrawingTree)}

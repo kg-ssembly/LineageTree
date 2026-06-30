@@ -88,7 +88,7 @@ export function AuthFormView({
     >
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <View style={styles.heroWrap}>
-          <Chip icon={chipIcon} style={{ backgroundColor: chipColor }}>
+          <Chip icon={chipIcon} style={{ alignSelf: 'flex-start', backgroundColor: chipColor }}>
             {chipLabel}
           </Chip>
           <Text variant="displaySmall" style={[styles.heroTitle, { color: theme.colors.onSurface }]}>
@@ -99,7 +99,11 @@ export function AuthFormView({
           </Text>
         </View>
 
-        <Surface style={[styles.card, { backgroundColor: theme.colors.surface }]} elevation={2}>
+        <Surface style={[styles.card, {
+          backgroundColor: theme.colors.surface,
+          borderColor: theme.colors.outlineVariant,
+          borderWidth: 1,
+        }]} elevation={2}>
           <Text variant="headlineMedium" style={[styles.title, { color: theme.colors.onSurface }]}>
             {title}
           </Text>

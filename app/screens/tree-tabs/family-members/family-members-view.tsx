@@ -331,7 +331,16 @@ export function FamilyMembersView({
             </View>
           ) : (
             <>
-              <View style={[styles.resultsPill, { backgroundColor: theme.colors.surfaceVariant }]}>
+              <View style={[
+                styles.resultsPill,
+                {
+                  backgroundColor: theme.colors.surfaceVariant,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 8,
+                },
+              ]}>
+                <MaterialCommunityIcons name="star-four-points-outline" size={16} color={theme.colors.secondary} />
                 <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
                   {t(K.tree.familyMembers.count, { count: filteredPeople.length })}
                 </Text>
