@@ -436,6 +436,9 @@ function TreeSettingsContent({
             accessibilityLabel={t(K.treeSettings.aboutMyFamilyTrees)}
           />
         </View>
+        <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant, marginBottom: 12 }]}>
+          Family hub for shared stories, connections, reviews, and tree-to-tree moments.
+        </Text>
 
         <HorizontalTabStrip
           items={TREE_MANAGEMENT_TABS.map((tab) => ({ ...tab, label: t(tab.label) }))}

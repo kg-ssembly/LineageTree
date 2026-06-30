@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pressable, View } from 'react-native';
 import { Button, Card, Chip, Divider, IconButton, ProgressBar, Text, TextInput, useTheme } from 'react-native-paper';
+import { Reveal } from '../../../../components';
 import { GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
@@ -49,6 +50,7 @@ export function MergesSection({
   };
 
   return (
+    <Reveal delay={80}>
     <View style={styles.collaboratorSectionWrap}>
       <View style={styles.sectionHeader}>
         <View style={styles.titleWrap}>
@@ -64,6 +66,9 @@ export function MergesSection({
           </View>
         </View>
       </View>
+      <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
+        Bring related trees together carefully, compare matching people, and decide where stories truly belong together.
+      </Text>
 
       {pendingMergeInvites.length > 0 ? (
         <Card mode="elevated" style={[styles.collaboratorCard, { backgroundColor: theme.colors.surface, marginBottom: 16 }]}>
@@ -106,6 +111,9 @@ export function MergesSection({
       <Card mode="elevated" style={[styles.selfAssignmentCard, { backgroundColor: theme.colors.surface, marginBottom: 16 }]}>
         <Card.Content>
           <Text variant="titleMedium" style={{ marginBottom: 8 }}>{t(K.treeSettings.inviteAnotherUserToMerge)}</Text>
+          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+            Invite someone who holds another branch of the story and compare where your trees overlap.
+          </Text>
           <Text variant="labelMedium" style={{ marginTop: 12 }}>{t('Source tree')}</Text>
           <View style={[styles.collaboratorChipRow, { marginTop: 8 }]}>
             {availableMergeSourceTrees.map((tree) => (
@@ -213,9 +221,9 @@ export function MergesSection({
         </View>
       ) : (
         <View style={styles.emptyState}>
-          <Text variant="titleMedium">{t(K.treeSettings.noPendingMergeReviews)}</Text>
+          <Text variant="titleMedium">No merge stories are waiting right now</Text>
           <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
-            {t(K.treeSettings.mergeSuggestionsAppearHere)}
+            When another tree is ready to compare against this one, the suggested matches will gather here.
           </Text>
         </View>
       )}
@@ -226,5 +234,6 @@ export function MergesSection({
         {t(K.treeSettings.mergeHistoryAndUndo)}
       </Button>
     </View>
+    </Reveal>
   );
 }

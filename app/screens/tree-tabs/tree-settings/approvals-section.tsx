@@ -2,6 +2,7 @@ import React from 'react';
 import { View } from 'react-native';
 import { Button, Card, Chip, IconButton, SegmentedButtons, Text, useTheme } from 'react-native-paper';
 import { canUserReviewApprovalRequest, isApprovalExpired } from '../../../../components/dto/approval';
+import { Reveal } from '../../../../components';
 import { GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
@@ -27,6 +28,7 @@ export function ApprovalsSection({
   const { t } = useI18n();
 
   return (
+    <Reveal delay={80}>
     <View style={styles.collaboratorSectionWrap}>
       <View style={styles.sectionHeader}>
         <View style={styles.titleWrap}>
@@ -42,6 +44,9 @@ export function ApprovalsSection({
           </View>
         </View>
       </View>
+      <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
+        Set the pace for shared changes so everyone has room to notice, respond, and keep the story accurate.
+      </Text>
 
       <View style={styles.summaryChipRow}>
         <Chip icon="timeline-clock-outline">
@@ -129,13 +134,14 @@ export function ApprovalsSection({
           </View>
         ) : (
           <View style={styles.emptyState}>
-            <Text variant="titleMedium">{t(K.treeSettings.noPendingApprovals)}</Text>
+            <Text variant="titleMedium">Nothing is waiting on your eye right now</Text>
             <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
-              {t(K.treeSettings.pendingApprovalEmpty)}
+              Fresh edits from collaborators will appear here whenever they need a quick review.
             </Text>
           </View>
         )}
       </View>
     </View>
+    </Reveal>
   );
 }

@@ -45,6 +45,7 @@ import { PhotoViewerModal } from './dialogs/photo-viewer-modal';
 import { AppSettingsSection, type UserProfileTabProps } from './sections/app-settings-section';
 import { LineageSection } from './sections/lineage-section';
 import { MemoriesSection, type MemorySectionTabKey } from './sections/memories-section';
+import { ProfileOverviewSection } from './sections/profile-overview-section';
 import { ProfileHeroSection } from './sections/profile-hero-section';
 import { RelationshipsSection, type RelationshipSectionTabKey } from './sections/relationships-section';
 
@@ -69,9 +70,10 @@ type LifeEventDialogState = {
   event: PersonLifeEvent | null;
 };
 
-type ProfileTabKey = 'relationships' | 'memories' | 'descendants' | 'ascendants' | 'app-settings';
+type ProfileTabKey = 'biography' | 'relationships' | 'memories' | 'descendants' | 'ascendants' | 'app-settings';
 
 const PROFILE_TABS: Array<{ key: ProfileTabKey; label: string }> = [
+  { key: 'biography', label: 'Biography' },
   { key: 'relationships', label: 'Relationships' },
   { key: 'memories', label: 'Memories' },
   { key: 'descendants', label: K.lineage.descendants },
@@ -196,7 +198,7 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
     selectTree,
   } = useTreeStore();
 
-  const [activeTab, setActiveTab] = useState<ProfileTabKey>('relationships');
+  const [activeTab, setActiveTab] = useState<ProfileTabKey>('biography');
   const [memorySectionTab, setMemorySectionTab] = useState<MemorySectionTabKey>('events');
   const [relationshipSectionTab, setRelationshipSectionTab] = useState<RelationshipSectionTabKey>('insight');
   const [editorVisible, setEditorVisible] = useState(false);
@@ -473,6 +475,11 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
   useEffect(() => {
     if (!shouldShowLinkedProfileTabs && activeTab !== 'app-settings') {
       setActiveTab('app-settings');
+      return;
+    }
+
+    if (shouldShowLinkedProfileTabs && activeTab === 'app-settings') {
+      setActiveTab('biography');
     }
   }, [activeTab, shouldShowLinkedProfileTabs]);
 
@@ -836,6 +843,13 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
               {fallbackProfileState.detail}
             </Text>
           </Surface>
+        ) : null}
+
+        {shouldShowLinkedProfileTabs && activeTab === 'biography' && linkedPerson ? (
+          <ProfileOverviewSection
+            linkedPerson={linkedPerson}
+            preferredPhoto={preferredPhoto}
+          />
         ) : null}
 
         {shouldShowLinkedProfileTabs && activeTab === 'relationships' && linkedPerson ? (

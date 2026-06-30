@@ -44,6 +44,7 @@ import { I18N_KEYS as K } from '../../../i18n/keys';
 import { PersonNotesDialog } from './dialogs/notes-dialog';
 import { PersonPhotoViewerModal } from './dialogs/photo-viewer-modal';
 import { PersonLineageSection } from './sections/lineage-section';
+import { MemberProfileSection } from './sections/member-profile-section';
 import { PersonMemoriesSection, type PersonMemorySectionTabKey } from './sections/memories-section';
 import { PersonRelationshipsSection, type PersonRelationshipSectionTabKey } from './sections/relationships-section';
 const dialogChrome = GlobalStyles.dialogChrome;
@@ -90,7 +91,7 @@ type LifeEventDialogState = {
 
 type HelperDialogKey = 'tabs' | 'relationships' | 'descendant-tree' | 'ascendant-tree' | 'memories-gallery';
 
-type PersonProfileTabKey = 'relationships' | 'descendant-tree' | 'ascendant-tree' | 'memories-gallery';
+type PersonProfileTabKey = 'biography' | 'relationships' | 'descendant-tree' | 'ascendant-tree' | 'memories-gallery';
 
 function getRelationshipModeForPerson(personId: string, relationship: RelationshipRecord): PersonRelationshipMode {
   if (relationship.type === 'spouse') {
@@ -200,7 +201,7 @@ function getAscendantIds(rootPersonId: string, relationships: RelationshipRecord
 const helperDialogCopy: Record<HelperDialogKey, { title: string; message: string }> = {
   tabs: {
     title: 'Family member sections',
-    message: 'Relationships lets you add and review parent, child, and spouse connections. Memories & gallery holds notes, photos, and life events. Descendant tree follows children downward through generations. Ascendant tree follows parents upward.',
+    message: 'Biography gathers the main life details into a story-like introduction. Relationships lets you add and review parent, child, and spouse connections. Memories & gallery holds notes, photos, and life events. Descendant tree follows children downward through generations. Ascendant tree follows parents upward.',
   },
   relationships: {
     title: 'Relationships',
@@ -223,6 +224,7 @@ const helperDialogCopy: Record<HelperDialogKey, { title: string; message: string
 const styles = GlobalStyles.personProfile;
 
 const PROFILE_TABS: Array<{ key: PersonProfileTabKey; label: string }> = [
+  { key: 'biography', label: 'Biography' },
   { key: 'relationships', label: K.personProfile.relationships },
   { key: 'memories-gallery', label: 'Memories' },
   { key: 'descendant-tree', label: K.lineage.descendants },
@@ -235,6 +237,7 @@ const APP_TAB_ROUTES: Array<{
   focusedIcon: keyof typeof MaterialCommunityIcons.glyphMap;
   unfocusedIcon: keyof typeof MaterialCommunityIcons.glyphMap;
 }> = [
+  { key: 'home', title: 'Home', focusedIcon: 'home-heart', unfocusedIcon: 'home-heart' },
   { key: 'tree', title: 'Tree', focusedIcon: 'family-tree', unfocusedIcon: 'family-tree' },
   { key: 'members', title: 'Members', focusedIcon: 'account-group-outline', unfocusedIcon: 'account-group-outline' },
   { key: 'treeSettings', title: 'Settings', focusedIcon: 'cog-outline', unfocusedIcon: 'cog-outline' },
@@ -282,7 +285,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
   });
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const [snackVisible, setSnackVisible] = useState(false);
-  const [activeTab, setActiveTab] = useState<PersonProfileTabKey>('relationships');
+  const [activeTab, setActiveTab] = useState<PersonProfileTabKey>('biography');
   const [helperDialog, setHelperDialog] = useState<{ visible: boolean; key: HelperDialogKey }>({
     visible: false,
     key: 'tabs',
@@ -1007,6 +1010,18 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
           contentContainerStyle={styles.tabStripContent}
           itemStyle={styles.tabStripItem}
         />
+
+        {activeTab === 'biography' ? (
+          <MemberProfileSection
+            person={person}
+            preferredPhoto={preferredPhoto}
+            canEdit={canEdit}
+            linkedCollaboratorLabel={linkedCollaborator?.displayName || linkedCollaborator?.email || null}
+            isCurrentUsersPerson={isCurrentUsersPerson}
+            onOpenHelperDialog={() => openHelperDialog('tabs')}
+            onEdit={() => setEditorVisible(true)}
+          />
+        ) : null}
 
         {activeTab === 'relationships' ? (
           <PersonRelationshipsSection

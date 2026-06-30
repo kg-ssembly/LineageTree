@@ -1,7 +1,7 @@
 import React from 'react';
 import { View } from 'react-native';
 import { Button, Chip, IconButton, Surface, Text, useTheme } from 'react-native-paper';
-import { HorizontalTabStrip, RelationshipInsightCard } from '../../../../components';
+import { HorizontalTabStrip, RelationshipInsightCard, Reveal } from '../../../../components';
 import type { PersonRelationshipMode } from '../../../../components/person-relationship-dialog';
 import type { PersonRecord } from '../../../../components/dto/person';
 import type { RelationshipRecord } from '../../../../components/dto/relationship';
@@ -55,6 +55,7 @@ export function PersonRelationshipsSection({
   const { t } = useI18n();
 
   return (
+    <Reveal delay={110}>
     <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
       <View style={styles.sectionHeader}>
         <View style={styles.sectionHeaderText}>
@@ -71,10 +72,13 @@ export function PersonRelationshipsSection({
         </View>
         {canEdit ? (
           <Button mode="contained" icon="family-tree" onPress={onAddRelationship}>
-            {t(K.personProfile.addRelationship)}
+            Connect family
           </Button>
         ) : null}
       </View>
+      <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
+        Follow the people closest to {formatPersonName(person)} and discover how each branch meets the next.
+      </Text>
 
       <HorizontalTabStrip
         items={[
@@ -98,8 +102,9 @@ export function PersonRelationshipsSection({
       ) : paginatedRelationships.length > 0 ? (
         <>
           <View style={styles.relationshipList}>
-            {paginatedRelationships.map((entry) => (
-              <View key={entry.relationship.id} style={[styles.relationshipCard, { backgroundColor: theme.colors.surface }]}>
+            {paginatedRelationships.map((entry, index) => (
+              <Reveal key={entry.relationship.id} delay={140 + index * 35}>
+              <View style={[styles.relationshipCard, { backgroundColor: theme.colors.surface }]}>
                 <View style={styles.relationshipRow}>
                   <View style={styles.relationshipTextWrap}>
                     <Chip compact style={styles.relationshipChip}>
@@ -115,6 +120,7 @@ export function PersonRelationshipsSection({
                   ) : null}
                 </View>
               </View>
+              </Reveal>
             ))}
           </View>
 
@@ -130,10 +136,11 @@ export function PersonRelationshipsSection({
         <View style={styles.emptyState}>
           <Text variant="titleMedium">{t(K.personProfile.noRelationshipsYet)}</Text>
           <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
-            {t(K.relationship.manageConnectionsDirectly, { name: formatPersonName(person) })}
+            Start by connecting a parent, child, or partner so this story can branch outward from {formatPersonName(person)}.
           </Text>
         </View>
       )}
     </Surface>
+    </Reveal>
   );
 }

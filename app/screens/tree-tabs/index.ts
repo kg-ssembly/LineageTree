@@ -1,3 +1,4 @@
+export { HomeTabContent } from './home';
 export { PeopleRelationshipsTabContent } from './family-members';
 export { NotificationsTabContent } from './notifications';
 export { VisualisationTabContent } from './family-tree';

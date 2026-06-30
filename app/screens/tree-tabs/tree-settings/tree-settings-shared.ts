@@ -29,8 +29,8 @@ export const TREE_MANAGEMENT_TABS: Array<{ key: TreeManagementTabKey; label: str
 
 export const TREE_HELPER_COPY: Record<TreeHelperDialogKey, { title: string; message: string }> = {
   'tree-management': {
-    title: 'Tree management',
-    message: 'Overview shows key stats and your account link in this tree. Collaborators manages who has access. Approvals shows pending edits awaiting review and lets you adjust the auto-approve window.',
+    title: 'Tree home',
+    message: 'Overview brings together the tree-wide setup pieces such as surname variants and your linked place in this family space. Collaborators shows who is part of the circle. Approvals and merges help shared work move forward smoothly.',
   },
   'surname-variants': {
     title: 'Surname variants',
@@ -38,19 +38,19 @@ export const TREE_HELPER_COPY: Record<TreeHelperDialogKey, { title: string; mess
   },
   'my-place': {
     title: 'My place in this tree',
-    message: 'Link your account to the family member profile that represents you in this tree. This linked family member represents you in the tree, and once linked you can open that profile quickly and see where you appear in the family network.',
+    message: 'Link your account to the family member profile that represents you in this tree. Once connected, you can jump into your branch quickly and see how your story connects with the wider family.',
   },
   'approval-settings': {
-    title: 'Approval settings',
-    message: 'Choose how collaborator profile and relationship edits are handled in this tree. Off applies changes immediately. 12, 24, and 48 hours create an approval window, and pending edits auto-approve if nobody reviews them before the deadline. Single-collaborator trees still apply changes immediately.',
+    title: 'Review rhythm',
+    message: 'Choose how shared edits move through this tree. Turning review off lets changes land right away. A 12, 24, or 48 hour window gives everyone a chance to look before changes settle in automatically.',
   },
   collaborators: {
-    title: 'Collaborators',
-    message: 'Owners manage access. Editors can update content. Viewers can browse. Owners can also help collaborators get started by linking them to the matching family member profile in the tree.',
+    title: 'Family circle',
+    message: 'This is the circle of people helping shape the tree. Editors can add and refine stories, viewers can explore, and owners can help everyone find the right linked profile.',
   },
   'pending-approvals': {
-    title: 'Pending approvals',
-    message: 'Any collaborator-submitted family member or relationship edits waiting for review appear here. When approvals are enabled, they auto-approve if nobody acts before the deadline.',
+    title: 'Waiting for a look',
+    message: 'Shared profile and relationship edits that need a quick review appear here. If no one responds before the review window ends, they settle in automatically.',
   },
   'merge-guidance': {
     title: 'Collaborative merges',
@@ -66,7 +66,7 @@ export const TREE_HELPER_COPY: Record<TreeHelperDialogKey, { title: string; mess
   },
   'my-trees': {
     title: 'My family trees',
-    message: 'Switch between your trees here, copy a tree ID for sharing or merge coordination, and manage the tree you are currently working in.',
+    message: 'Move between your family spaces here, copy a tree ID when you need to share it, and jump into the tree that feels most relevant right now.',
   },
 };
 

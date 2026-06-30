@@ -1,7 +1,7 @@
 import React from 'react';
 import { View } from 'react-native';
 import { Button, Chip, IconButton, Surface, Text, useTheme } from 'react-native-paper';
-import { HorizontalTabStrip, RelationshipInsightCard } from '../../../../components';
+import { HorizontalTabStrip, RelationshipInsightCard, Reveal } from '../../../../components';
 import type { PersonRecord } from '../../../../components/dto/person';
 import type { RelationshipRecord } from '../../../../components/dto/relationship';
 import { formatPersonName } from '../../../../components/person-formatting';
@@ -45,6 +45,7 @@ export function RelationshipsSection({
   const { t } = useI18n();
 
   return (
+    <Reveal delay={110}>
     <Surface style={[personProfileStyles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
       <View style={personProfileStyles.sectionHeader}>
         <View style={personProfileStyles.sectionHeaderText}>
@@ -52,10 +53,13 @@ export function RelationshipsSection({
         </View>
         {canEditLinkedProfile ? (
           <Button mode="contained" icon="family-tree" onPress={onAddRelationship}>
-            {t(K.personProfile.addRelationship)}
+            Connect family
           </Button>
         ) : null}
       </View>
+      <Text variant="bodyMedium" style={[personProfileStyles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
+        Explore how your story is connected, then add the missing links that make your branch clearer.
+      </Text>
 
       <HorizontalTabStrip
         items={[
@@ -73,8 +77,9 @@ export function RelationshipsSection({
         <RelationshipInsightCard people={people} relationships={relationships} lockedFromPersonId={linkedPerson.id} title={t(K.personProfile.howDoIRelate)} />
       ) : relationshipEntries.length > 0 ? (
         <View style={personProfileStyles.relationshipList}>
-          {relationshipEntries.map((entry) => (
-            <View key={entry.relationship.id} style={[personProfileStyles.relationshipCard, { backgroundColor: theme.colors.surface }]}>
+          {relationshipEntries.map((entry, index) => (
+            <Reveal key={entry.relationship.id} delay={140 + index * 35}>
+            <View style={[personProfileStyles.relationshipCard, { backgroundColor: theme.colors.surface }]}>
               <View style={personProfileStyles.relationshipRow}>
                 <View style={personProfileStyles.relationshipTextWrap}>
                   <Chip compact style={personProfileStyles.relationshipChip}>
@@ -92,16 +97,18 @@ export function RelationshipsSection({
                 ) : null}
               </View>
             </View>
+            </Reveal>
           ))}
         </View>
       ) : (
         <View style={personProfileStyles.emptyState}>
           <Text variant="titleMedium">{t(K.personProfile.noRelationshipsYet)}</Text>
           <Text variant="bodyMedium" style={[personProfileStyles.stateText, { color: theme.colors.onSurfaceVariant }]}>
-            {t(K.relationship.manageConnectionsDirectly, { name: formatPersonName(linkedPerson) })}
+            Add a parent, child, or partner to start mapping how {formatPersonName(linkedPerson)} belongs in the bigger family story.
           </Text>
         </View>
       )}
     </Surface>
+    </Reveal>
   );
 }

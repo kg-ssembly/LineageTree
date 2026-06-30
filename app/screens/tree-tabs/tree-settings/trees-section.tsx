@@ -1,6 +1,7 @@
 import React from 'react';
 import { View } from 'react-native';
 import { ActivityIndicator, Button, Card, Chip, IconButton, Text, useTheme } from 'react-native-paper';
+import { Reveal } from '../../../../components';
 import { getTreeRole } from '../../../../components/dto/tree';
 import { GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
@@ -29,6 +30,7 @@ export function TreesSection({
   const { t } = useI18n();
 
   return (
+    <Reveal delay={80}>
     <View>
       {maidenSurnameSuggestions.length > 0 ? (
         <Card mode="elevated" style={[styles.collaboratorCard, { backgroundColor: theme.colors.surface, marginBottom: 16 }]}>
@@ -64,7 +66,7 @@ export function TreesSection({
         </Card>
       ) : null}
 
-      <View style={styles.sectionHeader}>
+        <View style={styles.sectionHeader}>
         <View style={styles.titleWrap}>
           <View style={styles.titleWithHelperRow}>
             <Text variant="titleMedium">{t(K.treeSettings.myFamilyTrees)}</Text>
@@ -77,6 +79,9 @@ export function TreesSection({
             />
           </View>
         </View>
+      <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
+        Keep each family space distinct, then move between them when stories overlap or branches reconnect.
+      </Text>
       </View>
 
       {loadingTrees ? (
@@ -87,7 +92,7 @@ export function TreesSection({
         <View style={styles.emptyState}>
           <Text variant="titleMedium">{t(K.treeSettings.noTreesYet)}</Text>
           <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
-            {t(K.treeSettings.createFirstFamilyTreeToStartBuilding)}
+            Start your first family space here, then let it grow branch by branch and story by story.
           </Text>
           {onCreateTree ? (
             <Button mode="contained" icon="plus" onPress={onCreateTree} disabled={mutating} style={styles.emptyStateButton}>
@@ -134,5 +139,6 @@ export function TreesSection({
         })
       )}
     </View>
+    </Reveal>
   );
 }

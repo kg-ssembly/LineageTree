@@ -647,6 +647,68 @@ export class GlobalStyles {
         quickActionSubtitle: {
             marginBottom: 8,
         },
+        dashboardMetricRow: {
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            gap: 12,
+            alignItems: 'stretch',
+        },
+        dashboardMetricCard: {
+            flex: 1,
+            minWidth: 96,
+            borderRadius: 16,
+        },
+        dashboardAccentCard: {
+            marginTop: 18,
+            borderRadius: 18,
+            padding: 18,
+            borderWidth: StyleSheet.hairlineWidth,
+        },
+        dashboardInlineAction: {
+            alignSelf: 'flex-start',
+            marginTop: 14,
+        },
+        dashboardTaskCard: {
+            borderRadius: 16,
+            marginBottom: 12,
+        },
+        dashboardActionRow: {
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            gap: 10,
+            marginTop: 14,
+        },
+        highlightGrid: {
+            marginTop: 16,
+            gap: 12,
+        },
+        highlightColumn: {
+            borderRadius: 18,
+            padding: 16,
+            borderWidth: StyleSheet.hairlineWidth,
+            borderColor: F.outlineVariant,
+        },
+        highlightColumnHeader: {
+            marginBottom: 12,
+        },
+        highlightStoryCard: {
+            borderWidth: StyleSheet.hairlineWidth,
+            borderRadius: 14,
+            padding: 13,
+            marginBottom: 8,
+            backgroundColor: F.surface,
+        },
+        highlightAction: {
+            alignSelf: 'flex-start',
+            marginTop: 4,
+            marginLeft: -8,
+        },
+        highlightAside: {
+            borderWidth: StyleSheet.hairlineWidth,
+            borderRadius: 14,
+            padding: 13,
+            marginTop: 8,
+        },
     });
 
     static readonly personProfile = StyleSheet.create({
@@ -924,6 +986,31 @@ export class GlobalStyles {
             borderRadius: 20,
             backgroundColor: F.hintBg,
         },
+        biographyLead: {
+            marginTop: 14,
+            lineHeight: 24,
+            color: F.onSurfaceDeep,
+        },
+        biographyBlock: {
+            marginTop: 16,
+            padding: 18,
+            borderRadius: 20,
+            borderWidth: StyleSheet.hairlineWidth,
+            borderColor: F.outlineVariant,
+        },
+        biographyFactRow: {
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            gap: 8,
+            marginTop: 12,
+        },
+        biographyFactCard: {
+            borderRadius: 18,
+            padding: 14,
+            minWidth: 140,
+            flexGrow: 1,
+            flexBasis: 140,
+        },
         notesText: {
             marginTop: 8,
             color: F.onSurfaceDeep,
@@ -1034,6 +1121,51 @@ export class GlobalStyles {
         },
         lifeEventsSection: {
             marginTop: 12,
+        },
+        timelineList: {
+            marginTop: 12,
+            paddingLeft: 8,
+        },
+        timelineRow: {
+            flexDirection: 'row',
+            alignItems: 'stretch',
+            gap: 12,
+            marginBottom: 14,
+        },
+        timelineRail: {
+            width: 24,
+            alignItems: 'center',
+        },
+        timelineDot: {
+            width: 14,
+            height: 14,
+            borderRadius: 7,
+            marginTop: 8,
+        },
+        timelineLine: {
+            width: 2,
+            flex: 1,
+            marginTop: 6,
+            borderRadius: 999,
+        },
+        timelineStoryCard: {
+            flex: 1,
+            borderRadius: 22,
+            padding: 16,
+            borderWidth: StyleSheet.hairlineWidth,
+            borderColor: F.outlineVariant,
+        },
+        timelinePhoto: {
+            width: '100%',
+            height: 160,
+            borderRadius: 16,
+            marginBottom: 12,
+            backgroundColor: F.photoBg,
+        },
+        timelineAction: {
+            alignSelf: 'flex-start',
+            marginTop: 8,
+            marginLeft: -8,
         },
         timelineChipRow: {
             flexDirection: 'row',

@@ -11,6 +11,7 @@ import {
   Text,
   useTheme,
 } from 'react-native-paper';
+import { Reveal } from '../../../../components';
 import type { NotificationActivityState } from '../../../../components/dto/notification';
 import type { MainTabParamList } from '../../../../components/dto/navigation';
 import { GlobalStyles } from '../../../../constants/styles';
@@ -248,7 +249,7 @@ export function NotificationsView({
         <View style={styles.sectionHeader}>
           <View style={styles.titleWrap}>
             <View style={styles.titleWithHelperRow}>
-              <Text variant="headlineSmall">{t(K.notifications.notifications)}</Text>
+              <Text variant="headlineSmall">Family activity</Text>
               <IconButton
                 icon="information-outline"
                 size={18}
@@ -257,36 +258,42 @@ export function NotificationsView({
                 accessibilityLabel={t(K.notifications.notifications)}
               />
             </View>
+            <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
+              Stay close to new invites, shared edits, and the moments that are unfolding across your tree.
+            </Text>
           </View>
         </View>
 
         {notificationFeed.length > 0 ? (
+          <Reveal delay={60}>
           <Card mode="outlined" style={{ marginBottom: 16, backgroundColor: theme.colors.surface, borderRadius: 16 }}>
             <Card.Content style={{ gap: 12 }}>
               <View style={[styles.collaboratorChipRow, { justifyContent: 'space-between' }]}>
-                <Chip compact icon="bell-ring-outline">{t(K.notifications.unseenCount, { count: unseenDirectNotifications.length })}</Chip>
-                <Chip compact icon="email-open-outline">{t(K.notifications.unopenedCount, { count: unopenedDirectNotifications.length })}</Chip>
-                <Chip compact icon="check-decagram-outline">{t(K.notifications.unactionedCount, { count: unactionedDerivedNotifications.length })}</Chip>
+                <Chip compact icon="bell-ring-outline">{unseenDirectNotifications.length} new</Chip>
+                <Chip compact icon="email-open-outline">{unopenedDirectNotifications.length} unopened</Chip>
+                <Chip compact icon="check-decagram-outline">{unactionedDerivedNotifications.length} to follow up</Chip>
               </View>
               <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
                 <Button mode="outlined" onPress={() => { void handleMarkAllSeen(); }} disabled={mutating || unseenDirectNotifications.length === 0}>
-                  {t(K.notifications.markAllSeen)}
+                  Quiet new alerts
                 </Button>
                 <Button mode="outlined" onPress={() => { void handleMarkAllOpened(); }} disabled={mutating || unopenedDirectNotifications.length === 0}>
-                  {t(K.notifications.markAllOpened)}
+                  Open everything
                 </Button>
                 <Button mode="outlined" onPress={() => { void handleMarkAllActioned(); }} disabled={mutating || unactionedDerivedNotifications.length === 0}>
-                  {t(K.notifications.markAllActioned)}
+                  Mark follow-up done
                 </Button>
               </View>
             </Card.Content>
           </Card>
+          </Reveal>
         ) : null}
 
         {notificationFeed.length > 0 ? (
           <View style={styles.collaboratorList}>
-            {notificationFeed.map((item) => (
-              <Card key={item.id} mode="elevated" style={[styles.collaboratorCard, { backgroundColor: theme.colors.surface }]}>
+            {notificationFeed.map((item, index) => (
+              <Reveal key={item.id} delay={80 + index * 35}>
+              <Card mode="elevated" style={[styles.collaboratorCard, { backgroundColor: theme.colors.surface }]}>
                 <Card.Content>
                   <Pressable onPress={() => { void openNotification(item); }}>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
@@ -313,34 +320,35 @@ export function NotificationsView({
                   <View style={{ flexDirection: 'row', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
                     {item.notificationId && !item.seen && !item.opened ? (
                       <Button mode="text" onPress={() => onMarkNotificationSeen(item.notificationId!)} disabled={mutating}>
-                        {t(K.notifications.markSeen)}
+                        Mark noticed
                       </Button>
                     ) : null}
                     {item.notificationId && !item.opened ? (
                       <Button mode="text" onPress={() => onMarkNotificationOpened(item.notificationId!)} disabled={mutating}>
-                        {t(K.notifications.markOpened)}
+                        Open it
                       </Button>
                     ) : null}
                     {item.sourceKind && item.sourceId && !item.actioned ? (
                       <Button mode="text" onPress={() => { void handleMarkActioned(item); }} disabled={mutating}>
-                        {t(K.notifications.markActioned)}
+                        Mark followed up
                       </Button>
                     ) : null}
                     {(item.kind === 'approval' || item.kind === 'merge-request' || item.kind === 'merge-history') ? (
-                      <Button mode="text" onPress={() => { void handleOpenTarget(item); }} disabled={mutating}>
-                        {item.kind === 'approval' ? t(K.notifications.openApproval) : t(K.notifications.openMerge)}
+                      <Button mode="contained-tonal" onPress={() => { void handleOpenTarget(item); }} disabled={mutating}>
+                        {item.kind === 'approval' ? 'Open review' : 'Open merge story'}
                       </Button>
                     ) : null}
                   </View>
                 </Card.Content>
               </Card>
+              </Reveal>
             ))}
           </View>
         ) : (
           <View style={styles.emptyState}>
-            <Text variant="titleMedium">{t(K.notifications.emptyTitle)}</Text>
+            <Text variant="titleMedium">Your family activity feed is quiet</Text>
             <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
-              {t(K.notifications.emptyDescription)}
+              Invites, edits, and merge moments will appear here as more people join in and your story grows.
             </Text>
           </View>
         )}

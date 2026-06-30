@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Image, Pressable, View } from 'react-native';
 import { Button, Card, Chip, IconButton, Surface, Text, TextInput, useTheme } from 'react-native-paper';
-import { HorizontalTabStrip } from '../../../../components';
+import { HorizontalTabStrip, Reveal } from '../../../../components';
 import type { NewPersonPhotoInput, PersonLifeEvent, PersonPhoto, PersonRecord } from '../../../../components/dto/person';
 import { formatPersonDate } from '../../../../components/dto/person';
 import { GlobalStyles } from '../../../../constants/styles';
@@ -72,6 +72,9 @@ export function MemoriesSection({
   return (
     <Surface style={[personProfileStyles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
       <Text variant="titleLarge">{t(K.memories.memories)}</Text>
+      <Text variant="bodyMedium" style={[personProfileStyles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
+        A living scrapbook of milestones, photos, and the little details worth keeping.
+      </Text>
 
       <HorizontalTabStrip
         items={[
@@ -94,12 +97,12 @@ export function MemoriesSection({
             </View>
             {canEditLinkedProfile ? (
               <Button mode="contained-tonal" icon="pencil" onPress={onOpenNotesDialog}>
-                {linkedPerson.notes ? t(K.memories.editNotes) : t(K.memories.addNotes)}
+                {linkedPerson.notes ? 'Shape the story' : 'Add the first story note'}
               </Button>
             ) : null}
           </View>
           <Text variant="bodyMedium" style={[personProfileStyles.notesText, { color: theme.colors.onSurfaceVariant }]}>
-            {linkedPerson.notes || t(K.memories.noNotesAddedYet)}
+            {linkedPerson.notes || t('No story note yet. Add a voice, a memory, or a small detail that family will recognize instantly.')}
           </Text>
         </View>
       ) : null}
@@ -113,10 +116,10 @@ export function MemoriesSection({
             {canEditLinkedProfile ? (
               <View style={personProfileStyles.memoryDialogPhotoActions}>
                 <Button mode="contained-tonal" icon="image" onPress={onAddPhotoFromLibrary} disabled={photoProcessing}>
-                  {t(K.common.library)}
+                  Bring in photos
                 </Button>
                 <Button mode="contained-tonal" icon="camera" onPress={onAddPhotoFromCamera} disabled={photoProcessing}>
-                  {t(K.common.camera)}
+                  Capture a moment
                 </Button>
               </View>
             ) : null}
@@ -124,7 +127,8 @@ export function MemoriesSection({
           {linkedPerson.photos.length > 0 ? (
             <View style={personProfileStyles.galleryGrid}>
               {photoCards.map(({ photo, index, draft }) => (
-                <Card key={photo.id} mode="elevated" style={[personProfileStyles.photoCard, personProfileStyles.photoGridCard, preferredPhoto?.id === photo.id && personProfileStyles.photoCardPreferred]}>
+                <Reveal key={photo.id} delay={80 + index * 50} style={personProfileStyles.photoGridCard}>
+                <Card mode="elevated" style={[personProfileStyles.photoCard, preferredPhoto?.id === photo.id && personProfileStyles.photoCardPreferred]}>
                   <Pressable onPress={() => onOpenViewer(index)}>
                     <Image source={{ uri: photo.url }} style={personProfileStyles.photo} />
                   </Pressable>
@@ -155,10 +159,10 @@ export function MemoriesSection({
                         />
                         <View style={personProfileStyles.photoActionRow}>
                           <Button compact mode="text" onPress={() => onSetPreferredPhoto(photo, false)} disabled={photoProcessing}>
-                            {preferredPhoto?.id === photo.id ? t('Profile photo') : t('Set profile')}
+                            {preferredPhoto?.id === photo.id ? 'Featured portrait' : 'Feature this'}
                           </Button>
                           <Button compact mode="text" onPress={() => onSetPreferredPhoto(photo, true)} disabled={photoProcessing}>
-                            {t('Crop profile')}
+                            Refine crop
                           </Button>
                           <IconButton icon="content-save-outline" size={18} onPress={() => onUpdatePhotoDetails(photo, draft)} disabled={photoProcessing} />
                           <IconButton icon="trash-can-outline" size={18} onPress={() => onRemovePhoto(photo)} disabled={photoProcessing} />
@@ -167,13 +171,14 @@ export function MemoriesSection({
                     ) : null}
                   </View>
                 </Card>
+                </Reveal>
               ))}
             </View>
           ) : (
             <View style={personProfileStyles.emptyState}>
               <Text variant="titleMedium">{t(K.memories.noPhotosYet)}</Text>
               <Text variant="bodyMedium" style={[personProfileStyles.stateText, { color: theme.colors.onSurfaceVariant }]}>
-                {t(K.memories.photosAndKeepsakes)}
+                Start with one portrait, keepsake, or candid memory and this scrapbook will begin to take shape.
               </Text>
             </View>
           )}
@@ -188,37 +193,40 @@ export function MemoriesSection({
             </View>
             {canEditLinkedProfile ? (
               <Button mode="contained-tonal" icon="plus" onPress={onAddLifeEvent}>
-                {t(K.memories.addEvent)}
+                Add a memory
               </Button>
             ) : null}
           </View>
 
           {memoryTimeline.length > 0 ? (
-            <View style={personProfileStyles.relationshipList}>
-              {memoryTimeline.map((item) => {
+            <View style={personProfileStyles.timelineList}>
+              {memoryTimeline.map((item, index) => {
                 const editableEvent = !item.system ? linkedPerson.lifeEvents.find((event) => event.id === item.id) ?? null : null;
                 return (
-                  <View key={item.id} style={[personProfileStyles.relationshipCard, { backgroundColor: theme.colors.surface }]}>
-                    <View style={personProfileStyles.relationshipRow}>
-                      <View style={personProfileStyles.relationshipTextWrap}>
+                  <Reveal key={item.id} delay={90 + index * 55}>
+                    <View style={personProfileStyles.timelineRow}>
+                      <View style={personProfileStyles.timelineRail}>
+                        <View style={[personProfileStyles.timelineDot, { backgroundColor: item.system ? theme.colors.secondary : theme.colors.primary }]} />
+                        {index < memoryTimeline.length - 1 ? <View style={[personProfileStyles.timelineLine, { backgroundColor: theme.colors.outlineVariant }]} /> : null}
+                      </View>
+                      <View style={[personProfileStyles.timelineStoryCard, { backgroundColor: theme.colors.surface }]}>
+                        {preferredPhoto && index === 0 ? <Image source={{ uri: preferredPhoto.url }} style={personProfileStyles.timelinePhoto} /> : null}
                         <View style={personProfileStyles.timelineChipRow}>
                           <Chip compact>{item.badgeLabel}</Chip>
                           <Chip compact icon="calendar">{formatPersonDate(item.date)}</Chip>
                         </View>
                         <Text variant="titleMedium" style={personProfileStyles.relationshipTitle}>{item.title}</Text>
-                        <Text variant="bodySmall" style={[personProfileStyles.relationshipSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-                          {item.description}
+                        <Text variant="bodyMedium" style={[personProfileStyles.relationshipSubtitle, { color: theme.colors.onSurfaceVariant }]}>
+                          {item.description || 'A remembered family moment.'}
                         </Text>
-                      </View>
-                      {canEditLinkedProfile && editableEvent ? (
-                        <View style={personProfileStyles.rowActions}>
-                          <Button mode="text" onPress={() => onEditLifeEvent(editableEvent)} disabled={mutating} compact>
-                            {t('Edit')}
+                        {canEditLinkedProfile && editableEvent ? (
+                          <Button mode="text" onPress={() => onEditLifeEvent(editableEvent)} disabled={mutating} compact style={personProfileStyles.timelineAction}>
+                            Refine this memory
                           </Button>
-                        </View>
-                      ) : null}
+                        ) : null}
+                      </View>
                     </View>
-                  </View>
+                  </Reveal>
                 );
               })}
             </View>
@@ -226,7 +234,7 @@ export function MemoriesSection({
             <View style={personProfileStyles.emptyState}>
               <Text variant="titleMedium">{t(K.memories.noMemoriesYet)}</Text>
               <Text variant="bodyMedium" style={[personProfileStyles.stateText, { color: theme.colors.onSurfaceVariant }]}>
-                {t(K.memories.startWithMilestones)}
+                Begin with a birth, a move, a wedding, or a quiet memory only your family would know.
               </Text>
             </View>
           )}
