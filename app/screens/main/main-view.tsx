@@ -1,5 +1,5 @@
 import React from 'react';
-import { View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 import { Snackbar } from 'react-native-paper';
 import {
   CollaboratorDialog,
@@ -19,12 +19,23 @@ import { MainTabNavigator } from './main-tab-navigator';
 const styles = GlobalStyles.treeDetail;
 
 export function MainScreenView({ controller }: { controller: ReturnType<typeof useMainScreenController> }) {
+  const isWaitingForInitialTreeSelection = controller.loadingTrees
+    || (controller.trees.length > 0 && !controller.selectedTree && !controller.sharedTabProps);
+
   const noTreeGate = (
     <MainNoTreeGate
       controller={controller}
       onCreateTree={controller.openCreateTreeDialog}
     />
   );
+
+  if (isWaitingForInitialTreeSelection) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', backgroundColor: controller.theme.colors.background }]}>
+        <ActivityIndicator size="large" color={controller.theme.colors.primary} />
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: controller.theme.colors.background }]}>

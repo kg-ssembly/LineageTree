@@ -923,6 +923,7 @@ export function useMainScreenController({ navigation }: Props) {
     personDialogRelationshipCandidates,
     relationshipDialogVisible,
     relationships,
+    loadingTrees,
     selectedTree,
     selfInitialValues,
     selfPersonDialogVisible,
@@ -932,6 +933,7 @@ export function useMainScreenController({ navigation }: Props) {
     snackVisible,
     t,
     theme,
+    trees,
     treeDialog,
     user,
   };

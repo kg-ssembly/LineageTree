@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, View, type LayoutChangeEvent } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
-import { Button, Card, Chip, Dialog, IconButton, Portal, ProgressBar, Snackbar, Surface, Text, useTheme } from 'react-native-paper';
+import { ActivityIndicator, Button, Card, Chip, Dialog, IconButton, Portal, ProgressBar, Snackbar, Surface, Text, useTheme } from 'react-native-paper';
 import { HorizontalTabStrip, Reveal } from '../../../../components';
 import { getDisplayPersonPhoto } from '../../../../components/dto/person';
 import type { MainTabParamList } from '../../../../components/dto/navigation';
@@ -254,6 +254,7 @@ export function HomeDashboardView(props: SharedTabProps) {
     approvalRequests,
     notifications,
     mergeRequests,
+    loadingTreeData,
     currentAssignedPerson,
     currentSelfAssignmentSuggestions,
     onOpenAddPerson,
@@ -762,6 +763,14 @@ export function HomeDashboardView(props: SharedTabProps) {
 
     return items;
   }, [approvalRequests, lastVisitAt, navigation, notifications, openApprovals, openMergeInvites, people, relationships]);
+
+  if (loadingTreeData) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background }]}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+      </View>
+    );
+  }
 
   return (
     <ScrollView
