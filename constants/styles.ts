@@ -209,9 +209,9 @@ export class GlobalStyles {
             gap: 2,
         },
         tabBar: {
-            height: 84,
-            paddingTop: 10,
-            paddingBottom: 14,
+            height: 72,
+            paddingTop: 8,
+            paddingBottom: 0,
             borderTopWidth: 1,
             elevation: 0,
             shadowOpacity: 0,
@@ -222,7 +222,7 @@ export class GlobalStyles {
             textTransform: 'none',
         },
         tabItem: {
-            minHeight: 60,
+            minHeight: 52,
         },
         // Profile tab
         profileHeroCard: {
@@ -273,9 +273,9 @@ export class GlobalStyles {
             backgroundColor: F.background,
         },
         tabBar: {
-            height: 84,
-            paddingTop: 10,
-            paddingBottom: 14,
+            height: 72,
+            paddingTop: 8,
+            paddingBottom: 0,
             borderTopWidth: 1,
             elevation: 0,
             shadowOpacity: 0,
@@ -286,7 +286,7 @@ export class GlobalStyles {
             textTransform: 'none',
         },
         tabItem: {
-            minHeight: 60,
+            minHeight: 52,
         },
         content: {
             padding: 20,

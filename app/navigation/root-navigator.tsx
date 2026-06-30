@@ -27,6 +27,7 @@ export default function RootNavigator() {
   const theme = useTheme();
   const { user, loading, init } = useAuthStore();
   const syncFamilyData = useTreeStore((state) => state.syncFamilyData);
+  const safeAreaEdges = user ? (['top'] as const) : (['top', 'bottom'] as const);
 
   useEffect(() => {
     return init();
@@ -45,7 +46,7 @@ export default function RootNavigator() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }} edges={['top', 'bottom']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }} edges={safeAreaEdges}>
       <Stack.Navigator
         screenOptions={{
           animation: 'fade_from_bottom',
