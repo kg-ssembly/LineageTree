@@ -1,7 +1,7 @@
 import React from 'react';
 import { View } from 'react-native';
 import { Surface, Text, useTheme } from 'react-native-paper';
-import { FamilyTreeCanvas } from '../../../../components';
+import { FamilyTreeCanvas, Reveal } from '../../../../components';
 import type { PersonRecord } from '../../../../components/dto/person';
 import type { RelationshipRecord } from '../../../../components/dto/relationship';
 import { GlobalStyles } from '../../../../constants/styles';
@@ -34,7 +34,8 @@ export function LineageSection({
   const { t } = useI18n();
 
   return (
-    <Surface style={[personProfileStyles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
+    <Reveal delay={120}>
+      <Surface style={[personProfileStyles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
       <View style={personProfileStyles.sectionHeader}>
         <View style={personProfileStyles.sectionHeaderText}>
           <Text variant="titleLarge">{title}</Text>
@@ -56,6 +57,7 @@ export function LineageSection({
         ascendantRootPersonId={mode === 'ascendants' ? linkedPerson.id : undefined}
         showMaidenFamilyInNodeTitle
       />
-    </Surface>
+      </Surface>
+    </Reveal>
   );
 }

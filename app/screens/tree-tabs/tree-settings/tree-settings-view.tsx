@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ScrollView, Share, StyleSheet, View } from 'react-native';
 import { Button, Chip, Dialog, IconButton, Portal, ProgressBar, Snackbar, Text, TextInput, useTheme } from 'react-native-paper';
-import { HorizontalTabStrip } from '../../../../components';
+import { HorizontalTabStrip, Reveal } from '../../../../components';
 import type { ApprovalRequest } from '../../../../components/dto/approval';
 import type { PersonRecord } from '../../../../components/dto/person';
 import {
@@ -437,14 +437,16 @@ function TreeSettingsContent({
           />
         </View>
 
-        <HorizontalTabStrip
-          items={TREE_MANAGEMENT_TABS.map((tab) => ({ ...tab, label: t(tab.label) }))}
-          activeKey={activeManagementTab}
-          onChange={setActiveManagementTab}
-          containerStyle={[settingsTabStripStyles.card, { backgroundColor: theme.colors.surface }]}
-          contentContainerStyle={settingsTabStripStyles.content}
-          itemStyle={settingsTabStripStyles.item}
-        />
+        <Reveal delay={70}>
+          <HorizontalTabStrip
+            items={TREE_MANAGEMENT_TABS.map((tab) => ({ ...tab, label: t(tab.label) }))}
+            activeKey={activeManagementTab}
+            onChange={setActiveManagementTab}
+            containerStyle={[settingsTabStripStyles.card, { backgroundColor: theme.colors.surface }]}
+            contentContainerStyle={settingsTabStripStyles.content}
+            itemStyle={settingsTabStripStyles.item}
+          />
+        </Reveal>
 
         {activeManagementTab === 'overview' ? (
           <OverviewSection
@@ -712,9 +714,10 @@ function TreeSettingsContent({
             <ScrollView contentContainerStyle={{ paddingBottom: 8 }} keyboardShouldPersistTaps="handled">
               {mergeHistory.length > 0 ? (
                 <View style={styles.collaboratorList}>
-                  {mergeHistory.map((entry) => (
-                    <View key={entry.id} style={{ marginBottom: 12 }}>
-                      <View style={[styles.collaboratorCard, { backgroundColor: theme.colors.surface, borderRadius: 18, padding: 16 }]}>
+                  {mergeHistory.map((entry, index) => (
+                    <Reveal key={entry.id} delay={80 + index * 20}>
+                      <View style={{ marginBottom: 12 }}>
+                        <View style={[styles.collaboratorCard, { backgroundColor: theme.colors.surface, borderRadius: 18, padding: 16 }]}>
                         {(() => {
                           const mergeRequest = mergeRequestsById.get(entry.mergeRequestId);
                           const canGrantViewerAccess = Boolean(
@@ -751,8 +754,9 @@ function TreeSettingsContent({
                             </>
                           );
                         })()}
+                        </View>
                       </View>
-                    </View>
+                    </Reveal>
                   ))}
                 </View>
               ) : (

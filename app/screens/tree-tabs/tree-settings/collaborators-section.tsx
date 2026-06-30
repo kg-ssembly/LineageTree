@@ -1,6 +1,7 @@
 import React from 'react';
 import { View } from 'react-native';
 import { Button, Card, Chip, IconButton, Text, TextInput, useTheme } from 'react-native-paper';
+import { Reveal } from '../../../../components';
 import { formatPersonName } from '../../../../components/person-formatting';
 import { GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
@@ -64,7 +65,7 @@ export function CollaboratorsSection({
       </View>
 
       <View style={styles.collaboratorList}>
-        {selectedTree.collaborators.map((collaborator) => {
+        {selectedTree.collaborators.map((collaborator, collaboratorIndex) => {
           const linkedPerson = assignedPersonByUserId.get(collaborator.userId) ?? null;
           const collaboratorSuggestions = !linkedPerson
             ? buildSelfAssignmentSuggestions(collaborator, people, assignedUserIdByPersonId, collaborator.userId).slice(0, 2)
@@ -72,8 +73,9 @@ export function CollaboratorsSection({
           const isOwnerSuggestionTarget = ownerLinkTargetUserId === collaborator.userId;
 
           return (
-            <Card key={collaborator.userId} mode="elevated" style={[styles.collaboratorCard, { backgroundColor: theme.colors.surface }]}>
-              <Card.Content>
+            <Reveal key={collaborator.userId} delay={90 + collaboratorIndex * 25}>
+              <Card mode="elevated" style={[styles.collaboratorCard, { backgroundColor: theme.colors.surface }]}>
+                <Card.Content>
                 <View style={styles.collaboratorRow}>
                   <View style={styles.collaboratorTextWrap}>
                     <Text variant="titleMedium">{collaborator.displayName || collaborator.email}</Text>
@@ -108,9 +110,10 @@ export function CollaboratorsSection({
 
                     {collaboratorSuggestions.length > 0 ? (
                       <View style={styles.assignmentSuggestionList}>
-                        {collaboratorSuggestions.map((suggestion) => (
-                          <Card key={`owner-suggestion-${collaborator.userId}-${suggestion.person.id}`} mode="elevated" style={[styles.assignmentSuggestionCard, { backgroundColor: theme.colors.surface }]}>
-                            <Card.Content>
+                        {collaboratorSuggestions.map((suggestion, suggestionIndex) => (
+                          <Reveal key={`owner-suggestion-${collaborator.userId}-${suggestion.person.id}`} delay={120 + suggestionIndex * 20}>
+                            <Card mode="elevated" style={[styles.assignmentSuggestionCard, { backgroundColor: theme.colors.surface }]}>
+                              <Card.Content>
                               <View style={styles.assignmentSuggestionRow}>
                                 <View style={styles.assignmentSuggestionTextWrap}>
                                   <View style={styles.collaboratorChipRow}>
@@ -126,8 +129,9 @@ export function CollaboratorsSection({
                                   {t(K.treeSettings.link)}
                                 </Button>
                               </View>
-                            </Card.Content>
-                          </Card>
+                              </Card.Content>
+                            </Card>
+                          </Reveal>
                         ))}
                       </View>
                     ) : null}
@@ -151,9 +155,10 @@ export function CollaboratorsSection({
 
                         {filteredOwnerLinkPeople.length > 0 ? (
                           <View style={styles.assignmentSuggestionList}>
-                            {filteredOwnerLinkPeople.map((person) => (
-                              <Card key={`owner-link-${collaborator.userId}-${person.id}`} mode="elevated" style={[styles.assignmentSuggestionCard, { backgroundColor: theme.colors.surface }]}>
-                                <Card.Content>
+                            {filteredOwnerLinkPeople.map((person, personIndex) => (
+                              <Reveal key={`owner-link-${collaborator.userId}-${person.id}`} delay={140 + personIndex * 15}>
+                                <Card mode="elevated" style={[styles.assignmentSuggestionCard, { backgroundColor: theme.colors.surface }]}>
+                                  <Card.Content>
                                   <View style={styles.assignmentSuggestionRow}>
                                     <View style={styles.assignmentSuggestionTextWrap}>
                                       <Text variant="titleMedium">{formatPersonName(person)}</Text>
@@ -167,8 +172,9 @@ export function CollaboratorsSection({
                                       {t(K.treeSettings.link)}
                                     </Button>
                                   </View>
-                                </Card.Content>
-                              </Card>
+                                  </Card.Content>
+                                </Card>
+                              </Reveal>
                             ))}
                           </View>
                         ) : (
@@ -180,8 +186,9 @@ export function CollaboratorsSection({
                     ) : null}
                   </View>
                 ) : null}
-              </Card.Content>
-            </Card>
+                </Card.Content>
+              </Card>
+            </Reveal>
           );
         })}
       </View>

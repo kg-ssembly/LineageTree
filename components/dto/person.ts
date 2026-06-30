@@ -19,15 +19,15 @@ export interface PersonPhoto {
   path: string;
   displayUrl?: string;
   displayPath?: string;
-  title?: string;
   description?: string;
+  linkedLifeEventId?: string;
   createdAt: string;
 }
 
 export interface NewPersonPhotoInput {
   uri: string;
-  title?: string;
   description?: string;
+  linkedLifeEventId?: string;
 }
 
 export interface PersonTreeMembership {

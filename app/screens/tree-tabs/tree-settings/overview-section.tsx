@@ -94,29 +94,28 @@ export function OverviewSection({
       </Reveal>
 
       <View style={styles.selfAssignmentSectionWrap}>
-        <View style={styles.sectionHeader}>
-          <View style={styles.titleWrap}>
-            <View style={styles.titleWithHelperRow}>
-              <Text variant="titleLarge">{t(K.treeSettings.myPlaceInThisTree)}</Text>
-              <IconButton
-                icon="information-outline"
-                size={18}
-                style={styles.helperIconButton}
-                onPress={() => onOpenHelperDialog('my-place')}
-                accessibilityLabel={t(K.treeSettings.aboutMyPlaceInTree)}
-              />
-            </View>
-          </View>
-          {!currentAssignedPerson ? (
-            <Button mode="contained-tonal" icon="account-plus" onPress={onOpenAddSelf} disabled={mutating || !canCreateSelfProfile}>
-              {t(K.treeSettings.addMyself)}
-            </Button>
-          ) : null}
-        </View>
-
         <Reveal delay={100}>
           <Card mode="elevated" style={[styles.selfAssignmentCard, { backgroundColor: theme.colors.surface }]}>
             <Card.Content>
+            <View style={styles.sectionHeader}>
+              <View style={styles.titleWrap}>
+                <View style={styles.titleWithHelperRow}>
+                  <Text variant="titleLarge">{t(K.treeSettings.myPlaceInThisTree)}</Text>
+                  <IconButton
+                    icon="information-outline"
+                    size={18}
+                    style={styles.helperIconButton}
+                    onPress={() => onOpenHelperDialog('my-place')}
+                    accessibilityLabel={t(K.treeSettings.aboutMyPlaceInTree)}
+                  />
+                </View>
+              </View>
+              {!currentAssignedPerson ? (
+                <Button mode="contained-tonal" icon="account-plus" onPress={onOpenAddSelf} disabled={mutating || !canCreateSelfProfile}>
+                  {t(K.treeSettings.addMyself)}
+                </Button>
+              ) : null}
+            </View>
             <View style={styles.selfAssignmentHeader}>
               <View style={styles.selfAssignmentTextWrap}>
                 <View style={styles.collaboratorChipRow}>
@@ -227,9 +226,10 @@ export function OverviewSection({
 
             {filteredLinkPeople.length > 0 ? (
               <View style={styles.assignmentSuggestionList}>
-                {filteredLinkPeople.map((person) => (
-                  <Card key={`assignable-${person.id}`} mode="elevated" style={[styles.assignmentSuggestionCard, { backgroundColor: theme.colors.surface }]}>
-                    <Card.Content>
+                {filteredLinkPeople.map((person, index) => (
+                  <Reveal key={`assignable-${person.id}`} delay={140 + index * 15}>
+                    <Card mode="elevated" style={[styles.assignmentSuggestionCard, { backgroundColor: theme.colors.surface }]}>
+                      <Card.Content>
                       <View style={styles.assignmentSuggestionRow}>
                         <View style={styles.assignmentSuggestionTextWrap}>
                           <Text variant="titleMedium">{formatPersonName(person)}</Text>
@@ -244,8 +244,9 @@ export function OverviewSection({
                           {t(K.treeSettings.linkMe)}
                         </Button>
                       </View>
-                    </Card.Content>
-                  </Card>
+                      </Card.Content>
+                    </Card>
+                  </Reveal>
                 ))}
               </View>
             ) : (

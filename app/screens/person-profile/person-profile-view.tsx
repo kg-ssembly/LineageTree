@@ -16,7 +16,7 @@ import {
   Text,
   useTheme,
 } from 'react-native-paper';
-import { ConfirmDialog, HorizontalTabStrip, LifeEventDialog, PersonFormDialog, PersonRelationshipDialog } from '../../../components';
+import { ConfirmDialog, HorizontalTabStrip, LifeEventDialog, PersonFormDialog, PersonRelationshipDialog, Reveal } from '../../../components';
 import type { PersonRelationshipMode } from '../../../components/person-relationship-dialog';
 import { useAuthStore } from '../../../stores/auth-store';
 import { useTreeStore } from '../../../stores/tree-store';
@@ -712,7 +712,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
     }
   };
 
-  const handleUpdatePhotoDetails = async (photo: PersonPhoto, values: Pick<NewPersonPhotoInput, 'title' | 'description'>) => {
+  const handleUpdatePhotoDetails = async (photo: PersonPhoto, values: Pick<NewPersonPhotoInput, 'description' | 'linkedLifeEventId'>) => {
     if (!user?.id || !person) {
       return;
     }
@@ -722,7 +722,11 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
     try {
       const nextExistingPhotos = person.photos.map((currentPhoto) => (
         currentPhoto.id === photo.id
-          ? { ...currentPhoto, title: values.title?.trim() ?? '', description: values.description?.trim() ?? '' }
+          ? {
+            ...currentPhoto,
+            description: values.description?.trim() ?? '',
+            linkedLifeEventId: values.linkedLifeEventId?.trim() ?? '',
+          }
           : currentPhoto
       ));
       await updatePerson(user.id, person, buildPersonMutationPayload(person, {
@@ -913,7 +917,8 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
         </Button>
       </View>
       <ScrollView contentContainerStyle={styles.content}>
-        <Surface style={[styles.heroCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
+        <Reveal delay={60}>
+          <Surface style={[styles.heroCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
           {canEdit ? (
             <IconButton
               icon="pencil"
@@ -995,16 +1000,19 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
               ) : null}
             </View>
           ) : null}
-        </Surface>
+          </Surface>
+        </Reveal>
 
-        <HorizontalTabStrip
-          items={PROFILE_TABS.map((tab) => ({ ...tab, label: t(tab.label) }))}
-          activeKey={activeTab}
-          onChange={setActiveTab}
-          containerStyle={[styles.tabStripCard, { backgroundColor: theme.colors.surface }]}
-          contentContainerStyle={styles.tabStripContent}
-          itemStyle={styles.tabStripItem}
-        />
+        <Reveal delay={75}>
+          <HorizontalTabStrip
+            items={PROFILE_TABS.map((tab) => ({ ...tab, label: t(tab.label) }))}
+            activeKey={activeTab}
+            onChange={setActiveTab}
+            containerStyle={[styles.tabStripCard, { backgroundColor: theme.colors.surface }]}
+            contentContainerStyle={styles.tabStripContent}
+            itemStyle={styles.tabStripItem}
+          />
+        </Reveal>
 
         {activeTab === 'biography' ? (
           <MemberProfileSection

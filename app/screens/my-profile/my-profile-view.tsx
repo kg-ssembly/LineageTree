@@ -15,6 +15,7 @@ import {
   LifeEventDialog,
   PersonFormDialog,
   PersonRelationshipDialog,
+  Reveal,
 } from '../../../components';
 import type { PersonRelationshipMode } from '../../../components/person-relationship-dialog';
 import type { RootStackParamList } from '../../../components/dto/navigation';
@@ -650,7 +651,7 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
     }
   };
 
-  const handleUpdatePhotoDetails = async (photo: PersonPhoto, values: Pick<NewPersonPhotoInput, 'title' | 'description'>) => {
+  const handleUpdatePhotoDetails = async (photo: PersonPhoto, values: Pick<NewPersonPhotoInput, 'description' | 'linkedLifeEventId'>) => {
     if (!user?.id || !linkedPerson) {
       return;
     }
@@ -660,7 +661,11 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
     try {
       const nextExistingPhotos = linkedPerson.photos.map((currentPhoto) => (
         currentPhoto.id === photo.id
-          ? { ...currentPhoto, title: values.title?.trim() ?? '', description: values.description?.trim() ?? '' }
+          ? {
+            ...currentPhoto,
+            description: values.description?.trim() ?? '',
+            linkedLifeEventId: values.linkedLifeEventId?.trim() ?? '',
+          }
           : currentPhoto
       ));
       await updatePerson(user.id, linkedPerson, buildPersonMutationPayload(linkedPerson, {
@@ -810,25 +815,29 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
           fallbackSummary={fallbackProfileState.summary}
         />
 
-        <HorizontalTabStrip
-          items={shouldShowLinkedProfileTabs ? profileTabs : profileTabs.filter((tab) => tab.key === 'app-settings')}
-          activeKey={activeTab}
-          onChange={setActiveTab}
-          containerStyle={[personProfileStyles.tabStripCard, { backgroundColor: theme.colors.surface }]}
-          contentContainerStyle={personProfileStyles.tabStripContent}
-          itemStyle={personProfileStyles.tabStripItem}
-        />
+        <Reveal delay={70}>
+          <HorizontalTabStrip
+            items={shouldShowLinkedProfileTabs ? profileTabs : profileTabs.filter((tab) => tab.key === 'app-settings')}
+            activeKey={activeTab}
+            onChange={setActiveTab}
+            containerStyle={[personProfileStyles.tabStripCard, { backgroundColor: theme.colors.surface }]}
+            contentContainerStyle={personProfileStyles.tabStripContent}
+            itemStyle={personProfileStyles.tabStripItem}
+          />
+        </Reveal>
 
         {!shouldShowLinkedProfileTabs ? (
-          <Surface style={[treeDetailStyles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
-            <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>{fallbackProfileState.title}</Text>
-            <Text variant="bodyMedium" style={[treeDetailStyles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-              {fallbackProfileState.summary}
-            </Text>
-            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-              {fallbackProfileState.detail}
-            </Text>
-          </Surface>
+          <Reveal delay={80}>
+            <Surface style={[treeDetailStyles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
+              <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>{fallbackProfileState.title}</Text>
+              <Text variant="bodyMedium" style={[treeDetailStyles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
+                {fallbackProfileState.summary}
+              </Text>
+              <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                {fallbackProfileState.detail}
+              </Text>
+            </Surface>
+          </Reveal>
         ) : null}
 
         {shouldShowLinkedProfileTabs && activeTab === 'biography' && linkedPerson ? (

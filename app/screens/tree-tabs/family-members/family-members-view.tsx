@@ -14,6 +14,7 @@ import {
 } from 'react-native-paper';
 import { DatePickerModal } from 'react-native-paper-dates';
 import type { PersonGender, PersonRecord } from '../../../../components/dto/person';
+import { Reveal } from '../../../../components';
 import {
   formatPersonDate,
   getDisplayPersonPhoto,
@@ -220,12 +221,12 @@ export function FamilyMembersView({
     setFilterModalVisible(false);
   };
 
-  const renderMemberItem = ({ item: person }: { item: PersonRecord }) => {
+  const renderMemberItem = ({ item: person, index }: { item: PersonRecord; index: number }) => {
     const preferredPhoto = getDisplayPersonPhoto(person);
     const isCurrentUsersPerson = currentAssignedPerson?.id === person.id;
 
     return (
-      <View>
+      <Reveal delay={90 + index * 35}>
         <View style={styles.memberListRow}>
           <View style={styles.personPhotoWrap}>
             {preferredPhoto ? (
@@ -251,7 +252,7 @@ export function FamilyMembersView({
             <IconButton icon="chevron-right" onPress={() => openPersonProfile(person)} />
           </View>
         </View>
-      </View>
+      </Reveal>
     );
   };
 

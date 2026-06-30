@@ -1,6 +1,7 @@
 import React from 'react';
 import { Image, ScrollView, View } from 'react-native';
 import { Button, Dialog, IconButton, Portal, Text, useTheme } from 'react-native-paper';
+import { Reveal } from '../../../../components';
 import type { PersonPhoto } from '../../../../components/dto/person';
 import { MAX_PHOTOS_PER_PERSON } from '../../../../components/photo-utils';
 import { GlobalStyles } from '../../../../constants/styles';
@@ -67,8 +68,8 @@ export function PersonPhotosDialog({
 
             {photoEditorCount > 0 ? (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.memoryDialogPhotoList}>
-                {photoEditorExistingPhotos.map((photo) => (
-                  <View key={photo.id} style={styles.memoryDialogPhotoCard}>
+                {photoEditorExistingPhotos.map((photo, index) => (
+                  <Reveal key={photo.id} delay={60 + index * 20} style={styles.memoryDialogPhotoCard}>
                     <Image source={{ uri: photo.url }} style={styles.memoryDialogPhoto} />
                     <IconButton
                       icon={photoEditorPreferredPhotoRef === photo.id ? 'star' : 'star-outline'}
@@ -84,10 +85,10 @@ export function PersonPhotosDialog({
                       onPress={() => onRemoveExisting(photo)}
                       disabled={mutating}
                     />
-                  </View>
+                  </Reveal>
                 ))}
-                {photoEditorNewPhotoUris.map((uri) => (
-                  <View key={uri} style={styles.memoryDialogPhotoCard}>
+                {photoEditorNewPhotoUris.map((uri, index) => (
+                  <Reveal key={uri} delay={80 + index * 20} style={styles.memoryDialogPhotoCard}>
                     <Image source={{ uri }} style={styles.memoryDialogPhoto} />
                     <IconButton
                       icon={photoEditorPreferredPhotoRef === uri ? 'star' : 'star-outline'}
@@ -103,7 +104,7 @@ export function PersonPhotosDialog({
                       onPress={() => onRemoveNew(uri)}
                       disabled={mutating}
                     />
-                  </View>
+                  </Reveal>
                 ))}
               </ScrollView>
             ) : (

@@ -191,8 +191,8 @@ function mapPhoto(photo: any, index: number): PersonPhoto {
     path: photo?.path ?? '',
     displayUrl: photo?.displayUrl ?? '',
     displayPath: photo?.displayPath ?? '',
-    title: photo?.title ?? '',
     description: photo?.description ?? '',
+    linkedLifeEventId: photo?.linkedLifeEventId ?? '',
     createdAt: photo?.createdAt ?? nowIso(),
   };
 }
@@ -615,8 +615,8 @@ async function uploadPersonPhotos(
       id: photoId,
       url,
       path,
-      title: photoInput.title?.trim() ?? '',
       description: photoInput.description?.trim() ?? '',
+      linkedLifeEventId: photoInput.linkedLifeEventId?.trim() ?? '',
       createdAt: nowIso(),
     });
   }
@@ -691,12 +691,12 @@ function normaliseNewPhotoInputs(
   if (Array.isArray(newPhotos) && newPhotos.length > 0) {
     return newPhotos.map((photo) => ({
       uri: photo.uri,
-      title: photo.title?.trim() ?? '',
       description: photo.description?.trim() ?? '',
+      linkedLifeEventId: photo.linkedLifeEventId?.trim() ?? '',
     }));
   }
 
-  return newPhotoUris.map((uri) => ({ uri, title: '', description: '' }));
+  return newPhotoUris.map((uri) => ({ uri, description: '', linkedLifeEventId: '' }));
 }
 
 async function deletePhotos(photos: PersonPhoto[]) {

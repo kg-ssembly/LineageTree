@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Image, Pressable, View } from 'react-native';
-import { Button, Card, Chip, IconButton, Surface, Text, TextInput, useTheme } from 'react-native-paper';
+import { Button, Card, Chip, Dialog, IconButton, Portal, Surface, Text, TextInput, useTheme } from 'react-native-paper';
 import { HorizontalTabStrip, Reveal } from '../../../../components';
 import type { NewPersonPhotoInput, PersonLifeEvent, PersonPhoto, PersonRecord } from '../../../../components/dto/person';
 import { formatPersonDate } from '../../../../components/dto/person';
@@ -9,6 +9,7 @@ import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
 
 const styles = GlobalStyles.personProfile;
+const dialogChrome = GlobalStyles.dialogChrome;
 
 export type PersonMemorySectionTabKey = 'notes' | 'photos' | 'events';
 
@@ -45,7 +46,7 @@ export function PersonMemoriesSection({
   onAddPhotoFromCamera: () => void;
   onRemovePhoto: (photo: PersonPhoto) => void;
   onSetPreferredPhoto: (photo: PersonPhoto, crop: boolean) => void;
-  onUpdatePhotoDetails: (photo: PersonPhoto, values: Pick<NewPersonPhotoInput, 'title' | 'description'>) => void;
+  onUpdatePhotoDetails: (photo: PersonPhoto, values: Pick<NewPersonPhotoInput, 'description' | 'linkedLifeEventId'>) => void;
   photoProcessing: boolean;
   onOpenViewer: (index: number) => void;
   onAddLifeEvent: () => void;
@@ -53,13 +54,14 @@ export function PersonMemoriesSection({
 }) {
   const theme = useTheme();
   const { t } = useI18n();
-  const [photoDrafts, setPhotoDrafts] = useState<Record<string, { title: string; description: string }>>({});
+  const [photoDrafts, setPhotoDrafts] = useState<Record<string, { description: string; linkedLifeEventId: string }>>({});
+  const [selectedPhotoId, setSelectedPhotoId] = useState<string | null>(null);
 
   useEffect(() => {
-    const nextDrafts = person.photos.reduce<Record<string, { title: string; description: string }>>((acc, photo) => {
+    const nextDrafts = person.photos.reduce<Record<string, { description: string; linkedLifeEventId: string }>>((acc, photo) => {
       acc[photo.id] = {
-        title: photo.title ?? '',
         description: photo.description ?? '',
+        linkedLifeEventId: photo.linkedLifeEventId ?? '',
       };
       return acc;
     }, {});
@@ -67,12 +69,26 @@ export function PersonMemoriesSection({
   }, [person.photos]);
 
   const photoCards = useMemo(
-    () => person.photos.map((photo, index) => ({ photo, index, draft: photoDrafts[photo.id] ?? { title: photo.title ?? '', description: photo.description ?? '' } })),
+    () => person.photos.map((photo, index) => ({
+      photo,
+      index,
+      draft: photoDrafts[photo.id] ?? { description: photo.description ?? '', linkedLifeEventId: photo.linkedLifeEventId ?? '' },
+    })),
     [person.photos, photoDrafts],
   );
+  const selectedPhoto = useMemo(
+    () => person.photos.find((photo) => photo.id === selectedPhotoId) ?? null,
+    [person.photos, selectedPhotoId],
+  );
+  const selectedDraft = selectedPhoto ? (photoDrafts[selectedPhoto.id] ?? {
+    description: selectedPhoto.description ?? '',
+    linkedLifeEventId: selectedPhoto.linkedLifeEventId ?? '',
+  }) : null;
+  const linkedEventLabel = (linkedLifeEventId?: string) => person.lifeEvents.find((event) => event.id === linkedLifeEventId)?.title ?? '';
 
   return (
-    <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
+    <Reveal delay={130}>
+      <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
       <View style={styles.titleWithHelperRow}>
         <Text variant="titleLarge">{t(K.memories.memoriesAndGallery)}</Text>
         <IconButton
@@ -141,39 +157,23 @@ export function PersonMemoriesSection({
                     <Image source={{ uri: photo.url }} style={styles.photo} />
                   </Pressable>
                   <View style={styles.photoMeta}>
-                    <Text variant="titleSmall">{draft.title || t(K.memories.untitledPhoto)}</Text>
                     {draft.description ? (
                       <Text variant="bodySmall" style={[styles.relationshipSubtitle, { color: theme.colors.onSurfaceVariant }]}>{draft.description}</Text>
                     ) : null}
+                    {draft.linkedLifeEventId ? (
+                      <Chip compact icon="link-variant">
+                        {linkedEventLabel(draft.linkedLifeEventId) || 'Linked memory'}
+                      </Chip>
+                    ) : null}
                     {canEdit ? (
-                      <>
-                        <TextInput
-                          mode="outlined"
-                          dense
-                          label={t(K.memories.photoTitle)}
-                          value={draft.title}
-                          onChangeText={(value) => setPhotoDrafts((current) => ({ ...current, [photo.id]: { ...current[photo.id], title: value, description: current[photo.id]?.description ?? draft.description } }))}
-                        />
-                        <TextInput
-                          mode="outlined"
-                          dense
-                          multiline
-                          label={t(K.memories.photoDescription)}
-                          value={draft.description}
-                          onChangeText={(value) => setPhotoDrafts((current) => ({ ...current, [photo.id]: { title: current[photo.id]?.title ?? draft.title, description: value } }))}
-                          style={styles.photoMetaField}
-                        />
-                        <View style={styles.photoActionRow}>
-                          <Button compact mode="text" onPress={() => onSetPreferredPhoto(photo, false)} disabled={photoProcessing}>
-                            {preferredPhoto?.id === photo.id ? t(K.memories.featuredPortrait) : t(K.memories.featureThis)}
-                          </Button>
-                          <Button compact mode="text" onPress={() => onSetPreferredPhoto(photo, true)} disabled={photoProcessing}>
-                            {t(K.memories.refineCrop)}
-                          </Button>
-                          <IconButton icon="content-save-outline" size={18} onPress={() => onUpdatePhotoDetails(photo, draft)} disabled={photoProcessing} />
-                          <IconButton icon="trash-can-outline" size={18} onPress={() => onRemovePhoto(photo)} disabled={photoProcessing} />
-                        </View>
-                      </>
+                      <View style={styles.photoActionRow}>
+                        <IconButton icon="eye-outline" size={20} onPress={() => setSelectedPhotoId(photo.id)} disabled={photoProcessing} />
+                      </View>
+                    ) : null}
+                    {!canEdit ? (
+                      <View style={styles.photoActionRow}>
+                        <IconButton icon="eye-outline" size={20} onPress={() => setSelectedPhotoId(photo.id)} />
+                      </View>
                     ) : null}
                   </View>
                 </Card>
@@ -244,6 +244,88 @@ export function PersonMemoriesSection({
           )}
         </View>
       ) : null}
-    </Surface>
+      <Portal>
+        <Dialog visible={Boolean(selectedPhoto)} onDismiss={() => setSelectedPhotoId(null)} style={[dialogChrome.dialog, styles.memoryDialog, { backgroundColor: theme.colors.surface }]}>
+          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>Photo info</Dialog.Title>
+          <IconButton icon="close" size={20} onPress={() => setSelectedPhotoId(null)} style={dialogChrome.closeButton} accessibilityLabel={t(K.common.close)} />
+          <Dialog.ScrollArea style={dialogChrome.scrollArea}>
+            <View style={styles.memoryDialogContent}>
+              {selectedPhoto ? <Image source={{ uri: selectedPhoto.url }} style={styles.timelinePhoto} /> : null}
+              {selectedDraft ? (
+                <>
+                  <TextInput
+                    mode="outlined"
+                    label="Tell us more about this photo"
+                    value={selectedDraft.description}
+                    onChangeText={(value) => setPhotoDrafts((current) => ({
+                      ...current,
+                      [selectedPhoto!.id]: { ...selectedDraft, description: value },
+                    }))}
+                    multiline
+                    disabled={!canEdit || photoProcessing}
+                    style={styles.memoryDialogInput}
+                  />
+                  {canEdit ? (
+                    <View style={styles.photoActionRow}>
+                      <Button compact mode="text" onPress={() => onSetPreferredPhoto(selectedPhoto!, false)} disabled={photoProcessing}>
+                        {preferredPhoto?.id === selectedPhoto?.id ? t(K.memories.featuredPortrait) : t(K.memories.featureThis)}
+                      </Button>
+                      <Button compact mode="text" onPress={() => onSetPreferredPhoto(selectedPhoto!, true)} disabled={photoProcessing}>
+                        {t(K.memories.refineCrop)}
+                      </Button>
+                    </View>
+                  ) : null}
+                  <Text variant="titleSmall">Link to memory</Text>
+                  <View style={styles.timelineChipRow}>
+                    <Chip
+                      selected={!selectedDraft.linkedLifeEventId}
+                      onPress={() => setPhotoDrafts((current) => ({
+                        ...current,
+                        [selectedPhoto!.id]: { ...selectedDraft, linkedLifeEventId: '' },
+                      }))}
+                      disabled={!canEdit || photoProcessing}
+                    >
+                      None
+                    </Chip>
+                    {person.lifeEvents.map((event) => (
+                      <Chip
+                        key={event.id}
+                        selected={selectedDraft.linkedLifeEventId === event.id}
+                        onPress={() => setPhotoDrafts((current) => ({
+                          ...current,
+                          [selectedPhoto!.id]: { ...selectedDraft, linkedLifeEventId: event.id },
+                        }))}
+                        disabled={!canEdit || photoProcessing}
+                      >
+                        {event.title || formatPersonDate(event.date)}
+                      </Chip>
+                    ))}
+                  </View>
+                </>
+              ) : null}
+            </View>
+          </Dialog.ScrollArea>
+          <Dialog.Actions>
+            {canEdit && selectedPhoto ? (
+              <Button textColor={theme.colors.error} onPress={() => {
+                setSelectedPhotoId(null);
+                void onRemovePhoto(selectedPhoto);
+              }} disabled={photoProcessing}>
+                {t(K.common.delete)}
+              </Button>
+            ) : <View />}
+            {canEdit && selectedPhoto && selectedDraft ? (
+              <Button mode="contained" onPress={() => {
+                void onUpdatePhotoDetails(selectedPhoto, selectedDraft);
+                setSelectedPhotoId(null);
+              }} disabled={photoProcessing}>
+                {t(K.common.save)}
+              </Button>
+            ) : null}
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
+      </Surface>
+    </Reveal>
   );
 }

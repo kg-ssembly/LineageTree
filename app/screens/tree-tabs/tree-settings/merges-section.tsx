@@ -82,9 +82,10 @@ export function MergesSection({
               />
             </View>
             <View style={{ marginTop: 8 }}>
-              {pendingMergeInvites.map((notification) => (
-                <Card key={notification.id} mode="contained" style={{ marginTop: 8 }}>
-                  <Card.Content>
+              {pendingMergeInvites.map((notification, index) => (
+                <Reveal key={notification.id} delay={110 + index * 20}>
+                  <Card mode="contained" style={{ marginTop: 8 }}>
+                    <Card.Content>
                     <Text variant="titleSmall">{notification.sourceTreeName}</Text>
                     <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>{notification.message}</Text>
                     <View style={[styles.collaboratorChipRow, { marginTop: 8 }]}>
@@ -98,8 +99,9 @@ export function MergesSection({
                         {t(K.common.dismiss)}
                       </Button>
                     </View>
-                  </Card.Content>
-                </Card>
+                    </Card.Content>
+                  </Card>
+                </Reveal>
               ))}
             </View>
             </Card.Content>

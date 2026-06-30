@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, type StyleProp, type ViewStyle } from 'react-native';
+import { Animated, Easing, type StyleProp, type ViewStyle } from 'react-native';
 
 type RevealProps = {
   children: React.ReactNode;
@@ -16,36 +16,29 @@ export default function Reveal({
   duration = 360,
   style,
 }: RevealProps) {
-  const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(distance)).current;
 
   useEffect(() => {
-    const animation = Animated.parallel([
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration,
-        delay,
-        useNativeDriver: true,
-      }),
-      Animated.timing(translateY, {
-        toValue: 0,
-        duration,
-        delay,
-        useNativeDriver: true,
-      }),
-    ]);
+    translateY.setValue(distance);
+
+    const animation = Animated.timing(translateY, {
+      toValue: 0,
+      duration,
+      delay,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    });
 
     animation.start();
 
     return () => animation.stop();
-  }, [delay, distance, duration, opacity, translateY]);
+  }, [delay, distance, duration, translateY]);
 
   return (
     <Animated.View
       style={[
         style,
         {
-          opacity,
           transform: [{ translateY }],
         },
       ]}

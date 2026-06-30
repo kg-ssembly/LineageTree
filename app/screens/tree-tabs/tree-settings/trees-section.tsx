@@ -47,9 +47,10 @@ export function TreesSection({
               />
             </View>
             <View style={{ marginTop: 8 }}>
-              {maidenSurnameSuggestions.map((suggestion) => (
-                <Card key={suggestion.surname} mode="contained" style={{ marginTop: 8, borderRadius: 12 }}>
-                  <Card.Content>
+              {maidenSurnameSuggestions.map((suggestion, index) => (
+                <Reveal key={suggestion.surname} delay={100 + index * 20}>
+                  <Card mode="contained" style={{ marginTop: 8, borderRadius: 12 }}>
+                    <Card.Content>
                     <Text variant="titleSmall">{suggestion.surname}</Text>
                     <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
                       {t(K.treeSettings.maidenSurnameReferenceCount, { count: suggestion.count })}
@@ -59,8 +60,9 @@ export function TreesSection({
                         {t(K.treeSettings.createTree)}
                       </Button>
                     </View>
-                  </Card.Content>
-                </Card>
+                    </Card.Content>
+                  </Card>
+                </Reveal>
               ))}
             </View>
             </Card.Content>
