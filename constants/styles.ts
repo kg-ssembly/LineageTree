@@ -354,6 +354,7 @@ export class GlobalStyles {
             flexWrap: 'wrap',
             gap: 8,
             marginTop: 16,
+            marginBottom: 20,
         },
         collaboratorList: {
             marginTop: 16,
@@ -462,11 +463,11 @@ export class GlobalStyles {
             borderColor: F.outlineVariant,
         },
         selfAssignmentSectionWrap: {
-            marginTop: 20,
+            marginTop: 24,
         },
         selfAssignmentCard: {
             ...CARD_CHROME,
-            marginTop: 16,
+            marginTop: 0,
             borderRadius: 20,
         },
         selfAssignmentHeader: {

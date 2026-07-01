@@ -59,7 +59,7 @@ export function OverviewSection({
       </View>
 
       <Reveal delay={80}>
-        <Card mode="elevated" style={[styles.selfAssignmentCard, { backgroundColor: theme.colors.surface, marginBottom: 16 }]}>
+        <Card mode="elevated" style={[styles.selfAssignmentCard, { backgroundColor: theme.colors.surface, marginBottom: 12 }]}>
           <Card.Content>
           <View style={styles.sectionHeader}>
             <View style={styles.titleWrap}>
@@ -77,7 +77,7 @@ export function OverviewSection({
           </View>
 
           {treeSurnameVariants.length > 0 ? (
-            <View style={styles.collaboratorChipRow}>
+            <View style={[styles.collaboratorChipRow, { marginTop: 16 }]}>
               {treeSurnameVariants.map((variant) => <Chip key={`tree-variant-${variant}`} compact>{variant}</Chip>)}
             </View>
           ) : null}
