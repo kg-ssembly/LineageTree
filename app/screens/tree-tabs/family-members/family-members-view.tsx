@@ -1,4 +1,4 @@
-import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { FlatList, Image, ScrollView, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
@@ -214,7 +214,7 @@ export function FamilyMembersView({
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [deferredSearchQuery, filters, people, selectedTree.id]);
+  }, [deferredSearchQuery, filters, selectedTree.id]);
 
   useEffect(() => {
     setCurrentPage((page) => Math.min(page, totalPages));
@@ -225,17 +225,17 @@ export function FamilyMembersView({
     return filteredPeople.slice(startIndex, startIndex + MEMBERS_PER_PAGE);
   }, [currentPage, filteredPeople]);
 
-  const openFilterModal = () => {
+  const openFilterModal = useCallback(() => {
     setDraftFilters(filters);
     setFilterModalVisible(true);
-  };
+  }, [filters]);
 
-  const applyFilters = () => {
+  const applyFilters = useCallback(() => {
     setFilters(draftFilters);
     setFilterModalVisible(false);
-  };
+  }, [draftFilters]);
 
-  const renderMemberItem = ({ item: person, index }: { item: PersonRecord; index: number }) => {
+  const renderMemberItem = useCallback(({ item: person, index }: { item: PersonRecord; index: number }) => {
     const preferredPhoto = getDisplayPersonPhoto(person);
     const isCurrentUsersPerson = currentAssignedPerson?.id === person.id;
 
@@ -268,7 +268,33 @@ export function FamilyMembersView({
         </View>
       </Reveal>
     );
-  };
+  }, [currentAssignedPerson?.id, openPersonProfile, t, theme.colors.onSurfaceVariant, theme.colors.primary]);
+
+  const memberListFooter = useMemo(() => {
+    if (totalPages <= 1) {
+      return null;
+    }
+
+    return (
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingTop: 8 }}>
+        <IconButton
+          icon="chevron-left"
+          onPress={() => setCurrentPage((page) => Math.max(1, page - 1))}
+          disabled={currentPage === 1}
+          accessibilityLabel={t(K.tree.familyMembers.previousPage)}
+        />
+        <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+          {t(K.tree.familyMembers.pageOf, { current: currentPage, total: totalPages })}
+        </Text>
+        <IconButton
+          icon="chevron-right"
+          onPress={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+          disabled={currentPage === totalPages}
+          accessibilityLabel={t(K.tree.familyMembers.nextPage)}
+        />
+      </View>
+    );
+  }, [currentPage, t, theme.colors.onSurfaceVariant, totalPages]);
 
   return (
     <View style={[styles.content, { flex: 1, paddingBottom: 0 }]}>
@@ -360,25 +386,7 @@ export function FamilyMembersView({
                 removeClippedSubviews
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
-                ListFooterComponent={totalPages > 1 ? (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingTop: 8 }}>
-                    <IconButton
-                      icon="chevron-left"
-                      onPress={() => setCurrentPage((page) => Math.max(1, page - 1))}
-                      disabled={currentPage === 1}
-                      accessibilityLabel={t(K.tree.familyMembers.previousPage)}
-                    />
-                    <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-                      {t(K.tree.familyMembers.pageOf, { current: currentPage, total: totalPages })}
-                    </Text>
-                    <IconButton
-                      icon="chevron-right"
-                      onPress={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
-                      disabled={currentPage === totalPages}
-                      accessibilityLabel={t(K.tree.familyMembers.nextPage)}
-                    />
-                  </View>
-                ) : null}
+                ListFooterComponent={memberListFooter}
               />
             </>
           )}

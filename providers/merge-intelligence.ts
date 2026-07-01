@@ -10,6 +10,27 @@ type TreeBundle = {
   relationships: RelationshipRecord[];
 };
 
+type PersonMergeFacts = {
+  person: PersonRecord;
+  displayName: string;
+  fullName: string;
+  firstName: string;
+  middleNames: Set<string>;
+  surnames: Set<string>;
+  birthYear: number | null;
+  relations: RelationNames;
+  birthPlace: string;
+  hometown: string;
+  clanName: string;
+  familyBranch: string;
+};
+
+type RelationNames = {
+  parentNames: Set<string>;
+  childNames: Set<string>;
+  spouseNames: Set<string>;
+};
+
 function normalise(value: string) {
   return value
     .trim()
@@ -61,91 +82,116 @@ function buildSurnameSet(person: PersonRecord, groups: SurnameVariantGroup[]) {
   return values;
 }
 
-function getRelationshipNames(
-  personId: string,
+function buildRelationshipNamesByPersonId(
   peopleById: Map<string, PersonRecord>,
   relationships: RelationshipRecord[],
 ) {
-  const parentNames = new Set<string>();
-  const childNames = new Set<string>();
-  const spouseNames = new Set<string>();
+  const relationNamesByPersonId = new Map<string, RelationNames>();
+
+  peopleById.forEach((_person, personId) => {
+    relationNamesByPersonId.set(personId, {
+      parentNames: new Set(),
+      childNames: new Set(),
+      spouseNames: new Set(),
+    });
+  });
 
   relationships.forEach((relationship) => {
     if (relationship.type === 'parent-child') {
-      if (relationship.toPersonId === personId) {
-        const parent = peopleById.get(relationship.fromPersonId);
-        if (parent) {
-          parentNames.add(normalise(getDisplayName(parent)));
-        }
+      const parent = peopleById.get(relationship.fromPersonId);
+      const child = peopleById.get(relationship.toPersonId);
+      if (!parent || !child) {
+        return;
       }
 
-      if (relationship.fromPersonId === personId) {
-        const child = peopleById.get(relationship.toPersonId);
-        if (child) {
-          childNames.add(normalise(getDisplayName(child)));
-        }
-      }
+      relationNamesByPersonId.get(child.id)?.parentNames.add(normalise(getDisplayName(parent)));
+      relationNamesByPersonId.get(parent.id)?.childNames.add(normalise(getDisplayName(child)));
+      return;
     }
 
-    if (relationship.type === 'spouse') {
-      const spouseId = relationship.fromPersonId === personId
-        ? relationship.toPersonId
-        : relationship.toPersonId === personId
-          ? relationship.fromPersonId
-          : null;
-      if (spouseId) {
-        const spouse = peopleById.get(spouseId);
-        if (spouse) {
-          spouseNames.add(normalise(getDisplayName(spouse)));
-        }
-      }
+    const left = peopleById.get(relationship.fromPersonId);
+    const right = peopleById.get(relationship.toPersonId);
+    if (!left || !right) {
+      return;
     }
+
+    relationNamesByPersonId.get(left.id)?.spouseNames.add(normalise(getDisplayName(right)));
+    relationNamesByPersonId.get(right.id)?.spouseNames.add(normalise(getDisplayName(left)));
   });
 
-  return { parentNames, childNames, spouseNames };
+  return relationNamesByPersonId;
+}
+
+function buildPersonMergeFacts(
+  person: PersonRecord,
+  tree: FamilyTree,
+  relationNamesByPersonId: Map<string, RelationNames>,
+): PersonMergeFacts {
+  const displayName = getDisplayName(person);
+
+  return {
+    person,
+    displayName,
+    fullName: normalise(displayName),
+    firstName: normalise(person.firstName),
+    middleNames: new Set(tokenize(person.middleNames ?? '')),
+    surnames: buildSurnameSet(person, tree.surnameVariantGroups),
+    birthYear: getBirthYear(person),
+    relations: relationNamesByPersonId.get(person.id) ?? {
+      parentNames: new Set(),
+      childNames: new Set(),
+      spouseNames: new Set(),
+    },
+    birthPlace: normalise(person.birthPlace ?? ''),
+    hometown: normalise(person.hometown ?? ''),
+    clanName: normalise(person.clanName ?? ''),
+    familyBranch: normalise(person.familyBranch ?? ''),
+  };
+}
+
+function buildTreeMergeFacts(bundle: TreeBundle) {
+  const peopleById = new Map(bundle.people.map((person) => [person.id, person]));
+  const relationNamesByPersonId = buildRelationshipNamesByPersonId(peopleById, bundle.relationships);
+
+  return bundle.people.map((person) => buildPersonMergeFacts(person, bundle.tree, relationNamesByPersonId));
 }
 
 function hasOverlap(left: Set<string>, right: Set<string>) {
-  return [...left].some((value) => right.has(value));
+  const smaller = left.size <= right.size ? left : right;
+  const larger = left.size <= right.size ? right : left;
+  for (const value of smaller) {
+    if (larger.has(value)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function createSignal(label: string, weight: number, matched: boolean, detail: string): MergeMatchSignal {
   return { label, weight, matched, detail };
 }
 
-function comparePeople(source: TreeBundle, target: TreeBundle, sourcePerson: PersonRecord, targetPerson: PersonRecord): MergePersonMatch {
-  const sourcePeopleById = new Map(source.people.map((person) => [person.id, person]));
-  const targetPeopleById = new Map(target.people.map((person) => [person.id, person]));
-  const sourceFullName = normalise(getDisplayName(sourcePerson));
-  const targetFullName = normalise(getDisplayName(targetPerson));
-  const sourceFirst = normalise(sourcePerson.firstName);
-  const targetFirst = normalise(targetPerson.firstName);
-  const sourceMiddle = new Set(tokenize(sourcePerson.middleNames ?? ''));
-  const targetMiddle = new Set(tokenize(targetPerson.middleNames ?? ''));
-  const sourceSurnames = buildSurnameSet(sourcePerson, source.tree.surnameVariantGroups);
-  const targetSurnames = buildSurnameSet(targetPerson, target.tree.surnameVariantGroups);
-  const sourceBirthYear = getBirthYear(sourcePerson);
-  const targetBirthYear = getBirthYear(targetPerson);
-  const sourceRelations = getRelationshipNames(sourcePerson.id, sourcePeopleById, source.relationships);
-  const targetRelations = getRelationshipNames(targetPerson.id, targetPeopleById, target.relationships);
+function comparePeople(source: PersonMergeFacts, target: PersonMergeFacts): MergePersonMatch {
+  const sourcePerson = source.person;
+  const targetPerson = target.person;
   const signals: MergeMatchSignal[] = [];
 
   signals.push(createSignal(
     'Full name',
     24,
-    sourceFullName === targetFullName || sourceFirst === targetFirst,
-    `${getDisplayName(sourcePerson)} vs ${getDisplayName(targetPerson)}`,
+    source.fullName === target.fullName || source.firstName === target.firstName,
+    `${source.displayName} vs ${target.displayName}`,
   ));
   signals.push(createSignal(
     'Middle names',
     6,
-    sourceMiddle.size > 0 && targetMiddle.size > 0 && hasOverlap(sourceMiddle, targetMiddle),
+    source.middleNames.size > 0 && target.middleNames.size > 0 && hasOverlap(source.middleNames, target.middleNames),
     `${sourcePerson.middleNames ?? 'Unknown'} vs ${targetPerson.middleNames ?? 'Unknown'}`,
   ));
   signals.push(createSignal(
     'Surname variants',
     18,
-    hasOverlap(sourceSurnames, targetSurnames),
+    hasOverlap(source.surnames, target.surnames),
     `${sourcePerson.lastName} vs ${targetPerson.lastName}`,
   ));
   signals.push(createSignal(
@@ -157,39 +203,39 @@ function comparePeople(source: TreeBundle, target: TreeBundle, sourcePerson: Per
   signals.push(createSignal(
     'Birth year',
     10,
-    sourceBirthYear !== null && targetBirthYear !== null && Math.abs(sourceBirthYear - targetBirthYear) <= 2,
-    `${sourceBirthYear ?? 'Unknown'} vs ${targetBirthYear ?? 'Unknown'}`,
+    source.birthYear !== null && target.birthYear !== null && Math.abs(source.birthYear - target.birthYear) <= 2,
+    `${source.birthYear ?? 'Unknown'} vs ${target.birthYear ?? 'Unknown'}`,
   ));
   signals.push(createSignal(
     'Parents',
     12,
-    hasOverlap(sourceRelations.parentNames, targetRelations.parentNames),
-    `${sourceRelations.parentNames.size} vs ${targetRelations.parentNames.size} parent links`,
+    hasOverlap(source.relations.parentNames, target.relations.parentNames),
+    `${source.relations.parentNames.size} vs ${target.relations.parentNames.size} parent links`,
   ));
   signals.push(createSignal(
     'Spouse',
     10,
-    hasOverlap(sourceRelations.spouseNames, targetRelations.spouseNames),
-    `${sourceRelations.spouseNames.size} vs ${targetRelations.spouseNames.size} spouse links`,
+    hasOverlap(source.relations.spouseNames, target.relations.spouseNames),
+    `${source.relations.spouseNames.size} vs ${target.relations.spouseNames.size} spouse links`,
   ));
   signals.push(createSignal(
     'Children',
     7,
-    hasOverlap(sourceRelations.childNames, targetRelations.childNames),
-    `${sourceRelations.childNames.size} vs ${targetRelations.childNames.size} child links`,
+    hasOverlap(source.relations.childNames, target.relations.childNames),
+    `${source.relations.childNames.size} vs ${target.relations.childNames.size} child links`,
   ));
   signals.push(createSignal(
     'Birthplace / hometown',
     5,
-    Boolean(sourcePerson.birthPlace && targetPerson.birthPlace && normalise(sourcePerson.birthPlace) === normalise(targetPerson.birthPlace))
-    || Boolean(sourcePerson.hometown && targetPerson.hometown && normalise(sourcePerson.hometown) === normalise(targetPerson.hometown)),
+    Boolean(sourcePerson.birthPlace && targetPerson.birthPlace && source.birthPlace === target.birthPlace)
+    || Boolean(sourcePerson.hometown && targetPerson.hometown && source.hometown === target.hometown),
     `${sourcePerson.birthPlace || sourcePerson.hometown || 'Unknown'} vs ${targetPerson.birthPlace || targetPerson.hometown || 'Unknown'}`,
   ));
   signals.push(createSignal(
     'Clan / branch',
     4,
-    Boolean(sourcePerson.clanName && targetPerson.clanName && normalise(sourcePerson.clanName) === normalise(targetPerson.clanName))
-    || Boolean(sourcePerson.familyBranch && targetPerson.familyBranch && normalise(sourcePerson.familyBranch) === normalise(targetPerson.familyBranch)),
+    Boolean(sourcePerson.clanName && targetPerson.clanName && source.clanName === target.clanName)
+    || Boolean(sourcePerson.familyBranch && targetPerson.familyBranch && source.familyBranch === target.familyBranch),
     `${sourcePerson.clanName || sourcePerson.familyBranch || 'Unknown'} vs ${targetPerson.clanName || targetPerson.familyBranch || 'Unknown'}`,
   ));
   signals.push(createSignal(
@@ -203,7 +249,7 @@ function comparePeople(source: TreeBundle, target: TreeBundle, sourcePerson: Per
   const guidedQuestions = [
     {
       id: `same-person-${sourcePerson.id}-${targetPerson.id}`,
-      prompt: `Is ${getDisplayName(sourcePerson)} the same person as ${getDisplayName(targetPerson)}?`,
+      prompt: `Is ${source.displayName} the same person as ${target.displayName}?`,
     },
     {
       id: `same-parent-${sourcePerson.id}-${targetPerson.id}`,
@@ -218,7 +264,7 @@ function comparePeople(source: TreeBundle, target: TreeBundle, sourcePerson: Per
   if (sourcePerson.lastName && targetPerson.lastName && normalise(sourcePerson.lastName) !== normalise(targetPerson.lastName)) {
     conflicts.push({ field: 'surname', sourceValue: sourcePerson.lastName, targetValue: targetPerson.lastName });
   }
-  if (sourcePerson.hometown && targetPerson.hometown && normalise(sourcePerson.hometown) !== normalise(targetPerson.hometown)) {
+  if (sourcePerson.hometown && targetPerson.hometown && source.hometown !== target.hometown) {
     conflicts.push({ field: 'hometown', sourceValue: sourcePerson.hometown, targetValue: targetPerson.hometown });
   }
 
@@ -235,8 +281,10 @@ function comparePeople(source: TreeBundle, target: TreeBundle, sourcePerson: Per
 }
 
 export function buildMergePreview(source: TreeBundle, target: TreeBundle): MergePreview {
-  const matches = source.people
-    .flatMap((sourcePerson) => target.people.map((targetPerson) => comparePeople(source, target, sourcePerson, targetPerson)))
+  const sourceFacts = buildTreeMergeFacts(source);
+  const targetFacts = buildTreeMergeFacts(target);
+  const matches = sourceFacts
+    .flatMap((sourcePerson) => targetFacts.map((targetPerson) => comparePeople(sourcePerson, targetPerson)))
     .filter((match) => match.confidenceScore >= 35)
     .sort((left, right) => right.confidenceScore - left.confidenceScore)
     .slice(0, 25);

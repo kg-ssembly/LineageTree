@@ -201,8 +201,8 @@ function buildLineageSubtree(
 
   const lineage = new Set<string>([rootPersonId]);
   const queue = [rootPersonId];
-  while (queue.length) {
-    const cur = queue.shift()!;
+  for (let queueIndex = 0; queueIndex < queue.length; queueIndex += 1) {
+    const cur = queue[queueIndex];
     (linkMap.get(cur) ?? new Set()).forEach((next) => {
       if (peopleById.has(next) && !lineage.has(next)) {
         lineage.add(next);
@@ -832,21 +832,21 @@ function FamilyTreeCanvas({
     };
   }, [deferredPan.x, deferredPan.y, deferredScale, activeViewportSize.width, activeViewportSize.height]);
 
-  const intersects = (b: { x: number; y: number; w: number; h: number }) => (
+  const intersects = useCallback((b: { x: number; y: number; w: number; h: number }) => (
       b.x + b.w >= viewportRect.x &&
       b.x <= viewportRect.x + viewportRect.w &&
       b.y + b.h >= viewportRect.y &&
       b.y <= viewportRect.y + viewportRect.h
-  );
+  ), [viewportRect]);
 
   const visiblePeople = useMemo(
     () => positionedPeople.filter(({ bounds }) => intersects(bounds)),
-    [positionedPeople, viewportRect],
+    [intersects, positionedPeople],
   );
 
   const visibleConnectors = useMemo(
       () => allConnectors.filter((c: Connector) => intersects(c.bounds)),
-      [allConnectors, viewportRect],
+      [allConnectors, intersects],
   );
 
   // ---- Layout handlers ----
@@ -869,14 +869,14 @@ function FamilyTreeCanvas({
       : lineageMode === 'descendant' ? t(K.lineage.fullScreenDescendantTree) : t(K.lineage.fullScreenFamilyTree);
 
   // ---- Render helpers ----
-  const transformStyle = {
+  const transformStyle = useMemo(() => ({
     transform: [
       { translateX: panXAnim },
       { translateY: panYAnim },
       { scale: scaleAnim },
     ],
     transformOrigin: '0 0' as const,
-  };
+  }), [panXAnim, panYAnim, scaleAnim]);
 
   const renderFloatingControls = (mode: 'inline' | 'fullscreen') => (
       <View pointerEvents="box-none" style={styles.viewportOverlay}>
