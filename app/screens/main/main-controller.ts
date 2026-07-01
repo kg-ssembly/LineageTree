@@ -31,6 +31,9 @@ import {
   getTreeById,
 } from '../tree-tabs/shared';
 import { buildSelfPersonInitialValues, createPersonFromFormSubmission, findConnectedTreeForSurname } from '../tree-screen-helpers';
+import { CURRENT_APP_VERSION } from '../../../constants/app-metadata';
+import { getCurrentReleaseNote } from '../../../constants/release-notes';
+import type { AppLanguage } from '../../../i18n';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Main'>;
 
@@ -81,8 +84,16 @@ function isMainTabName(name: string): name is typeof MAIN_TAB_NAMES[number] {
 export function useMainScreenController({ navigation }: Props) {
   const isFocused = useIsFocused();
   const theme = useTheme();
-  const { t } = useI18n();
-  const { user, signOut, loading: authLoading, setDefaultTreeId } = useAuthStore();
+  const { t, language, setLanguage } = useI18n();
+  const currentReleaseNote = useMemo(() => getCurrentReleaseNote(), []);
+  const {
+    user,
+    signOut,
+    loading: authLoading,
+    setDefaultTreeId,
+    updatePreferredLanguage,
+    markAppVersionSeen,
+  } = useAuthStore();
   const {
     trees,
     selectedTreeId,
@@ -195,6 +206,7 @@ export function useMainScreenController({ navigation }: Props) {
   const [treeSettingsFocus, setTreeSettingsFocus] = useState<TreeSettingsFocus>(null);
   const [memberProfileParams, setMemberProfileParams] = useState<MemberProfileParams | null>(null);
   const [snackVisible, setSnackVisible] = useState(false);
+  const [startupModalSubmitting, setStartupModalSubmitting] = useState(false);
   const [confirmState, setConfirmState] = useState<ConfirmState>({
     visible: false,
     title: '',
@@ -285,6 +297,38 @@ export function useMainScreenController({ navigation }: Props) {
       setSnackVisible(true);
     }
   }, [error, isFocused, notice]);
+
+  useEffect(() => {
+    if (!user?.preferredLanguage || user.preferredLanguage === language) {
+      return;
+    }
+
+    void setLanguage(user.preferredLanguage);
+  }, [language, setLanguage, user?.preferredLanguage]);
+
+  const shouldShowLanguageModal = !user?.preferredLanguage;
+  const shouldShowUpdateModal = !shouldShowLanguageModal
+    && Boolean(user)
+    && user.lastSeenAppVersion !== CURRENT_APP_VERSION;
+
+  const handleStartupLanguageSubmit = useCallback(async (nextLanguage: AppLanguage) => {
+    setStartupModalSubmitting(true);
+    try {
+      await setLanguage(nextLanguage);
+      await updatePreferredLanguage(nextLanguage);
+    } finally {
+      setStartupModalSubmitting(false);
+    }
+  }, [setLanguage, updatePreferredLanguage]);
+
+  const handleUpdateModalDismiss = useCallback(async () => {
+    setStartupModalSubmitting(true);
+    try {
+      await markAppVersionSeen(CURRENT_APP_VERSION);
+    } finally {
+      setStartupModalSubmitting(false);
+    }
+  }, [markAppVersionSeen]);
 
   const openConfirm = useCallback((title: string, message: string, confirmLabel: string, action: () => Promise<void>) => {
     setConfirmState({ visible: true, title, message, confirmLabel, action });
@@ -980,6 +1024,16 @@ export function useMainScreenController({ navigation }: Props) {
     signOut,
     snackMessage: error ?? notice,
     snackVisible,
+    startupModal: {
+      currentVersion: currentReleaseNote.version,
+      initialLanguage: user?.preferredLanguage ?? language,
+      loading: startupModalSubmitting,
+      mode: (shouldShowLanguageModal ? 'language' : 'update') as 'language' | 'update',
+      updateHighlights: currentReleaseNote.highlights,
+      visible: shouldShowLanguageModal || shouldShowUpdateModal,
+    },
+    handleStartupLanguageSubmit,
+    handleUpdateModalDismiss,
     t,
     theme,
     trees,

@@ -20,7 +20,7 @@ const homeStyles = GlobalStyles.home;
 export function AppSettingsSection({ onSignOut, authLoading }: UserProfileTabProps) {
   const theme = useTheme();
   const { language, languages, setLanguage, t } = useI18n();
-  const { user, updateDisplayName } = useAuthStore();
+  const { user, updateDisplayName, updatePreferredLanguage } = useAuthStore();
   const preference = useThemeStore((state) => state.preference);
   const setPreference = useThemeStore((state) => state.setPreference);
   const [editName, setEditName] = useState(user?.displayName ?? '');
@@ -52,6 +52,11 @@ export function AppSettingsSection({ onSignOut, authLoading }: UserProfileTabPro
     } finally {
       setSavingName(false);
     }
+  };
+
+  const handleLanguageChange = async (nextLanguage: typeof language) => {
+    await setLanguage(nextLanguage);
+    await updatePreferredLanguage(nextLanguage);
   };
 
   return (
@@ -116,7 +121,7 @@ export function AppSettingsSection({ onSignOut, authLoading }: UserProfileTabPro
             <Chip
               key={option.code}
               selected={option.code === language}
-              onPress={() => void setLanguage(option.code)}
+              onPress={() => void handleLanguageChange(option.code)}
               style={{ marginBottom: 8 }}
               icon={option.code === language ? 'check' : 'translate'}
             >

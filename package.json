@@ -1,6 +1,6 @@
 {
   "name": "Lineage Tree",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "main": "index.ts",
   "engines": {
     "node": ">=20 <24"

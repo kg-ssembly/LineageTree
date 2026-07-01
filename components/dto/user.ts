@@ -1,3 +1,5 @@
+import type { AppLanguage } from '../../i18n';
+
 export interface UserProfile {
   id: string;
   email: string;
@@ -6,6 +8,8 @@ export interface UserProfile {
   normalizedDisplayName?: string;
   username?: string;
   defaultTreeId?: string;
+  preferredLanguage?: AppLanguage;
+  lastSeenAppVersion?: string;
   createdAt: string;
 }
 

@@ -1,11 +1,12 @@
 import React from 'react';
 import { ActivityIndicator, View } from 'react-native';
-import { Snackbar } from 'react-native-paper';
 import {
   CollaboratorDialog,
   ConfirmDialog,
+  FloatingSnackbar,
   PersonFormDialog,
   RelationshipDialog,
+  StartupModal,
   TreeFormDialog,
 } from '../../../components';
 import { canManageTree } from '../../../components/dto/tree';
@@ -116,14 +117,25 @@ export function MainScreenView({ controller }: { controller: ReturnType<typeof u
         onConfirm={controller.dialogActions.handleConfirmAction}
       />
 
-      <Snackbar
+      <StartupModal
+        visible={controller.startupModal.visible}
+        mode={controller.startupModal.mode}
+        currentVersion={controller.startupModal.currentVersion}
+        updateHighlights={controller.startupModal.updateHighlights}
+        initialLanguage={controller.startupModal.initialLanguage}
+        loading={controller.startupModal.loading}
+        onSubmitLanguage={controller.handleStartupLanguageSubmit}
+        onDismissUpdate={controller.handleUpdateModalDismiss}
+      />
+
+      <FloatingSnackbar
         visible={controller.snackVisible}
         onDismiss={controller.dismissSnackbar}
         duration={5000}
         action={{ label: controller.t(K.common.dismiss), onPress: controller.dismissSnackbar }}
       >
         {controller.snackMessage}
-      </Snackbar>
+      </FloatingSnackbar>
     </View>
   );
 }

@@ -22,6 +22,8 @@ import {
 import { auth, db } from '../providers/firebase-provider';
 import type { UserProfile } from '../components/dto/user';
 import type { TreeRole } from '../components/dto/tree';
+import type { AppLanguage } from '../i18n';
+import { CURRENT_APP_VERSION } from '../constants/app-metadata';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -36,6 +38,8 @@ export interface AuthState {
   signOut: () => Promise<void>;
   setDefaultTreeId: (treeId: string | null) => Promise<void>;
   updateDisplayName: (displayName: string) => Promise<void>;
+  updatePreferredLanguage: (language: AppLanguage) => Promise<void>;
+  markAppVersionSeen: (version: string) => Promise<void>;
   clearError: () => void;
   /** Call once on app mount to listen for auth state changes */
   init: () => () => void;
@@ -80,6 +84,25 @@ function deriveUsername(email: string) {
   return email.split('@')[0]?.trim().toLowerCase() ?? '';
 }
 
+function isAppLanguage(value: unknown): value is AppLanguage {
+  return value === 'en'
+    || value === 'af'
+    || value === 'zu'
+    || value === 'xh'
+    || value === 'nso'
+    || value === 'st'
+    || value === 'tn'
+    || value === 'ts'
+    || value === 'ss'
+    || value === 've'
+    || value === 'nr'
+    || value === 'it'
+    || value === 'es'
+    || value === 'fr'
+    || value === 'de'
+    || value === 'pt';
+}
+
 function buildUserProfileDocument(user: Pick<FirebaseUser, 'uid' | 'email' | 'displayName'>, createdAt?: string) {
   const email = user.email ?? '';
   const displayName = user.displayName ?? '';
@@ -91,6 +114,7 @@ function buildUserProfileDocument(user: Pick<FirebaseUser, 'uid' | 'email' | 'di
     displayName,
     normalizedDisplayName: normaliseDisplayName(displayName),
     username: deriveUsername(email),
+    lastSeenAppVersion: CURRENT_APP_VERSION,
     ...(createdAt ? { createdAt } : {}),
   };
 }
@@ -143,6 +167,10 @@ async function ensureUserProfileDocument(fbUser: Pick<FirebaseUser, 'uid' | 'ema
     normalizedDisplayName,
     username,
     defaultTreeId: typeof data.defaultTreeId === 'string' && data.defaultTreeId.trim() ? data.defaultTreeId.trim() : undefined,
+    preferredLanguage: isAppLanguage(data.preferredLanguage) ? data.preferredLanguage : undefined,
+    lastSeenAppVersion: typeof data.lastSeenAppVersion === 'string' && data.lastSeenAppVersion.trim()
+      ? data.lastSeenAppVersion.trim()
+      : undefined,
     createdAt: data.createdAt?.toDate?.().toISOString() ?? data.createdAt ?? fallbackProfile.createdAt,
   };
 }
@@ -167,6 +195,10 @@ async function fetchUserProfile(uid: string, fallbackUser?: FirebaseUser | null)
     normalizedDisplayName: data.normalizedDisplayName ?? normaliseDisplayName(displayName),
     username: data.username ?? deriveUsername(email),
     defaultTreeId: typeof data.defaultTreeId === 'string' && data.defaultTreeId.trim() ? data.defaultTreeId.trim() : undefined,
+    preferredLanguage: isAppLanguage(data.preferredLanguage) ? data.preferredLanguage : undefined,
+    lastSeenAppVersion: typeof data.lastSeenAppVersion === 'string' && data.lastSeenAppVersion.trim()
+      ? data.lastSeenAppVersion.trim()
+      : undefined,
     createdAt: data.createdAt?.toDate?.().toISOString() ?? data.createdAt,
   };
 }
@@ -342,6 +374,36 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     set((state) => ({
       user: state.user ? { ...state.user, displayName: trimmed, normalizedDisplayName: normaliseDisplayName(trimmed) } : null,
+    }));
+  },
+
+  updatePreferredLanguage: async (language) => {
+    const { user } = get();
+    if (!user) {
+      return;
+    }
+
+    await setDoc(doc(db, 'users', user.id), {
+      preferredLanguage: language,
+    }, { merge: true });
+
+    set((state) => ({
+      user: state.user ? { ...state.user, preferredLanguage: language } : null,
+    }));
+  },
+
+  markAppVersionSeen: async (version) => {
+    const { user } = get();
+    if (!user || !version.trim()) {
+      return;
+    }
+
+    await setDoc(doc(db, 'users', user.id), {
+      lastSeenAppVersion: version.trim(),
+    }, { merge: true });
+
+    set((state) => ({
+      user: state.user ? { ...state.user, lastSeenAppVersion: version.trim() } : null,
     }));
   },
 }));
