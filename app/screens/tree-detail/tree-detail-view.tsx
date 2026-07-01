@@ -34,6 +34,7 @@ import { GlobalStyles } from '../../../constants/styles';
 import { useI18n } from '../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../i18n/keys';
 import { useShallow } from 'zustand/react/shallow';
+import { buildPeopleDirectory, buildTreeAssignmentContext, getTreeById } from '../tree-tabs/shared';
 import {
   buildSelfAssignmentSuggestions,
   PeopleRelationshipsTabContent,
@@ -213,11 +214,11 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
   const [maidenMembersPage, setMaidenMembersPage] = useState(1);
 
   const selectedTree = useMemo(
-    () => trees.find((tree) => tree.id === route.params.treeId) ?? null,
+    () => getTreeById(trees, route.params.treeId),
     [route.params.treeId, trees],
   );
   const returnTree = useMemo(
-    () => (route.params.returnTreeId ? trees.find((tree) => tree.id === route.params.returnTreeId) ?? null : null),
+    () => getTreeById(trees, route.params.returnTreeId),
     [route.params.returnTreeId, trees],
   );
   const isMaidenViewerMode = Boolean(route.params.returnTreeId);
@@ -225,13 +226,8 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     ? route.params.initialTab
     : 'PeopleRelationshipsTab';
 
-  const peopleById = useMemo(
-    () => new Map(people.map((person) => [person.id, person])),
-    [people],
-  );
-
-  const existingLastNames = useMemo(
-    () => [...new Set(people.map((person) => person.lastName.trim()).filter(Boolean))].sort((left, right) => left.localeCompare(right)),
+  const { peopleById, existingLastNames } = useMemo(
+    () => buildPeopleDirectory(people),
     [people],
   );
   const crossSurnameChildIds = useMemo(
@@ -241,28 +237,14 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
 
   const currentUserLabel = useMemo(() => getUserDisplayLabel(user), [user]);
 
-  const assignedUserIdByPersonId = useMemo(
-    () => new Map(Object.entries(selectedTree?.personAssignments ?? {}).map(([assignedUserId, personId]) => [personId, assignedUserId])),
-    [selectedTree?.personAssignments],
-  );
-
-  const assignedPersonByUserId = useMemo(
-    () => new Map(
-      Object.entries(selectedTree?.personAssignments ?? {})
-        .map(([assignedUserId, personId]) => {
-          const linkedPerson = peopleById.get(personId);
-          return linkedPerson ? [assignedUserId, linkedPerson] as const : null;
-        })
-        .filter((entry): entry is readonly [string, PersonRecord] => Boolean(entry)),
-    ),
-    [peopleById, selectedTree?.personAssignments],
-  );
-
-  const currentAssignedPersonId = selectedTree ? getAssignedPersonId(selectedTree, user?.id) : null;
-
-  const currentAssignedPerson = useMemo(
-    () => (currentAssignedPersonId ? peopleById.get(currentAssignedPersonId) ?? null : null),
-    [currentAssignedPersonId, peopleById],
+  const {
+    assignedUserIdByPersonId,
+    assignedPersonByUserId,
+    currentAssignedPersonId,
+    currentAssignedPerson,
+  } = useMemo(
+    () => buildTreeAssignmentContext(selectedTree, peopleById, user?.id),
+    [peopleById, selectedTree, user?.id],
   );
   const returnTreeAssignedPersonId = useMemo(
     () => (returnTreeBundle?.tree ? getAssignedPersonId(returnTreeBundle.tree, user?.id) : null),

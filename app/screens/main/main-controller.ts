@@ -13,7 +13,6 @@ import {
   canSetDefaultTree,
   canEditTreeContent,
   canManageTree,
-  getAssignedPersonId,
   getTreeRole,
   type CollaboratorRole,
   type FamilyTree,
@@ -25,7 +24,12 @@ import { useTreeStore } from '../../../stores/tree-store';
 import { useShallow } from 'zustand/react/shallow';
 import { getTreeDeletionImpact } from '../../../providers/family-tree-service';
 import type { SharedTabProps } from '../tree-tab-content';
-import { getActivityNotificationCount } from '../tree-tabs/shared';
+import {
+  buildPeopleDirectory,
+  buildTreeAssignmentContext,
+  getActivityNotificationCount,
+  getTreeById,
+} from '../tree-tabs/shared';
 import { buildSelfPersonInitialValues, createPersonFromFormSubmission, findConnectedTreeForSurname } from '../tree-screen-helpers';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Main'>;
@@ -200,17 +204,12 @@ export function useMainScreenController({ navigation }: Props) {
   });
 
   const selectedTree = useMemo(
-    () => trees.find((tree) => tree.id === selectedTreeId) ?? null,
+    () => getTreeById(trees, selectedTreeId),
     [selectedTreeId, trees],
   );
 
-  const peopleById = useMemo(
-    () => new Map(people.map((person) => [person.id, person])),
-    [people],
-  );
-
-  const existingLastNames = useMemo(
-    () => [...new Set(people.map((person) => person.lastName.trim()).filter(Boolean))].sort((left, right) => left.localeCompare(right)),
+  const { peopleById, existingLastNames } = useMemo(
+    () => buildPeopleDirectory(people),
     [people],
   );
 
@@ -221,28 +220,14 @@ export function useMainScreenController({ navigation }: Props) {
 
   const currentUserLabel = useMemo(() => getUserDisplayLabel(user), [user]);
 
-  const assignedUserIdByPersonId = useMemo(
-    () => new Map(Object.entries(selectedTree?.personAssignments ?? {}).map(([assignedUserId, personId]) => [personId, assignedUserId])),
-    [selectedTree?.personAssignments],
-  );
-
-  const assignedPersonByUserId = useMemo(
-    () => new Map(
-      Object.entries(selectedTree?.personAssignments ?? {})
-        .map(([assignedUserId, personId]) => {
-          const linkedPerson = peopleById.get(personId);
-          return linkedPerson ? [assignedUserId, linkedPerson] as const : null;
-        })
-        .filter((entry): entry is readonly [string, PersonRecord] => Boolean(entry)),
-    ),
-    [peopleById, selectedTree?.personAssignments],
-  );
-
-  const currentAssignedPersonId = selectedTree ? getAssignedPersonId(selectedTree, user?.id) : null;
-
-  const currentAssignedPerson = useMemo(
-    () => (currentAssignedPersonId ? peopleById.get(currentAssignedPersonId) ?? null : null),
-    [currentAssignedPersonId, peopleById],
+  const {
+    assignedUserIdByPersonId,
+    assignedPersonByUserId,
+    currentAssignedPersonId,
+    currentAssignedPerson,
+  } = useMemo(
+    () => buildTreeAssignmentContext(selectedTree, peopleById, user?.id),
+    [peopleById, selectedTree, user?.id],
   );
 
   const notificationBadgeCount = useMemo(() => {

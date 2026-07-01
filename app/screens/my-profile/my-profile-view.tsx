@@ -35,6 +35,7 @@ import { I18N_KEYS as K } from '../../../i18n/keys';
 import { useAuthStore } from '../../../stores/auth-store';
 import { useTreeStore } from '../../../stores/tree-store';
 import { useShallow } from 'zustand/react/shallow';
+import { buildPeopleDirectory, getTreeById } from '../tree-tabs/shared';
 import { NotesDialog } from './dialogs/notes-dialog';
 import { PhotoViewerModal } from './dialogs/photo-viewer-modal';
 import { AppSettingsSection, type UserProfileTabProps } from './sections/app-settings-section';
@@ -230,17 +231,17 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
   );
 
   const selectedTree = useMemo(
-    () => trees.find((tree) => tree.id === selectedTreeId) ?? null,
+    () => getTreeById(trees, selectedTreeId),
     [selectedTreeId, trees],
   );
 
   const defaultTree = useMemo(
-    () => trees.find((tree) => tree.id === user?.defaultTreeId) ?? null,
+    () => getTreeById(trees, user?.defaultTreeId),
     [trees, user?.defaultTreeId],
   );
 
-  const peopleById = useMemo(
-    () => new Map(people.map((person) => [person.id, person])),
+  const { peopleById, existingLastNames } = useMemo(
+    () => buildPeopleDirectory(people),
     [people],
   );
 
@@ -381,10 +382,6 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
 
   const linkedPerson = currentAssignedPerson;
   const preferredPhoto = getDisplayPersonPhoto(linkedPerson);
-  const existingLastNames = useMemo(
-    () => [...new Set(people.map((person) => person.lastName.trim()).filter(Boolean))].sort((left, right) => left.localeCompare(right)),
-    [people],
-  );
   const relationshipEntries = useMemo(() => {
     if (!linkedPerson) {
       return [];

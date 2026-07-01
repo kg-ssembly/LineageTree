@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { ScrollView, Share, StyleSheet, View } from 'react-native';
+import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { FlatList, ScrollView, Share, StyleSheet, View } from 'react-native';
 import { Button, Chip, Dialog, IconButton, Portal, ProgressBar, Snackbar, Text, TextInput, useTheme } from 'react-native-paper';
 import { HorizontalTabStrip, Reveal } from '../../../../components';
 import type { ApprovalRequest } from '../../../../components/dto/approval';
@@ -56,6 +56,8 @@ const settingsTabStripStyles = StyleSheet.create({
     marginHorizontal: 2,
   },
 });
+
+const MAX_LINK_CHOOSER_RESULTS = 8;
 
 function TreeSettingsContent({
   selectedTree,
@@ -130,6 +132,8 @@ function TreeSettingsContent({
   const [copyNoticeVisible, setCopyNoticeVisible] = useState(false);
   const [copyNoticeMessage, setCopyNoticeMessage] = useState('');
   const [highlightedMergeRequestId, setHighlightedMergeRequestId] = useState<string | null>(null);
+  const deferredLinkSearchQuery = useDeferredValue(linkSearchQuery);
+  const deferredOwnerLinkSearchQuery = useDeferredValue(ownerLinkSearchQuery);
 
   const treeSurnameVariants = useMemo(
     () => [...new Set(selectedTree.surnameVariantGroups.flatMap((group) => [group.primarySurname, ...group.variants]).map((value) => value.trim()).filter(Boolean))],
@@ -141,33 +145,47 @@ function TreeSettingsContent({
     [selectedTree, userId],
   );
 
-  const filteredLinkPeople = useMemo(() => {
-    const normalizedQuery = linkSearchQuery.trim().toLowerCase();
+  const selfLinkSearchIndex = useMemo(
+    () => availableSelfLinkPeople.map((person) => ({
+      person,
+      searchableText: [person.firstName, person.lastName, person.birthDate, person.notes].join(' ').toLowerCase(),
+    })),
+    [availableSelfLinkPeople],
+  );
 
-    return availableSelfLinkPeople
-      .filter((person) => person.id !== currentAssignedPerson?.id)
-      .filter((person) => {
+  const ownerLinkSearchIndex = useMemo(
+    () => people.map((person) => ({
+      person,
+      searchableText: [person.firstName, person.lastName, person.birthDate, person.notes].join(' ').toLowerCase(),
+    })),
+    [people],
+  );
+
+  const filteredLinkPeople = useMemo(() => {
+    const normalizedQuery = deferredLinkSearchQuery.trim().toLowerCase();
+
+    return selfLinkSearchIndex
+      .filter(({ person }) => person.id !== currentAssignedPerson?.id)
+      .filter(({ searchableText }) => {
         if (!normalizedQuery) {
           return true;
         }
 
-        return [person.firstName, person.lastName, person.birthDate, person.notes]
-          .join(' ')
-          .toLowerCase()
-          .includes(normalizedQuery);
+        return searchableText.includes(normalizedQuery);
       })
-      .slice(0, 8);
-  }, [availableSelfLinkPeople, currentAssignedPerson?.id, linkSearchQuery]);
+      .slice(0, MAX_LINK_CHOOSER_RESULTS)
+      .map(({ person }) => person);
+  }, [currentAssignedPerson?.id, deferredLinkSearchQuery, selfLinkSearchIndex]);
 
   const filteredOwnerLinkPeople = useMemo(() => {
     if (!ownerLinkTargetUserId) {
       return [] as PersonRecord[];
     }
 
-    const normalizedQuery = ownerLinkSearchQuery.trim().toLowerCase();
+    const normalizedQuery = deferredOwnerLinkSearchQuery.trim().toLowerCase();
 
-    return people
-      .filter((person) => {
+    return ownerLinkSearchIndex
+      .filter(({ person }) => {
         const assignedUserId = assignedUserIdByPersonId.get(person.id);
         if (assignedUserId && assignedUserId !== ownerLinkTargetUserId) {
           return false;
@@ -177,25 +195,16 @@ function TreeSettingsContent({
           return true;
         }
 
-        return [person.firstName, person.lastName, person.birthDate, person.notes]
-          .join(' ')
-          .toLowerCase()
-          .includes(normalizedQuery);
+        return true;
       })
-      .slice(0, 8);
-  }, [assignedUserIdByPersonId, ownerLinkSearchQuery, ownerLinkTargetUserId, people]);
+      .filter(({ searchableText }) => !normalizedQuery || searchableText.includes(normalizedQuery))
+      .slice(0, MAX_LINK_CHOOSER_RESULTS)
+      .map(({ person }) => person);
+  }, [assignedUserIdByPersonId, deferredOwnerLinkSearchQuery, ownerLinkSearchIndex, ownerLinkTargetUserId]);
 
-  const pendingApprovalRequests = useMemo(
-    () => approvalRequests.filter((request) => request.status === 'pending'),
-    [approvalRequests],
-  );
-
-  const availableMergeSourceTrees = useMemo(
-    () => (trees ?? []).filter((tree) => canEditTreeContent(tree, userId)),
-    [trees, userId],
-  );
-
-  const maidenSurnameSuggestions = useMemo(() => {
+  const treeSettingsMetrics = useMemo(() => {
+    const pendingApprovalRequests = approvalRequests.filter((request) => request.status === 'pending');
+    const availableMergeSourceTrees = (trees ?? []).filter((tree) => canEditTreeContent(tree, userId));
     const currentTreeSurnameKeys = new Set(
       selectedTree.surnameVariantGroups
         .flatMap((group) => [group.primarySurname, ...group.variants])
@@ -235,7 +244,7 @@ function TreeSettingsContent({
       counts.set(key, { surname: maidenSurname, count: (current?.count ?? 0) + 1 });
     });
 
-    return [...counts.entries()]
+    const maidenSurnameSuggestions = [...counts.entries()]
       .map(([key, value]) => ({
         surname: value.surname,
         count: value.count,
@@ -243,9 +252,28 @@ function TreeSettingsContent({
       }))
       .filter((suggestion) => !suggestion.existingTree)
       .sort((left, right) => right.count - left.count || left.surname.localeCompare(right.surname));
-  }, [people, selectedTree.surnameVariantGroups, trees]);
+    const pendingMergeRequests = mergeRequests.filter((request) => request.status === 'pending' || request.status === 'changes-requested');
+    const mergeRequestsById = new Map(mergeRequests.map((request) => [request.id, request]));
+    const approvalWindowHours = getTreeApprovalWindowHours(selectedTree);
 
-  const approvalWindowHours = useMemo(() => getTreeApprovalWindowHours(selectedTree), [selectedTree]);
+    return {
+      pendingApprovalRequests,
+      availableMergeSourceTrees,
+      maidenSurnameSuggestions,
+      pendingMergeRequests,
+      mergeRequestsById,
+      approvalWindowHours,
+    };
+  }, [approvalRequests, mergeRequests, people, selectedTree, trees, userId]);
+  const {
+    pendingApprovalRequests,
+    availableMergeSourceTrees,
+    maidenSurnameSuggestions,
+    pendingMergeRequests,
+    mergeRequestsById,
+    approvalWindowHours,
+  } = treeSettingsMetrics;
+
   const approvalsDisabled = approvalWindowHours === 0;
   const approvalWindowValue = useMemo(() => {
     if (approvalWindowHours <= 0) return '0';
@@ -253,16 +281,6 @@ function TreeSettingsContent({
     if (approvalWindowHours <= 24) return '24';
     return '48';
   }, [approvalWindowHours]);
-
-  const pendingMergeRequests = useMemo(
-    () => mergeRequests.filter((request) => request.status === 'pending' || request.status === 'changes-requested'),
-    [mergeRequests],
-  );
-
-  const mergeRequestsById = useMemo(
-    () => new Map(mergeRequests.map((request) => [request.id, request])),
-    [mergeRequests],
-  );
 
   useEffect(() => {
     if (mergePreview) {
@@ -421,6 +439,47 @@ function TreeSettingsContent({
     await Share.share({ message: treeId });
     setCopyNoticeMessage(t(K.treeSettings.treeIdReadyToShare));
     setCopyNoticeVisible(true);
+  };
+
+  const renderMergeHistoryItem = ({ item: entry, index }: { item: typeof mergeHistory[number]; index: number }) => {
+    const mergeRequest = mergeRequestsById.get(entry.mergeRequestId);
+    const canGrantViewerAccess = Boolean(
+      mergeRequest
+      && userId
+      && mergeRequest.status === 'applied'
+      && mergeRequest.suggestedByUserId !== userId
+      && getTreeRole(selectedTree, userId) !== 'viewer'
+      && !selectedTree.memberIds.includes(mergeRequest.suggestedByUserId),
+    );
+
+    return (
+      <Reveal delay={80 + index * 20}>
+        <View style={{ marginBottom: 12 }}>
+          <View style={[styles.collaboratorCard, { backgroundColor: theme.colors.surface, borderRadius: 18, padding: 16 }]}>
+            <Text variant="titleMedium">{entry.summary}</Text>
+            <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>
+              {t(K.treeSettings.mergeHistorySummary, {
+                matches: entry.preview.matches.length,
+                approvals: entry.approvals.length,
+                people: entry.changedPersonIds.length,
+              })}
+            </Text>
+            <View style={[styles.collaboratorChipRow, { marginTop: 8 }]}>
+              <Chip compact icon="history">{entry.status}</Chip>
+              <Chip compact icon="calendar-clock">{entry.createdAt.slice(0, 16).replace('T', ' ')}</Chip>
+            </View>
+            <Button mode="outlined" icon="undo" onPress={() => onUndoMerge(entry.mergeRequestId)} disabled={mutating || entry.status !== 'applied'} style={{ marginTop: 8 }}>
+              {t(K.treeSettings.previewAndUndoMerge)}
+            </Button>
+            {canGrantViewerAccess ? (
+              <Button mode="contained-tonal" icon="account-eye-outline" onPress={() => onGrantMergeViewerAccess(entry.mergeRequestId, selectedTree.id)} disabled={mutating} style={{ marginTop: 8 }}>
+                {t(K.treeSettings.grantViewerAccessToName, { name: mergeRequest?.suggestedByLabel ?? t(K.treeSettings.requester) })}
+              </Button>
+            ) : null}
+          </View>
+        </View>
+      </Reveal>
+    );
   };
 
   return (
@@ -583,42 +642,48 @@ function TreeSettingsContent({
           style={[dialogChrome.dialog, { backgroundColor: theme.colors.surface }]}
         >
           <Dialog.Title style={dialogChrome.dialogTitle}>{t(K.treeSettings.manageVariants)}</Dialog.Title>
-          <Dialog.Content style={dialogChrome.content}>
-            <Text variant="bodySmall" style={{ marginBottom: 12, color: theme.colors.onSurfaceVariant }}>
-              {t(K.treeSettings.addAlternateSurnameHelper)}
-            </Text>
-            <TextInput mode="outlined" label={t(K.treeSettings.addVariant)} value={surnameVariantDraft} onChangeText={setSurnameVariantDraft} onSubmitEditing={handleAddSurnameVariantDraft} style={{ marginBottom: 12 }} />
-            <Button mode="contained-tonal" icon="plus" onPress={handleAddSurnameVariantDraft} disabled={!surnameVariantDraft.trim()} style={{ marginBottom: 12 }}>
-              {t(K.treeSettings.addVariant)}
-            </Button>
-            <View style={styles.collaboratorChipRow}>
-              {surnameVariantDrafts.length > 0 ? surnameVariantDrafts.map((variant) => (
-                <Chip key={`dialog-${variant}`} compact icon="close-circle-outline" onPress={() => handleRemoveSurnameVariantDraft(variant)}>
-                  {variant}
-                </Chip>
-              )) : <Chip compact icon="information-outline">{t(K.treeSettings.variantsAppearAsChips)}</Chip>}
-            </View>
-          </Dialog.Content>
-          <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
-            <Button onPress={() => {
-              setSurnameVariantDraft('');
-              setSurnameVariantDrafts(treeSurnameVariants);
-              setSurnameVariantDialogVisible(false);
-            }}>
-              {t(K.common.cancel)}
-            </Button>
-            <Button mode="contained" onPress={handleSaveSurnameVariants} disabled={mutating}>
-              {t(K.common.save)}
-            </Button>
-          </Dialog.Actions>
+          {surnameVariantDialogVisible ? (
+            <>
+              <Dialog.Content style={dialogChrome.content}>
+                <Text variant="bodySmall" style={{ marginBottom: 12, color: theme.colors.onSurfaceVariant }}>
+                  {t(K.treeSettings.addAlternateSurnameHelper)}
+                </Text>
+                <TextInput mode="outlined" label={t(K.treeSettings.addVariant)} value={surnameVariantDraft} onChangeText={setSurnameVariantDraft} onSubmitEditing={handleAddSurnameVariantDraft} style={{ marginBottom: 12 }} />
+                <Button mode="contained-tonal" icon="plus" onPress={handleAddSurnameVariantDraft} disabled={!surnameVariantDraft.trim()} style={{ marginBottom: 12 }}>
+                  {t(K.treeSettings.addVariant)}
+                </Button>
+                <View style={styles.collaboratorChipRow}>
+                  {surnameVariantDrafts.length > 0 ? surnameVariantDrafts.map((variant) => (
+                    <Chip key={`dialog-${variant}`} compact icon="close-circle-outline" onPress={() => handleRemoveSurnameVariantDraft(variant)}>
+                      {variant}
+                    </Chip>
+                  )) : <Chip compact icon="information-outline">{t(K.treeSettings.variantsAppearAsChips)}</Chip>}
+                </View>
+              </Dialog.Content>
+              <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
+                <Button onPress={() => {
+                  setSurnameVariantDraft('');
+                  setSurnameVariantDrafts(treeSurnameVariants);
+                  setSurnameVariantDialogVisible(false);
+                }}>
+                  {t(K.common.cancel)}
+                </Button>
+                <Button mode="contained" onPress={handleSaveSurnameVariants} disabled={mutating}>
+                  {t(K.common.save)}
+                </Button>
+              </Dialog.Actions>
+            </>
+          ) : null}
         </Dialog>
 
         <Dialog visible={helperDialog.visible} onDismiss={() => setHelperDialog((current) => ({ ...current, visible: false }))} style={[dialogChrome.dialog, { backgroundColor: theme.colors.surface }]}>
           <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{t(TREE_HELPER_COPY[helperDialog.key].title)}</Dialog.Title>
           <IconButton icon="close" size={20} onPress={() => setHelperDialog((current) => ({ ...current, visible: false }))} style={dialogChrome.closeButton} accessibilityLabel={t(K.common.close)} />
-          <Dialog.Content style={dialogChrome.content}>
-            <Text variant="bodyMedium">{t(TREE_HELPER_COPY[helperDialog.key].message)}</Text>
-          </Dialog.Content>
+          {helperDialog.visible ? (
+            <Dialog.Content style={dialogChrome.content}>
+              <Text variant="bodyMedium">{t(TREE_HELPER_COPY[helperDialog.key].message)}</Text>
+            </Dialog.Content>
+          ) : null}
         </Dialog>
 
         <Dialog visible={!!previewApprovalRequest} onDismiss={() => setPreviewApprovalRequest(null)} style={[dialogChrome.dialog, { backgroundColor: theme.colors.surface }]}>
@@ -626,9 +691,9 @@ function TreeSettingsContent({
             {previewApprovalRequest?.title ?? t(K.treeSettings.approvalPreview)}
           </Dialog.Title>
           <IconButton icon="close" size={20} onPress={() => setPreviewApprovalRequest(null)} style={dialogChrome.closeButton} accessibilityLabel={t(K.common.close)} />
-          <Dialog.ScrollArea style={dialogChrome.scrollArea}>
-            <ScrollView contentContainerStyle={{ paddingBottom: 8 }} keyboardShouldPersistTaps="handled">
-              {previewApprovalRequest ? (
+          {previewApprovalRequest ? (
+            <Dialog.ScrollArea style={dialogChrome.scrollArea}>
+              <ScrollView contentContainerStyle={{ paddingBottom: 8 }} keyboardShouldPersistTaps="handled">
                 <View>
                   <View style={styles.collaboratorChipRow}>
                     <Chip compact icon="swap-horizontal">{getApprovalOperationLabel(previewApprovalRequest.operation)}</Chip>
@@ -657,18 +722,19 @@ function TreeSettingsContent({
                     </View>
                   )}
                 </View>
-              ) : null}
-            </ScrollView>
-          </Dialog.ScrollArea>
+              </ScrollView>
+            </Dialog.ScrollArea>
+          ) : null}
         </Dialog>
 
         <Dialog visible={mergePreviewVisible} onDismiss={() => setMergePreviewVisible(false)} style={[dialogChrome.dialog, { backgroundColor: theme.colors.surface }]}>
           <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{t(K.treeSettings.mergePreview)}</Dialog.Title>
           <IconButton icon="close" size={20} onPress={() => setMergePreviewVisible(false)} style={dialogChrome.closeButton} accessibilityLabel={t(K.common.close)} />
-          <Dialog.ScrollArea style={dialogChrome.scrollArea}>
-            <ScrollView contentContainerStyle={{ paddingBottom: 8 }} keyboardShouldPersistTaps="handled">
-              {mergePreview ? (
-                <View>
+          {mergePreviewVisible ? (
+            <Dialog.ScrollArea style={dialogChrome.scrollArea}>
+              <ScrollView contentContainerStyle={{ paddingBottom: 8 }} keyboardShouldPersistTaps="handled">
+                {mergePreview ? (
+                  <View>
                   <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>
                     {t(K.treeSettings.mergePreviewSummary, {
                       source: mergePreview.sourceTree.treeName,
@@ -697,78 +763,46 @@ function TreeSettingsContent({
                       ) : null}
                     </View>
                   ))}
-                </View>
-              ) : (
-                <View style={styles.emptyState}>
-                  <Text variant="titleMedium">{t(K.treeSettings.noMergePreviewLoaded)}</Text>
-                </View>
-              )}
-            </ScrollView>
-          </Dialog.ScrollArea>
+                  </View>
+                ) : (
+                  <View style={styles.emptyState}>
+                    <Text variant="titleMedium">{t(K.treeSettings.noMergePreviewLoaded)}</Text>
+                  </View>
+                )}
+              </ScrollView>
+            </Dialog.ScrollArea>
+          ) : null}
         </Dialog>
 
         <Dialog visible={mergeHistoryVisible} onDismiss={() => setMergeHistoryVisible(false)} style={[dialogChrome.dialog, { backgroundColor: theme.colors.surface }]}>
           <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{t(K.treeSettings.mergeHistoryAndUndo)}</Dialog.Title>
           <IconButton icon="close" size={20} onPress={() => setMergeHistoryVisible(false)} style={dialogChrome.closeButton} accessibilityLabel={t(K.common.close)} />
-          <Dialog.ScrollArea style={dialogChrome.scrollArea}>
-            <ScrollView contentContainerStyle={{ paddingBottom: 8 }} keyboardShouldPersistTaps="handled">
+          {mergeHistoryVisible ? (
+            <Dialog.ScrollArea style={dialogChrome.scrollArea}>
               {mergeHistory.length > 0 ? (
-                <View style={styles.collaboratorList}>
-                  {mergeHistory.map((entry, index) => (
-                    <Reveal key={entry.id} delay={80 + index * 20}>
-                      <View style={{ marginBottom: 12 }}>
-                        <View style={[styles.collaboratorCard, { backgroundColor: theme.colors.surface, borderRadius: 18, padding: 16 }]}>
-                        {(() => {
-                          const mergeRequest = mergeRequestsById.get(entry.mergeRequestId);
-                          const canGrantViewerAccess = Boolean(
-                            mergeRequest
-                            && userId
-                            && mergeRequest.status === 'applied'
-                            && mergeRequest.suggestedByUserId !== userId
-                            && getTreeRole(selectedTree, userId) !== 'viewer'
-                            && !selectedTree.memberIds.includes(mergeRequest.suggestedByUserId),
-                          );
-
-                          return (
-                            <>
-                              <Text variant="titleMedium">{entry.summary}</Text>
-                              <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>
-                                {t(K.treeSettings.mergeHistorySummary, {
-                                  matches: entry.preview.matches.length,
-                                  approvals: entry.approvals.length,
-                                  people: entry.changedPersonIds.length,
-                                })}
-                              </Text>
-                              <View style={[styles.collaboratorChipRow, { marginTop: 8 }]}>
-                                <Chip compact icon="history">{entry.status}</Chip>
-                                <Chip compact icon="calendar-clock">{entry.createdAt.slice(0, 16).replace('T', ' ')}</Chip>
-                              </View>
-                              <Button mode="outlined" icon="undo" onPress={() => onUndoMerge(entry.mergeRequestId)} disabled={mutating || entry.status !== 'applied'} style={{ marginTop: 8 }}>
-                                {t(K.treeSettings.previewAndUndoMerge)}
-                              </Button>
-                              {canGrantViewerAccess ? (
-                                <Button mode="contained-tonal" icon="account-eye-outline" onPress={() => onGrantMergeViewerAccess(entry.mergeRequestId, selectedTree.id)} disabled={mutating} style={{ marginTop: 8 }}>
-                                  {t(K.treeSettings.grantViewerAccessToName, { name: mergeRequest?.suggestedByLabel ?? t(K.treeSettings.requester) })}
-                                </Button>
-                              ) : null}
-                            </>
-                          );
-                        })()}
-                        </View>
-                      </View>
-                    </Reveal>
-                  ))}
-                </View>
+                <FlatList
+                  data={mergeHistory}
+                  keyExtractor={(entry) => entry.id}
+                  renderItem={renderMergeHistoryItem}
+                  contentContainerStyle={{ paddingBottom: 8 }}
+                  showsVerticalScrollIndicator={false}
+                  initialNumToRender={8}
+                  maxToRenderPerBatch={8}
+                  windowSize={6}
+                  removeClippedSubviews
+                />
               ) : (
-                <View style={styles.emptyState}>
-                  <Text variant="titleMedium">{t(K.treeSettings.noMergeHistoryYet)}</Text>
-                  <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
-                    {t(K.treeSettings.mergeHistoryEmpty)}
-                  </Text>
-                </View>
+                <ScrollView contentContainerStyle={{ paddingBottom: 8 }}>
+                  <View style={styles.emptyState}>
+                    <Text variant="titleMedium">{t(K.treeSettings.noMergeHistoryYet)}</Text>
+                    <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
+                      {t(K.treeSettings.mergeHistoryEmpty)}
+                    </Text>
+                  </View>
+                </ScrollView>
               )}
-            </ScrollView>
-          </Dialog.ScrollArea>
+            </Dialog.ScrollArea>
+          ) : null}
         </Dialog>
       </Portal>
 

@@ -5,6 +5,7 @@ import type { PersonRecord } from '../../../components/dto/person';
 import type { RelationshipRecord } from '../../../components/dto/relationship';
 import {
   type FamilyTree,
+  getAssignedPersonId,
   type SurnameVariantGroup,
 } from '../../../components/dto/tree';
 import { getUserNameParts, type UserProfile } from '../../../components/dto/user';
@@ -81,6 +82,48 @@ export interface SharedTabProps {
   onSwitchTree?: (tree: FamilyTree) => void;
   familySwitchRef?: React.MutableRefObject<((surname: string) => void) | null>;
   activeFamilyRef?: React.MutableRefObject<string | null>;
+}
+
+export function getTreeById(trees: FamilyTree[], treeId?: string | null) {
+  if (!treeId) {
+    return null;
+  }
+
+  return trees.find((tree) => tree.id === treeId) ?? null;
+}
+
+export function buildPeopleDirectory(people: PersonRecord[]) {
+  return {
+    peopleById: new Map(people.map((person) => [person.id, person])),
+    existingLastNames: [...new Set(people.map((person) => person.lastName.trim()).filter(Boolean))]
+      .sort((left, right) => left.localeCompare(right)),
+  };
+}
+
+export function buildTreeAssignmentContext(
+  selectedTree: FamilyTree | null,
+  peopleById: Map<string, PersonRecord>,
+  userId?: string,
+) {
+  const assignedUserIdByPersonId = new Map<string, string>();
+  const assignedPersonByUserId = new Map<string, PersonRecord>();
+
+  Object.entries(selectedTree?.personAssignments ?? {}).forEach(([assignedUserId, personId]) => {
+    assignedUserIdByPersonId.set(personId, assignedUserId);
+    const linkedPerson = peopleById.get(personId);
+    if (linkedPerson) {
+      assignedPersonByUserId.set(assignedUserId, linkedPerson);
+    }
+  });
+
+  const currentAssignedPersonId = selectedTree ? getAssignedPersonId(selectedTree, userId) : null;
+
+  return {
+    assignedUserIdByPersonId,
+    assignedPersonByUserId,
+    currentAssignedPersonId,
+    currentAssignedPerson: currentAssignedPersonId ? peopleById.get(currentAssignedPersonId) ?? null : null,
+  };
 }
 
 type ActivityNotificationCountInput = {

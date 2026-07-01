@@ -29,7 +29,7 @@ import {
 } from '../../../components/dto/person';
 import type { ParentChildRelationshipKind, RelationshipRecord, SpouseRelationshipStatus } from '../../../components/dto/relationship';
 import type { MainTabParamList } from '../../../components/dto/navigation';
-import { canEditTreeContent, getAssignedPersonId, getAssignedUserIdForPerson } from '../../../components/dto/tree';
+import { canEditTreeContent, getAssignedUserIdForPerson } from '../../../components/dto/tree';
 import { getPersonValidationFeedback } from '../../../components/family-tree-validation';
 import { MAX_PHOTOS_PER_PERSON, MAX_PHOTO_BYTES, preparePhotoForUpload } from '../../../components/photo-utils';
 import { formatPersonName } from '../../../components/person-formatting';
@@ -38,6 +38,7 @@ import { GlobalStyles } from '../../../constants/styles';
 import { useI18n } from '../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../i18n/keys';
 import { useShallow } from 'zustand/react/shallow';
+import { buildPeopleDirectory, buildTreeAssignmentContext, getTreeById } from '../tree-tabs/shared';
 import { PersonNotesDialog } from './dialogs/notes-dialog';
 import { PersonPhotoViewerModal } from './dialogs/photo-viewer-modal';
 import { PersonLineageSection } from './sections/lineage-section';
@@ -197,33 +198,33 @@ function getAscendantIds(rootPersonId: string, relationships: RelationshipRecord
 
 const helperDialogCopy: Record<HelperDialogKey, { title: string; message: string }> = {
   tabs: {
-    title: 'Family member sections',
-    message: 'Biography gathers the main life details into a story-like introduction. Relationships lets you add and review parent, child, and spouse connections. Memories & gallery holds notes, photos, and life events. Descendant tree follows children downward through generations. Ascendant tree follows parents upward.',
+    title: K.treeSettings.familyMemberSections,
+    message: K.personProfile.profileSummary,
   },
   relationships: {
-    title: 'Relationships',
-    message: 'Add new parent, child, or spouse connections with the button above. Open a relationship in edit mode to change or delete it. The Relationship insight tool lets you search for the path between any two family members in the tree.',
+    title: K.personProfile.relationships,
+    message: K.personProfile.relationshipActionsSummary,
   },
   'descendant-tree': {
-    title: 'Descendant tree',
-    message: 'The canvas starts at this family member and draws children, grandchildren, and every subsequent generation downward. Tap any node to open that person\'s full profile. Pinch or use the zoom buttons to navigate a large tree.',
+    title: K.personProfile.descendantTree,
+    message: K.personProfile.descendantTreeSummary,
   },
   'ascendant-tree': {
-    title: 'Ascendant tree',
-    message: 'The canvas starts at this family member and draws parents, grandparents, and every prior generation upward. Tap any node to open that person\'s full profile. Pinch or use the zoom buttons to navigate a large tree.',
+    title: K.lineage.ascendantTree,
+    message: K.personProfile.ascendantTreeSummary,
   },
   'memories-gallery': {
-    title: 'Memories & gallery',
-    message: 'Notes capture free-form details about this family member. The photo gallery shows all uploaded images — tap any photo to open the full-screen viewer and swipe through. Life events form a date-ordered timeline of milestones such as marriage, graduation, a move, retirement, or any custom family memory. Open an event in edit mode to update or delete it.',
+    title: K.memories.memoriesAndGallery,
+    message: K.personProfile.memorySummary,
   },
 };
 
 const styles = GlobalStyles.personProfile;
 
 const PROFILE_TABS: Array<{ key: PersonProfileTabKey; label: string }> = [
-  { key: 'biography', label: 'Biography' },
+  { key: 'biography', label: K.personProfile.biography },
   { key: 'relationships', label: K.personProfile.relationships },
-  { key: 'memories-gallery', label: 'Memories' },
+  { key: 'memories-gallery', label: K.memories.memories },
   { key: 'descendant-tree', label: K.lineage.descendants },
   { key: 'ascendant-tree', label: K.lineage.ascendants },
 ];
@@ -316,37 +317,27 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
   const [photoProcessing, setPhotoProcessing] = useState(false);
   const relationshipPageSize = 3;
 
+  const { peopleById, existingLastNames } = useMemo(
+    () => buildPeopleDirectory(people),
+    [people],
+  );
   const selectedTree = useMemo(
-    () => trees.find((tree) => tree.id === route.params.treeId) ?? null,
+    () => getTreeById(trees, route.params.treeId),
     [route.params.treeId, trees],
   );
 
   const person = useMemo(
-    () => people.find((currentPerson) => currentPerson.id === route.params.personId) ?? null,
-    [people, route.params.personId],
+    () => peopleById.get(route.params.personId) ?? null,
+    [peopleById, route.params.personId],
   );
   const isMainTabNavigation = navigation.getState?.().type === 'tab';
 
   const canEdit = selectedTree ? canEditTreeContent(selectedTree, user?.id) : false;
   const preferredPhoto = getDisplayPersonPhoto(person);
-  const peopleById = useMemo(
-    () => new Map(people.map((currentPerson) => [currentPerson.id, currentPerson])),
-    [people],
-  );
 
-  const existingLastNames = useMemo(
-    () => [...new Set(people.map((currentPerson) => currentPerson.lastName.trim()).filter(Boolean))].sort((left, right) => left.localeCompare(right)),
-    [people],
-  );
-
-  const currentAssignedPersonId = useMemo(
-    () => (selectedTree ? getAssignedPersonId(selectedTree, user?.id) : null),
-    [selectedTree, user?.id],
-  );
-
-  const currentAssignedPerson = useMemo(
-    () => (currentAssignedPersonId ? peopleById.get(currentAssignedPersonId) ?? null : null),
-    [currentAssignedPersonId, peopleById],
+  const { currentAssignedPersonId, currentAssignedPerson } = useMemo(
+    () => buildTreeAssignmentContext(selectedTree, peopleById, user?.id),
+    [peopleById, selectedTree, user?.id],
   );
 
   const linkedUserIdForPerson = useMemo(

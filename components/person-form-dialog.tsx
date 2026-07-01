@@ -379,6 +379,18 @@ export default function PersonFormDialog({
     () => [validationPersonRecord, ...new Map(relationshipCandidates.map((candidate) => [candidate.id, candidate])).values()],
     [relationshipCandidates, validationPersonRecord],
   );
+  const pendingValidationRelationshipIdByCompositeKey = useMemo(() => {
+    const relationshipIdByCompositeKey = new Map<string, string>();
+
+    pendingValidationRelationships.forEach((relationship) => {
+      relationshipIdByCompositeKey.set(
+        `${relationship.type}:${relationship.fromPersonId}:${relationship.toPersonId}`,
+        relationship.id,
+      );
+    });
+
+    return relationshipIdByCompositeKey;
+  }, [pendingValidationRelationships]);
   const pendingRelationshipFeedbackByKey = useMemo(() => {
     const allRelationships = [...relationships, ...pendingValidationRelationships];
     const feedbackByKey = new Map<string, { warnings: string[]; errors: string[] }>();
@@ -398,11 +410,9 @@ export default function PersonFormDialog({
       const relationshipType = draft.mode === 'spouse-of' ? 'spouse' : 'parent-child';
       const fromPersonId = draft.mode === 'child-of' ? draft.relatedPersonId : '__new-person__';
       const toPersonId = draft.mode === 'child-of' ? '__new-person__' : draft.relatedPersonId;
-      const ignoreRelationshipId = pendingValidationRelationships.find((relationship) =>
-        relationship.type === relationshipType
-        && relationship.fromPersonId === fromPersonId
-        && relationship.toPersonId === toPersonId
-      )?.id;
+      const ignoreRelationshipId = pendingValidationRelationshipIdByCompositeKey.get(
+        `${relationshipType}:${fromPersonId}:${toPersonId}`,
+      );
 
       const feedback = getRelationshipValidationFeedback({
         people: validationPeople,
@@ -421,7 +431,7 @@ export default function PersonFormDialog({
     });
 
     return feedbackByKey;
-  }, [pendingRelationships, pendingValidationRelationships, relationshipCandidatesById, relationships, validationPeople]);
+  }, [pendingRelationships, pendingValidationRelationshipIdByCompositeKey, pendingValidationRelationships, relationshipCandidatesById, relationships, validationPeople]);
   const relationshipWarnings = useMemo(
     () => pendingRelationships.flatMap((draft) => pendingRelationshipFeedbackByKey.get(draft.key)?.warnings ?? []),
     [pendingRelationships, pendingRelationshipFeedbackByKey],
@@ -497,6 +507,25 @@ export default function PersonFormDialog({
   }, [maidenName, pendingRelationships]);
   // ─────────────────────────────────────────────────────────────────────────
 
+  const spouseIdByPersonId = useMemo(() => {
+    const spouseLookup = new Map<string, string>();
+
+    relationships.forEach((relationship) => {
+      if (relationship.type !== 'spouse') {
+        return;
+      }
+
+      if (!spouseLookup.has(relationship.fromPersonId)) {
+        spouseLookup.set(relationship.fromPersonId, relationship.toPersonId);
+      }
+      if (!spouseLookup.has(relationship.toPersonId)) {
+        spouseLookup.set(relationship.toPersonId, relationship.fromPersonId);
+      }
+    });
+
+    return spouseLookup;
+  }, [relationships]);
+
   // ── Co-parent suggestion ──────────────────────────────────────────────────
   // When user sets a "child-of" relationship, check if that parent has a spouse
   // who isn't already in pendingRelationships. If so, offer to add them too.
@@ -509,12 +538,8 @@ export default function PersonFormDialog({
     const parentId = childOfDraft.relatedPersonId;
 
     // Find a spouse of that parent
-    const spouseId = relationships.find(
-      (r) => r.type === 'spouse' && (r.fromPersonId === parentId || r.toPersonId === parentId),
-    );
-    if (!spouseId) return null;
-
-    const otherParentId = spouseId.fromPersonId === parentId ? spouseId.toPersonId : spouseId.fromPersonId;
+    const otherParentId = spouseIdByPersonId.get(parentId);
+    if (!otherParentId) return null;
 
     // Only suggest if not already added
     const alreadyAdded = pendingRelationships.some(
@@ -522,8 +547,8 @@ export default function PersonFormDialog({
     );
     if (alreadyAdded) return null;
 
-    return relationshipCandidates.find((c) => c.id === otherParentId) ?? null;
-  }, [mode, pendingRelationships, relationships, relationshipCandidates]);
+    return relationshipCandidatesById.get(otherParentId) ?? null;
+  }, [mode, pendingRelationships, relationshipCandidatesById, relationships.length, spouseIdByPersonId]);
   // ─────────────────────────────────────────────────────────────────────────
 
   // Gender-aware relationship mode labels
