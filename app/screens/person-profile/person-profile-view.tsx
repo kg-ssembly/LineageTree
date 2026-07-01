@@ -15,7 +15,7 @@ import {
   Text,
   useTheme,
 } from 'react-native-paper';
-import { ConfirmDialog, FloatingSnackbar, HorizontalTabStrip, InfoDialog, LifeEventDialog, PersonFormDialog, PersonRelationshipDialog, Reveal } from '../../../components';
+import { ConfirmDialog, FloatingSnackbar, HorizontalTabStrip, InfoDialog, LifeEventDialog, PersonFormDialog, PersonRelationshipDialog, Reveal, SharedLoader } from '../../../components';
 import type { PersonRelationshipMode } from '../../../components/person-relationship-dialog';
 import { useAuthStore } from '../../../stores/auth-store';
 import { useTreeStore } from '../../../stores/tree-store';
@@ -1232,6 +1232,8 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
         onDismiss={closeConfirm}
         onConfirm={handleConfirm}
       />
+
+      <SharedLoader visible={mutating} />
 
       <PersonPhotoViewerModal
         person={person}

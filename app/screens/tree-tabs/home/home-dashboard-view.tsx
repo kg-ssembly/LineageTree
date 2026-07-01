@@ -413,14 +413,6 @@ export function HomeDashboardView(props: SharedTabProps) {
     const steps: SetupStep[] = [];
 
     if (showFollowUpTreePrompts) {
-      steps.push({
-        id: 'setup-member',
-        title: t(K.home.addAFamilyMember),
-        description: t(K.home.bringInAParentChildPartnerOrAncestorSoTheTreeStartsToBranch),
-        done: hasMinimumMembers,
-        action: onOpenAddPerson,
-      });
-
       if (!hasLinkedProfile || hasMinimumMembers) {
         steps.push({
           id: 'setup-profile',
@@ -561,6 +553,7 @@ export function HomeDashboardView(props: SharedTabProps) {
   const [buildInfoVisible, setBuildInfoVisible] = useState(false);
   const [heroInfoVisible, setHeroInfoVisible] = useState(false);
   const [dashboardTab, setDashboardTab] = useState<DashboardTabKey>(needsAttentionCount > 0 ? 'activity' : 'overview');
+  const hasUserSelectedDashboardTabRef = useRef(false);
   const promptStorageId = `${selectedTree.id}:${currentAssignedPerson?.id ?? 'unlinked'}`;
   const dashboardVisitStorageId = `${selectedTree.id}:${currentAssignedPerson?.id ?? 'unlinked'}`;
   const isEmptyTree = people.length === 0;
@@ -693,6 +686,14 @@ export function HomeDashboardView(props: SharedTabProps) {
       setDeeperExpanded(true);
     }
   }, [dashboardTab, isSetupMode, pendingBuildTaskCount]);
+
+  useEffect(() => {
+    if (loadingTreeData || hasUserSelectedDashboardTabRef.current) {
+      return;
+    }
+
+    setDashboardTab(needsAttentionCount > 0 ? 'activity' : 'overview');
+  }, [loadingTreeData, needsAttentionCount]);
 
   useEffect(() => {
     if (!showFollowUpTreePrompts) {
@@ -1092,6 +1093,7 @@ export function HomeDashboardView(props: SharedTabProps) {
             items={dashboardTabs}
             activeKey={dashboardTab}
             onChange={(key) => {
+              hasUserSelectedDashboardTabRef.current = true;
               setDashboardTab(key);
               scrollRef.current?.scrollTo({ y: 0, animated: true });
             }}
@@ -1154,31 +1156,33 @@ export function HomeDashboardView(props: SharedTabProps) {
           ) : null}
 
           {!isSetupMode && bestNextStep ? (
-            <View style={[styles.dashboardAccentCard, { backgroundColor: theme.colors.elevation.level1, borderColor: theme.colors.outlineVariant }]}>
+            <View style={{ gap: 16 }}>
               {dashboardTab === 'overview' && heroAttentionCallout ? (
                 <Surface
                   style={[styles.dashboardTaskCard, {
                     backgroundColor: theme.colors.errorContainer,
                     borderColor: theme.colors.error,
-                    marginBottom: 16,
+                    marginBottom: 0,
                   }]}
                   elevation={0}
                 >
-                  <Chip
-                    compact
-                    icon="alert-circle-outline"
-                    style={{ alignSelf: 'flex-start', backgroundColor: theme.colors.errorContainer }}
-                    textStyle={{ color: theme.colors.onErrorContainer }}
-                  >
-                    {t(K.home.needsAttentionNow)}
-                  </Chip>
-                  <Text variant="titleMedium" style={{ marginTop: 10, color: theme.colors.onErrorContainer }}>
-                    {heroAttentionCallout.title}
-                  </Text>
-                  <Text variant="bodyMedium" style={{ color: theme.colors.onErrorContainer, marginTop: 6 }}>
-                    {heroAttentionCallout.description}
-                  </Text>
-                  <View style={[styles.dashboardActionRow, { marginTop: 14 }]}>
+                  <View style={styles.sectionHeader}>
+                    <View style={styles.titleWrap}>
+                      <Chip
+                        compact
+                        icon="alert-circle-outline"
+                        style={{ alignSelf: 'flex-start', backgroundColor: theme.colors.errorContainer }}
+                        textStyle={{ color: theme.colors.onErrorContainer }}
+                      >
+                        {t(K.home.needsAttentionNow)}
+                      </Chip>
+                      <Text variant="titleMedium" style={{ marginTop: 8, color: theme.colors.onErrorContainer }}>
+                        {heroAttentionCallout.title}
+                      </Text>
+                      <Text variant="bodySmall" style={{ color: theme.colors.onErrorContainer, marginTop: 4 }}>
+                        {heroAttentionCallout.description}
+                      </Text>
+                    </View>
                     <Button mode="contained" onPress={heroAttentionCallout.action}>
                       {heroAttentionCallout.buttonLabel}
                     </Button>
@@ -1186,28 +1190,42 @@ export function HomeDashboardView(props: SharedTabProps) {
                 </Surface>
               ) : null}
 
-              <View style={styles.sectionHeader}>
-                <Text variant="labelLarge">{heroSectionLabel}</Text>
-                <IconButton
-                  icon="information-outline"
-                  size={18}
-                  style={{ margin: 0 }}
-                  onPress={() => setHeroInfoVisible(true)}
-                  accessibilityLabel={t(K.home.whyThisMatters)}
-                />
-              </View>
-              <Text variant="titleMedium" style={{ marginTop: 10 }}>
-                {heroTitle}
+              <Surface
+                style={[
+                  styles.dashboardTaskCard,
+                  {
+                    backgroundColor: theme.colors.surface,
+                    borderColor: theme.colors.outlineVariant,
+                  },
+                ]}
+                elevation={0}
+              >
+                <View style={styles.sectionHeader}>
+                  <View style={styles.titleWrap}>
+                    <Text variant="titleMedium" style={{ marginTop: 8 }}>
+                      {heroTitle}
+                    </Text>
+                    <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
+                      {heroAction.description}
+                    </Text>
+                  </View>
+                  <Button mode="contained-tonal" onPress={heroAction.action}>
+                    {heroAction.buttonLabel ?? heroAction.label}
+                  </Button>
+                </View>
+              </Surface>
+            </View>
+          ) : dashboardLens === 'activity' ? (
+            <View style={[styles.dashboardAccentCard, { backgroundColor: theme.colors.elevation.level1, borderColor: theme.colors.outlineVariant }]}>
+              <Chip compact icon="calendar-clock">{t(K.home.viewFamilyActivity)}</Chip>
+              <Text variant="titleMedium" style={{ marginTop: 10 }}>{heroTitle}</Text>
+              <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 6 }}>
+                {heroAction.description}
               </Text>
               <View style={styles.dashboardActionRow}>
-                <Button mode="contained" onPress={heroAction.action} style={styles.dashboardInlineAction}>
-                  {isSetupMode ? t(K.home.continueSetup) : heroAction.buttonLabel ?? heroAction.label}
+                <Button mode="contained" onPress={heroAction.action}>
+                  {heroAction.buttonLabel ?? heroAction.label}
                 </Button>
-                {heroAction.taskId && dashboardLens !== 'activity' ? (
-                  <Button mode="text" onPress={() => dismissTask(heroAction.taskId!)} style={styles.dashboardInlineAction}>
-                    {t(K.home.hideForNow)}
-                  </Button>
-                ) : null}
               </View>
             </View>
           ) : (
@@ -1502,7 +1520,7 @@ export function HomeDashboardView(props: SharedTabProps) {
                     {t(K.home.openMyProfile)}
                   </Button>
                 ) : (
-                  <Button mode="contained-tonal" onPress={onOpenAddSelf}>
+                  <Button mode="contained" onPress={onOpenAddSelf}>
                     {t(K.home.startMyProfile)}
                   </Button>
                 )}

@@ -11,7 +11,7 @@ import {
   TextInput,
   useTheme,
 } from 'react-native-paper';
-import { Reveal } from '../../../../components';
+import { Reveal, SharedLoader } from '../../../../components';
 import { GlobalStyles } from '../../../../constants/styles';
 
 const loginStyles = GlobalStyles.login;
@@ -166,6 +166,8 @@ export function AuthFormView({
       >
         {snackbarMessage}
       </Snackbar>
+
+      <SharedLoader visible={submitLoading} />
     </KeyboardAvoidingView>
   );
 }

@@ -198,10 +198,17 @@ export function MainNoTreeGate({
 
   const totalPages = Math.max(1, Math.ceil(results.length / RESULTS_PER_PAGE));
   const pagedResults = results.slice((resultsPage - 1) * RESULTS_PER_PAGE, resultsPage * RESULTS_PER_PAGE);
+  const pendingTreeAccessRequests = controller.pendingTreeAccessRequests ?? [];
+  const pendingRequestTreeIds = new Set(pendingTreeAccessRequests.map((notification) => notification.sourceTreeId));
   const pendingRequestTreeId = controller.pendingTreeAccessRequest?.sourceTreeId;
   const pendingRequestTreeName = controller.pendingTreeAccessRequest?.sourceTreeName?.trim() || controller.t(K.common.unknown);
   const pendingRequestIdentifier = controller.pendingTreeAccessRequest?.targetIdentifier?.trim() || '';
   const pendingRequestMessage = controller.pendingTreeAccessRequest?.message?.trim() || '';
+  const pendingIdentifierKeys = new Set(
+    pendingTreeAccessRequests
+      .map((notification) => notification.targetIdentifier.trim().toLowerCase())
+      .filter(Boolean),
+  );
   const hasRenderablePendingRequest = Boolean(
     controller.pendingTreeAccessRequest
     && (
@@ -409,7 +416,11 @@ export function MainNoTreeGate({
                     autoCapitalize="none"
                     left={<TextInput.Icon icon="account" />}
                   />
-                  <Button mode="outlined" onPress={() => { void handleIdentifierRequest(); }} disabled={!usernameQuery.trim() || searching || controller.mutating}>
+                  <Button
+                    mode="outlined"
+                    onPress={() => { void handleIdentifierRequest(); }}
+                    disabled={!usernameQuery.trim() || pendingIdentifierKeys.has(usernameQuery.trim().toLowerCase()) || searching || controller.mutating}
+                  >
                     {controller.t(K.app.requestAccessDirectly)}
                   </Button>
                 </View>
@@ -420,7 +431,7 @@ export function MainNoTreeGate({
               ) : null}
 
               {activeTab === 'search' ? pagedResults.map((result) => {
-                const requestIsPending = pendingRequestTreeId === result.id;
+                const requestIsPending = pendingRequestTreeIds.has(result.id);
 
                 return (
                   <Card key={result.id} mode="elevated" style={[localStyles.resultCard, { backgroundColor: controller.theme.colors.surfaceVariant }]}>

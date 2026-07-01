@@ -6,6 +6,7 @@ import {
   FloatingSnackbar,
   PersonFormDialog,
   RelationshipDialog,
+  SharedLoader,
   StartupModal,
   TreeFormDialog,
 } from '../../../components';
@@ -182,6 +183,8 @@ export function MainScreenView({ controller }: { controller: ReturnType<typeof u
         onSubmitLanguage={controller.handleStartupLanguageSubmit}
         onDismissUpdate={controller.handleUpdateModalDismiss}
       />
+
+      <SharedLoader visible={controller.mutating || controller.startupModal.loading || controller.discoverabilityPrompt.loading} />
 
       <Portal>
         <Dialog

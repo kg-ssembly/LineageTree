@@ -26,6 +26,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { getTreeDeletionImpact, type DiscoverableTreeSummary } from '../../../providers/family-tree-service';
 import type { SharedTabProps } from '../tree-tab-content';
 import {
+  buildSelfAssignmentSuggestions,
   buildPeopleDirectory,
   buildTreeAssignmentContext,
   getActivityNotificationCount,
@@ -1086,14 +1087,20 @@ export function useMainScreenController({ navigation }: Props) {
   );
 
   const currentSelfAssignmentSuggestions: SharedTabProps['currentSelfAssignmentSuggestions'] = useMemo(
-    () => [],
-    [],
+    () => (currentAssignedPerson
+      ? []
+      : buildSelfAssignmentSuggestions(user, people, assignedUserIdByPersonId, user?.id)),
+    [assignedUserIdByPersonId, currentAssignedPerson, people, user],
   );
-  const pendingTreeAccessRequest = useMemo(
+  const pendingTreeAccessRequests = useMemo(
     () => notifications
       .filter((notification) => notification.type === 'tree-access-response' && notification.status === 'pending')
-      .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))[0] ?? null,
+      .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt)),
     [notifications],
+  );
+  const pendingTreeAccessRequest = useMemo(
+    () => pendingTreeAccessRequests[0] ?? null,
+    [pendingTreeAccessRequests],
   );
 
   const importantPriorityAlerts = useMemo<PriorityAlertState[]>(() => {
@@ -1485,6 +1492,7 @@ export function useMainScreenController({ navigation }: Props) {
       loading: mutating,
       pendingCount: ownedTreesNeedingDiscoverabilityChoice.length,
     },
+    pendingTreeAccessRequests,
     pendingTreeAccessRequest,
     priorityAlert,
     treeNameSuggestion,

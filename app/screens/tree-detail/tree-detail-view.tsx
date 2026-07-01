@@ -15,6 +15,7 @@ import {
   FloatingSnackbar,
   PersonFormDialog,
   RelationshipDialog,
+  SharedLoader,
 } from '../../../components';
 import type { PersonFormSubmission } from '../../../components/person-form-dialog';
 import type { PendingRelationshipSubmission } from '../../../components/person-form-dialog';
@@ -1091,6 +1092,8 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
         onDismiss={closeConfirm}
         onConfirm={handleConfirm}
       />
+
+      <SharedLoader visible={mutating} />
 
       <FloatingSnackbar
         visible={snackVisible}

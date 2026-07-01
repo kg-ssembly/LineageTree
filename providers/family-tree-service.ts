@@ -2758,6 +2758,8 @@ export async function requestAccessToTree(
     throw new Error('You already have access to this tree.');
   }
 
+  await ensureNoPendingTreeAccessRequest(actorUserId, tree.id);
+
   const notificationRef = doc(collection(db, NOTIFICATIONS_COLLECTION));
   const requesterNotificationRef = doc(collection(db, NOTIFICATIONS_COLLECTION));
   const timestamp = nowIso();
@@ -2811,6 +2813,21 @@ async function resolveDirectAccessTreeForUser(targetUser: ResolvedUserAccount) {
   return defaultOwnedTree ?? ownedTrees.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))[0];
 }
 
+async function ensureNoPendingTreeAccessRequest(actorUserId: string, treeId: string) {
+  const existingPendingRequestSnapshot = await getDocs(query(
+    collection(db, NOTIFICATIONS_COLLECTION),
+    where('userId', '==', actorUserId),
+    where('type', '==', 'tree-access-response'),
+    where('sourceTreeId', '==', treeId),
+    where('status', '==', 'pending'),
+    limit(1),
+  ));
+
+  if (!existingPendingRequestSnapshot.empty) {
+    throw new Error('You already have a pending access request for this tree.');
+  }
+}
+
 export async function requestAccessFromIdentifier(
   actorUserId: string,
   identifier: string,
@@ -2826,6 +2843,8 @@ export async function requestAccessFromIdentifier(
     if (targetTree.memberIds.includes(actorUserId)) {
       throw new Error('You already have access to that tree.');
     }
+
+    await ensureNoPendingTreeAccessRequest(actorUserId, targetTree.id);
 
     const notificationRef = doc(collection(db, NOTIFICATIONS_COLLECTION));
     const requesterNotificationRef = doc(collection(db, NOTIFICATIONS_COLLECTION));
@@ -2876,6 +2895,8 @@ export async function requestAccessFromIdentifier(
   if (targetTree.memberIds.includes(actorUserId)) {
     throw new Error('You already have access to that user’s tree.');
   }
+
+  await ensureNoPendingTreeAccessRequest(actorUserId, targetTree.id);
 
   const notificationRef = doc(collection(db, NOTIFICATIONS_COLLECTION));
   const requesterNotificationRef = doc(collection(db, NOTIFICATIONS_COLLECTION));
