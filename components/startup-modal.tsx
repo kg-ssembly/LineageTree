@@ -3,6 +3,7 @@ import { ScrollView, View } from 'react-native';
 import { Button, Chip, Dialog, Portal, Text, useTheme } from 'react-native-paper';
 import { GlobalStyles } from '../constants/styles';
 import { useI18n } from '../hooks/use-i18n';
+import { I18N_KEYS as K } from '../i18n/keys';
 import type { AppLanguage } from '../i18n';
 
 const dialogChrome = GlobalStyles.dialogChrome;
@@ -37,12 +38,12 @@ export default function StartupModal({
   }, [initialLanguage, visible]);
 
   const title = mode === 'language'
-    ? t('Choose your preferred language')
-    : t("What's new");
+    ? t(K.startup.choosePreferredLanguage)
+    : t(K.startup.whatsNew);
 
   const description = mode === 'language'
-    ? t('Pick the language you want Lineage Tree to use from now on. You can change it again later in Settings.')
-    : t('Lineage Tree has been updated to version {version}.', { version: currentVersion });
+    ? t(K.startup.languagePrompt)
+    : t(K.startup.updatedVersion, { version: currentVersion });
 
   const canSaveLanguage = useMemo(() => Boolean(selectedLanguage), [selectedLanguage]);
 
@@ -91,11 +92,11 @@ export default function StartupModal({
         <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
           {mode === 'language' ? (
             <Button mode="contained" onPress={() => onSubmitLanguage(selectedLanguage)} disabled={loading || !canSaveLanguage}>
-              {t('Save language')}
+              {t(K.startup.saveLanguage)}
             </Button>
           ) : (
             <Button mode="contained" onPress={onDismissUpdate} disabled={loading}>
-              {t('Continue')}
+              {t(K.startup.continue)}
             </Button>
           )}
         </Dialog.Actions>

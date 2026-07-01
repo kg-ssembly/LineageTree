@@ -21,6 +21,7 @@ const profileStyles = GlobalStyles.personProfile;
 const dialogChrome = GlobalStyles.dialogChrome;
 const DASHBOARD_PROMPTS_STORAGE_KEY = 'lineagetree-dashboard-hidden-prompts';
 const DASHBOARD_LAST_VISIT_STORAGE_KEY = 'lineagetree-dashboard-last-visit';
+const DASHBOARD_COMPLETED_TASKS_STORAGE_KEY = 'lineagetree-dashboard-completed-tasks';
 
 type DashboardTask = {
   id: string;
@@ -319,6 +320,7 @@ export function HomeDashboardView(props: SharedTabProps) {
   const tasks = useMemo(() => [...storyTasks, ...treeTasks], [storyTasks, treeTasks]);
   const [dismissedTaskIds, setDismissedTaskIds] = useState<string[]>([]);
   const [promptsHydrated, setPromptsHydrated] = useState(false);
+  const [completionSnapshotHydrated, setCompletionSnapshotHydrated] = useState(false);
   const [celebrationMessage, setCelebrationMessage] = useState<string | null>(null);
   const [lastVisitAt, setLastVisitAt] = useState<string | null>(null);
   const taskMetrics = useMemo(() => {
@@ -537,6 +539,42 @@ export function HomeDashboardView(props: SharedTabProps) {
   useEffect(() => {
     let cancelled = false;
 
+    const hydrateCompletedTaskSnapshot = async () => {
+      try {
+        const stored = await AsyncStorage.getItem(DASHBOARD_COMPLETED_TASKS_STORAGE_KEY);
+        if (!stored) {
+          if (!cancelled) {
+            previousCompletedTaskIdsRef.current = null;
+            setCompletionSnapshotHydrated(true);
+          }
+          return;
+        }
+
+        const parsed = JSON.parse(stored) as Record<string, string[]>;
+        const next = Array.isArray(parsed[promptStorageId]) ? [...parsed[promptStorageId]].sort() : null;
+        if (!cancelled) {
+          previousCompletedTaskIdsRef.current = next;
+          setCompletionSnapshotHydrated(true);
+        }
+      } catch {
+        if (!cancelled) {
+          previousCompletedTaskIdsRef.current = null;
+          setCompletionSnapshotHydrated(true);
+        }
+      }
+    };
+
+    setCompletionSnapshotHydrated(false);
+    void hydrateCompletedTaskSnapshot();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [promptStorageId]);
+
+  useEffect(() => {
+    let cancelled = false;
+
     const hydrateHiddenPrompts = async () => {
       try {
         const stored = await AsyncStorage.getItem(DASHBOARD_PROMPTS_STORAGE_KEY);
@@ -639,7 +677,6 @@ export function HomeDashboardView(props: SharedTabProps) {
   }, [dismissedTaskIds, promptStorageId, promptsHydrated]);
 
   useEffect(() => {
-    previousCompletedTaskIdsRef.current = null;
     setCelebrationMessage(null);
   }, [promptStorageId]);
 
@@ -654,8 +691,24 @@ export function HomeDashboardView(props: SharedTabProps) {
       return;
     }
 
+    if (!completionSnapshotHydrated) {
+      return;
+    }
+
     if (!previousCompletedTaskIdsRef.current) {
       previousCompletedTaskIdsRef.current = completedTaskIds;
+      void (async () => {
+        try {
+          const stored = await AsyncStorage.getItem(DASHBOARD_COMPLETED_TASKS_STORAGE_KEY);
+          const parsed = stored ? JSON.parse(stored) as Record<string, string[]> : {};
+          await AsyncStorage.setItem(
+            DASHBOARD_COMPLETED_TASKS_STORAGE_KEY,
+            JSON.stringify({ ...parsed, [promptStorageId]: completedTaskIds }),
+          );
+        } catch {
+          // Ignore storage failures so the dashboard still works in-memory.
+        }
+      })();
       return;
     }
 
@@ -672,8 +725,20 @@ export function HomeDashboardView(props: SharedTabProps) {
       || completedTaskIds.some((taskId, index) => taskId !== previousCompletedTaskIds[index]);
     if (snapshotChanged) {
       previousCompletedTaskIdsRef.current = completedTaskIds;
+      void (async () => {
+        try {
+          const stored = await AsyncStorage.getItem(DASHBOARD_COMPLETED_TASKS_STORAGE_KEY);
+          const parsed = stored ? JSON.parse(stored) as Record<string, string[]> : {};
+          await AsyncStorage.setItem(
+            DASHBOARD_COMPLETED_TASKS_STORAGE_KEY,
+            JSON.stringify({ ...parsed, [promptStorageId]: completedTaskIds }),
+          );
+        } catch {
+          // Ignore storage failures so the dashboard still works in-memory.
+        }
+      })();
     }
-  }, [completedTaskIds, completedTasks, promptsHydrated]);
+  }, [completedTaskIds, completedTasks, completionSnapshotHydrated, promptsHydrated, promptStorageId]);
 
   const dismissTask = (taskId: string) => {
     setDismissedTaskIds((current) => (current.includes(taskId) ? current : [...current, taskId]));
