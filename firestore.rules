@@ -5,41 +5,182 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function treeDoc(treeId) {
+      return get(/databases/$(database)/documents/trees/$(treeId));
+    }
+
+    function treeExists(treeId) {
+      return exists(/databases/$(database)/documents/trees/$(treeId));
+    }
+
+    function isTreeMemberById(treeId) {
+      return signedIn()
+        && treeExists(treeId)
+        && request.auth.uid in treeDoc(treeId).data.memberIds;
+    }
+
+    function isTreeEditorById(treeId) {
+      return signedIn()
+        && treeExists(treeId)
+        && request.auth.uid in treeDoc(treeId).data.editorIds;
+    }
+
+    function isTreeOwnerById(treeId) {
+      return signedIn()
+        && treeExists(treeId)
+        && treeDoc(treeId).data.ownerId == request.auth.uid;
+    }
+
+    function isExistingTreeMember() {
+      return signedIn() && request.auth.uid in resource.data.memberIds;
+    }
+
+    function isExistingTreeEditor() {
+      return signedIn() && request.auth.uid in resource.data.editorIds;
+    }
+
+    function isExistingTreeOwner() {
+      return signedIn() && resource.data.ownerId == request.auth.uid;
+    }
+
+    function treeMetadataKeys() {
+      return [
+        'name',
+        'approvalWindowHours',
+        'surnameVariantGroups',
+        'connectedTreeIds',
+        'personAssignments',
+        'updatedAt',
+      ];
+    }
+
+    function treeMembershipKeys() {
+      return [
+        'collaborators',
+        'memberIds',
+        'editorIds',
+        'membershipHistory',
+        'personAssignments',
+        'updatedAt',
+      ];
+    }
+
     match /users/{userId} {
       allow read: if signedIn();
       allow create, update, delete: if signedIn() && request.auth.uid == userId;
     }
 
     match /trees/{treeId} {
-      allow read, write: if signedIn();
+      allow read: if isExistingTreeMember();
+      allow create: if signedIn()
+        && request.resource.data.ownerId == request.auth.uid
+        && request.auth.uid in request.resource.data.memberIds
+        && request.auth.uid in request.resource.data.editorIds;
+      allow update: if (
+          isExistingTreeEditor()
+          && request.resource.data.ownerId == resource.data.ownerId
+          && request.resource.data.memberIds == resource.data.memberIds
+          && request.resource.data.editorIds == resource.data.editorIds
+          && request.resource.data.collaborators == resource.data.collaborators
+          && request.resource.data.membershipHistory == resource.data.membershipHistory
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(treeMetadataKeys())
+        ) || (
+          isExistingTreeOwner()
+          && request.resource.data.ownerId == resource.data.ownerId
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'name',
+            'approvalWindowHours',
+            'surnameVariantGroups',
+            'connectedTreeIds',
+            'personAssignments',
+            'updatedAt',
+            'collaborators',
+            'memberIds',
+            'editorIds',
+            'membershipHistory',
+          ])
+        );
+      allow delete: if isExistingTreeOwner();
     }
 
     match /persons/{personId} {
-      allow read, write: if signedIn();
+      allow read: if isTreeMemberById(resource.data.treeId);
+      allow create: if isTreeEditorById(request.resource.data.treeId)
+        && request.resource.data.ownerId == request.auth.uid;
+      allow update: if isTreeEditorById(resource.data.treeId)
+        && request.resource.data.treeId == resource.data.treeId;
+      allow delete: if isTreeEditorById(resource.data.treeId);
     }
 
     match /relationships/{relationshipId} {
-      allow read, write: if signedIn();
+      allow read: if isTreeMemberById(resource.data.treeId);
+      allow create: if isTreeEditorById(request.resource.data.treeId)
+        && request.resource.data.ownerId == request.auth.uid;
+      allow update: if isTreeEditorById(resource.data.treeId)
+        && request.resource.data.treeId == resource.data.treeId;
+      allow delete: if isTreeEditorById(resource.data.treeId);
     }
 
     match /mergeRequests/{requestId} {
-      allow read, write: if signedIn();
+      allow read: if isTreeMemberById(resource.data.sourceTreeId)
+        || isTreeMemberById(resource.data.targetTreeId);
+      allow create: if signedIn()
+        && request.resource.data.suggestedByUserId == request.auth.uid
+        && (
+          isTreeEditorById(request.resource.data.sourceTreeId)
+          || isTreeEditorById(request.resource.data.targetTreeId)
+        );
+      allow update, delete: if isTreeEditorById(resource.data.sourceTreeId)
+        || isTreeEditorById(resource.data.targetTreeId);
     }
 
     match /mergeHistory/{historyId} {
-      allow read, write: if signedIn();
+      allow read: if (
+          resource.data.involvedTreeIds.size() > 0
+          && isTreeMemberById(resource.data.involvedTreeIds[0])
+        ) || (
+          resource.data.involvedTreeIds.size() > 1
+          && isTreeMemberById(resource.data.involvedTreeIds[1])
+        );
+      allow create: if (
+          request.resource.data.involvedTreeIds.size() > 0
+          && isTreeEditorById(request.resource.data.involvedTreeIds[0])
+        ) || (
+          request.resource.data.involvedTreeIds.size() > 1
+          && isTreeEditorById(request.resource.data.involvedTreeIds[1])
+        );
+      allow update, delete: if (
+          resource.data.involvedTreeIds.size() > 0
+          && isTreeEditorById(resource.data.involvedTreeIds[0])
+        ) || (
+          resource.data.involvedTreeIds.size() > 1
+          && isTreeEditorById(resource.data.involvedTreeIds[1])
+        );
     }
 
     match /notifications/{notificationId} {
-      allow read, write: if signedIn();
+      allow read, update, delete: if signedIn() && resource.data.userId == request.auth.uid;
+      allow create: if signedIn()
+        && request.resource.data.requestedByUserId == request.auth.uid
+        && isTreeEditorById(request.resource.data.sourceTreeId);
     }
 
     match /notificationActivity/{stateId} {
-      allow read, write: if signedIn();
+      allow read, update, delete: if signedIn() && request.auth.uid == resource.data.userId;
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
     }
 
     match /approvalRequests/{requestId} {
-      allow read, write: if signedIn();
+      allow read: if isTreeMemberById(resource.data.treeId);
+      allow create: if signedIn()
+        && request.resource.data.requestedByUserId == request.auth.uid
+        && isTreeEditorById(request.resource.data.treeId);
+      allow update: if (
+          isTreeEditorById(resource.data.treeId)
+        ) || (
+          signedIn() && request.auth.uid in resource.data.eligibleApproverIds
+        );
+      allow delete: if isTreeOwnerById(resource.data.treeId);
     }
   }
 }
