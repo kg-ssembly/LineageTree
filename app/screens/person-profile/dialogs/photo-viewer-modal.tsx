@@ -83,14 +83,21 @@ export function PersonPhotoViewerModal({
         ) : null}
         {selectedPhoto ? (
           <View style={styles.viewerInfoCard}>
-            <Text variant="labelLarge" style={styles.viewerInfoLabel}>{t(K.memories.tellUsMoreAboutThisPhoto)}</Text>
-            <Text variant="bodyMedium" style={styles.viewerInfoValue}>
-              {selectedPhoto.description?.trim() || t(K.common.none)}
-            </Text>
-            <Text variant="labelLarge" style={styles.viewerInfoLabel}>{t(K.memories.linkToMemory)}</Text>
-            <Text variant="bodyMedium" style={styles.viewerInfoValue}>
-              {linkedEventLabel || t(K.common.none)}
-            </Text>
+            <Text variant="labelLarge" style={styles.viewerInfoLabel}>About this photo</Text>
+            {selectedPhoto.description?.trim() ? (
+              <Text variant="bodyMedium" style={styles.viewerInfoValue}>
+                {selectedPhoto.description.trim()}
+              </Text>
+            ) : (
+              <Text variant="bodyMedium" style={styles.viewerInfoValue}>
+                Nothing about this photo yet
+              </Text>
+            )}
+            {linkedEventLabel ? (
+              <Text variant="bodyMedium" style={styles.viewerInfoValue}>
+                {linkedEventLabel}
+              </Text>
+            ) : null}
           </View>
         ) : null}
         {person.photos.length > 1 && viewerIndex !== null ? (

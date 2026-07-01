@@ -159,16 +159,18 @@ export function PersonMemoriesSection({
                   <Pressable onPress={() => onOpenViewer(index)}>
                     <Image source={{ uri: photo.url }} style={styles.photo} />
                   </Pressable>
-                  <View style={styles.photoMeta}>
-                    {draft.description ? (
-                      <Text variant="bodySmall" style={[styles.relationshipSubtitle, { color: theme.colors.onSurfaceVariant }]}>{draft.description}</Text>
-                    ) : null}
-                    {draft.linkedLifeEventId ? (
-                      <Chip compact icon="link-variant">
-                        {linkedEventLabel(draft.linkedLifeEventId) || 'Linked memory'}
-                      </Chip>
-                    ) : null}
-                  </View>
+                  {draft.description || draft.linkedLifeEventId ? (
+                    <View style={styles.photoMeta}>
+                      {draft.description ? (
+                        <Text variant="bodySmall" style={[styles.relationshipSubtitle, { color: theme.colors.onSurfaceVariant }]}>{draft.description}</Text>
+                      ) : null}
+                      {draft.linkedLifeEventId ? (
+                        <Chip compact icon="link-variant">
+                          {linkedEventLabel(draft.linkedLifeEventId) || 'Linked memory'}
+                        </Chip>
+                      ) : null}
+                    </View>
+                  ) : null}
                 </Card>
                 </Reveal>
               ))}
