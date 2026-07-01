@@ -217,6 +217,7 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
   const [notesDraft, setNotesDraft] = useState('');
   const [photoProcessing, setPhotoProcessing] = useState(false);
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
+  const [selectedPhotoId, setSelectedPhotoId] = useState<string | null>(null);
   const [confirmState, setConfirmState] = useState<ConfirmState>({
     visible: false,
     title: '',
@@ -884,6 +885,8 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
             memoryTimeline={memoryTimeline}
             canEditLinkedProfile={canEditLinkedProfile}
             mutating={mutating}
+            selectedPhotoId={selectedPhotoId}
+            setSelectedPhotoId={setSelectedPhotoId}
             onOpenNotesDialog={openNotesDialog}
             onAddPhotoFromLibrary={handleAddPhotoFromLibrary}
             onAddPhotoFromCamera={handleCapturePhoto}
@@ -1013,7 +1016,15 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
         onConfirm={handleConfirm}
       />
 
-      <PhotoViewerModal linkedPerson={linkedPerson} viewerIndex={viewerIndex} setViewerIndex={setViewerIndex} />
+      <PhotoViewerModal
+        linkedPerson={linkedPerson}
+        viewerIndex={viewerIndex}
+        setViewerIndex={setViewerIndex}
+        onEditPhoto={(photo) => {
+          setSelectedPhotoId(photo.id);
+          setViewerIndex(null);
+        }}
+      />
 
     </View>
   );

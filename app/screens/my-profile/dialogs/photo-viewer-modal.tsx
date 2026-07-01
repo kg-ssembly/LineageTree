@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Dimensions, Image, Modal, ScrollView, View } from 'react-native';
 import { IconButton, Text } from 'react-native-paper';
-import type { PersonRecord } from '../../../../components/dto/person';
+import type { PersonPhoto, PersonRecord } from '../../../../components/dto/person';
 import { GlobalStyles } from '../../../../constants/styles';
+import { useI18n } from '../../../../hooks/use-i18n';
+import { I18N_KEYS as K } from '../../../../i18n/keys';
 
 const personProfileStyles = GlobalStyles.personProfile;
 
@@ -10,18 +12,41 @@ export function PhotoViewerModal({
   linkedPerson,
   viewerIndex,
   setViewerIndex,
+  onEditPhoto,
 }: {
   linkedPerson: PersonRecord | null;
   viewerIndex: number | null;
   setViewerIndex: React.Dispatch<React.SetStateAction<number | null>>;
+  onEditPhoto?: (photo: PersonPhoto) => void;
 }) {
+  const { t } = useI18n();
   const viewerWidth = Dimensions.get('window').width;
   const viewerHeight = Dimensions.get('window').height;
+  const selectedPhoto = useMemo(
+    () => (viewerIndex !== null && linkedPerson ? linkedPerson.photos[viewerIndex] ?? null : null),
+    [linkedPerson, viewerIndex],
+  );
+  const linkedEventLabel = selectedPhoto?.linkedLifeEventId
+    ? linkedPerson?.lifeEvents.find((event) => event.id === selectedPhoto.linkedLifeEventId)?.title ?? ''
+    : '';
 
   return (
     <Modal visible={viewerIndex !== null} animationType="fade" transparent onRequestClose={() => setViewerIndex(null)}>
       <View style={personProfileStyles.viewerBackdrop}>
         <IconButton icon="close" iconColor="#FFFFFF" size={28} style={personProfileStyles.viewerCloseButton} onPress={() => setViewerIndex(null)} />
+        {selectedPhoto && onEditPhoto ? (
+          <IconButton
+            icon="pencil"
+            iconColor="#FFFFFF"
+            size={22}
+            style={personProfileStyles.viewerEditButton}
+            onPress={() => {
+              setViewerIndex(null);
+              onEditPhoto(selectedPhoto);
+            }}
+            accessibilityLabel={t(K.common.edit)}
+          />
+        ) : null}
         {linkedPerson && linkedPerson.photos.length > 1 && viewerIndex !== null ? (
           <>
             <IconButton
@@ -55,6 +80,18 @@ export function PhotoViewerModal({
               </View>
             ))}
           </ScrollView>
+        ) : null}
+        {selectedPhoto ? (
+          <View style={personProfileStyles.viewerInfoCard}>
+            <Text variant="labelLarge" style={personProfileStyles.viewerInfoLabel}>{t(K.memories.tellUsMoreAboutThisPhoto)}</Text>
+            <Text variant="bodyMedium" style={personProfileStyles.viewerInfoValue}>
+              {selectedPhoto.description?.trim() || t(K.common.none)}
+            </Text>
+            <Text variant="labelLarge" style={personProfileStyles.viewerInfoLabel}>{t(K.memories.linkToMemory)}</Text>
+            <Text variant="bodyMedium" style={personProfileStyles.viewerInfoValue}>
+              {linkedEventLabel || t(K.common.none)}
+            </Text>
+          </View>
         ) : null}
         {linkedPerson && linkedPerson.photos.length > 1 && viewerIndex !== null ? (
           <View style={personProfileStyles.viewerCounter}>

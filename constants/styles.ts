@@ -1106,11 +1106,16 @@ export class GlobalStyles {
             backgroundColor: F.avatarBg,
         },
         photoMeta: {
-            padding: 12,
-            gap: 8,
+            paddingHorizontal: 10,
+            paddingTop: 10,
+            paddingBottom: 8,
+            gap: 6,
         },
         photoMetaField: {
             marginTop: 4,
+        },
+        photoDeleteButton: {
+            marginLeft: -6,
         },
         photoActionRow: {
             flexDirection: 'row',
@@ -1186,6 +1191,14 @@ export class GlobalStyles {
             zIndex: 2,
             backgroundColor: 'rgba(255, 255, 255, 0.12)',
         },
+        viewerEditButton: {
+            position: 'absolute',
+            top: 44,
+            left: 16,
+            zIndex: 2,
+            margin: 0,
+            backgroundColor: 'rgba(255, 255, 255, 0.12)',
+        },
         viewerNavButton: {
             position: 'absolute',
             top: '50%',
@@ -1207,6 +1220,27 @@ export class GlobalStyles {
             paddingVertical: 8,
             borderRadius: 999,
             backgroundColor: 'rgba(255, 255, 255, 0.14)',
+        },
+        viewerInfoCard: {
+            position: 'absolute',
+            left: 16,
+            right: 16,
+            bottom: 72,
+            zIndex: 2,
+            padding: 14,
+            borderRadius: 20,
+            backgroundColor: 'rgba(255, 255, 255, 0.12)',
+            borderWidth: StyleSheet.hairlineWidth,
+            borderColor: 'rgba(255, 255, 255, 0.18)',
+        },
+        viewerInfoLabel: {
+            color: '#FFFFFF',
+            opacity: 0.82,
+        },
+        viewerInfoValue: {
+            marginTop: 2,
+            marginBottom: 10,
+            color: '#FFFFFF',
         },
         viewerSlide: {
             height: '100%',

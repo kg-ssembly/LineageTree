@@ -18,6 +18,8 @@ export function PersonMemoriesSection({
   preferredPhoto,
   canEdit,
   mutating,
+  selectedPhotoId,
+  setSelectedPhotoId,
   memorySectionTab,
   setMemorySectionTab,
   memoryTimeline,
@@ -51,11 +53,12 @@ export function PersonMemoriesSection({
   onOpenViewer: (index: number) => void;
   onAddLifeEvent: () => void;
   onEditLifeEvent: (event: PersonLifeEvent) => void;
+  selectedPhotoId: string | null;
+  setSelectedPhotoId: (photoId: string | null) => void;
 }) {
   const theme = useTheme();
   const { t } = useI18n();
   const [photoDrafts, setPhotoDrafts] = useState<Record<string, { description: string; linkedLifeEventId: string }>>({});
-  const [selectedPhotoId, setSelectedPhotoId] = useState<string | null>(null);
 
   useEffect(() => {
     const nextDrafts = person.photos.reduce<Record<string, { description: string; linkedLifeEventId: string }>>((acc, photo) => {
@@ -164,16 +167,6 @@ export function PersonMemoriesSection({
                       <Chip compact icon="link-variant">
                         {linkedEventLabel(draft.linkedLifeEventId) || 'Linked memory'}
                       </Chip>
-                    ) : null}
-                    {canEdit ? (
-                      <View style={styles.photoActionRow}>
-                        <IconButton icon="eye-outline" size={20} onPress={() => setSelectedPhotoId(photo.id)} disabled={photoProcessing} />
-                      </View>
-                    ) : null}
-                    {!canEdit ? (
-                      <View style={styles.photoActionRow}>
-                        <IconButton icon="eye-outline" size={20} onPress={() => setSelectedPhotoId(photo.id)} />
-                      </View>
                     ) : null}
                   </View>
                 </Card>
@@ -305,14 +298,19 @@ export function PersonMemoriesSection({
               ) : null}
             </View>
           </Dialog.ScrollArea>
-          <Dialog.Actions>
+          <Dialog.Actions style={[dialogChrome.dialogActions, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
             {canEdit && selectedPhoto ? (
-              <Button textColor={theme.colors.error} onPress={() => {
-                setSelectedPhotoId(null);
-                void onRemovePhoto(selectedPhoto);
-              }} disabled={photoProcessing}>
-                {t(K.common.delete)}
-              </Button>
+              <IconButton
+                icon="trash-can-outline"
+                iconColor={theme.colors.error}
+                onPress={() => {
+                  setSelectedPhotoId(null);
+                  void onRemovePhoto(selectedPhoto);
+                }}
+                disabled={photoProcessing}
+                accessibilityLabel={t(K.common.delete)}
+                style={styles.photoDeleteButton}
+              />
             ) : <View />}
             {canEdit && selectedPhoto && selectedDraft ? (
               <Button mode="contained" onPress={() => {

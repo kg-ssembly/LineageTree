@@ -21,6 +21,8 @@ export function MemoriesSection({
   memoryTimeline,
   canEditLinkedProfile,
   mutating,
+  selectedPhotoId,
+  setSelectedPhotoId,
   onOpenNotesDialog,
   onAddPhotoFromLibrary,
   onAddPhotoFromCamera,
@@ -49,11 +51,12 @@ export function MemoriesSection({
   onAddLifeEvent: () => void;
   onEditLifeEvent: (event: PersonLifeEvent) => void;
   onOpenViewer: (index: number) => void;
+  selectedPhotoId: string | null;
+  setSelectedPhotoId: (photoId: string | null) => void;
 }) {
   const theme = useTheme();
   const { t } = useI18n();
   const [photoDrafts, setPhotoDrafts] = useState<Record<string, { description: string; linkedLifeEventId: string }>>({});
-  const [selectedPhotoId, setSelectedPhotoId] = useState<string | null>(null);
 
   useEffect(() => {
     const nextDrafts = linkedPerson.photos.reduce<Record<string, { description: string; linkedLifeEventId: string }>>((acc, photo) => {
@@ -158,16 +161,6 @@ export function MemoriesSection({
                       <Chip compact icon="link-variant">
                         {linkedEventLabel(draft.linkedLifeEventId) || 'Linked memory'}
                       </Chip>
-                    ) : null}
-                    {canEditLinkedProfile ? (
-                      <View style={personProfileStyles.photoActionRow}>
-                        <IconButton icon="eye-outline" size={20} onPress={() => setSelectedPhotoId(photo.id)} disabled={photoProcessing} />
-                      </View>
-                    ) : null}
-                    {!canEditLinkedProfile ? (
-                      <View style={personProfileStyles.photoActionRow}>
-                        <IconButton icon="eye-outline" size={20} onPress={() => setSelectedPhotoId(photo.id)} />
-                      </View>
                     ) : null}
                   </View>
                 </Card>
@@ -301,14 +294,19 @@ export function MemoriesSection({
               ) : null}
             </View>
           </Dialog.ScrollArea>
-          <Dialog.Actions>
+          <Dialog.Actions style={[dialogChrome.dialogActions, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
             {canEditLinkedProfile && selectedPhoto ? (
-              <Button textColor={theme.colors.error} onPress={() => {
-                setSelectedPhotoId(null);
-                void onRemovePhoto(selectedPhoto);
-              }} disabled={photoProcessing}>
-                {t(K.common.delete)}
-              </Button>
+              <IconButton
+                icon="trash-can-outline"
+                iconColor={theme.colors.error}
+                onPress={() => {
+                  setSelectedPhotoId(null);
+                  void onRemovePhoto(selectedPhoto);
+                }}
+                disabled={photoProcessing}
+                accessibilityLabel={t(K.common.delete)}
+                style={personProfileStyles.photoDeleteButton}
+              />
             ) : <View />}
             {canEditLinkedProfile && selectedPhoto && selectedDraft ? (
               <Button mode="contained" onPress={() => {

@@ -301,6 +301,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
     action: null,
   });
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
+  const [selectedPhotoId, setSelectedPhotoId] = useState<string | null>(null);
   const [snackVisible, setSnackVisible] = useState(false);
   const [activeTab, setActiveTab] = useState<PersonProfileTabKey>('biography');
   const [helperDialog, setHelperDialog] = useState<{ visible: boolean; key: HelperDialogKey }>({
@@ -1093,6 +1094,8 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
             preferredPhoto={preferredPhoto}
             canEdit={canEdit}
             mutating={mutating}
+            selectedPhotoId={selectedPhotoId}
+            setSelectedPhotoId={setSelectedPhotoId}
             memorySectionTab={memorySectionTab}
             setMemorySectionTab={setMemorySectionTab}
             memoryTimeline={memoryTimeline}
@@ -1230,7 +1233,15 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
         onConfirm={handleConfirm}
       />
 
-      <PersonPhotoViewerModal person={person} viewerIndex={viewerIndex} setViewerIndex={setViewerIndex} />
+      <PersonPhotoViewerModal
+        person={person}
+        viewerIndex={viewerIndex}
+        setViewerIndex={setViewerIndex}
+        onEditPhoto={(photo) => {
+          setSelectedPhotoId(photo.id);
+          setViewerIndex(null);
+        }}
+      />
 
       <Portal>
         <Dialog
