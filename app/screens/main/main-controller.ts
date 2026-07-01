@@ -1119,6 +1119,10 @@ export function useMainScreenController({ navigation }: Props) {
       }
 
       if (notification.type === 'tree-access-response' && (notification.status === 'accepted' || notification.status === 'rejected')) {
+        if (notification.openedAt || notification.seenAt) {
+          return [];
+        }
+
         return [{
           id: `priority-notification-${notification.id}`,
           kind: 'tree-access-response',
@@ -1363,11 +1367,15 @@ export function useMainScreenController({ navigation }: Props) {
     }
 
     dismissedPriorityAlertIdsRef.current.add(priorityAlert.id);
-    if (priorityAlert.notificationId && !priorityAlert.seen) {
-      await onMarkNotificationSeen(priorityAlert.notificationId);
+    if (priorityAlert.notificationId) {
+      if (priorityAlert.kind === 'tree-access-response' && !priorityAlert.opened) {
+        await onMarkNotificationOpened(priorityAlert.notificationId);
+      } else if (!priorityAlert.seen) {
+        await onMarkNotificationSeen(priorityAlert.notificationId);
+      }
     }
     setPriorityAlert(null);
-  }, [onMarkNotificationSeen, priorityAlert]);
+  }, [onMarkNotificationOpened, onMarkNotificationSeen, priorityAlert]);
 
   const openPriorityAlertTarget = useCallback(async () => {
     if (!priorityAlert) {

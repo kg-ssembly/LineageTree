@@ -1,6 +1,7 @@
 import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, ScrollView, View } from 'react-native';
 import {
+  ActivityIndicator,
   Button,
   Chip,
   Dialog,
@@ -101,6 +102,10 @@ function formatDateButtonLabel(value: string, t: (key: string, values?: Record<s
 
 function formatPersonName(person: PersonRecord) {
   return [person.firstName, person.middleNames ?? '', person.lastName].join(' ').replace(/\s+/g, ' ').trim();
+}
+
+function formatPreviewName(payload: Pick<PersonFormSubmission, 'firstName' | 'middleNames' | 'lastName'>) {
+  return [payload.firstName, payload.middleNames, payload.lastName].join(' ').replace(/\s+/g, ' ').trim();
 }
 
 function createValidationPersonRecord(input: {
@@ -225,6 +230,7 @@ export default function PersonFormDialog({
   const [lastNameTouched, setLastNameTouched] = useState(false);
   const [preferredPhotoRef, setPreferredPhotoRef] = useState('');
   const [previewState, setPreviewState] = useState<SubmissionPreviewState>({ visible: false, payload: null, warnings: [] });
+  const [submitPending, setSubmitPending] = useState(false);
 
   // Track the last open-event key so we reinitialise only once per open, not
   // on every re-render, preventing the Portal infinite-update loop.
@@ -277,8 +283,15 @@ export default function PersonFormDialog({
     setLastNameTouched(false);
     setPreferredPhotoRef(person?.preferredPhotoId ?? initialValues?.preferredPhotoRef ?? '');
     setPreviewState({ visible: false, payload: null, warnings: [] });
+    setSubmitPending(false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, mode, person?.id]);
+
+  useEffect(() => {
+    if (!loading) {
+      setSubmitPending(false);
+    }
+  }, [loading]);
 
   const buildSubmissionPayload = () => ({
     firstName,
@@ -563,6 +576,8 @@ export default function PersonFormDialog({
     },
     { label: t(K.relationship.spouseOf), value: 'spouse-of' as PendingRelationshipMode },
   ], [gender, t]);
+  const hasExistingTreeMembers = relationshipCandidates.length > 0;
+  const requiresRelationshipStep = mode === 'create' && hasExistingTreeMembers;
 
   const handleNextStep = () => {
     const firstError = personValidationFeedback.errors.find((message) => message === t(K.personForm.firstNameRequiredError));
@@ -606,6 +621,11 @@ export default function PersonFormDialog({
     }
 
     if (mode === 'create') {
+      if (requiresRelationshipStep && pendingRelationships.length === 0) {
+        setRelationshipError(t(K.personForm.addRelationshipToConnectMember));
+        return;
+      }
+
       const hasIncompleteRelationship = pendingRelationships.some((draft) => !draft.relatedPersonId);
       if (hasIncompleteRelationship) {
         setRelationshipError(t(K.personForm.chooseFamilyMemberForRelationship));
@@ -651,6 +671,42 @@ export default function PersonFormDialog({
     });
   };
 
+  const getRelationshipPreviewLabel = (relationshipMode: PendingRelationshipMode) => {
+    if (relationshipMode === 'spouse-of') {
+      return t(K.relationship.spouseOf);
+    }
+
+    if (relationshipMode === 'child-of') {
+      return gender === 'male'
+        ? t(K.relationship.sonOf)
+        : gender === 'female'
+          ? t(K.relationship.daughterOf)
+          : t(K.relationship.childOf);
+    }
+
+    return gender === 'male'
+      ? t(K.relationship.fatherOf)
+      : gender === 'female'
+        ? t(K.relationship.motherOf)
+        : t(K.relationship.parentOf);
+  };
+
+  const handlePreviewConfirm = async () => {
+    if (!previewState.payload) {
+      return;
+    }
+
+    const payload = previewState.payload;
+    setPreviewState({ visible: false, payload: null, warnings: [] });
+    setSubmitPending(true);
+
+    try {
+      await onSubmit(payload);
+    } finally {
+      setSubmitPending(false);
+    }
+  };
+
   return (
     <>
       <Portal>
@@ -661,11 +717,11 @@ export default function PersonFormDialog({
         >
           <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose, styles.dialogTitle]}>
             {mode === 'create'
-              ? (step === 1 ? t(K.personForm.addFamilyMember) : t(K.personForm.addRelationships))
+              ? (step === 1 || !requiresRelationshipStep ? t(K.personForm.addFamilyMember) : t(K.personForm.addRelationships))
               : t(K.personForm.editFamilyMember)}
           </Dialog.Title>
           <IconButton icon="close" onPress={onDismiss} disabled={loading} accessibilityLabel={t(K.common.cancel)} style={dialogChrome.closeButton} />
-          {mode === 'create' ? (
+          {mode === 'create' && requiresRelationshipStep ? (
             <View style={[styles.stepProgressRow, { borderBottomColor: theme.colors.outlineVariant }]}>
               <View style={[styles.stepDot, step >= 1 && { backgroundColor: theme.colors.primary }]} />
               <View style={[styles.stepLine, { backgroundColor: step >= 2 ? theme.colors.primary : theme.colors.outlineVariant }]} />
@@ -866,7 +922,7 @@ export default function PersonFormDialog({
               {/* ── Step 2 content (or always visible in edit mode) ──────── */}
               {(mode === 'edit' || step === 2) ? (
                 <>
-              {mode === 'create' && relationshipCandidates.length > 0 ? (
+              {mode === 'create' && requiresRelationshipStep ? (
                 <View style={styles.sectionSpacing}>
                   <View style={styles.relationshipHeader}>
                     <Text variant="titleSmall">{t(K.personForm.createRelationshipsNow)}</Text>
@@ -1060,14 +1116,14 @@ export default function PersonFormDialog({
                 }}
                 accessibilityLabel={t(K.personForm.deleteMember)}
               />
-            ) : mode === 'create' && step === 2 ? (
+            ) : mode === 'create' && requiresRelationshipStep && step === 2 ? (
               <Button mode="outlined" onPress={() => setStep(1)} disabled={loading}>{t(K.common.back)}</Button>
             ) : (
               <View />
             )}
             {/* Right side: step-1 next or final submit */}
               <View style={{ flexDirection: 'row', gap: 8 }}>
-              {mode === 'create' && step === 1 ? (
+              {mode === 'create' && requiresRelationshipStep && step === 1 ? (
                 <>
                   <Button mode="contained" onPress={handleNextStep} disabled={loading}>{t(K.common.next)}</Button>
                 </>
@@ -1136,14 +1192,15 @@ export default function PersonFormDialog({
             <ScrollView contentContainerStyle={styles.content}>
               {previewState.payload ? (
                 <>
-                  <Text variant="titleMedium">{[previewState.payload.firstName, previewState.payload.middleNames, previewState.payload.lastName].join(' ').replace(/\s+/g, ' ').trim()}</Text>
-                  <Text variant="bodyMedium" style={styles.helperText}>{previewState.payload.gender}</Text>
+                  <Text variant="titleMedium">{formatPreviewName(previewState.payload)}</Text>
+                  <Text variant="bodyMedium" style={styles.helperText}>
+                    {mode === 'create' ? t(K.personForm.readyToCreateFamilyMember) : t(K.personForm.readyToSaveFamilyMember)}
+                  </Text>
+                  <Text variant="titleSmall" style={styles.sectionSpacing}>{t(K.common.summary)}</Text>
+                  <Text variant="bodyMedium">{t(K.personForm.gender)}: {previewState.payload.gender}</Text>
                   {previewState.payload.birthDate ? <Text variant="bodyMedium">{t(K.personProfile.birth)}: {formatPersonDate(previewState.payload.birthDate)}</Text> : null}
                   {previewState.payload.deathDate ? <Text variant="bodyMedium">{t(K.personProfile.inMemory)}: {formatPersonDate(previewState.payload.deathDate)}</Text> : null}
                   {previewState.payload.maidenName ? <Text variant="bodyMedium">{t(K.personForm.maidenName)}: {previewState.payload.maidenName}</Text> : null}
-                  {previewState.payload.notes ? <Text variant="bodyMedium">{t(K.memories.notes)}: {previewState.payload.notes}</Text> : null}
-                  <Text variant="bodyMedium">{t(K.memories.lifeEvents)}: {previewState.payload.lifeEvents.length}</Text>
-                  <Text variant="bodyMedium">{t(K.memories.photos)}: {previewState.payload.existingPhotos.length + previewState.payload.newPhotoUris.length - previewState.payload.removedPhotos.length}</Text>
                   {previewState.payload.pendingRelationships.length > 0 ? (
                     <View style={styles.sectionSpacing}>
                       <Text variant="titleSmall">{t(K.personForm.relationshipsToAdd)}</Text>
@@ -1151,7 +1208,7 @@ export default function PersonFormDialog({
                         const relatedPerson = relationshipCandidatesById.get(relationship.relatedPersonId);
                         return (
                           <Text key={`${relationship.relatedPersonId}-${index}`} variant="bodyMedium">
-                            {index + 1}. {relationship.mode} {relatedPerson ? formatPersonName(relatedPerson) : relationship.relatedPersonId}
+                            {index + 1}. {getRelationshipPreviewLabel(relationship.mode)} {relatedPerson ? formatPersonName(relatedPerson) : relationship.relatedPersonId}
                           </Text>
                         );
                       })}
@@ -1174,15 +1231,30 @@ export default function PersonFormDialog({
             <Button
               mode="contained"
               onPress={() => {
-                if (previewState.payload) {
-                  void onSubmit(previewState.payload);
-                }
+                void handlePreviewConfirm();
               }}
               disabled={loading || !previewState.payload}
             >
               {mode === 'create' ? t(K.common.create) : t(K.common.save)}
             </Button>
           </Dialog.Actions>
+        </Dialog>
+      </Portal>
+      <Portal>
+        <Dialog
+          visible={submitPending || loading}
+          dismissable={false}
+          style={[dialogChrome.dialog, styles.dialog, { backgroundColor: theme.colors.surface }]}
+        >
+          <Dialog.Content style={{ alignItems: 'center', paddingVertical: 24 }}>
+            <ActivityIndicator color={theme.colors.primary} size="large" />
+            <Text variant="titleMedium" style={{ marginTop: 16 }}>
+              {mode === 'create' ? t(K.personForm.creatingFamilyMember) : t(K.personForm.savingFamilyMember)}
+            </Text>
+            <Text variant="bodyMedium" style={[styles.helperText, { textAlign: 'center', marginTop: 8 }]}>
+              {t(K.personForm.savingFamilyMemberHelper)}
+            </Text>
+          </Dialog.Content>
         </Dialog>
       </Portal>
     </>

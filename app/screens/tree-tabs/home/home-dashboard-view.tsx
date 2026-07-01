@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, View, type LayoutChangeEvent } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
-import { ActivityIndicator, Button, Card, Chip, Dialog, IconButton, Portal, ProgressBar, Surface, Text, useTheme } from 'react-native-paper';
+import { ActivityIndicator, Button, Card, Chip, Dialog, IconButton, Portal, Surface, Text, useTheme } from 'react-native-paper';
 import { FloatingSnackbar, HorizontalTabStrip, InfoDialog, Reveal } from '../../../../components';
 import { getDisplayPersonPhoto } from '../../../../components/dto/person';
 import type { MainTabParamList } from '../../../../components/dto/navigation';
@@ -123,35 +123,55 @@ function buildDashboardTasks(
     canEdit,
     onOpenAddPerson,
     onOpenAddSelf,
+    onEditPerson,
     openPersonProfile,
     onOpenRelationshipDialog,
   } = props;
 
   if (!currentAssignedPerson) {
-    const initialTasks: DashboardTask[] = [
-      {
-        id: 'link-self',
-        title: t(K.home.createYourFamilyProfile),
-        description: t(K.home.linkYourselfIntoTheTree),
-        ctaLabel: t(K.home.startMyProfile),
-        category: 'story',
-        priority: 'urgent',
-        score: 1000,
-        done: false,
-        action: onOpenAddSelf,
-      },
-      {
+    const initialTasks: DashboardTask[] = [];
+
+    if (people.length < 2) {
+      initialTasks.push({
         id: 'add-first-member',
-        title: t(K.home.addTheFirstFamilyMember),
-        description: t(K.home.startYourTreeWithTheFirstRelative),
+        title: people.length === 0 ? t(K.home.addTheFirstFamilyMember) : t(K.home.addAnotherFamilyMember),
+        description: people.length === 0
+          ? t(K.home.startYourTreeWithTheFirstRelative)
+          : t(K.home.startBuildingOutwardFromYourOwnPageByAddingTheNextPersonInTheFamily),
         ctaLabel: t(K.home.addFamilyMember),
         category: 'tree',
         priority: 'urgent',
-        score: 960,
-        done: people.length > 0,
+        score: people.length === 0 ? 1000 : 1200,
+        done: false,
         action: onOpenAddPerson,
-      },
-    ];
+      });
+    }
+
+    initialTasks.push({
+      id: 'link-self',
+      title: t(K.home.createYourFamilyProfile),
+      description: t(K.home.linkYourselfIntoTheTree),
+      ctaLabel: t(K.home.startMyProfile),
+      category: 'story',
+      priority: 'urgent',
+      score: people.length === 0 ? 1000 : 900,
+      done: false,
+      action: onOpenAddSelf,
+    });
+
+    if (showFollowUpTreePrompts && people.length >= 2 && relationships.length === 0) {
+      initialTasks.push({
+        id: 'relationships',
+        title: t(K.home.connectFamilyRelationships),
+        description: t(K.home.parentsPartnersAndChildrenAreWhatTurnAProfileIntoABranch),
+        ctaLabel: canEdit ? t(K.home.connectFamily) : t(K.home.viewProfile),
+        category: 'tree',
+        priority: 'urgent',
+        score: 850,
+        done: false,
+        action: canEdit ? onOpenRelationshipDialog : onOpenAddSelf,
+      });
+    }
 
     return {
       storyTasks: initialTasks.filter((task) => task.category === 'story'),
@@ -171,8 +191,12 @@ function buildDashboardTasks(
   const hasBranchIdentity = Boolean(currentAssignedPerson.familyBranch?.trim() || currentAssignedPerson.clanName?.trim());
   const hasProfilePhoto = hasPhoto;
   const hasCoreProfileFacts = hasBirthDetails && hasProfilePhoto && hasRelationships;
+  const totalPeopleCount = people.length;
+  const needsMorePeopleBeforeDetailPrompts = totalPeopleCount < 2;
+  const needsRelationshipConnection = totalPeopleCount >= 2 && !hasRelationships;
 
   const profileAction = () => openPersonProfile(currentAssignedPerson);
+  const editCurrentAssignedPerson = () => onEditPerson(currentAssignedPerson);
 
   const otherPeopleCount = people.filter((person) => person.id !== currentAssignedPerson.id).length;
   const taskList: DashboardTask[] = [
@@ -183,9 +207,9 @@ function buildDashboardTasks(
       ctaLabel: t(K.home.addPortrait),
       category: 'story',
       priority: 'easy-win',
-      score: hasBirthDetails ? 270 : 220,
+      score: needsMorePeopleBeforeDetailPrompts || needsRelationshipConnection ? 70 : hasBirthDetails ? 270 : 220,
       done: hasPhoto,
-      action: profileAction,
+      action: editCurrentAssignedPerson,
     },
     {
       id: 'birth',
@@ -194,9 +218,9 @@ function buildDashboardTasks(
       ctaLabel: t(K.home.addBirthDetails),
       category: 'story',
       priority: 'urgent',
-      score: 420,
+      score: needsMorePeopleBeforeDetailPrompts || needsRelationshipConnection ? 80 : 420,
       done: hasBirthDetails,
-      action: profileAction,
+      action: editCurrentAssignedPerson,
     },
     {
       id: 'memory',
@@ -205,7 +229,7 @@ function buildDashboardTasks(
       ctaLabel: t(K.home.addMemory),
       category: 'story',
       priority: 'recommended',
-      score: hasRelationships || hasProfilePhoto ? 280 : 210,
+      score: needsMorePeopleBeforeDetailPrompts || needsRelationshipConnection ? 60 : hasRelationships || hasProfilePhoto ? 280 : 210,
       done: hasMemories,
       action: profileAction,
     },
@@ -216,9 +240,9 @@ function buildDashboardTasks(
       ctaLabel: t(K.home.addFamilyDetail),
       category: 'story',
       priority: 'easy-win',
-      score: hasRelationships ? 230 : 170,
+      score: needsMorePeopleBeforeDetailPrompts || needsRelationshipConnection ? 50 : hasRelationships ? 230 : 170,
       done: hasBranchIdentity,
-      action: profileAction,
+      action: editCurrentAssignedPerson,
     },
     {
       id: 'review-matches',
@@ -233,20 +257,22 @@ function buildDashboardTasks(
     },
   ];
 
-  if (showFollowUpTreePrompts) {
-    taskList.push(
-      {
-        id: 'relationships',
-        title: t(K.home.connectFamilyRelationships),
-        description: t(K.home.parentsPartnersAndChildrenAreWhatTurnAProfileIntoABranch),
-        ctaLabel: canEdit ? t(K.home.connectFamily) : t(K.home.viewProfile),
-        category: 'tree',
-        priority: 'urgent',
-        score: 390,
-        done: hasRelationships,
-        action: canEdit ? onOpenRelationshipDialog : profileAction,
-      },
-      {
+  if (totalPeopleCount >= 2) {
+    taskList.push({
+      id: 'relationships',
+      title: t(K.home.connectFamilyRelationships),
+      description: t(K.home.parentsPartnersAndChildrenAreWhatTurnAProfileIntoABranch),
+      ctaLabel: canEdit ? t(K.home.connectFamily) : t(K.home.viewProfile),
+      category: 'tree',
+      priority: 'urgent',
+      score: needsRelationshipConnection ? 1000 : 390,
+      done: hasRelationships,
+      action: canEdit ? onOpenRelationshipDialog : profileAction,
+    });
+  }
+
+  if (showFollowUpTreePrompts || otherPeopleCount === 0) {
+    taskList.push({
         id: 'add-family-member',
         title: otherPeopleCount > 0 ? t(K.home.addAnotherFamilyMember) : t(K.home.addTheFirstFamilyMember),
         description: otherPeopleCount > 0
@@ -255,11 +281,10 @@ function buildDashboardTasks(
         ctaLabel: t(K.home.addFamilyMember),
         category: 'tree',
         priority: 'urgent',
-        score: otherPeopleCount > 0 ? 240 : 410,
+        score: otherPeopleCount > 0 ? 240 : 1200,
         done: otherPeopleCount > 0,
         action: onOpenAddPerson,
-      },
-    );
+      });
   }
 
   if (hasCoreProfileFacts) {
@@ -337,6 +362,7 @@ export function HomeDashboardView(props: SharedTabProps) {
     showFollowUpTreePrompts,
     props.onOpenAddPerson,
     props.onOpenAddSelf,
+    props.onEditPerson,
     props.openPersonProfile,
     props.onOpenRelationshipDialog,
     t,
@@ -350,18 +376,16 @@ export function HomeDashboardView(props: SharedTabProps) {
     const dismissedTaskIdSet = new Set(dismissedTaskIds);
     const visibleStoryTasks = storyTasks.filter((task) => !task.done && !dismissedTaskIdSet.has(task.id));
     const visibleTreeTasks = treeTasks.filter((task) => !task.done && !dismissedTaskIdSet.has(task.id));
-    const visibleRemainingTasks = [...visibleStoryTasks, ...visibleTreeTasks]
-      .sort((left, right) => right.score - left.score || left.title.localeCompare(right.title));
     const storyCompletedCount = storyTasks.filter((task) => task.done).length;
     const treeCompletedCount = treeTasks.filter((task) => task.done).length;
 
     return {
       visibleStoryTasks,
       visibleTreeTasks,
-      visibleRemainingTasks,
       bestStoryStep: visibleStoryTasks[0] ?? null,
       bestTreeStep: visibleTreeTasks[0] ?? null,
-      bestNextStep: visibleRemainingTasks[0] ?? null,
+      bestNextStep: [...visibleStoryTasks, ...visibleTreeTasks]
+        .sort((left, right) => right.score - left.score || left.title.localeCompare(right.title))[0] ?? null,
       storyCompletedCount,
       treeCompletedCount,
       storyProgress: storyTasks.length > 0 ? storyCompletedCount / storyTasks.length : 0,
@@ -371,7 +395,6 @@ export function HomeDashboardView(props: SharedTabProps) {
   const {
     visibleStoryTasks,
     visibleTreeTasks,
-    visibleRemainingTasks,
     bestStoryStep,
     bestTreeStep,
     bestNextStep,
@@ -383,57 +406,54 @@ export function HomeDashboardView(props: SharedTabProps) {
   const pendingBuildTaskCount = visibleStoryTasks.length + visibleTreeTasks.length;
   const setupSteps = useMemo<SetupStep[]>(() => {
     const hasLinkedProfile = Boolean(currentAssignedPerson);
-    const hasOtherFamilyMember = currentAssignedPerson
-      ? people.some((person) => person.id !== currentAssignedPerson.id)
-      : people.length > 0;
+    const hasMinimumMembers = people.length >= 2;
     const hasFirstConnection = relationships.length > 0;
-    const hasStoryStarter = Boolean(
-      currentAssignedPerson && (
-        getDisplayPersonPhoto(currentAssignedPerson)
-        || currentAssignedPerson.lifeEvents.length > 0
-        || currentAssignedPerson.notes?.trim()
-        || currentAssignedPerson.birthDate?.trim()
-      )
-    );
+    const firstMissingBirthdatePerson = people.find((person) => !person.birthDate?.trim()) ?? null;
 
-    const steps: SetupStep[] = [
-      {
-        id: 'setup-profile',
-        title: t(K.home.createYourProfile),
-        description: t(K.home.linkYourselfIntoTheTreePersonally),
-        done: hasLinkedProfile,
-        action: hasLinkedProfile && currentAssignedPerson ? () => openPersonProfile(currentAssignedPerson) : onOpenAddSelf,
-      },
-      {
-        id: 'setup-story',
-        title: t(K.home.addOneStoryDetail),
-        description: t(K.home.aPhotoDateOrMemoryGivesTheTreeAMoreHumanStartingPoint),
-        done: hasStoryStarter,
-        action: currentAssignedPerson ? () => openPersonProfile(currentAssignedPerson) : onOpenAddSelf,
-      },
-    ];
+    const steps: SetupStep[] = [];
 
     if (showFollowUpTreePrompts) {
-      steps.splice(1, 0,
-        {
-          id: 'setup-member',
-          title: t(K.home.addAFamilyMember),
-          description: t(K.home.bringInAParentChildPartnerOrAncestorSoTheTreeStartsToBranch),
-          done: hasOtherFamilyMember,
-          action: onOpenAddPerson,
-        },
-        {
+      steps.push({
+        id: 'setup-member',
+        title: t(K.home.addAFamilyMember),
+        description: t(K.home.bringInAParentChildPartnerOrAncestorSoTheTreeStartsToBranch),
+        done: hasMinimumMembers,
+        action: onOpenAddPerson,
+      });
+
+      if (!hasLinkedProfile || hasMinimumMembers) {
+        steps.push({
+          id: 'setup-profile',
+          title: t(K.home.createYourProfile),
+          description: t(K.home.linkYourselfIntoTheTreePersonally),
+          done: hasLinkedProfile,
+          action: hasLinkedProfile && currentAssignedPerson ? () => openPersonProfile(currentAssignedPerson) : onOpenAddSelf,
+        });
+      }
+
+      if (hasMinimumMembers) {
+        steps.push({
           id: 'setup-relationship',
           title: t(K.home.connectTheRelationship),
           description: t(K.home.linkPeopleTogetherSoTheTreeBecomesAConnectedFamilyInsteadOfSeparatePages),
           done: hasFirstConnection,
           action: onOpenRelationshipDialog,
-        },
-      );
+        });
+      }
+
+      if (firstMissingBirthdatePerson) {
+        steps.push({
+          id: 'setup-birthdate',
+          title: t(K.home.fillInBirthDetails),
+          description: t(K.home.datesAnchorTheStoryAndHelpPlaceEachGenerationCorrectly),
+          done: false,
+          action: () => props.onEditPerson(firstMissingBirthdatePerson),
+        });
+      }
     }
 
     return steps;
-  }, [currentAssignedPerson, onOpenAddPerson, onOpenAddSelf, onOpenRelationshipDialog, openPersonProfile, people, relationships, showFollowUpTreePrompts, t]);
+  }, [currentAssignedPerson, onOpenAddPerson, onOpenAddSelf, onOpenRelationshipDialog, openPersonProfile, people, props, relationships, showFollowUpTreePrompts, t]);
   const setupCompletedCount = setupSteps.filter((step) => step.done).length;
   const setupProgress = setupSteps.length > 0 ? setupCompletedCount / setupSteps.length : 0;
   const nextSetupStep = setupSteps.find((step) => !step.done) ?? null;
@@ -543,6 +563,7 @@ export function HomeDashboardView(props: SharedTabProps) {
   const [dashboardTab, setDashboardTab] = useState<DashboardTabKey>(needsAttentionCount > 0 ? 'activity' : 'overview');
   const promptStorageId = `${selectedTree.id}:${currentAssignedPerson?.id ?? 'unlinked'}`;
   const dashboardVisitStorageId = `${selectedTree.id}:${currentAssignedPerson?.id ?? 'unlinked'}`;
+  const isEmptyTree = people.length === 0;
   const scrollRef = useRef<ScrollView | null>(null);
   const sectionOffsetsRef = useRef<Record<DashboardSectionKey, number>>({
     'since-last-visit': 0,
@@ -794,14 +815,14 @@ export function HomeDashboardView(props: SharedTabProps) {
           label: latestActivityAttentionItem.title,
           description: latestActivityAttentionItem.description,
           action,
-          buttonLabel: t(K.home.openActivities),
+          buttonLabel: t(K.home.activity),
         };
       }
       return {
         label: t(K.home.viewFamilyActivity),
         description: t(K.home.everythingIsCalmRightNowButYouCanStillOpenTheActivityAreas),
         action: openFamilyActivity,
-        buttonLabel: t(K.home.openActivities),
+        buttonLabel: t(K.home.activity),
       };
     }
 
@@ -833,21 +854,21 @@ export function HomeDashboardView(props: SharedTabProps) {
       };
     }
 
-    if (bestStoryStep) {
-      return {
-        label: bestStoryStep.ctaLabel,
-        description: bestStoryStep.description,
-        action: bestStoryStep.action,
-        taskId: bestStoryStep.id,
-      };
-    }
-
     if (bestNextStep) {
       return {
         label: bestNextStep.ctaLabel,
         description: bestNextStep.description,
         action: bestNextStep.action,
         taskId: bestNextStep.id,
+      };
+    }
+
+    if (bestStoryStep) {
+      return {
+        label: bestStoryStep.ctaLabel,
+        description: bestStoryStep.description,
+        action: bestStoryStep.action,
+        taskId: bestStoryStep.id,
       };
     }
 
@@ -902,7 +923,7 @@ export function HomeDashboardView(props: SharedTabProps) {
         title: t(K.home.mergeInvitesWaitingCount, { count: pendingInvites }),
         description: latestActivityAttentionItem?.description ?? t(K.home.sharedActivityThatCouldUseALookBeforeItSlipsOutOfView),
         action: openMergeInvites,
-        buttonLabel: t(K.home.openActivities),
+        buttonLabel: t(K.home.activity),
       };
     }
 
@@ -942,7 +963,7 @@ export function HomeDashboardView(props: SharedTabProps) {
   const heroTitle = isSetupMode
     ? nextSetupStep?.title ?? heroAction.label
     : dashboardLens === 'focus'
-      ? bestStoryStep?.title ?? bestNextStep?.title ?? heroAction.label
+      ? bestNextStep?.title ?? bestStoryStep?.title ?? heroAction.label
       : heroAction.label;
 
   const dashboardBundles = useMemo<DashboardBundle[]>(() => {
@@ -1062,43 +1083,6 @@ export function HomeDashboardView(props: SharedTabProps) {
             <Chip icon="home-heart">{selectedTree.name}</Chip>
           </View>
 
-          {isSetupMode ? (
-            <View style={{ marginTop: 18 }}>
-              <View style={[styles.dashboardMetricRow, { marginBottom: 10 }]}>
-                <Text variant="titleMedium">{t(K.home.completeYourTree)}</Text>
-                <Text variant="titleMedium">{Math.round(setupProgress * 100)}%</Text>
-              </View>
-              <ProgressBar progress={setupProgress} color={theme.colors.primary} style={{ height: 10, borderRadius: 999 }} />
-                <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant, marginTop: 8 }]}>
-                  {t(K.home.guidedSetupStepsFinishedCount, { completed: setupCompletedCount, total: setupSteps.length })}
-                </Text>
-            </View>
-          ) : (
-            <View style={[styles.dashboardMetricRow, { marginTop: 18 }]}>
-              <View style={{ flex: 1, minWidth: 220 }}>
-                <View style={[styles.dashboardMetricRow, { marginBottom: 10 }]}>
-                  <Text variant="titleMedium">{t(K.home.completeYourStory)}</Text>
-                  <Text variant="titleMedium">{Math.round(storyProgress * 100)}%</Text>
-                </View>
-                <ProgressBar progress={storyProgress} color={theme.colors.primary} style={{ height: 10, borderRadius: 999 }} />
-                <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant, marginTop: 8 }]}>
-                  {t(K.home.profileStepsFinishedCount, { completed: storyCompletedCount, total: storyTasks.length })}
-                </Text>
-              </View>
-
-              <View style={{ flex: 1, minWidth: 220 }}>
-                <View style={[styles.dashboardMetricRow, { marginBottom: 10 }]}>
-                  <Text variant="titleMedium">{t(K.home.completeYourTree)}</Text>
-                  <Text variant="titleMedium">{Math.round(treeProgress * 100)}%</Text>
-                </View>
-                <ProgressBar progress={treeProgress} color={theme.colors.secondary} style={{ height: 10, borderRadius: 999 }} />
-                <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant, marginTop: 8 }]}>
-                  {t(K.home.treeBuildingStepsFinishedCount, { completed: treeCompletedCount, total: treeTasks.length })}
-                </Text>
-              </View>
-            </View>
-          )}
-
         </Surface>
       </Reveal>
 
@@ -1118,7 +1102,7 @@ export function HomeDashboardView(props: SharedTabProps) {
         </Surface>
       </Reveal>
 
-      {dashboardTab !== 'highlights' ? (
+      {dashboardTab !== 'highlights' && !isEmptyTree ? (
         <Reveal delay={70}>
           <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
           {isSetupMode ? (
@@ -1143,9 +1127,11 @@ export function HomeDashboardView(props: SharedTabProps) {
                   >
                     <View style={styles.sectionHeader}>
                       <View style={styles.titleWrap}>
-                        <Chip compact icon={step.done ? 'check-circle-outline' : setupSteps[nextSetupStepIndex]?.id === step.id ? 'star-four-points-outline' : 'clock-outline'}>
-                          {step.done ? t(K.common.done) : setupSteps[nextSetupStepIndex]?.id === step.id ? t(K.home.upNext) : t(K.home.comingLater)}
-                        </Chip>
+                        {step.done ? (
+                          <Chip compact icon="check-circle-outline">
+                            {t(K.common.done)}
+                          </Chip>
+                        ) : null}
                         <Text variant="titleMedium" style={{ marginTop: 8 }}>{step.title}</Text>
                         <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
                           {step.description}
@@ -1167,7 +1153,7 @@ export function HomeDashboardView(props: SharedTabProps) {
             </View>
           ) : null}
 
-          {bestNextStep ? (
+          {!isSetupMode && bestNextStep ? (
             <View style={[styles.dashboardAccentCard, { backgroundColor: theme.colors.elevation.level1, borderColor: theme.colors.outlineVariant }]}>
               {dashboardTab === 'overview' && heroAttentionCallout ? (
                 <Surface
@@ -1201,9 +1187,7 @@ export function HomeDashboardView(props: SharedTabProps) {
               ) : null}
 
               <View style={styles.sectionHeader}>
-                <Chip compact icon={dashboardLens === 'activity' ? 'bell-badge-outline' : dashboardLens === 'growth' ? 'sprout-outline' : 'star-four-points-outline'}>
-                  {heroSectionLabel}
-                </Chip>
+                <Text variant="labelLarge">{heroSectionLabel}</Text>
                 <IconButton
                   icon="information-outline"
                   size={18}
@@ -1278,55 +1262,25 @@ export function HomeDashboardView(props: SharedTabProps) {
 
       {dashboardTab === 'overview' ? (
         <>
-          <Reveal delay={100}>
-            <View style={styles.dashboardMetricRow}>
-              <Card
-                mode="elevated"
-                style={[styles.dashboardMetricCard, { backgroundColor: theme.colors.surface }]}
-                onPress={() => (
-                  people.length > 0
-                    ? navigation.navigate('members' satisfies keyof MainTabParamList)
-                    : canEdit
-                      ? onOpenAddPerson()
-                      : focusSection('keep-building')
-                )}
-              >
-                <Card.Content>
-                  <Text variant="labelLarge">{t(K.home.familyMembersMetric)}</Text>
-                  <Text variant="headlineSmall">{people.length}</Text>
-                  <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 6 }}>
-                    {people.length > 0 ? t(K.home.openMembers) : canEdit ? t(K.home.addFamilyMember) : t(K.home.openBuildPlan)}
-                  </Text>
-                </Card.Content>
-              </Card>
-              <Card
-                mode="elevated"
-                style={[styles.dashboardMetricCard, { backgroundColor: theme.colors.surface }]}
-                onPress={() => (currentSelfAssignmentSuggestions.length > 0 ? onOpenAddSelf() : focusSection('keep-building'))}
-              >
-                <Card.Content>
-                  <Text variant="labelLarge">{t(K.home.newMatchesMetric)}</Text>
-                  <Text variant="headlineSmall">{currentSelfAssignmentSuggestions.length}</Text>
-                  <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 6 }}>
-                    {currentSelfAssignmentSuggestions.length > 0 ? t(K.home.reviewMatches) : t(K.home.openBuildPlan)}
-                  </Text>
-                </Card.Content>
-              </Card>
-              <Card
-                mode="elevated"
-                style={[styles.dashboardMetricCard, { backgroundColor: theme.colors.surface }]}
-                onPress={() => focusSection('keep-building')}
-              >
-                <Card.Content>
-                  <Text variant="labelLarge">{t(K.home.openTasksMetric)}</Text>
-                  <Text variant="headlineSmall">{visibleRemainingTasks.length}</Text>
-                  <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 6 }}>
-                    {t(K.home.openBuildPlan)}
-                  </Text>
-                </Card.Content>
-              </Card>
-            </View>
-          </Reveal>
+          {isEmptyTree ? (
+            <Reveal delay={90}>
+              <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
+                <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
+                  {t(K.home.startTheTreeWithYourselfOrFirstRelative)}
+                </Text>
+                <View style={[styles.dashboardActionRow, { marginTop: 16 }]}>
+                  <Button mode="contained" onPress={onOpenAddSelf}>
+                    {t(K.home.startMyProfile)}
+                  </Button>
+                  {canEdit ? (
+                    <Button mode="outlined" onPress={onOpenAddPerson}>
+                      {t(K.home.addFamilyMember)}
+                    </Button>
+                  ) : null}
+                </View>
+              </Surface>
+            </Reveal>
+          ) : null}
 
         </>
       ) : null}
@@ -1582,13 +1536,13 @@ export function HomeDashboardView(props: SharedTabProps) {
           onDismiss={() => setActivityModalVisible(false)}
           style={[dialogChrome.dialog, { backgroundColor: theme.colors.surface, maxHeight: '88%' }]}
         >
-          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{t(K.home.familyActivities)}</Dialog.Title>
+          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{t(K.home.activity)}</Dialog.Title>
           <IconButton
             icon="close"
             size={20}
             onPress={() => setActivityModalVisible(false)}
             style={dialogChrome.closeButton}
-            accessibilityLabel={t(K.home.closeFamilyActivities)}
+            accessibilityLabel={t(K.common.close)}
           />
           <Dialog.ScrollArea style={dialogChrome.scrollArea}>
             {activityModalVisible ? (
