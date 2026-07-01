@@ -193,6 +193,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
   const [selfPersonDialogVisible, setSelfPersonDialogVisible] = useState(false);
   const [relationshipDialogVisible, setRelationshipDialogVisible] = useState(false);
   const [collaboratorDialogVisible, setCollaboratorDialogVisible] = useState(false);
+  const [followUpTreePromptsPending, setFollowUpTreePromptsPending] = useState(false);
   const [nodeQuickActionState, setNodeQuickActionState] = useState<NodeQuickActionState>({ visible: false, person: null });
   const [snackVisible, setSnackVisible] = useState(false);
   const [confirmState, setConfirmState] = useState<ConfirmState>({
@@ -458,6 +459,27 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     }
   }, [error, isFocused, notice]);
 
+  useEffect(() => {
+    if (isFocused) {
+      return;
+    }
+
+    setPersonDialog({ visible: false, mode: 'create', person: null, initialPendingRelationships: [] });
+    setSelfPersonDialogVisible(false);
+    setRelationshipDialogVisible(false);
+    setCollaboratorDialogVisible(false);
+    setNodeQuickActionState({ visible: false, person: null });
+    setConfirmState((current) => (
+      current.visible
+        ? { visible: false, title: '', message: '', confirmLabel: t(K.common.confirm), action: null }
+        : current
+    ));
+    setMaidenMembersVisible(false);
+    setViewerPerson(null);
+    setViewerProfileTab('summary');
+    setViewerPhotoIndex(null);
+  }, [isFocused, t]);
+
   const openConfirm = useCallback((title: string, message: string, confirmLabel: string, action: () => Promise<void>) => {
     setConfirmState({ visible: true, title, message, confirmLabel, action });
   }, []);
@@ -568,6 +590,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
       const createdPerson = await createPersonFromPayload(payload);
       if (createdPerson) {
         await assignPersonToUser(user.id, selectedTree.id, user.id, createdPerson.id);
+        setFollowUpTreePromptsPending(true);
       }
       setSelfPersonDialogVisible(false);
     } catch {
@@ -582,6 +605,9 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
 
     try {
       await assignPersonToUser(user.id, selectedTree.id, targetUserId, personId);
+      if (targetUserId === user.id) {
+        setFollowUpTreePromptsPending(true);
+      }
     } catch {
       // surfaced by store snackbar
     }
@@ -749,6 +775,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
       currentUserLabel,
       currentAssignedPerson,
       currentSelfAssignmentSuggestions,
+      followUpTreePromptsPending,
       availableSelfLinkPeople,
       notifications,
       notificationActivityStates,
@@ -764,6 +791,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
       onOpenPersonQuickActions,
       onOpenCollaboratorDialog,
       onOpenAddSelf,
+      onConsumeFollowUpTreePrompts: () => setFollowUpTreePromptsPending(false),
       onEditPerson,
       onDeletePerson,
       onRemoveCollaborator,
@@ -794,7 +822,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
   }, [
     selectedTree, people, relationships, approvalRequests, mergeRequests, mergeHistory, mergePreview, peopleById, canEdit, isOwner, role,
     user?.id, currentUserLabel, currentAssignedPerson, currentSelfAssignmentSuggestions,
-    availableSelfLinkPeople, notifications, notificationActivityStates, assignedPersonByUserId, assignedUserIdByPersonId, mutating, loadingTreeData,
+    followUpTreePromptsPending, availableSelfLinkPeople, notifications, notificationActivityStates, assignedPersonByUserId, assignedUserIdByPersonId, mutating, loadingTreeData,
     openConfirm, openPersonProfile, onOpenAddPerson, onOpenRelationshipDialog, onOpenPersonQuickActions,
     onOpenCollaboratorDialog, onOpenAddSelf, onEditPerson, onDeletePerson, onRemoveCollaborator,
     handleAssignPersonToUser, handleClearSelfAssignment, onApproveApprovalRequest, onRejectApprovalRequest,

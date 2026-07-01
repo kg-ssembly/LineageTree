@@ -33,6 +33,7 @@ export interface SharedTabProps {
   currentUserLabel: string;
   currentAssignedPerson: PersonRecord | null;
   currentSelfAssignmentSuggestions: SelfAssignmentSuggestion[];
+  followUpTreePromptsPending: boolean;
   availableSelfLinkPeople: PersonRecord[];
   notifications: AppNotification[];
   notificationActivityStates: NotificationActivityState[];
@@ -48,6 +49,7 @@ export interface SharedTabProps {
   onOpenPersonQuickActions: (person: PersonRecord) => void;
   onOpenCollaboratorDialog: () => void;
   onOpenAddSelf: () => void;
+  onConsumeFollowUpTreePrompts: () => void;
   onEditPerson: (person: PersonRecord) => void;
   onDeletePerson: (person: PersonRecord) => Promise<void>;
   onRemoveCollaborator: (collaboratorUserId: string) => Promise<void>;

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, View, type LayoutChangeEvent } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useNavigation } from '@react-navigation/native';
+import { useIsFocused, useNavigation } from '@react-navigation/native';
 import { ActivityIndicator, Button, Card, Chip, Dialog, IconButton, Portal, ProgressBar, Surface, Text, useTheme } from 'react-native-paper';
 import { FloatingSnackbar, HorizontalTabStrip, InfoDialog, Reveal } from '../../../../components';
 import { getDisplayPersonPhoto } from '../../../../components/dto/person';
@@ -21,7 +21,6 @@ const profileStyles = GlobalStyles.personProfile;
 const dialogChrome = GlobalStyles.dialogChrome;
 const DASHBOARD_PROMPTS_STORAGE_KEY = 'lineagetree-dashboard-hidden-prompts';
 const DASHBOARD_LAST_VISIT_STORAGE_KEY = 'lineagetree-dashboard-last-visit';
-const DASHBOARD_COMPLETED_TASKS_STORAGE_KEY = 'lineagetree-dashboard-completed-tasks';
 
 type DashboardTask = {
   id: string;
@@ -113,6 +112,7 @@ function getUrgencyTone(theme: AppTheme, level: 'urgent' | 'attention' | 'calm')
 
 function buildDashboardTasks(
   props: SharedTabProps,
+  showFollowUpTreePrompts: boolean,
   t: (key: string, params?: Record<string, string | number | null | undefined>) => string,
 ) {
   const {
@@ -210,17 +210,6 @@ function buildDashboardTasks(
       action: profileAction,
     },
     {
-      id: 'relationships',
-      title: t(K.home.connectFamilyRelationships),
-      description: t(K.home.parentsPartnersAndChildrenAreWhatTurnAProfileIntoABranch),
-      ctaLabel: canEdit ? t(K.home.connectFamily) : t(K.home.viewProfile),
-      category: 'tree',
-      priority: 'urgent',
-      score: 390,
-      done: hasRelationships,
-      action: canEdit ? onOpenRelationshipDialog : profileAction,
-    },
-    {
       id: 'branch',
       title: t(K.home.addBranchOrClanDetail),
       description: t(K.home.branchAndClanDetailsHelpRelativesRecogniseWhereThisProfileBelongs),
@@ -230,19 +219,6 @@ function buildDashboardTasks(
       score: hasRelationships ? 230 : 170,
       done: hasBranchIdentity,
       action: profileAction,
-    },
-    {
-      id: 'add-family-member',
-      title: otherPeopleCount > 0 ? t(K.home.addAnotherFamilyMember) : t(K.home.addTheFirstFamilyMember),
-      description: otherPeopleCount > 0
-        ? t(K.home.eachNewRelativeGivesTheTreeMoreShapeAndMakesFamilyConnectionsEasierToDiscover)
-        : t(K.home.startBuildingOutwardFromYourOwnPageByAddingTheNextPersonInTheFamily),
-      ctaLabel: t(K.home.addFamilyMember),
-      category: 'tree',
-      priority: 'urgent',
-      score: otherPeopleCount > 0 ? 240 : 410,
-      done: otherPeopleCount > 0,
-      action: onOpenAddPerson,
     },
     {
       id: 'review-matches',
@@ -256,6 +232,35 @@ function buildDashboardTasks(
       action: currentSelfAssignmentSuggestions.length > 0 ? onOpenAddSelf : onOpenAddPerson,
     },
   ];
+
+  if (showFollowUpTreePrompts) {
+    taskList.push(
+      {
+        id: 'relationships',
+        title: t(K.home.connectFamilyRelationships),
+        description: t(K.home.parentsPartnersAndChildrenAreWhatTurnAProfileIntoABranch),
+        ctaLabel: canEdit ? t(K.home.connectFamily) : t(K.home.viewProfile),
+        category: 'tree',
+        priority: 'urgent',
+        score: 390,
+        done: hasRelationships,
+        action: canEdit ? onOpenRelationshipDialog : profileAction,
+      },
+      {
+        id: 'add-family-member',
+        title: otherPeopleCount > 0 ? t(K.home.addAnotherFamilyMember) : t(K.home.addTheFirstFamilyMember),
+        description: otherPeopleCount > 0
+          ? t(K.home.eachNewRelativeGivesTheTreeMoreShapeAndMakesFamilyConnectionsEasierToDiscover)
+          : t(K.home.startBuildingOutwardFromYourOwnPageByAddingTheNextPersonInTheFamily),
+        ctaLabel: t(K.home.addFamilyMember),
+        category: 'tree',
+        priority: 'urgent',
+        score: otherPeopleCount > 0 ? 240 : 410,
+        done: otherPeopleCount > 0,
+        action: onOpenAddPerson,
+      },
+    );
+  }
 
   if (hasCoreProfileFacts) {
     taskList.push({
@@ -280,6 +285,7 @@ function buildDashboardTasks(
 }
 
 export function HomeDashboardView(props: SharedTabProps) {
+  const isFocused = useIsFocused();
   const theme = useTheme();
   const { t } = useI18n();
   const navigation = useNavigation<any>();
@@ -297,20 +303,38 @@ export function HomeDashboardView(props: SharedTabProps) {
     loadingTreeData,
     currentAssignedPerson,
     currentSelfAssignmentSuggestions,
+    followUpTreePromptsPending,
     onOpenAddPerson,
     onOpenAddSelf,
     onOpenRelationshipDialog,
     openPersonProfile,
     canEdit,
     onOpenTreeSettingsTarget,
+    onConsumeFollowUpTreePrompts,
   } = props;
+  const [showFollowUpTreePrompts, setShowFollowUpTreePrompts] = useState(false);
 
-  const { storyTasks, treeTasks } = useMemo(() => buildDashboardTasks(props, t), [
+  useEffect(() => {
+    if (!isFocused) {
+      setShowFollowUpTreePrompts(false);
+      return;
+    }
+
+    if (!followUpTreePromptsPending) {
+      return;
+    }
+
+    setShowFollowUpTreePrompts(true);
+    onConsumeFollowUpTreePrompts();
+  }, [followUpTreePromptsPending, isFocused, onConsumeFollowUpTreePrompts]);
+
+  const { storyTasks, treeTasks } = useMemo(() => buildDashboardTasks(props, showFollowUpTreePrompts, t), [
     props.people,
     props.currentAssignedPerson,
     props.currentSelfAssignmentSuggestions,
     props.relationships,
     props.canEdit,
+    showFollowUpTreePrompts,
     props.onOpenAddPerson,
     props.onOpenAddSelf,
     props.openPersonProfile,
@@ -320,7 +344,6 @@ export function HomeDashboardView(props: SharedTabProps) {
   const tasks = useMemo(() => [...storyTasks, ...treeTasks], [storyTasks, treeTasks]);
   const [dismissedTaskIds, setDismissedTaskIds] = useState<string[]>([]);
   const [promptsHydrated, setPromptsHydrated] = useState(false);
-  const [completionSnapshotHydrated, setCompletionSnapshotHydrated] = useState(false);
   const [celebrationMessage, setCelebrationMessage] = useState<string | null>(null);
   const [lastVisitAt, setLastVisitAt] = useState<string | null>(null);
   const taskMetrics = useMemo(() => {
@@ -379,27 +402,13 @@ export function HomeDashboardView(props: SharedTabProps) {
       )
     );
 
-    return [
+    const steps: SetupStep[] = [
       {
         id: 'setup-profile',
         title: t(K.home.createYourProfile),
         description: t(K.home.linkYourselfIntoTheTreePersonally),
         done: hasLinkedProfile,
         action: hasLinkedProfile && currentAssignedPerson ? () => openPersonProfile(currentAssignedPerson) : onOpenAddSelf,
-      },
-      {
-        id: 'setup-member',
-        title: t(K.home.addAFamilyMember),
-        description: t(K.home.bringInAParentChildPartnerOrAncestorSoTheTreeStartsToBranch),
-        done: hasOtherFamilyMember,
-        action: onOpenAddPerson,
-      },
-      {
-        id: 'setup-relationship',
-        title: t(K.home.connectTheRelationship),
-        description: t(K.home.linkPeopleTogetherSoTheTreeBecomesAConnectedFamilyInsteadOfSeparatePages),
-        done: hasFirstConnection,
-        action: onOpenRelationshipDialog,
       },
       {
         id: 'setup-story',
@@ -409,12 +418,33 @@ export function HomeDashboardView(props: SharedTabProps) {
         action: currentAssignedPerson ? () => openPersonProfile(currentAssignedPerson) : onOpenAddSelf,
       },
     ];
-  }, [currentAssignedPerson, onOpenAddPerson, onOpenAddSelf, onOpenRelationshipDialog, openPersonProfile, people, relationships]);
+
+    if (showFollowUpTreePrompts) {
+      steps.splice(1, 0,
+        {
+          id: 'setup-member',
+          title: t(K.home.addAFamilyMember),
+          description: t(K.home.bringInAParentChildPartnerOrAncestorSoTheTreeStartsToBranch),
+          done: hasOtherFamilyMember,
+          action: onOpenAddPerson,
+        },
+        {
+          id: 'setup-relationship',
+          title: t(K.home.connectTheRelationship),
+          description: t(K.home.linkPeopleTogetherSoTheTreeBecomesAConnectedFamilyInsteadOfSeparatePages),
+          done: hasFirstConnection,
+          action: onOpenRelationshipDialog,
+        },
+      );
+    }
+
+    return steps;
+  }, [currentAssignedPerson, onOpenAddPerson, onOpenAddSelf, onOpenRelationshipDialog, openPersonProfile, people, relationships, showFollowUpTreePrompts, t]);
   const setupCompletedCount = setupSteps.filter((step) => step.done).length;
   const setupProgress = setupSteps.length > 0 ? setupCompletedCount / setupSteps.length : 0;
   const nextSetupStep = setupSteps.find((step) => !step.done) ?? null;
   const nextSetupStepIndex = setupSteps.findIndex((step) => !step.done);
-  const isSetupMode = !currentAssignedPerson || people.length <= 2 || relationships.length === 0 || setupCompletedCount < setupSteps.length;
+  const isSetupMode = !currentAssignedPerson || (showFollowUpTreePrompts && (people.length <= 2 || relationships.length === 0 || setupCompletedCount < setupSteps.length));
   const activityMetrics = useMemo(() => {
     const activityAttentionItems: ActivityAttentionItem[] = [];
     let pendingApprovals = 0;
@@ -527,7 +557,7 @@ export function HomeDashboardView(props: SharedTabProps) {
     'keep-building': 0,
     'family-highlights': 0,
   });
-  const previousCompletedTaskIdsRef = useRef<string[] | null>(null);
+  const previousTaskDoneByIdRef = useRef<Map<string, boolean> | null>(null);
 
   useEffect(() => {
     setDismissedTaskIds((current) => {
@@ -535,42 +565,6 @@ export function HomeDashboardView(props: SharedTabProps) {
       return next.length === current.length && next.every((taskId, index) => taskId === current[index]) ? current : next;
     });
   }, [tasks]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const hydrateCompletedTaskSnapshot = async () => {
-      try {
-        const stored = await AsyncStorage.getItem(DASHBOARD_COMPLETED_TASKS_STORAGE_KEY);
-        if (!stored) {
-          if (!cancelled) {
-            previousCompletedTaskIdsRef.current = null;
-            setCompletionSnapshotHydrated(true);
-          }
-          return;
-        }
-
-        const parsed = JSON.parse(stored) as Record<string, string[]>;
-        const next = Array.isArray(parsed[promptStorageId]) ? [...parsed[promptStorageId]].sort() : null;
-        if (!cancelled) {
-          previousCompletedTaskIdsRef.current = next;
-          setCompletionSnapshotHydrated(true);
-        }
-      } catch {
-        if (!cancelled) {
-          previousCompletedTaskIdsRef.current = null;
-          setCompletionSnapshotHydrated(true);
-        }
-      }
-    };
-
-    setCompletionSnapshotHydrated(false);
-    void hydrateCompletedTaskSnapshot();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [promptStorageId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -678,7 +672,8 @@ export function HomeDashboardView(props: SharedTabProps) {
 
   useEffect(() => {
     setCelebrationMessage(null);
-  }, [promptStorageId]);
+    previousTaskDoneByIdRef.current = null;
+  }, [promptStorageId, showFollowUpTreePrompts]);
 
   useEffect(() => {
     if (dashboardTab === 'build' && (isSetupMode || pendingBuildTaskCount > 0)) {
@@ -687,58 +682,30 @@ export function HomeDashboardView(props: SharedTabProps) {
   }, [dashboardTab, isSetupMode, pendingBuildTaskCount]);
 
   useEffect(() => {
+    if (!showFollowUpTreePrompts) {
+      previousTaskDoneByIdRef.current = null;
+      return;
+    }
+
     if (!promptsHydrated) {
       return;
     }
 
-    if (!completionSnapshotHydrated) {
+    if (!previousTaskDoneByIdRef.current) {
+      previousTaskDoneByIdRef.current = new Map(tasks.map((task) => [task.id, task.done]));
       return;
     }
 
-    if (!previousCompletedTaskIdsRef.current) {
-      previousCompletedTaskIdsRef.current = completedTaskIds;
-      void (async () => {
-        try {
-          const stored = await AsyncStorage.getItem(DASHBOARD_COMPLETED_TASKS_STORAGE_KEY);
-          const parsed = stored ? JSON.parse(stored) as Record<string, string[]> : {};
-          await AsyncStorage.setItem(
-            DASHBOARD_COMPLETED_TASKS_STORAGE_KEY,
-            JSON.stringify({ ...parsed, [promptStorageId]: completedTaskIds }),
-          );
-        } catch {
-          // Ignore storage failures so the dashboard still works in-memory.
-        }
-      })();
+    const previousTaskDoneById = previousTaskDoneByIdRef.current;
+    const newlyCompletedTask = tasks.find((task) => previousTaskDoneById.get(task.id) === false && task.done);
+    previousTaskDoneByIdRef.current = new Map(tasks.map((task) => [task.id, task.done]));
+
+    if (!newlyCompletedTask) {
       return;
     }
 
-    const previousCompletedTaskIds = previousCompletedTaskIdsRef.current;
-    const newlyCompletedId = completedTaskIds.find((taskId) => !previousCompletedTaskIds.includes(taskId));
-    if (newlyCompletedId) {
-      const completedTask = completedTasks.find((task) => task.id === newlyCompletedId);
-      if (completedTask) {
-        setCelebrationMessage(t(K.home.taskCompleted, { title: completedTask.title }));
-      }
-    }
-
-    const snapshotChanged = completedTaskIds.length !== previousCompletedTaskIds.length
-      || completedTaskIds.some((taskId, index) => taskId !== previousCompletedTaskIds[index]);
-    if (snapshotChanged) {
-      previousCompletedTaskIdsRef.current = completedTaskIds;
-      void (async () => {
-        try {
-          const stored = await AsyncStorage.getItem(DASHBOARD_COMPLETED_TASKS_STORAGE_KEY);
-          const parsed = stored ? JSON.parse(stored) as Record<string, string[]> : {};
-          await AsyncStorage.setItem(
-            DASHBOARD_COMPLETED_TASKS_STORAGE_KEY,
-            JSON.stringify({ ...parsed, [promptStorageId]: completedTaskIds }),
-          );
-        } catch {
-          // Ignore storage failures so the dashboard still works in-memory.
-        }
-      })();
-    }
-  }, [completedTaskIds, completedTasks, completionSnapshotHydrated, promptsHydrated, promptStorageId]);
+    setCelebrationMessage(t(K.home.taskCompleted, { title: newlyCompletedTask.title }));
+  }, [promptsHydrated, showFollowUpTreePrompts, tasks, t]);
 
   const dismissTask = (taskId: string) => {
     setDismissedTaskIds((current) => (current.includes(taskId) ? current : [...current, taskId]));

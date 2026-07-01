@@ -204,6 +204,7 @@ export function useMainScreenController({ navigation }: Props) {
   const [nodeQuickActionState, setNodeQuickActionState] = useState<NodeQuickActionState>({ visible: false, person: null });
   const [treeDialog, setTreeDialog] = useState<TreeDialogState>({ visible: false, mode: 'create', tree: null });
   const [treeSettingsFocus, setTreeSettingsFocus] = useState<TreeSettingsFocus>(null);
+  const [followUpTreePromptsPending, setFollowUpTreePromptsPending] = useState(false);
   const [memberProfileParams, setMemberProfileParams] = useState<MemberProfileParams | null>(null);
   const [snackVisible, setSnackVisible] = useState(false);
   const [startupModalSubmitting, setStartupModalSubmitting] = useState(false);
@@ -297,6 +298,23 @@ export function useMainScreenController({ navigation }: Props) {
       setSnackVisible(true);
     }
   }, [error, isFocused, notice]);
+
+  useEffect(() => {
+    if (isFocused) {
+      return;
+    }
+
+    setPersonDialog({ visible: false, mode: 'create', person: null, initialPendingRelationships: [] });
+    setSelfPersonDialogVisible(false);
+    setRelationshipDialogVisible(false);
+    setCollaboratorDialogVisible(false);
+    setNodeQuickActionState({ visible: false, person: null });
+    setConfirmState((current) => (
+      current.visible
+        ? { visible: false, title: '', message: '', confirmLabel: t(K.common.confirm), action: null }
+        : current
+    ));
+  }, [isFocused, t]);
 
   useEffect(() => {
     if (!user?.preferredLanguage || user.preferredLanguage === language) {
@@ -585,6 +603,7 @@ export function useMainScreenController({ navigation }: Props) {
       const created = await createPersonFromPayload(payload);
       if (created) {
         await assignPersonToUser(user.id, selectedTree.id, user.id, created.id);
+        setFollowUpTreePromptsPending(true);
       }
       setSelfPersonDialogVisible(false);
     } catch {
@@ -599,6 +618,9 @@ export function useMainScreenController({ navigation }: Props) {
 
     try {
       await assignPersonToUser(user.id, selectedTree.id, targetUserId, personId);
+      if (targetUserId === user.id) {
+        setFollowUpTreePromptsPending(true);
+      }
     } catch {
       // snackbar
     }
@@ -856,6 +878,7 @@ export function useMainScreenController({ navigation }: Props) {
       currentUserLabel,
       currentAssignedPerson,
       currentSelfAssignmentSuggestions,
+      followUpTreePromptsPending,
       availableSelfLinkPeople,
       notifications,
       notificationActivityStates,
@@ -871,6 +894,7 @@ export function useMainScreenController({ navigation }: Props) {
       onOpenPersonQuickActions,
       onOpenCollaboratorDialog,
       onOpenAddSelf,
+      onConsumeFollowUpTreePrompts: () => setFollowUpTreePromptsPending(false),
       onEditPerson,
       onDeletePerson,
       onRemoveCollaborator,
@@ -914,6 +938,7 @@ export function useMainScreenController({ navigation }: Props) {
     canEdit,
     currentAssignedPerson,
     currentSelfAssignmentSuggestions,
+    followUpTreePromptsPending,
     currentUserLabel,
     handleAssignPersonToUser,
     handleClearSelfAssignment,
