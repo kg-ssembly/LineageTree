@@ -25,7 +25,6 @@ export function OverviewSection({
   userId,
   treeSurnameVariants,
   unlinkedCollaboratorCount,
-  showLinkChooser,
   linkSearchQuery,
   filteredLinkPeople,
   onOpenHelperDialog,
@@ -35,7 +34,6 @@ export function OverviewSection({
   onAssignPersonToUser,
   openConfirm,
   onClearSelfAssignment,
-  setShowLinkChooser,
   setLinkSearchQuery,
 }: OverviewSectionProps) {
   const theme = useTheme();
@@ -97,79 +95,70 @@ export function OverviewSection({
         <Reveal delay={100}>
           <Card mode="elevated" style={[styles.selfAssignmentCard, { backgroundColor: theme.colors.surface }]}>
             <Card.Content>
-            <View style={styles.sectionHeader}>
-              <View style={styles.titleWrap}>
-                <View style={styles.titleWithHelperRow}>
-                  <Text variant="titleLarge">{t(K.treeSettings.myPlaceInThisTree)}</Text>
-                  <IconButton
-                    icon="information-outline"
-                    size={18}
-                    style={styles.helperIconButton}
-                    onPress={() => onOpenHelperDialog('my-place')}
-                    accessibilityLabel={t(K.treeSettings.aboutMyPlaceInTree)}
-                  />
+              <View style={styles.sectionHeader}>
+                <View style={styles.titleWrap}>
+                  <View style={styles.titleWithHelperRow}>
+                    <Text variant="titleLarge">{t(K.treeSettings.myPlaceInThisTree)}</Text>
+                    <IconButton
+                      icon="information-outline"
+                      size={18}
+                      style={styles.helperIconButton}
+                      onPress={() => onOpenHelperDialog('my-place')}
+                      accessibilityLabel={t(K.treeSettings.aboutMyPlaceInTree)}
+                    />
+                  </View>
                 </View>
-              </View>
-              {!currentAssignedPerson ? (
-                <Button mode="contained-tonal" icon="account-plus" onPress={onOpenAddSelf} disabled={mutating || !canCreateSelfProfile}>
-                  {t(K.treeSettings.addMyself)}
-                </Button>
-              ) : null}
-            </View>
-            <View style={styles.selfAssignmentHeader}>
-              <View style={styles.selfAssignmentTextWrap}>
-                <View style={styles.collaboratorChipRow}>
-                  <Chip compact icon={currentAssignedPerson ? 'check-decagram' : 'link-variant-off'}>
-                    {currentAssignedPerson ? t(K.treeSettings.linkedProfile) : t(K.treeSettings.notLinkedYet)}
-                  </Chip>
-                  <Chip compact icon="account">{currentUserLabel}</Chip>
-                </View>
-                <Text variant="titleMedium" style={styles.selfAssignmentTitle}>
-                  {currentAssignedPerson ? formatPersonName(currentAssignedPerson) : t(K.treeSettings.chooseExistingOrCreateOwn)}
-                </Text>
-                <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>
-                  {currentAssignedPerson
-                    ? t(K.treeSettings.openOrUnlinkProfile)
-                    : t(K.treeSettings.manualLinkIfNeeded)}
-                </Text>
-              </View>
-              {currentAssignedPerson ? (
-                <View style={styles.selfAssignmentActions}>
-                  <Button mode="contained" icon="open-in-new" onPress={() => openPersonProfile(currentAssignedPerson)} disabled={mutating}>
-                    {t(K.common.open)}
-                  </Button>
-                  <Button
-                    mode="text"
-                    icon="link-off"
-                    textColor={theme.colors.error}
-                    onPress={() => openConfirm(
-                      t(K.treeSettings.unlinkYourProfile),
-                      t(K.treeSettings.unlinkYourProfileConfirm),
-                      t(K.common.unlink),
-                      onClearSelfAssignment,
-                    )}
-                    disabled={mutating}
-                  >
-                    {t(K.common.unlink)}
-                  </Button>
-                </View>
-              ) : (
-                <View style={styles.selfAssignmentActions}>
-                  <Button mode="contained" icon="account-search" onPress={() => setShowLinkChooser(true)} disabled={mutating}>
-                    {t(K.treeSettings.browseFamilyMembers)}
-                  </Button>
-                  <Button mode="outlined" icon="account-plus" onPress={onOpenAddSelf} disabled={mutating || !canCreateSelfProfile}>
+                {!currentAssignedPerson ? (
+                  <Button mode="contained-tonal" icon="account-plus" onPress={onOpenAddSelf} disabled={mutating || !canCreateSelfProfile}>
                     {t(K.treeSettings.addMyself)}
                   </Button>
+                ) : null}
+              </View>
+              <View style={styles.selfAssignmentHeader}>
+                <View style={styles.selfAssignmentTextWrap}>
+                  <View style={styles.collaboratorChipRow}>
+                    <Chip compact icon={currentAssignedPerson ? 'check-decagram' : 'link-variant-off'}>
+                      {currentAssignedPerson ? t(K.treeSettings.linkedProfile) : t(K.treeSettings.notLinkedYet)}
+                    </Chip>
+                    <Chip compact icon="account">{currentUserLabel}</Chip>
+                  </View>
+                  <Text variant="titleMedium" style={styles.selfAssignmentTitle}>
+                    {currentAssignedPerson ? formatPersonName(currentAssignedPerson) : t(K.treeSettings.chooseExistingOrCreateOwn)}
+                  </Text>
+                  <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>
+                    {currentAssignedPerson
+                      ? t(K.treeSettings.openOrUnlinkProfile)
+                      : t(K.treeSettings.manualLinkIfNeeded)}
+                  </Text>
                 </View>
-              )}
-            </View>
+                {currentAssignedPerson ? (
+                  <View style={styles.selfAssignmentActions}>
+                    <Button mode="contained" icon="open-in-new" onPress={() => openPersonProfile(currentAssignedPerson)} disabled={mutating}>
+                      {t(K.common.open)}
+                    </Button>
+                    <Button
+                      mode="text"
+                      icon="link-off"
+                      textColor={theme.colors.error}
+                      onPress={() => openConfirm(
+                        t(K.treeSettings.unlinkYourProfile),
+                        t(K.treeSettings.unlinkYourProfileConfirm),
+                        t(K.common.unlink),
+                        onClearSelfAssignment,
+                      )}
+                      disabled={mutating}
+                    >
+                      {t(K.common.unlink)}
+                    </Button>
+                  </View>
+                ) : null}
+              </View>
 
-            {!canCreateSelfProfile ? (
-              <Text variant="bodySmall" style={[styles.assignmentHelperText, { color: theme.colors.onSurfaceVariant }]}>
-                {t(K.treeSettings.linkYourselfEditorAccess)}
-              </Text>
-            ) : null}
+              {!canCreateSelfProfile ? (
+                <Text variant="bodySmall" style={[styles.assignmentHelperText, { color: theme.colors.onSurfaceVariant }]}>
+                  {t(K.treeSettings.linkYourselfEditorAccess)}
+                </Text>
+              ) : null}
             </Card.Content>
           </Card>
         </Reveal>
@@ -208,57 +197,59 @@ export function OverviewSection({
           )
         ) : null}
 
-        {!currentAssignedPerson && (showLinkChooser || !currentAssignedPerson) ? (
-          <View style={styles.assignmentChooserWrap}>
-            <Text variant="titleMedium">{t(K.treeSettings.linkExistingFamilyMember)}</Text>
-            <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-              {t(K.treeSettings.searchEveryonePickBest)}
-            </Text>
+        {!currentAssignedPerson ? (
+          <Reveal delay={120}>
+            <Card mode="elevated" style={[styles.selfAssignmentCard, { backgroundColor: theme.colors.surface, marginTop: 12 }]}>
+              <Card.Content>
+                <View style={styles.assignmentChooserWrap}>
+                  <Text variant="titleMedium">{t(K.treeSettings.linkExistingFamilyMember)}</Text>
+                  <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
+                    {t(K.treeSettings.searchEveryonePickBest)}
+                  </Text>
 
-            <TextInput
-              mode="outlined"
-              label={t(K.treeSettings.searchExistingFamilyMembers)}
-              value={linkSearchQuery}
-              onChangeText={setLinkSearchQuery}
-              style={styles.assignmentSearchInput}
-              left={<TextInput.Icon icon="magnify" />}
-            />
+                  <TextInput
+                    mode="outlined"
+                    label={t(K.treeSettings.searchExistingFamilyMembers)}
+                    value={linkSearchQuery}
+                    onChangeText={setLinkSearchQuery}
+                    style={styles.assignmentSearchInput}
+                    left={<TextInput.Icon icon="magnify" />}
+                  />
 
-            {filteredLinkPeople.length > 0 ? (
-              <View style={styles.assignmentSuggestionList}>
-                {filteredLinkPeople.map((person, index) => (
-                  <Reveal key={`assignable-${person.id}`} delay={140 + index * 15}>
-                    <Card mode="elevated" style={[styles.assignmentSuggestionCard, { backgroundColor: theme.colors.surface }]}>
-                      <Card.Content>
-                      <View style={styles.assignmentSuggestionRow}>
-                        <View style={styles.assignmentSuggestionTextWrap}>
-                          <Text variant="titleMedium">{formatPersonName(person)}</Text>
-                          <View style={styles.collaboratorChipRow}>
-                            {person.birthDate ? <Chip compact icon="calendar">{person.birthDate}</Chip> : null}
-                            <Chip compact icon={isPersonDeceased(person) ? 'flower-outline' : 'heart-pulse'}>
-                              {isPersonDeceased(person) ? t(K.common.deceased) : t(K.common.present)}
-                            </Chip>
-                          </View>
-                        </View>
-                        <Button mode="contained-tonal" onPress={() => handleSelfLink(person.id)} disabled={mutating || !userId}>
-                          {t(K.treeSettings.linkMe)}
-                        </Button>
-                      </View>
-                      </Card.Content>
-                    </Card>
-                  </Reveal>
-                ))}
-              </View>
-            ) : (
-              <Text variant="bodySmall" style={[styles.assignmentHelperText, { color: theme.colors.onSurfaceVariant }]}>
-                {t(K.treeSettings.noAvailableFamilyMembersMatchSearch)}
-              </Text>
-            )}
-
-            <Button mode="text" onPress={() => setShowLinkChooser(false)} style={{ alignSelf: 'flex-start' }}>
-              {t(K.treeSettings.hideChooser)}
-            </Button>
-          </View>
+                  {filteredLinkPeople.length > 0 ? (
+                    <View style={styles.assignmentSuggestionList}>
+                      {filteredLinkPeople.map((person, index) => (
+                        <Reveal key={`assignable-${person.id}`} delay={140 + index * 15}>
+                          <Card mode="elevated" style={[styles.assignmentSuggestionCard, { backgroundColor: theme.colors.surface }]}>
+                            <Card.Content>
+                              <View style={styles.assignmentSuggestionRow}>
+                                <View style={styles.assignmentSuggestionTextWrap}>
+                                  <Text variant="titleMedium">{formatPersonName(person)}</Text>
+                                  <View style={styles.collaboratorChipRow}>
+                                    {person.birthDate ? <Chip compact icon="calendar">{person.birthDate}</Chip> : null}
+                                    <Chip compact icon={isPersonDeceased(person) ? 'flower-outline' : 'heart-pulse'}>
+                                      {isPersonDeceased(person) ? t(K.common.deceased) : t(K.common.present)}
+                                    </Chip>
+                                  </View>
+                                </View>
+                                <Button mode="contained-tonal" onPress={() => handleSelfLink(person.id)} disabled={mutating || !userId}>
+                                  {t(K.treeSettings.linkMe)}
+                                </Button>
+                              </View>
+                            </Card.Content>
+                          </Card>
+                        </Reveal>
+                      ))}
+                    </View>
+                  ) : (
+                    <Text variant="bodySmall" style={[styles.assignmentHelperText, { color: theme.colors.onSurfaceVariant }]}>
+                      {t(K.treeSettings.noAvailableFamilyMembersMatchSearch)}
+                    </Text>
+                  )}
+                </View>
+              </Card.Content>
+            </Card>
+          </Reveal>
         ) : null}
       </View>
     </>

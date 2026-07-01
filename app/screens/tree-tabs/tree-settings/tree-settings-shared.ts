@@ -257,7 +257,6 @@ export type OverviewSectionProps = {
   userId: SharedTabProps['userId'];
   treeSurnameVariants: string[];
   unlinkedCollaboratorCount: number;
-  showLinkChooser: boolean;
   linkSearchQuery: string;
   filteredLinkPeople: SharedTabProps['people'];
   onOpenHelperDialog: (key: TreeHelperDialogKey) => void;
@@ -267,7 +266,6 @@ export type OverviewSectionProps = {
   onAssignPersonToUser: SharedTabProps['onAssignPersonToUser'];
   openConfirm: SharedTabProps['openConfirm'];
   onClearSelfAssignment: SharedTabProps['onClearSelfAssignment'];
-  setShowLinkChooser: (visible: boolean) => void;
   setLinkSearchQuery: (value: string) => void;
 };
 

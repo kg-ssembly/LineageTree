@@ -318,9 +318,9 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
   const fallbackProfileState = useMemo(() => {
     if (trees.length === 0) {
       return {
-        title: t(K.profileState.createOrJoinTree),
-        summary: t(K.profileState.createOrJoinTreeSummary),
-        detail: t(K.profileState.createOrJoinTreeDetail),
+        title: t(K.profileState.profileWorkspace),
+        summary: t(K.profileState.profileWorkspaceSummary),
+        detail: t(K.profileState.profileWorkspaceDetail),
       };
     }
 
@@ -839,20 +839,6 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
             itemStyle={personProfileStyles.tabStripItem}
           />
         </Reveal>
-
-        {!shouldShowLinkedProfileTabs ? (
-          <Reveal delay={80}>
-            <Surface style={[treeDetailStyles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
-              <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>{fallbackProfileState.title}</Text>
-              <Text variant="bodyMedium" style={[treeDetailStyles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-                {fallbackProfileState.summary}
-              </Text>
-              <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                {fallbackProfileState.detail}
-              </Text>
-            </Surface>
-          </Reveal>
-        ) : null}
 
         {shouldShowLinkedProfileTabs && activeTab === 'biography' && linkedPerson ? (
           <ProfileOverviewSection

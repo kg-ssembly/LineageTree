@@ -1608,7 +1608,7 @@ export const TRANSLATION_FALLBACKS: Record<string, string> = {
   [I18N_KEYS.treeSettings.noNotes]: 'No notes',
   [I18N_KEYS.treeSettings.noPendingApprovals]: 'No pending approvals',
   [I18N_KEYS.treeSettings.noPendingMergeReviews]: 'No pending merge reviews',
-  [I18N_KEYS.treeSettings.noProfileMatchYet]: 'No exact name-and-surname match was found yet, so you can browse the tree manually or create your own family member profile.',
+  [I18N_KEYS.treeSettings.noProfileMatchYet]: 'No confident profile match was found yet. Search existing family members or create your own family member profile.',
   [I18N_KEYS.treeSettings.notLinkedYet]: 'Not linked yet',
   [I18N_KEYS.treeSettings.noTreesYet]: 'No trees yet',
   [I18N_KEYS.treeSettings.notProvided]: 'Not provided',

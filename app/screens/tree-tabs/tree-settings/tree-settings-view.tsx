@@ -118,7 +118,6 @@ function TreeSettingsContent({
     key: 'tree-management',
   });
   const [activeManagementTab, setActiveManagementTab] = useState<TreeManagementTabKey>('overview');
-  const [showLinkChooser, setShowLinkChooser] = useState(false);
   const [linkSearchQuery, setLinkSearchQuery] = useState('');
   const [ownerLinkTargetUserId, setOwnerLinkTargetUserId] = useState<string | null>(null);
   const [ownerLinkSearchQuery, setOwnerLinkSearchQuery] = useState('');
@@ -541,7 +540,6 @@ function TreeSettingsContent({
             userId={userId}
             treeSurnameVariants={treeSurnameVariants}
             unlinkedCollaboratorCount={unlinkedCollaboratorCount}
-            showLinkChooser={showLinkChooser}
             linkSearchQuery={linkSearchQuery}
             filteredLinkPeople={filteredLinkPeople}
             onOpenHelperDialog={openHelperDialog}
@@ -551,7 +549,6 @@ function TreeSettingsContent({
             onAssignPersonToUser={onAssignPersonToUser}
             openConfirm={openConfirm}
             onClearSelfAssignment={onClearSelfAssignment}
-            setShowLinkChooser={setShowLinkChooser}
             setLinkSearchQuery={setLinkSearchQuery}
           />
         ) : null}
