@@ -10,7 +10,7 @@ import {
   Text,
   useTheme,
 } from 'react-native-paper';
-import { Reveal } from '../../../../components';
+import { InfoDialog, Reveal } from '../../../../components';
 import type { NotificationActivityState } from '../../../../components/dto/notification';
 import type { MainTabParamList } from '../../../../components/dto/navigation';
 import { GlobalStyles } from '../../../../constants/styles';
@@ -605,23 +605,12 @@ export function NotificationsView({
         ) : null}
       </View>
 
-      <Portal>
-        <Dialog
-          visible={helperVisible}
-          onDismiss={() => setHelperVisible(false)}
-          style={[dialogChrome.helperDialog, { backgroundColor: theme.colors.surface }]}
-        >
-          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>
-            {t(K.notifications.notifications)}
-          </Dialog.Title>
-          <IconButton icon="close" onPress={() => setHelperVisible(false)} style={dialogChrome.closeButton} />
-          <Dialog.Content style={dialogChrome.content}>
-            <Text variant="bodyMedium">
-              {t(K.notifications.helper)}
-            </Text>
-          </Dialog.Content>
-        </Dialog>
-      </Portal>
+      <InfoDialog
+        visible={helperVisible}
+        title={t(K.notifications.notifications)}
+        message={t(K.notifications.helper)}
+        onDismiss={() => setHelperVisible(false)}
+      />
 
       <Portal>
         <Dialog

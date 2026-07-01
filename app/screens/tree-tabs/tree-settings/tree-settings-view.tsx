@@ -1,7 +1,7 @@
 import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { FlatList, ScrollView, Share, StyleSheet, View } from 'react-native';
 import { Button, Chip, Dialog, IconButton, Portal, ProgressBar, Text, TextInput, useTheme } from 'react-native-paper';
-import { FloatingSnackbar, HorizontalTabStrip, Reveal } from '../../../../components';
+import { FloatingSnackbar, HorizontalTabStrip, InfoDialog, Reveal } from '../../../../components';
 import type { ApprovalRequest } from '../../../../components/dto/approval';
 import type { PersonRecord } from '../../../../components/dto/person';
 import {
@@ -633,6 +633,13 @@ function TreeSettingsContent({
         ) : null}
       </View>
 
+      <InfoDialog
+        visible={helperDialog.visible}
+        title={t(TREE_HELPER_COPY[helperDialog.key].title)}
+        message={t(TREE_HELPER_COPY[helperDialog.key].message)}
+        onDismiss={() => setHelperDialog((current) => ({ ...current, visible: false }))}
+      />
+
       <Portal>
         <Dialog
           visible={surnameVariantDialogVisible}
@@ -675,16 +682,6 @@ function TreeSettingsContent({
                 </Button>
               </Dialog.Actions>
             </>
-          ) : null}
-        </Dialog>
-
-        <Dialog visible={helperDialog.visible} onDismiss={() => setHelperDialog((current) => ({ ...current, visible: false }))} style={[dialogChrome.helperDialog, { backgroundColor: theme.colors.surface }]}>
-          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{t(TREE_HELPER_COPY[helperDialog.key].title)}</Dialog.Title>
-          <IconButton icon="close" size={20} onPress={() => setHelperDialog((current) => ({ ...current, visible: false }))} style={dialogChrome.closeButton} accessibilityLabel={t(K.common.close)} />
-          {helperDialog.visible ? (
-            <Dialog.Content style={dialogChrome.content}>
-              <Text variant="bodyMedium">{t(TREE_HELPER_COPY[helperDialog.key].message)}</Text>
-            </Dialog.Content>
           ) : null}
         </Dialog>
 

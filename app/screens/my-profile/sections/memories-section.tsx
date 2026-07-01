@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Image, Pressable, View } from 'react-native';
 import { Button, Card, Chip, Dialog, IconButton, Portal, Surface, Text, TextInput, useTheme } from 'react-native-paper';
-import { HorizontalTabStrip, Reveal } from '../../../../components';
+import { HorizontalTabStrip, InfoDialog, Reveal } from '../../../../components';
 import type { NewPersonPhotoInput, PersonLifeEvent, PersonPhoto, PersonRecord } from '../../../../components/dto/person';
 import { formatPersonDate } from '../../../../components/dto/person';
 import { GlobalStyles } from '../../../../constants/styles';
@@ -331,15 +331,12 @@ export function MemoriesSection({
           </Dialog.Actions>
         </Dialog>
       </Portal>
-      <Portal>
-        <Dialog visible={helperVisible} onDismiss={() => setHelperVisible(false)} style={[dialogChrome.helperDialog, { backgroundColor: theme.colors.surface }]}>
-          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{t(K.memories.memories)}</Dialog.Title>
-          <IconButton icon="close" size={20} onPress={() => setHelperVisible(false)} style={dialogChrome.closeButton} accessibilityLabel={t(K.common.close)} />
-          <Dialog.Content style={dialogChrome.content}>
-            <Text variant="bodyMedium">{t(K.memories.momentsPhotosFragments)}</Text>
-          </Dialog.Content>
-        </Dialog>
-      </Portal>
+      <InfoDialog
+        visible={helperVisible}
+        title={t(K.memories.memories)}
+        message={t(K.memories.momentsPhotosFragments)}
+        onDismiss={() => setHelperVisible(false)}
+      />
       </Surface>
     </Reveal>
   );

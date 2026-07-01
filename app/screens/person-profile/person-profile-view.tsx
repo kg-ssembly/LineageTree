@@ -15,7 +15,7 @@ import {
   Text,
   useTheme,
 } from 'react-native-paper';
-import { ConfirmDialog, FloatingSnackbar, HorizontalTabStrip, LifeEventDialog, PersonFormDialog, PersonRelationshipDialog, Reveal } from '../../../components';
+import { ConfirmDialog, FloatingSnackbar, HorizontalTabStrip, InfoDialog, LifeEventDialog, PersonFormDialog, PersonRelationshipDialog, Reveal } from '../../../components';
 import type { PersonRelationshipMode } from '../../../components/person-relationship-dialog';
 import { useAuthStore } from '../../../stores/auth-store';
 import { useTreeStore } from '../../../stores/tree-store';
@@ -1243,25 +1243,13 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
         }}
       />
 
+      <InfoDialog
+        visible={helperDialog.visible}
+        title={t(helperDialogCopy[helperDialog.key].title)}
+        message={t(helperDialogCopy[helperDialog.key].message)}
+        onDismiss={() => setHelperDialog((current) => ({ ...current, visible: false }))}
+      />
       <Portal>
-        <Dialog
-          visible={helperDialog.visible}
-          onDismiss={() => setHelperDialog((current) => ({ ...current, visible: false }))}
-          style={[dialogChrome.helperDialog, { backgroundColor: theme.colors.surface }]}
-        >
-          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{t(helperDialogCopy[helperDialog.key].title)}</Dialog.Title>
-          <IconButton
-            icon="close"
-            size={20}
-            onPress={() => setHelperDialog((current) => ({ ...current, visible: false }))}
-            style={dialogChrome.closeButton}
-            accessibilityLabel={t(K.common.close)}
-          />
-          <Dialog.Content style={dialogChrome.content}>
-            <Text variant="bodyMedium">{t(helperDialogCopy[helperDialog.key].message)}</Text>
-          </Dialog.Content>
-        </Dialog>
-
         <Dialog
           visible={relationshipInsightVisible}
           onDismiss={() => setRelationshipInsightVisible(false)}

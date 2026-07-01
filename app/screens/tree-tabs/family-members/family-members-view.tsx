@@ -14,7 +14,7 @@ import {
 } from 'react-native-paper';
 import { DatePickerModal } from 'react-native-paper-dates';
 import type { PersonGender, PersonRecord } from '../../../../components/dto/person';
-import { Reveal } from '../../../../components';
+import { InfoDialog, Reveal } from '../../../../components';
 import {
   formatPersonDate,
   getDisplayPersonPhoto,
@@ -500,27 +500,12 @@ export function FamilyMembersView({
         label={t(K.tree.familyMembers.selectLatestBirthDate)}
       />
 
-      <Portal>
-        <Dialog
-          visible={helperVisible}
-          onDismiss={() => setHelperVisible(false)}
-          style={[dialogChrome.helperDialog, { backgroundColor: theme.colors.surface }]}
-        >
-          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{t(K.tree.familyMembers.title)}</Dialog.Title>
-          <IconButton
-            icon="close"
-            size={20}
-            onPress={() => setHelperVisible(false)}
-            style={dialogChrome.closeButton}
-            accessibilityLabel={t(K.common.close)}
-          />
-          <Dialog.Content style={dialogChrome.content}>
-            <Text variant="bodyMedium">
-              {t(K.tree.familyMembers.helper)}
-            </Text>
-          </Dialog.Content>
-        </Dialog>
-      </Portal>
+      <InfoDialog
+        visible={helperVisible}
+        title={t(K.tree.familyMembers.title)}
+        message={t(K.tree.familyMembers.helper)}
+        onDismiss={() => setHelperVisible(false)}
+      />
     </View>
   );
 }

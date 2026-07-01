@@ -3,7 +3,7 @@ import { ScrollView, View, type LayoutChangeEvent } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import { ActivityIndicator, Button, Card, Chip, Dialog, IconButton, Portal, ProgressBar, Surface, Text, useTheme } from 'react-native-paper';
-import { FloatingSnackbar, HorizontalTabStrip, Reveal } from '../../../../components';
+import { FloatingSnackbar, HorizontalTabStrip, InfoDialog, Reveal } from '../../../../components';
 import { getDisplayPersonPhoto } from '../../../../components/dto/person';
 import type { MainTabParamList } from '../../../../components/dto/navigation';
 import type { AppTheme } from '../../../../constants/theme';
@@ -1531,10 +1531,11 @@ export function HomeDashboardView(props: SharedTabProps) {
         )
       ) : null}
 
-      <Portal>
-        <Dialog visible={heroInfoVisible} onDismiss={() => setHeroInfoVisible(false)} style={[dialogChrome.helperDialog, { backgroundColor: theme.colors.surface }]}>
-          <Dialog.Title>{heroTitle}</Dialog.Title>
-          <Dialog.Content>
+      <InfoDialog
+        visible={heroInfoVisible}
+        title={heroTitle}
+        message={(
+          <>
             <Text variant="labelLarge">{t(K.home.whyThisMatters)}</Text>
             <Text variant="bodyMedium" style={{ marginTop: 8 }}>
               {heroAction.description}
@@ -1542,12 +1543,10 @@ export function HomeDashboardView(props: SharedTabProps) {
             <Text variant="bodyMedium" style={{ marginTop: 12 }}>
               {lensSubtitle}
             </Text>
-          </Dialog.Content>
-          <Dialog.Actions>
-            <Button onPress={() => setHeroInfoVisible(false)}>{t(K.common.close)}</Button>
-          </Dialog.Actions>
-        </Dialog>
-      </Portal>
+          </>
+        )}
+        onDismiss={() => setHeroInfoVisible(false)}
+      />
       <Portal>
         <Dialog
           visible={activityModalVisible}
@@ -1577,21 +1576,16 @@ export function HomeDashboardView(props: SharedTabProps) {
           </Dialog.ScrollArea>
         </Dialog>
       </Portal>
-      <Portal>
-        <Dialog visible={buildInfoVisible} onDismiss={() => setBuildInfoVisible(false)} style={[dialogChrome.helperDialog, { backgroundColor: theme.colors.surface }]}>
-          <Dialog.Title>{isSetupMode ? t(K.home.aboutSetupWizard) : t(K.home.aboutBuildYourFamily)}</Dialog.Title>
-          <Dialog.Content>
-            <Text variant="bodyMedium">
-              {isSetupMode
-                ? t(K.home.theseStepsGuideABrandNewTreeFromFirstProfileToFirstRealFamilyStructure)
-                : t(K.home.buildYourFamilySeparatesProfileWorkFromTreeBuildingSoItIsEasierToGrowYourOwnStoryAndTheWiderTreeWithoutMixingThemTogether)}
-            </Text>
-          </Dialog.Content>
-          <Dialog.Actions>
-            <Button onPress={() => setBuildInfoVisible(false)}>{t(K.common.close)}</Button>
-          </Dialog.Actions>
-        </Dialog>
-      </Portal>
+      <InfoDialog
+        visible={buildInfoVisible}
+        title={isSetupMode ? t(K.home.aboutSetupWizard) : t(K.home.aboutBuildYourFamily)}
+        message={
+          isSetupMode
+            ? t(K.home.theseStepsGuideABrandNewTreeFromFirstProfileToFirstRealFamilyStructure)
+            : t(K.home.buildYourFamilySeparatesProfileWorkFromTreeBuildingSoItIsEasierToGrowYourOwnStoryAndTheWiderTreeWithoutMixingThemTogether)
+        }
+        onDismiss={() => setBuildInfoVisible(false)}
+      />
       <FloatingSnackbar
         visible={Boolean(celebrationMessage)}
         onDismiss={() => setCelebrationMessage(null)}

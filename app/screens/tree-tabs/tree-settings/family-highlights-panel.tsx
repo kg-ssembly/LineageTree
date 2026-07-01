@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { View } from 'react-native';
-import { Button, Dialog, IconButton, Portal, Surface, Text, useTheme } from 'react-native-paper';
-import { Reveal } from '../../../../components';
+import { Button, IconButton, Surface, Text, useTheme } from 'react-native-paper';
+import { InfoDialog, Reveal } from '../../../../components';
 import type { PersonLifeEvent, PersonRecord } from '../../../../components/dto/person';
 import { formatPersonDate, parsePersonDate } from '../../../../components/dto/person';
 import { formatPersonName } from '../../../../components/person-formatting';
@@ -10,7 +10,6 @@ import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
 
 const styles = GlobalStyles.treeDetail;
-const dialogChrome = GlobalStyles.dialogChrome;
 
 type HighlightAnniversary = {
   id: string;
@@ -381,20 +380,12 @@ export function FamilyHighlightsPanel({
             ) : null}
           </View>
         </View>
-        <Portal>
-        <Dialog visible={helperVisible} onDismiss={() => setHelperVisible(false)} style={[dialogChrome.helperDialog, { backgroundColor: theme.colors.surface }]}>
-            <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>
-              {t(K.home.familyHighlights)}
-            </Dialog.Title>
-            <IconButton icon="close" size={20} onPress={() => setHelperVisible(false)} style={dialogChrome.closeButton} accessibilityLabel={t(K.common.close)} />
-            <Dialog.Content>
-              <Text variant="bodyMedium">{t(K.home.thisTabHelpsYouSpotFreshFacesImportantDatesAndGrowingBranchesAcrossTheFamily)}</Text>
-            </Dialog.Content>
-            <Dialog.Actions>
-              <Button onPress={() => setHelperVisible(false)}>{t(K.common.close)}</Button>
-            </Dialog.Actions>
-          </Dialog>
-        </Portal>
+        <InfoDialog
+          visible={helperVisible}
+          title={t(K.home.familyHighlights)}
+          message={t(K.home.thisTabHelpsYouSpotFreshFacesImportantDatesAndGrowingBranchesAcrossTheFamily)}
+          onDismiss={() => setHelperVisible(false)}
+        />
       </Surface>
     </Reveal>
   );

@@ -2,6 +2,7 @@ export { default as CollaboratorDialog } from './collaborator-dialog';
 export { default as ConfirmDialog } from './confirm-dialog';
 export { default as FamilyTreeCanvas } from './family-tree-canvas';
 export { default as HorizontalTabStrip } from './horizontal-tab-strip';
+export { default as InfoDialog } from './info-dialog';
 export { default as LifeEventDialog } from './life-event-dialog';
 export { default as PersonFormDialog } from './person-form-dialog';
 export { default as PersonRelationshipDialog } from './person-relationship-dialog';
