@@ -29,6 +29,9 @@ export function TreesSection({
 }: TreesSectionProps) {
   const theme = useTheme();
   const { t } = useI18n();
+  const linkedTreeId = userId
+    ? (trees ?? []).find((tree) => Boolean(tree.personAssignments[userId]))?.id ?? null
+    : null;
 
   return (
     <Reveal delay={80}>
@@ -107,6 +110,7 @@ export function TreesSection({
           const isDefault = tree.id === defaultTreeId;
           const isSelected = tree.id === selectedTree.id;
           const treeRole = getTreeRole(tree, userId);
+          const hideTreeActionIcons = Boolean(linkedTreeId && tree.id !== linkedTreeId);
 
           return (
             <Reveal key={tree.id} delay={100 + index * 25}>
@@ -128,7 +132,7 @@ export function TreesSection({
                   </View>
                   <View style={{ flexDirection: 'row', gap: 4 }}>
                     <IconButton icon="content-copy" size={20} onPress={() => { void onCopyTreeId(tree.id); }} disabled={mutating} />
-                    {onToggleDefaultTree ? (
+                    {onToggleDefaultTree && !hideTreeActionIcons ? (
                       <IconButton
                         icon={isDefault ? 'star' : 'star-outline'}
                         size={20}
@@ -136,7 +140,7 @@ export function TreesSection({
                         disabled={mutating}
                       />
                     ) : null}
-                    {!isSelected && onSwitchTree ? (
+                    {!isSelected && onSwitchTree && !hideTreeActionIcons ? (
                       <IconButton icon="swap-horizontal" size={20} onPress={() => onSwitchTree(tree)} disabled={mutating} />
                     ) : null}
                     {onEditTree ? (

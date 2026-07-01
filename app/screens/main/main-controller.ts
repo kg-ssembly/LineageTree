@@ -550,8 +550,26 @@ export function useMainScreenController({ navigation }: Props) {
   }, [clearSelfAssignment, openConfirm, selectTree, setDefaultTreeId, t, trees, user]);
 
   const handleSwitchTree = useCallback((tree: FamilyTree) => {
+    if (!user) {
+      return;
+    }
+
+    const linkedTree = trees.find((candidate) => candidate.id !== tree.id && Boolean(candidate.personAssignments[user.id]));
+    if (linkedTree) {
+      openConfirm(
+        t(K.treeSettings.unlinkYourProfile),
+        `You are still linked in "${linkedTree.name}". Unlink your profile there before switching to "${tree.name}".`,
+        t(K.common.unlink),
+        async () => {
+          await clearSelfAssignment(linkedTree.id, user.id);
+          selectTree(tree.id);
+        },
+      );
+      return;
+    }
+
     selectTree(tree.id);
-  }, [selectTree]);
+  }, [clearSelfAssignment, openConfirm, selectTree, t, trees, user]);
 
   const handleConfirmDeleteTree = useCallback((tree: FamilyTree) => {
     void (async () => {
