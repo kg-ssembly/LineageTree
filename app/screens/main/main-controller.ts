@@ -23,7 +23,7 @@ import { I18N_KEYS as K } from '../../../i18n/keys';
 import { useAuthStore } from '../../../stores/auth-store';
 import { useTreeStore } from '../../../stores/tree-store';
 import { useShallow } from 'zustand/react/shallow';
-import { getTreeDeletionImpact } from '../../../providers/family-tree-service';
+import { getTreeDeletionImpact, type DiscoverableTreeSummary } from '../../../providers/family-tree-service';
 import type { SharedTabProps } from '../tree-tab-content';
 import {
   buildPeopleDirectory,
@@ -84,6 +84,12 @@ export type PriorityAlertState = {
   requestId?: string;
   seen?: boolean;
   opened?: boolean;
+};
+
+export type TreeNameSuggestionState = {
+  visible: boolean;
+  requestedName: string;
+  matches: DiscoverableTreeSummary[];
 };
 
 type MemberProfileParams = {
@@ -240,6 +246,11 @@ export function useMainScreenController({ navigation }: Props) {
   const [snackVisible, setSnackVisible] = useState(false);
   const [startupModalSubmitting, setStartupModalSubmitting] = useState(false);
   const [priorityAlert, setPriorityAlert] = useState<PriorityAlertState | null>(null);
+  const [treeNameSuggestion, setTreeNameSuggestion] = useState<TreeNameSuggestionState>({
+    visible: false,
+    requestedName: '',
+    matches: [],
+  });
   const [confirmState, setConfirmState] = useState<ConfirmState>({
     visible: false,
     title: '',
@@ -530,6 +541,10 @@ export function useMainScreenController({ navigation }: Props) {
     setTreeDialog({ visible: false, mode: 'create', tree: null });
   }, []);
 
+  const closeTreeNameSuggestion = useCallback(() => {
+    setTreeNameSuggestion({ visible: false, requestedName: '', matches: [] });
+  }, []);
+
   const openCreateTreeDialog = useCallback(() => {
     setTreeDialog({ visible: true, mode: 'create', tree: null });
   }, []);
@@ -551,6 +566,20 @@ export function useMainScreenController({ navigation }: Props) {
 
     try {
       if (treeDialog.mode === 'create') {
+        const normalizedName = name.trim().toLowerCase();
+        const discoverableMatches = (await searchDiscoverableTrees(name, user.id))
+          .filter((candidate) => candidate.name.trim().toLowerCase() === normalizedName);
+
+        if (discoverableMatches.length > 0) {
+          closeTreeDialog();
+          setTreeNameSuggestion({
+            visible: true,
+            requestedName: name,
+            matches: discoverableMatches,
+          });
+          return;
+        }
+
         const tree = await createTree({ id: user.id, email: user.email, displayName: user.displayName }, name);
         if (!user.defaultTreeId) {
           await setDefaultTreeId(tree.id);
@@ -564,7 +593,40 @@ export function useMainScreenController({ navigation }: Props) {
     } catch {
       // surfaced via snackbar
     }
-  }, [closeTreeDialog, createTree, renameTree, selectTree, setDefaultTreeId, treeDialog.mode, treeDialog.tree, user]);
+  }, [closeTreeDialog, createTree, renameTree, searchDiscoverableTrees, selectTree, setDefaultTreeId, treeDialog.mode, treeDialog.tree, user]);
+
+  const continueCreatingSuggestedTree = useCallback(async () => {
+    if (!user || !treeNameSuggestion.requestedName.trim()) {
+      return;
+    }
+
+    try {
+      const tree = await createTree(
+        { id: user.id, email: user.email, displayName: user.displayName },
+        treeNameSuggestion.requestedName.trim(),
+      );
+      if (!user.defaultTreeId) {
+        await setDefaultTreeId(tree.id);
+      }
+      selectTree(tree.id);
+      closeTreeNameSuggestion();
+    } catch {
+      // surfaced via snackbar
+    }
+  }, [closeTreeNameSuggestion, createTree, selectTree, setDefaultTreeId, treeNameSuggestion.requestedName, user]);
+
+  const requestAccessToSuggestedTree = useCallback(async (treeId: string) => {
+    if (!user?.id) {
+      return;
+    }
+
+    try {
+      await requestTreeAccess(user.id, treeId);
+      closeTreeNameSuggestion();
+    } catch {
+      // surfaced via snackbar
+    }
+  }, [closeTreeNameSuggestion, requestTreeAccess, user?.id]);
 
   const handleToggleDefaultTree = useCallback(async (tree: FamilyTree) => {
     if (!user) {
@@ -1363,6 +1425,7 @@ export function useMainScreenController({ navigation }: Props) {
     closeRelationshipDialog,
     closeSelfPersonDialog,
     closeTreeDialog,
+    closeTreeNameSuggestion,
     collaboratorDialogVisible,
     confirmState,
     crossSurnameChildIds,
@@ -1416,9 +1479,12 @@ export function useMainScreenController({ navigation }: Props) {
     },
     pendingTreeAccessRequest,
     priorityAlert,
+    treeNameSuggestion,
     dismissPriorityAlert,
+    continueCreatingSuggestedTree,
     handleDiscoverabilityPromptChoice,
     openPriorityAlertTarget,
+    requestAccessToSuggestedTree,
     respondToPriorityMergeInvite,
     respondToPriorityTreeAccess,
     handleStartupLanguageSubmit,

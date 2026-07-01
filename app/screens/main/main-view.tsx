@@ -9,7 +9,7 @@ import {
   StartupModal,
   TreeFormDialog,
 } from '../../../components';
-import { Button, Dialog, Portal, Text } from 'react-native-paper';
+import { Button, Dialog, Portal, Surface, Text } from 'react-native-paper';
 import { canManageTree } from '../../../components/dto/tree';
 import { GlobalStyles } from '../../../constants/styles';
 import { I18N_KEYS as K } from '../../../i18n/keys';
@@ -106,6 +106,59 @@ export function MainScreenView({ controller }: { controller: ReturnType<typeof u
           }
           : null}
       />
+
+      <Portal>
+        <Dialog
+          visible={controller.treeNameSuggestion.visible}
+          onDismiss={controller.mutating ? undefined : controller.closeTreeNameSuggestion}
+          style={[dialogChrome.dialog, { backgroundColor: controller.theme.colors.surface }]}
+        >
+          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>
+            Similar family trees found
+          </Dialog.Title>
+          <Dialog.Content style={dialogChrome.content}>
+            <Text variant="bodyMedium" style={{ color: controller.theme.colors.onSurfaceVariant }}>
+              We found discoverable trees named "{controller.treeNameSuggestion.requestedName}". You may want to request access instead of creating a duplicate tree.
+            </Text>
+            <View style={{ marginTop: 16, gap: 10 }}>
+              {controller.treeNameSuggestion.matches.map((match) => (
+                <Surface
+                  key={match.id}
+                  style={{
+                    backgroundColor: controller.theme.colors.elevation.level1,
+                    borderColor: controller.theme.colors.outlineVariant,
+                    borderWidth: 1,
+                    borderRadius: 18,
+                    padding: 14,
+                  }}
+                  elevation={0}
+                >
+                  <Text variant="titleMedium">{match.name}</Text>
+                  <Text variant="bodySmall" style={{ color: controller.theme.colors.onSurfaceVariant, marginTop: 4 }}>
+                    Owned by {match.ownerDisplayName || match.ownerUsername || controller.t(K.common.unknown)}
+                  </Text>
+                  <Button
+                    mode="contained-tonal"
+                    onPress={() => { void controller.requestAccessToSuggestedTree(match.id); }}
+                    disabled={controller.mutating}
+                    style={{ marginTop: 12, alignSelf: 'flex-start' }}
+                  >
+                    {controller.t(K.app.requestAccess)}
+                  </Button>
+                </Surface>
+              ))}
+            </View>
+          </Dialog.Content>
+          <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: controller.theme.colors.outlineVariant }]}>
+            <Button onPress={controller.closeTreeNameSuggestion} disabled={controller.mutating}>
+              {controller.t(K.common.cancel)}
+            </Button>
+            <Button mode="contained" onPress={() => { void controller.continueCreatingSuggestedTree(); }} disabled={controller.mutating}>
+              Create anyway
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
 
       <MainNodeQuickActionsDialog controller={controller} />
 

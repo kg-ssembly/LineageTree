@@ -109,12 +109,28 @@ const localStyles = StyleSheet.create({
   },
   pendingRequestNotice: {
     width: '100%',
-    marginBottom: 14,
-    alignItems: 'center',
+    marginBottom: 18,
+    borderRadius: 18,
+    padding: 18,
   },
   pendingRequestNoticeText: {
-    textAlign: 'center',
-    marginBottom: 6,
+    marginTop: 6,
+  },
+  pendingRequestNoticeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  pendingRequestActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 14,
+    gap: 12,
+    flexWrap: 'wrap',
+  },
+  pendingRequestMeta: {
+    marginTop: 10,
   },
   primaryAction: {
     width: '100%',
@@ -232,25 +248,51 @@ export function MainNoTreeGate({
             <Chip compact icon="image-outline">{controller.t(K.memories.memories)}</Chip>
           </View>
 
-          <Text variant="headlineSmall" style={[localStyles.noTreeGateText, localStyles.title, { color: controller.theme.colors.onSurface }]}>
-            {controller.t(K.app.noFamilyTreeYet)}
-          </Text>
-          <Text variant="bodyMedium" style={[localStyles.noTreeGateText, localStyles.body, { color: controller.theme.colors.onSurfaceVariant }]}>
-            {controller.t(K.app.createFirstFamilyTree)}
-          </Text>
           {hasRenderablePendingRequest ? (
-            <View style={localStyles.pendingRequestNotice}>
+            <View
+              style={[
+                localStyles.pendingRequestNotice,
+                {
+                  backgroundColor: controller.theme.colors.elevation.level1,
+                  borderColor: controller.theme.colors.outlineVariant,
+                  borderWidth: StyleSheet.hairlineWidth,
+                },
+              ]}
+            >
+              <View style={localStyles.pendingRequestNoticeHeader}>
+                <MaterialCommunityIcons name="clock-check-outline" size={22} color={controller.theme.colors.primary} />
+                <Text variant="titleMedium" style={{ color: controller.theme.colors.onSurface }}>
+                  {controller.t(K.app.requestedAccessPending)}
+                </Text>
+              </View>
               <Text
                 variant="bodyMedium"
                 style={[localStyles.pendingRequestNoticeText, { color: controller.theme.colors.onSurfaceVariant }]}
               >
                 {controller.t(K.app.requestedAccessPendingMessage, { treeName: pendingRequestTreeName })}
               </Text>
-              <Button mode="text" icon="clock-check-outline" onPress={() => setPendingRequestDialogVisible(true)}>
-                {controller.t(K.app.requestedAccessPending)}
-              </Button>
+              <Text variant="labelMedium" style={[localStyles.pendingRequestMeta, { color: controller.theme.colors.onSurface }]}>
+                {pendingRequestIdentifier ? `${pendingRequestTreeName} • ${pendingRequestIdentifier}` : pendingRequestTreeName}
+              </Text>
+              <View style={localStyles.pendingRequestActions}>
+                <Button mode="text" onPress={() => setPendingRequestDialogVisible(true)}>
+                  {controller.t(K.common.open)}
+                </Button>
+                <Button mode="contained-tonal" onPress={() => { void handleCancelPendingRequest(); }} disabled={controller.mutating}>
+                  {controller.t(K.app.requestedAccessCancel)}
+                </Button>
+              </View>
             </View>
-          ) : null}
+          ) : (
+            <>
+              <Text variant="headlineSmall" style={[localStyles.noTreeGateText, localStyles.title, { color: controller.theme.colors.onSurface }]}>
+                {controller.t(K.app.noFamilyTreeYet)}
+              </Text>
+              <Text variant="bodyMedium" style={[localStyles.noTreeGateText, localStyles.body, { color: controller.theme.colors.onSurfaceVariant }]}>
+                {controller.t(K.app.createFirstFamilyTree)}
+              </Text>
+            </>
+          )}
           <Button
             mode="contained"
             icon="account-search-outline"
