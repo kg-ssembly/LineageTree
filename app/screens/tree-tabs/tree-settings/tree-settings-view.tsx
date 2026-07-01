@@ -58,6 +58,7 @@ const settingsTabStripStyles = StyleSheet.create({
 });
 
 const MAX_LINK_CHOOSER_RESULTS = 8;
+const OWNER_LINK_PAGE_SIZE = 3;
 
 function TreeSettingsContent({
   selectedTree,
@@ -121,6 +122,7 @@ function TreeSettingsContent({
   const [linkSearchQuery, setLinkSearchQuery] = useState('');
   const [ownerLinkTargetUserId, setOwnerLinkTargetUserId] = useState<string | null>(null);
   const [ownerLinkSearchQuery, setOwnerLinkSearchQuery] = useState('');
+  const [ownerLinkPage, setOwnerLinkPage] = useState(1);
   const [mergeInviteIdentifier, setMergeInviteIdentifier] = useState('');
   const [mergeInviteSourceTreeId, setMergeInviteSourceTreeId] = useState(selectedTree.id);
   const [surnameVariantDraft, setSurnameVariantDraft] = useState('');
@@ -199,9 +201,26 @@ function TreeSettingsContent({
         return true;
       })
       .filter(({ searchableText }) => !normalizedQuery || searchableText.includes(normalizedQuery))
-      .slice(0, MAX_LINK_CHOOSER_RESULTS)
       .map(({ person }) => person);
   }, [assignedUserIdByPersonId, deferredOwnerLinkSearchQuery, ownerLinkSearchIndex, ownerLinkTargetUserId]);
+
+  const ownerLinkTotalPages = useMemo(
+    () => Math.max(1, Math.ceil(filteredOwnerLinkPeople.length / OWNER_LINK_PAGE_SIZE)),
+    [filteredOwnerLinkPeople.length],
+  );
+
+  const pagedOwnerLinkPeople = useMemo(() => {
+    const startIndex = (ownerLinkPage - 1) * OWNER_LINK_PAGE_SIZE;
+    return filteredOwnerLinkPeople.slice(startIndex, startIndex + OWNER_LINK_PAGE_SIZE);
+  }, [filteredOwnerLinkPeople, ownerLinkPage]);
+
+  useEffect(() => {
+    setOwnerLinkPage(1);
+  }, [ownerLinkTargetUserId, ownerLinkSearchQuery]);
+
+  useEffect(() => {
+    setOwnerLinkPage((page) => Math.min(page, ownerLinkTotalPages));
+  }, [ownerLinkTotalPages]);
 
   const treeSettingsMetrics = useMemo(() => {
     const pendingApprovalRequests = approvalRequests.filter((request) => request.status === 'pending');
@@ -549,20 +568,25 @@ function TreeSettingsContent({
             mutating={mutating}
             ownerLinkTargetUserId={ownerLinkTargetUserId}
             ownerLinkSearchQuery={ownerLinkSearchQuery}
-            filteredOwnerLinkPeople={filteredOwnerLinkPeople}
+            filteredOwnerLinkPeople={pagedOwnerLinkPeople}
+            ownerLinkPage={ownerLinkPage}
+            ownerLinkTotalPages={ownerLinkTotalPages}
             onOpenHelperDialog={openHelperDialog}
             onOpenCollaboratorDialog={onOpenCollaboratorDialog}
             openConfirm={openConfirm}
             onRemoveCollaborator={onRemoveCollaborator}
             onAssignPersonToUser={onAssignPersonToUser}
             setOwnerLinkSearchQuery={setOwnerLinkSearchQuery}
+            setOwnerLinkPage={setOwnerLinkPage}
             toggleOwnerLinkChooser={(targetUserId) => {
               setOwnerLinkTargetUserId((current) => (current === targetUserId ? null : targetUserId));
               setOwnerLinkSearchQuery('');
+              setOwnerLinkPage(1);
             }}
             clearOwnerLinkChooser={() => {
               setOwnerLinkTargetUserId(null);
               setOwnerLinkSearchQuery('');
+              setOwnerLinkPage(1);
             }}
           />
         ) : null}

@@ -283,12 +283,15 @@ export type CollaboratorsSectionProps = {
   ownerLinkTargetUserId: string | null;
   ownerLinkSearchQuery: string;
   filteredOwnerLinkPeople: SharedTabProps['people'];
+  ownerLinkPage: number;
+  ownerLinkTotalPages: number;
   onOpenHelperDialog: (key: TreeHelperDialogKey) => void;
   onOpenCollaboratorDialog: SharedTabProps['onOpenCollaboratorDialog'];
   openConfirm: SharedTabProps['openConfirm'];
   onRemoveCollaborator: SharedTabProps['onRemoveCollaborator'];
   onAssignPersonToUser: SharedTabProps['onAssignPersonToUser'];
   setOwnerLinkSearchQuery: (value: string) => void;
+  setOwnerLinkPage: React.Dispatch<React.SetStateAction<number>>;
   toggleOwnerLinkChooser: (targetUserId: string) => void;
   clearOwnerLinkChooser: () => void;
 };

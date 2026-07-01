@@ -23,12 +23,15 @@ export function CollaboratorsSection({
   ownerLinkTargetUserId,
   ownerLinkSearchQuery,
   filteredOwnerLinkPeople,
+  ownerLinkPage,
+  ownerLinkTotalPages,
   onOpenHelperDialog,
   onOpenCollaboratorDialog,
   openConfirm,
   onRemoveCollaborator,
   onAssignPersonToUser,
   setOwnerLinkSearchQuery,
+  setOwnerLinkPage,
   toggleOwnerLinkChooser,
   clearOwnerLinkChooser,
 }: CollaboratorsSectionProps) {
@@ -126,7 +129,7 @@ export function CollaboratorsSection({
                                   <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>{suggestion.reason}</Text>
                                 </View>
                                 <Button mode="contained-tonal" onPress={() => handleOwnerLinkSuggestion(collaborator.userId, suggestion.person.id)} disabled={mutating}>
-                                  {t(K.treeSettings.link)}
+                                  {t(K.treeSettings.suggest)}
                                 </Button>
                               </View>
                               </Card.Content>
@@ -169,13 +172,37 @@ export function CollaboratorsSection({
                                       ) : null}
                                     </View>
                                     <Button mode="contained" onPress={() => handleOwnerLinkSuggestion(collaborator.userId, person.id)} disabled={mutating}>
-                                      {t(K.treeSettings.link)}
+                                      {t(K.treeSettings.suggest)}
                                     </Button>
                                   </View>
                                   </Card.Content>
                                 </Card>
                               </Reveal>
                             ))}
+                            {ownerLinkTotalPages > 1 ? (
+                              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
+                                <Button
+                                  mode="text"
+                                  icon="chevron-left"
+                                  onPress={() => setOwnerLinkPage((page) => Math.max(1, page - 1))}
+                                  disabled={ownerLinkPage === 1}
+                                >
+                                  {t(K.tree.familyMembers.previousPage)}
+                                </Button>
+                                <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                                  {t(K.tree.familyMembers.pageOf, { current: ownerLinkPage, total: ownerLinkTotalPages })}
+                                </Text>
+                                <Button
+                                  mode="text"
+                                  icon="chevron-right"
+                                  contentStyle={{ flexDirection: 'row-reverse' }}
+                                  onPress={() => setOwnerLinkPage((page) => Math.min(ownerLinkTotalPages, page + 1))}
+                                  disabled={ownerLinkPage === ownerLinkTotalPages}
+                                >
+                                  {t(K.tree.familyMembers.nextPage)}
+                                </Button>
+                              </View>
+                            ) : null}
                           </View>
                         ) : (
                           <Text variant="bodySmall" style={[styles.assignmentHelperText, { color: theme.colors.onSurfaceVariant }]}>
