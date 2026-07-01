@@ -1341,6 +1341,25 @@ export async function assignTreePersonToUser(actorUserId: string, treeId: string
   const treeRef = doc(db, TREES_COLLECTION, treeId);
   const personRef = doc(db, PEOPLE_COLLECTION, personId);
 
+  if (actorUserId === userId) {
+    const otherTreeSnapshots = await getDocs(query(collection(db, TREES_COLLECTION), where('memberIds', 'array-contains', userId)));
+    const otherLinkedTree = otherTreeSnapshots.docs.find((snapshot) => {
+      if (snapshot.id === treeId) {
+        return false;
+      }
+
+      const assignedPersonId = snapshot.data().personAssignments?.[userId];
+      return typeof assignedPersonId === 'string' && assignedPersonId.trim().length > 0;
+    });
+
+    if (otherLinkedTree) {
+      const otherTreeName = typeof otherLinkedTree.data().name === 'string' && otherLinkedTree.data().name.trim()
+        ? otherLinkedTree.data().name.trim()
+        : 'your other family tree';
+      throw new Error(`Unlink your profile from "${otherTreeName}" before claiming yourself in another family tree.`);
+    }
+  }
+
   await runTransaction(db, async (transaction) => {
     const [treeSnapshot, personSnapshot] = await Promise.all([
       transaction.get(treeRef),

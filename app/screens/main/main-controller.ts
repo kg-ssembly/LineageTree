@@ -408,12 +408,38 @@ export function useMainScreenController({ navigation }: Props) {
   }, [closeTreeDialog, createTree, renameTree, selectTree, setDefaultTreeId, treeDialog.mode, treeDialog.tree, user]);
 
   const handleToggleDefaultTree = useCallback(async (tree: FamilyTree) => {
+    if (!user) {
+      return;
+    }
+
+    const nextDefaultTreeId = user.defaultTreeId === tree.id ? null : tree.id;
+    const linkedTree = nextDefaultTreeId
+      ? trees.find((candidate) => candidate.id !== tree.id && Boolean(candidate.personAssignments[user.id]))
+      : null;
+
+    if (nextDefaultTreeId && linkedTree) {
+      openConfirm(
+        t(K.treeSettings.unlinkYourProfile),
+        `You are still linked in "${linkedTree.name}". Unlink your profile there before making "${tree.name}" your default tree.`,
+        t(K.common.unlink),
+        async () => {
+          await clearSelfAssignment(linkedTree.id, user.id);
+          await setDefaultTreeId(tree.id);
+          selectTree(tree.id);
+        },
+      );
+      return;
+    }
+
     try {
-      await setDefaultTreeId(user?.defaultTreeId === tree.id ? null : tree.id);
+      await setDefaultTreeId(nextDefaultTreeId);
+      if (nextDefaultTreeId) {
+        selectTree(tree.id);
+      }
     } catch {
       // ignored
     }
-  }, [setDefaultTreeId, user?.defaultTreeId]);
+  }, [clearSelfAssignment, openConfirm, selectTree, setDefaultTreeId, t, trees, user]);
 
   const handleSwitchTree = useCallback((tree: FamilyTree) => {
     selectTree(tree.id);

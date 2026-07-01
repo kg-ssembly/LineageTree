@@ -107,6 +107,7 @@ function TreeSettingsContent({
   loadingTrees,
   onCreateTree,
   onEditTree,
+  onToggleDefaultTree,
   onSwitchTree,
 }: SharedTabProps) {
   const theme = useTheme();
@@ -625,6 +626,7 @@ function TreeSettingsContent({
             onCreateSurnameTree={onCreateSurnameTree}
             onCreateTree={onCreateTree}
             onEditTree={onEditTree}
+            onToggleDefaultTree={onToggleDefaultTree}
             onSwitchTree={onSwitchTree}
             onCopyTreeId={handleCopyTreeId}
           />

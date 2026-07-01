@@ -7,7 +7,18 @@ import {
   updateProfile,
   User as FirebaseUser,
 } from 'firebase/auth';
-import { deleteField, doc, getDoc, setDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
+import {
+  collection,
+  deleteField,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  setDoc,
+  serverTimestamp,
+  updateDoc,
+  where,
+} from 'firebase/firestore';
 import { auth, db } from '../providers/firebase-provider';
 import type { UserProfile } from '../components/dto/user';
 import type { TreeRole } from '../components/dto/tree';
@@ -173,6 +184,31 @@ function getTreeRoleForUser(data: Record<string, any>, userId: string): TreeRole
   return collaborator?.role ?? null;
 }
 
+async function findOtherLinkedTreeForUser(userId: string, excludedTreeId?: string | null) {
+  const snapshot = await getDocs(query(collection(db, 'trees'), where('memberIds', 'array-contains', userId)));
+
+  for (const treeSnapshot of snapshot.docs) {
+    if (excludedTreeId && treeSnapshot.id === excludedTreeId) {
+      continue;
+    }
+
+    const treeData = treeSnapshot.data() as Record<string, any>;
+    const assignedPersonId = typeof treeData.personAssignments?.[userId] === 'string'
+      ? treeData.personAssignments[userId].trim()
+      : '';
+    if (!assignedPersonId) {
+      continue;
+    }
+
+    return {
+      id: treeSnapshot.id,
+      name: typeof treeData.name === 'string' && treeData.name.trim() ? treeData.name.trim() : 'your other family tree',
+    };
+  }
+
+  return null;
+}
+
 // ─── Store ────────────────────────────────────────────────────────────────────
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -241,6 +277,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     const trimmedTreeId = treeId?.trim();
     if (trimmedTreeId) {
+      const otherLinkedTree = await findOtherLinkedTreeForUser(currentUser.id, trimmedTreeId);
+      if (otherLinkedTree) {
+        throw new Error(`Unlink your profile from "${otherLinkedTree.name}" before making another tree your default.`);
+      }
+
       const treeSnapshot = await getDoc(doc(db, 'trees', trimmedTreeId));
       if (!treeSnapshot.exists()) {
         throw new Error('That family tree no longer exists.');

@@ -23,6 +23,7 @@ export function TreesSection({
   onCreateSurnameTree,
   onCreateTree,
   onEditTree,
+  onToggleDefaultTree,
   onSwitchTree,
   onCopyTreeId,
 }: TreesSectionProps) {
@@ -127,6 +128,14 @@ export function TreesSection({
                   </View>
                   <View style={{ flexDirection: 'row', gap: 4 }}>
                     <IconButton icon="content-copy" size={20} onPress={() => { void onCopyTreeId(tree.id); }} disabled={mutating} />
+                    {onToggleDefaultTree ? (
+                      <IconButton
+                        icon={isDefault ? 'star' : 'star-outline'}
+                        size={20}
+                        onPress={() => onToggleDefaultTree(tree)}
+                        disabled={mutating}
+                      />
+                    ) : null}
                     {!isSelected && onSwitchTree ? (
                       <IconButton icon="swap-horizontal" size={20} onPress={() => onSwitchTree(tree)} disabled={mutating} />
                     ) : null}

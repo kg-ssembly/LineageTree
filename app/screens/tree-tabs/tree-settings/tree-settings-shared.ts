@@ -347,6 +347,7 @@ export type TreesSectionProps = {
   onCreateSurnameTree: SharedTabProps['onCreateSurnameTree'];
   onCreateTree: SharedTabProps['onCreateTree'];
   onEditTree: SharedTabProps['onEditTree'];
+  onToggleDefaultTree: SharedTabProps['onToggleDefaultTree'];
   onSwitchTree: SharedTabProps['onSwitchTree'];
   onCopyTreeId: (treeId: string) => Promise<void>;
 };
