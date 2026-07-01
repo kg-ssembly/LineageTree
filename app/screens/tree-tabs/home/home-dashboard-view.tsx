@@ -59,6 +59,7 @@ type HeroAction = {
   description: string;
   action: () => void;
   buttonLabel?: string;
+  taskId?: string;
 };
 
 type HeroAttentionCallout = {
@@ -786,6 +787,7 @@ export function HomeDashboardView(props: SharedTabProps) {
           label: bestTreeStep.ctaLabel,
           description: bestTreeStep.description,
           action: bestTreeStep.action,
+          taskId: bestTreeStep.id,
         };
       }
 
@@ -803,6 +805,7 @@ export function HomeDashboardView(props: SharedTabProps) {
         label: nextSetupStep.title,
         description: nextSetupStep.description,
         action: nextSetupStep.action,
+        taskId: nextSetupStep.id,
       };
     }
 
@@ -811,6 +814,7 @@ export function HomeDashboardView(props: SharedTabProps) {
         label: bestStoryStep.ctaLabel,
         description: bestStoryStep.description,
         action: bestStoryStep.action,
+        taskId: bestStoryStep.id,
       };
     }
 
@@ -819,6 +823,7 @@ export function HomeDashboardView(props: SharedTabProps) {
         label: bestNextStep.ctaLabel,
         description: bestNextStep.description,
         action: bestNextStep.action,
+        taskId: bestNextStep.id,
       };
     }
 
@@ -1190,8 +1195,8 @@ export function HomeDashboardView(props: SharedTabProps) {
                 <Button mode="contained" onPress={heroAction.action} style={styles.dashboardInlineAction}>
                   {isSetupMode ? t(K.home.continueSetup) : heroAction.buttonLabel ?? heroAction.label}
                 </Button>
-                {!isSetupMode && dashboardLens === 'focus' ? (
-                  <Button mode="text" onPress={() => dismissTask((bestStoryStep ?? bestNextStep).id)} style={styles.dashboardInlineAction}>
+                {heroAction.taskId && dashboardLens !== 'activity' ? (
+                  <Button mode="text" onPress={() => dismissTask(heroAction.taskId!)} style={styles.dashboardInlineAction}>
                     {t(K.home.hideForNow)}
                   </Button>
                 ) : null}
