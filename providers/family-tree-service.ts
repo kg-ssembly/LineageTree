@@ -44,6 +44,25 @@ const NOTIFICATIONS_COLLECTION = 'notifications';
 const NOTIFICATION_ACTIVITY_COLLECTION = 'notificationActivity';
 const USERS_COLLECTION = 'users';
 
+export interface DiscoverableTreeSummary {
+  id: string;
+  name: string;
+  ownerId: string;
+  ownerDisplayName: string;
+  ownerUsername: string;
+  discoverable: boolean;
+  matchedBy: 'tree-name' | 'surname' | 'username';
+  matchedLabel: string;
+}
+
+type ResolvedUserAccount = {
+  id: string;
+  email: string;
+  displayName: string;
+  username: string;
+  defaultTreeId?: string;
+};
+
 function nowIso() {
   return new Date().toISOString();
 }
@@ -58,6 +77,45 @@ function normaliseDisplayName(displayName: string) {
     .toLowerCase()
     .replace(/[._-]+/g, ' ')
     .replace(/\s+/g, ' ');
+}
+
+function normaliseSearchValue(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}\s'-]+/gu, ' ')
+    .replace(/\s+/g, ' ');
+}
+
+function buildSearchKeywordSet(values: string[]) {
+  const keywords = new Set<string>();
+
+  values.forEach((value) => {
+    const normalizedValue = normaliseSearchValue(value);
+    if (!normalizedValue) {
+      return;
+    }
+
+    keywords.add(normalizedValue);
+    normalizedValue
+      .split(' ')
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .forEach((part) => keywords.add(part));
+  });
+
+  return [...keywords];
+}
+
+function buildTreeSearchKeywords(name: string, surnameVariantGroups: SurnameVariantGroup[]) {
+  return buildSearchKeywordSet([
+    name,
+    ...surnameVariantGroups.flatMap((group) => [group.primarySurname, ...group.variants]),
+  ]);
+}
+
+function pickPrimarySearchKeyword(value: string) {
+  return buildSearchKeywordSet([value]).sort((left, right) => right.length - left.length)[0] ?? '';
 }
 
 function asSafeString(value: unknown) {
@@ -167,6 +225,8 @@ function mapTreeData(id: string, data: DocumentData): FamilyTree {
     id,
     ownerId: data.ownerId,
     name: data.name,
+    discoverable: typeof data.discoverable === 'boolean' ? data.discoverable : undefined,
+    searchKeywords: Array.isArray(data.searchKeywords) ? data.searchKeywords.filter((value) => typeof value === 'string') : [],
     memberIds,
     editorIds,
     collaborators: sortCollaborators(normalizedCollaborators),
@@ -784,6 +844,8 @@ async function findUserByIdentifier(identifier: string) {
       id: userDoc.id,
       email: userData.email,
       displayName: userData.displayName ?? '',
+      username: userData.username ?? '',
+      defaultTreeId: userData.defaultTreeId ?? '',
     };
   }
 
@@ -811,6 +873,37 @@ async function findUserByIdentifier(identifier: string) {
     id: userDoc.id,
     email: userData.email,
     displayName: userData.displayName ?? '',
+    username: userData.username ?? '',
+    defaultTreeId: userData.defaultTreeId ?? '',
+  };
+}
+
+async function findUserByUsernameExact(username: string) {
+  const normalizedUsername = username.trim().toLowerCase().replace(/\s+/g, '');
+  if (!normalizedUsername) {
+    throw new Error('Username is required.');
+  }
+
+  const userSnapshot = await getDocs(
+    query(collection(db, USERS_COLLECTION), where('username', '==', normalizedUsername), limit(2)),
+  );
+
+  if (userSnapshot.empty) {
+    throw new Error('No registered account was found with that username.');
+  }
+
+  if (userSnapshot.docs.length > 1) {
+    throw new Error('More than one user matches that username. Ask them for their tree ID or email address instead.');
+  }
+
+  const userDoc = userSnapshot.docs[0];
+  const userData = userDoc.data();
+  return {
+    id: userDoc.id,
+    email: userData.email,
+    displayName: userData.displayName ?? '',
+    username: userData.username ?? '',
+    defaultTreeId: userData.defaultTreeId ?? '',
   };
 }
 
@@ -967,6 +1060,7 @@ export async function createTree(
 ): Promise<FamilyTree> {
   const treeRef = doc(collection(db, TREES_COLLECTION));
   const timestamp = nowIso();
+  const trimmedName = name.trim();
   const ownerEmail = asSafeString(owner.email);
   const ownerDisplayName = asSafeString(owner.displayName);
   const ownerCollaborator = buildOwnerCollaborator(owner);
@@ -974,7 +1068,9 @@ export async function createTree(
     ownerId: owner.id,
     ownerEmail,
     ownerDisplayName,
-    name: name.trim(),
+    name: trimmedName,
+    discoverable: true,
+    searchKeywords: buildTreeSearchKeywords(trimmedName, []),
     memberIds: [owner.id],
     editorIds: [owner.id],
     collaborators: [ownerCollaborator],
@@ -998,8 +1094,12 @@ export async function createTree(
 }
 
 export async function updateTreeName(treeId: string, name: string) {
+  const tree = await getTreeById(treeId);
+  const trimmedName = name.trim();
+
   await updateDoc(doc(db, TREES_COLLECTION, treeId), {
-    name: name.trim(),
+    name: trimmedName,
+    searchKeywords: buildTreeSearchKeywords(trimmedName, tree.surnameVariantGroups),
     updatedAt: nowIso(),
   });
 }
@@ -2284,17 +2384,111 @@ export async function processExpiredApprovalRequests(actorUserId: string, treeId
 }
 
 export async function updateSurnameVariantGroups(treeId: string, surnameVariantGroups: SurnameVariantGroup[]) {
+  const tree = await getTreeById(treeId);
+  const normalizedGroups = surnameVariantGroups.map((group) => ({
+    id: group.id,
+    primarySurname: group.primarySurname.trim(),
+    variants: [...new Set(group.variants.map((value) => value.trim()).filter(Boolean))],
+    notes: group.notes?.trim() ?? '',
+    createdAt: group.createdAt,
+    updatedAt: nowIso(),
+  }));
+
   await updateDoc(doc(db, TREES_COLLECTION, treeId), {
-    surnameVariantGroups: surnameVariantGroups.map((group) => ({
-      id: group.id,
-      primarySurname: group.primarySurname.trim(),
-      variants: [...new Set(group.variants.map((value) => value.trim()).filter(Boolean))],
-      notes: group.notes?.trim() ?? '',
-      createdAt: group.createdAt,
-      updatedAt: nowIso(),
-    })),
+    surnameVariantGroups: normalizedGroups,
+    searchKeywords: buildTreeSearchKeywords(tree.name, normalizedGroups),
     updatedAt: nowIso(),
   });
+}
+
+export async function updateTreeDiscoverability(treeId: string, discoverable: boolean) {
+  const tree = await getTreeById(treeId);
+
+  await updateDoc(doc(db, TREES_COLLECTION, treeId), {
+    discoverable,
+    searchKeywords: buildTreeSearchKeywords(tree.name, tree.surnameVariantGroups),
+    updatedAt: nowIso(),
+  });
+}
+
+function buildDiscoverableTreeSummary(
+  tree: FamilyTree,
+  ownerProfile: Pick<UserProfile, 'displayName' | 'username'> | null | undefined,
+  matchedBy: DiscoverableTreeSummary['matchedBy'],
+  matchedLabel: string,
+): DiscoverableTreeSummary {
+  return {
+    id: tree.id,
+    name: tree.name,
+    ownerId: tree.ownerId,
+    ownerDisplayName: ownerProfile?.displayName?.trim() || tree.collaborators.find((entry) => entry.userId === tree.ownerId)?.displayName || '',
+    ownerUsername: ownerProfile?.username?.trim() || '',
+    discoverable: tree.discoverable === true,
+    matchedBy,
+    matchedLabel,
+  };
+}
+
+async function getUserProfileByIdOptional(userId: string) {
+  try {
+    return await getUserProfileById(userId);
+  } catch {
+    return null;
+  }
+}
+
+export async function searchDiscoverableTrees(searchTerm: string, actorUserId: string) {
+  const trimmedSearchTerm = searchTerm.trim();
+  const keyword = pickPrimarySearchKeyword(trimmedSearchTerm);
+  if (!keyword) {
+    return [] as DiscoverableTreeSummary[];
+  }
+
+  const snapshot = await getDocs(query(
+    collection(db, TREES_COLLECTION),
+    where('discoverable', '==', true),
+    where('searchKeywords', 'array-contains', keyword),
+    limit(12),
+  ));
+
+  const trees = snapshot.docs
+    .map(mapTree)
+    .filter((tree) => tree.ownerId !== actorUserId && !tree.memberIds.includes(actorUserId));
+  const owners = await Promise.all(trees.map((tree) => getUserProfileByIdOptional(tree.ownerId)));
+  const normalizedSearch = normaliseSearchValue(trimmedSearchTerm);
+
+  return trees
+    .map((tree, index) => {
+      const candidateValues = [
+        tree.name,
+        ...tree.surnameVariantGroups.flatMap((group) => [group.primarySurname, ...group.variants]),
+      ];
+      const matchedLabel = candidateValues.find((value) => normaliseSearchValue(value).includes(normalizedSearch)) ?? tree.name;
+      const matchedBy = normaliseSearchValue(tree.name).includes(normalizedSearch) ? 'tree-name' : 'surname';
+      return buildDiscoverableTreeSummary(tree, owners[index], matchedBy, matchedLabel);
+    })
+    .sort((left, right) => left.name.localeCompare(right.name));
+}
+
+export async function searchDiscoverableTreesByOwnerUsername(username: string, actorUserId: string) {
+  const trimmedUsername = username.trim().toLowerCase();
+  if (!trimmedUsername) {
+    return [] as DiscoverableTreeSummary[];
+  }
+
+  const targetUser = await findUserByUsernameExact(trimmedUsername);
+  const treeSnapshot = await getDocs(query(
+    collection(db, TREES_COLLECTION),
+    where('ownerId', '==', targetUser.id),
+    where('discoverable', '==', true),
+    limit(12),
+  ));
+
+  return treeSnapshot.docs
+    .map(mapTree)
+    .filter((tree) => tree.ownerId !== actorUserId && !tree.memberIds.includes(actorUserId))
+    .map((tree) => buildDiscoverableTreeSummary(tree, targetUser, 'username', targetUser.username?.trim() || trimmedUsername))
+    .sort((left, right) => left.name.localeCompare(right.name));
 }
 
 export async function getMergePreview(sourceTreeId: string, targetTreeId: string) {
@@ -2471,6 +2665,8 @@ async function getUserProfileById(userId: string) {
     id: userSnapshot.id,
     email: userData.email ?? '',
     displayName: userData.displayName ?? '',
+    username: userData.username ?? '',
+    defaultTreeId: userData.defaultTreeId ?? '',
   };
 }
 
@@ -2543,6 +2739,356 @@ export async function grantMergeRequesterViewerAccess(
       updatedAt: nowIso(),
     });
   });
+}
+
+export async function requestAccessToTree(
+  actorUserId: string,
+  treeId: string,
+) {
+  const [tree, requester] = await Promise.all([
+    getTreeById(treeId),
+    getUserProfileById(actorUserId),
+  ]);
+
+  if (tree.discoverable !== true) {
+    throw new Error('That tree is not accepting public access requests right now.');
+  }
+
+  if (tree.memberIds.includes(actorUserId)) {
+    throw new Error('You already have access to this tree.');
+  }
+
+  const notificationRef = doc(collection(db, NOTIFICATIONS_COLLECTION));
+  const requesterNotificationRef = doc(collection(db, NOTIFICATIONS_COLLECTION));
+  const timestamp = nowIso();
+  const requesterLabel = requester.displayName || requester.email || 'A family member';
+
+  await setDoc(notificationRef, {
+    userId: tree.ownerId,
+    type: 'tree-access-request',
+    status: 'pending',
+    requestedByUserId: actorUserId,
+    requestedByLabel: requesterLabel,
+    sourceTreeId: tree.id,
+    sourceTreeName: tree.name,
+    targetIdentifier: requester.username?.trim() || requester.email,
+    message: `${requesterLabel} requested access to ${tree.name}. Approving this helps family members join the right shared tree without building a duplicate from scratch.`,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  });
+
+  await setDoc(requesterNotificationRef, {
+    userId: actorUserId,
+    type: 'tree-access-response',
+    status: 'pending',
+    requestedByUserId: tree.ownerId,
+    requestedByLabel: tree.name,
+    sourceTreeId: tree.id,
+    sourceTreeName: tree.name,
+    targetIdentifier: requester.username?.trim() || requester.email,
+    message: `You requested access to ${tree.name}. We’ll let you know when the owner responds.`,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  });
+}
+
+async function resolveDirectAccessTreeForUser(targetUser: ResolvedUserAccount) {
+  const ownedTreeSnapshot = await getDocs(query(
+    collection(db, TREES_COLLECTION),
+    where('ownerId', '==', targetUser.id),
+    limit(20),
+  ));
+
+  const ownedTrees = ownedTreeSnapshot.docs.map(mapTree);
+  if (ownedTrees.length === 0) {
+    throw new Error('That user does not have a tree available for direct access requests.');
+  }
+
+  const defaultOwnedTree = targetUser.defaultTreeId
+    ? ownedTrees.find((tree) => tree.id === targetUser.defaultTreeId)
+    : null;
+
+  return defaultOwnedTree ?? ownedTrees.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))[0];
+}
+
+export async function requestAccessFromIdentifier(
+  actorUserId: string,
+  identifier: string,
+) {
+  const requester = await getUserProfileById(actorUserId);
+  const trimmedIdentifier = identifier.trim();
+  if (!trimmedIdentifier) {
+    throw new Error('Username, email, or tree ID is required.');
+  }
+
+  try {
+    const targetTree = await getTreeById(trimmedIdentifier);
+    if (targetTree.memberIds.includes(actorUserId)) {
+      throw new Error('You already have access to that tree.');
+    }
+
+    const notificationRef = doc(collection(db, NOTIFICATIONS_COLLECTION));
+    const requesterNotificationRef = doc(collection(db, NOTIFICATIONS_COLLECTION));
+    const timestamp = nowIso();
+    const requesterLabel = requester.displayName || requester.email || 'A family member';
+
+    await setDoc(notificationRef, {
+      userId: targetTree.ownerId,
+      type: 'tree-access-request',
+      status: 'pending',
+      requestedByUserId: actorUserId,
+      requestedByLabel: requesterLabel,
+      sourceTreeId: targetTree.id,
+      sourceTreeName: targetTree.name,
+      targetIdentifier: trimmedIdentifier,
+      message: `${requesterLabel} requested access directly using tree ID ${targetTree.id}. Approving this helps family members join ${targetTree.name} right away.`,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    });
+
+    await setDoc(requesterNotificationRef, {
+      userId: actorUserId,
+      type: 'tree-access-response',
+      status: 'pending',
+      requestedByUserId: targetTree.ownerId,
+      requestedByLabel: targetTree.name,
+      sourceTreeId: targetTree.id,
+      sourceTreeName: targetTree.name,
+      targetIdentifier: trimmedIdentifier,
+      message: `You requested access to ${targetTree.name}. We’ll let you know when the owner responds.`,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    });
+    return;
+  } catch (error) {
+    if (!(error instanceof Error) || error.message !== 'That family tree no longer exists.') {
+      throw error;
+    }
+  }
+
+  const targetUser = await findUserByIdentifier(trimmedIdentifier);
+
+  if (targetUser.id === actorUserId) {
+    throw new Error('You cannot request access from your own account.');
+  }
+
+  const targetTree = await resolveDirectAccessTreeForUser(targetUser);
+  if (targetTree.memberIds.includes(actorUserId)) {
+    throw new Error('You already have access to that user’s tree.');
+  }
+
+  const notificationRef = doc(collection(db, NOTIFICATIONS_COLLECTION));
+  const requesterNotificationRef = doc(collection(db, NOTIFICATIONS_COLLECTION));
+  const timestamp = nowIso();
+  const requesterLabel = requester.displayName || requester.email || 'A family member';
+
+  await setDoc(notificationRef, {
+    userId: targetUser.id,
+    type: 'tree-access-request',
+    status: 'pending',
+    requestedByUserId: actorUserId,
+    requestedByLabel: requesterLabel,
+    sourceTreeId: targetTree.id,
+    sourceTreeName: targetTree.name,
+    targetIdentifier: identifier.trim(),
+    message: `${requesterLabel} requested access directly from you. Approving this helps family members join ${targetTree.name} without needing to search for the exact tree first.`,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  });
+
+  await setDoc(requesterNotificationRef, {
+    userId: actorUserId,
+    type: 'tree-access-response',
+    status: 'pending',
+    requestedByUserId: targetUser.id,
+    requestedByLabel: targetTree.name,
+    sourceTreeId: targetTree.id,
+    sourceTreeName: targetTree.name,
+    targetIdentifier: identifier.trim(),
+    message: `You requested access to ${targetTree.name}. We’ll let you know when the owner responds.`,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  });
+}
+
+export async function respondToTreeAccessRequest(
+  actorUserId: string,
+  notificationId: string,
+  status: 'accepted' | 'rejected',
+) {
+  const notificationRef = doc(db, NOTIFICATIONS_COLLECTION, notificationId);
+  const resolvedState: {
+    notification: AppNotification | null;
+    tree: FamilyTree | null;
+    timestamp: string;
+  } = {
+    notification: null,
+    tree: null,
+    timestamp: '',
+  };
+
+  await runTransaction(db, async (transaction) => {
+    const notificationSnapshot = await transaction.get(notificationRef);
+    if (!notificationSnapshot.exists()) {
+      throw new Error('That access request no longer exists.');
+    }
+
+    const notification = mapNotification(notificationSnapshot as QueryDocumentSnapshot);
+    if (notification.userId !== actorUserId || notification.type !== 'tree-access-request') {
+      throw new Error('That access request belongs to another user.');
+    }
+
+    const treeRef = doc(db, TREES_COLLECTION, notification.sourceTreeId);
+    const treeSnapshot = await transaction.get(treeRef);
+    if (!treeSnapshot.exists()) {
+      throw new Error('That family tree no longer exists.');
+    }
+
+    const tree = mapTreeData(treeSnapshot.id, treeSnapshot.data());
+    if (tree.ownerId !== actorUserId) {
+      throw new Error('Only the tree owner can respond to access requests.');
+    }
+
+    if (notification.status !== 'pending') {
+      throw new Error('That access request has already been handled.');
+    }
+
+    const timestamp = nowIso();
+    resolvedState.notification = notification;
+    resolvedState.tree = tree;
+    resolvedState.timestamp = timestamp;
+    if (status === 'accepted' && !tree.memberIds.includes(notification.requestedByUserId)) {
+      const requester = await getUserProfileById(notification.requestedByUserId);
+      const collaborators = sortCollaborators([
+        ...tree.collaborators,
+        {
+          userId: requester.id,
+          email: requester.email,
+          displayName: requester.displayName,
+          role: 'viewer',
+        },
+      ]);
+
+      transaction.update(treeRef, {
+        collaborators,
+        memberIds: [...tree.memberIds, requester.id],
+        membershipHistory: [
+          ...tree.membershipHistory,
+          {
+            id: `${tree.id}-${requester.id}-${Date.now()}`,
+            userId: requester.id,
+            role: 'viewer',
+            action: 'joined',
+            note: `${requester.displayName || requester.email} joined after requesting access to this discoverable tree.`,
+            createdAt: timestamp,
+          },
+        ],
+        updatedAt: timestamp,
+      });
+    }
+
+    transaction.update(notificationRef, {
+      status,
+      respondedAt: timestamp,
+      updatedAt: timestamp,
+    });
+  });
+
+  if (!resolvedState.notification || !resolvedState.tree || !resolvedState.timestamp) {
+    return;
+  }
+
+  const requesterNotificationSnapshot = await getDocs(query(
+    collection(db, NOTIFICATIONS_COLLECTION),
+    where('userId', '==', resolvedState.notification.requestedByUserId),
+    where('type', '==', 'tree-access-response'),
+    where('sourceTreeId', '==', resolvedState.notification.sourceTreeId),
+    where('status', '==', 'pending'),
+    limit(5),
+  ));
+
+  const requesterNotificationDoc = requesterNotificationSnapshot.docs
+    .sort((left, right) => {
+      const leftCreatedAt = String(left.data().createdAt ?? '');
+      const rightCreatedAt = String(right.data().createdAt ?? '');
+      return rightCreatedAt.localeCompare(leftCreatedAt);
+    })[0];
+
+  const requesterUpdate = {
+    status,
+    requestedByUserId: actorUserId,
+    requestedByLabel: resolvedState.tree.name,
+    sourceTreeId: resolvedState.tree.id,
+    sourceTreeName: resolvedState.tree.name,
+    targetIdentifier: resolvedState.notification.targetIdentifier,
+    message: status === 'accepted'
+      ? `Your access request for ${resolvedState.tree.name} was approved. You can open the tree now.`
+      : `Your access request for ${resolvedState.tree.name} was declined.`,
+    updatedAt: resolvedState.timestamp,
+    respondedAt: resolvedState.timestamp,
+  };
+
+  if (requesterNotificationDoc) {
+    await updateDoc(requesterNotificationDoc.ref, requesterUpdate);
+  } else {
+    const responseNotificationRef = doc(collection(db, NOTIFICATIONS_COLLECTION));
+    await setDoc(responseNotificationRef, {
+      userId: resolvedState.notification.requestedByUserId,
+      type: 'tree-access-response',
+      createdAt: resolvedState.timestamp,
+      ...requesterUpdate,
+    });
+  }
+}
+
+export async function cancelTreeAccessRequest(
+  actorUserId: string,
+  notificationId: string,
+) {
+  const requesterNotificationRef = doc(db, NOTIFICATIONS_COLLECTION, notificationId);
+  const requesterNotificationSnapshot = await getDoc(requesterNotificationRef);
+  if (!requesterNotificationSnapshot.exists()) {
+    throw new Error('That access request no longer exists.');
+  }
+
+  const requesterNotification = mapNotification(requesterNotificationSnapshot as QueryDocumentSnapshot);
+  if (requesterNotification.userId !== actorUserId || requesterNotification.type !== 'tree-access-response' || requesterNotification.status !== 'pending') {
+    throw new Error('Only your pending access requests can be cancelled.');
+  }
+
+  const timestamp = nowIso();
+  await updateDoc(requesterNotificationRef, {
+    status: 'dismissed',
+    message: `You cancelled your access request for ${requesterNotification.sourceTreeName}.`,
+    respondedAt: timestamp,
+    updatedAt: timestamp,
+  });
+
+  const ownerNotificationSnapshot = await getDocs(query(
+    collection(db, NOTIFICATIONS_COLLECTION),
+    where('userId', '==', requesterNotification.requestedByUserId),
+    where('type', '==', 'tree-access-request'),
+    where('requestedByUserId', '==', actorUserId),
+    where('sourceTreeId', '==', requesterNotification.sourceTreeId),
+    where('status', '==', 'pending'),
+    limit(5),
+  ));
+
+  const ownerNotificationDoc = ownerNotificationSnapshot.docs
+    .sort((left, right) => {
+      const leftCreatedAt = String(left.data().createdAt ?? '');
+      const rightCreatedAt = String(right.data().createdAt ?? '');
+      return rightCreatedAt.localeCompare(leftCreatedAt);
+    })[0];
+
+  if (ownerNotificationDoc) {
+    await updateDoc(ownerNotificationDoc.ref, {
+      status: 'dismissed',
+      message: `${requesterNotification.targetIdentifier || 'A family member'} cancelled their access request for ${requesterNotification.sourceTreeName}.`,
+      respondedAt: timestamp,
+      updatedAt: timestamp,
+    });
+  }
 }
 
 export async function sendMergeInviteByIdentifier(

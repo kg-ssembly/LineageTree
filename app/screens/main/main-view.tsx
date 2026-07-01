@@ -9,6 +9,7 @@ import {
   StartupModal,
   TreeFormDialog,
 } from '../../../components';
+import { Button, Dialog, Portal, Text } from 'react-native-paper';
 import { canManageTree } from '../../../components/dto/tree';
 import { GlobalStyles } from '../../../constants/styles';
 import { I18N_KEYS as K } from '../../../i18n/keys';
@@ -18,6 +19,7 @@ import { MainNodeQuickActionsDialog } from './main-node-quick-actions-dialog';
 import { MainTabNavigator } from './main-tab-navigator';
 
 const styles = GlobalStyles.treeDetail;
+const dialogChrome = GlobalStyles.dialogChrome;
 
 export function MainScreenView({ controller }: { controller: ReturnType<typeof useMainScreenController> }) {
   const isWaitingForInitialTreeSelection = controller.loadingTrees
@@ -127,6 +129,87 @@ export function MainScreenView({ controller }: { controller: ReturnType<typeof u
         onSubmitLanguage={controller.handleStartupLanguageSubmit}
         onDismissUpdate={controller.handleUpdateModalDismiss}
       />
+
+      <Portal>
+        <Dialog
+          visible={Boolean(controller.priorityAlert)}
+          onDismiss={() => { void controller.dismissPriorityAlert(); }}
+          style={[dialogChrome.dialog, { backgroundColor: controller.theme.colors.surface }]}
+        >
+          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>
+            {controller.priorityAlert?.title ?? controller.t(K.notifications.notification)}
+          </Dialog.Title>
+          <Dialog.Content style={dialogChrome.content}>
+            {controller.priorityAlert ? (
+              <>
+                <Text variant="bodySmall" style={{ color: controller.theme.colors.onSurfaceVariant }}>
+                  {controller.priorityAlert.createdAt.slice(0, 16).replace('T', ' ')}
+                </Text>
+                {controller.priorityAlert.status ? (
+                  <Text variant="bodySmall" style={{ color: controller.theme.colors.primary, marginTop: 6 }}>
+                    {controller.priorityAlert.status}
+                  </Text>
+                ) : null}
+                <Text variant="bodyMedium" style={{ marginTop: 12 }}>
+                  {controller.priorityAlert.message}
+                </Text>
+              </>
+            ) : null}
+          </Dialog.Content>
+          <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: controller.theme.colors.outlineVariant }]}>
+            <Button onPress={() => { void controller.dismissPriorityAlert(); }}>
+              {controller.t(K.common.close)}
+            </Button>
+            {controller.priorityAlert?.kind === 'tree-access-request' ? (
+              <Button mode="text" onPress={() => { void controller.respondToPriorityTreeAccess('rejected'); }} disabled={controller.mutating}>
+                {controller.t(K.notifications.declineAccess)}
+              </Button>
+            ) : null}
+            {controller.priorityAlert?.kind === 'tree-access-request' ? (
+              <Button mode="contained" onPress={() => { void controller.respondToPriorityTreeAccess('accepted'); }} disabled={controller.mutating}>
+                {controller.t(K.notifications.approveAccess)}
+              </Button>
+            ) : null}
+            {controller.priorityAlert?.kind === 'merge-invite' ? (
+              <Button mode="text" onPress={() => { void controller.respondToPriorityMergeInvite('dismissed'); }} disabled={controller.mutating}>
+                {controller.t(K.common.dismiss)}
+              </Button>
+            ) : null}
+            {controller.priorityAlert?.kind === 'merge-invite' ? (
+              <Button mode="contained" onPress={() => { void controller.respondToPriorityMergeInvite('accepted'); }} disabled={controller.mutating}>
+                {controller.t(K.notifications.accept)}
+              </Button>
+            ) : null}
+            {controller.priorityAlert && (controller.priorityAlert.kind === 'merge-request' || controller.priorityAlert.kind === 'merge-history') ? (
+              <Button mode="contained" onPress={() => { void controller.openPriorityAlertTarget(); }} disabled={controller.mutating}>
+                {controller.t(K.notifications.openMerge)}
+              </Button>
+            ) : null}
+          </Dialog.Actions>
+        </Dialog>
+        <Dialog
+          visible={controller.discoverabilityPrompt.visible}
+          dismissable={false}
+          style={[dialogChrome.dialog, { backgroundColor: controller.theme.colors.surface }]}
+        >
+          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>
+            {controller.t(K.app.discoverabilityPromptTitle)}
+          </Dialog.Title>
+          <Dialog.Content style={dialogChrome.content}>
+            <Text variant="bodyMedium" style={{ color: controller.theme.colors.onSurfaceVariant }}>
+              {controller.t(K.app.discoverabilityPromptMessage)}
+            </Text>
+          </Dialog.Content>
+          <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: controller.theme.colors.outlineVariant }]}>
+            <Button mode="text" onPress={() => { void controller.handleDiscoverabilityPromptChoice(false); }} disabled={controller.discoverabilityPrompt.loading}>
+              {controller.t(K.app.discoverabilityPromptKeepPrivate)}
+            </Button>
+            <Button mode="contained" onPress={() => { void controller.handleDiscoverabilityPromptChoice(true); }} disabled={controller.discoverabilityPrompt.loading}>
+              {controller.t(K.app.discoverabilityPromptMake)}
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
 
       <FloatingSnackbar
         visible={controller.snackVisible}

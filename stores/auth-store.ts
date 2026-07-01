@@ -40,6 +40,7 @@ export interface AuthState {
   updateDisplayName: (displayName: string) => Promise<void>;
   updatePreferredLanguage: (language: AppLanguage) => Promise<void>;
   markAppVersionSeen: (version: string) => Promise<void>;
+  markDiscoverabilityPromptSeen: () => Promise<void>;
   clearError: () => void;
   /** Call once on app mount to listen for auth state changes */
   init: () => () => void;
@@ -171,6 +172,9 @@ async function ensureUserProfileDocument(fbUser: Pick<FirebaseUser, 'uid' | 'ema
     lastSeenAppVersion: typeof data.lastSeenAppVersion === 'string' && data.lastSeenAppVersion.trim()
       ? data.lastSeenAppVersion.trim()
       : undefined,
+    discoverabilityPromptSeenAt: typeof data.discoverabilityPromptSeenAt === 'string' && data.discoverabilityPromptSeenAt.trim()
+      ? data.discoverabilityPromptSeenAt.trim()
+      : undefined,
     createdAt: data.createdAt?.toDate?.().toISOString() ?? data.createdAt ?? fallbackProfile.createdAt,
   };
 }
@@ -198,6 +202,9 @@ async function fetchUserProfile(uid: string, fallbackUser?: FirebaseUser | null)
     preferredLanguage: isAppLanguage(data.preferredLanguage) ? data.preferredLanguage : undefined,
     lastSeenAppVersion: typeof data.lastSeenAppVersion === 'string' && data.lastSeenAppVersion.trim()
       ? data.lastSeenAppVersion.trim()
+      : undefined,
+    discoverabilityPromptSeenAt: typeof data.discoverabilityPromptSeenAt === 'string' && data.discoverabilityPromptSeenAt.trim()
+      ? data.discoverabilityPromptSeenAt.trim()
       : undefined,
     createdAt: data.createdAt?.toDate?.().toISOString() ?? data.createdAt,
   };
@@ -404,6 +411,22 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     set((state) => ({
       user: state.user ? { ...state.user, lastSeenAppVersion: version.trim() } : null,
+    }));
+  },
+
+  markDiscoverabilityPromptSeen: async () => {
+    const { user } = get();
+    if (!user) {
+      return;
+    }
+
+    const timestamp = new Date().toISOString();
+    await setDoc(doc(db, 'users', user.id), {
+      discoverabilityPromptSeenAt: timestamp,
+    }, { merge: true });
+
+    set((state) => ({
+      user: state.user ? { ...state.user, discoverabilityPromptSeenAt: timestamp } : null,
     }));
   },
 }));

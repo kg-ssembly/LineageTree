@@ -1,5 +1,5 @@
-export type AppNotificationType = 'merge-invite';
-export type AppNotificationStatus = 'pending' | 'accepted' | 'dismissed';
+export type AppNotificationType = 'merge-invite' | 'tree-access-request' | 'tree-access-response';
+export type AppNotificationStatus = 'pending' | 'accepted' | 'dismissed' | 'rejected';
 
 export interface AppNotification {
   id: string;

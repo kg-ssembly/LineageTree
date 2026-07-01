@@ -24,7 +24,7 @@ const ACTIVITY_PAGE_SIZE = 5;
 const EMBEDDED_ATTENTION_LIMIT = 6;
 const EMBEDDED_COMPLETED_LIMIT = 4;
 
-type NotificationFeedKind = 'merge-invite' | 'approval' | 'merge-request' | 'merge-history' | 'membership';
+type NotificationFeedKind = 'merge-invite' | 'tree-access-request' | 'tree-access-response' | 'approval' | 'merge-request' | 'merge-history' | 'membership';
 
 type NotificationFeedItem = {
   id: string;
@@ -76,13 +76,17 @@ function getItemCategoryLabel(item: NotificationFeedItem, t: ReturnType<typeof u
   if (item.kind === 'approval') {
     return t(K.notifications.approval);
   }
-  if (item.kind === 'membership') {
+  if (item.kind === 'membership' || item.kind === 'tree-access-request' || item.kind === 'tree-access-response') {
     return t(K.notifications.access);
   }
   return t(K.notifications.merge);
 }
 
 function isItemComplete(item: NotificationFeedItem) {
+  if ((item.kind === 'merge-invite' || item.kind === 'tree-access-request') && item.status === 'pending') {
+    return false;
+  }
+
   if (item.notificationId) {
     return Boolean(item.opened || item.seen);
   }
@@ -101,6 +105,7 @@ export function NotificationsView({
   userId,
   mutating,
   onRespondToMergeInvite,
+  onRespondToTreeAccessRequest,
   onMarkNotificationSeen,
   onMarkNotificationOpened,
   onMarkNotificationActivityActioned,
@@ -122,8 +127,16 @@ export function NotificationsView({
   const notificationFeed = useMemo<NotificationFeedItem[]>(() => {
     const directNotifications = notifications.map<NotificationFeedItem>((notification) => ({
       id: `direct-${notification.id}`,
-      kind: 'merge-invite',
-      title: t(K.notifications.mergeInvitation),
+      kind: notification.type === 'tree-access-request'
+        ? 'tree-access-request'
+        : notification.type === 'tree-access-response'
+          ? 'tree-access-response'
+          : 'merge-invite',
+      title: notification.type === 'tree-access-request'
+        ? t(K.notifications.treeAccessRequest)
+        : notification.type === 'tree-access-response'
+          ? t(K.notifications.treeAccessUpdate)
+          : t(K.notifications.mergeInvitation),
       message: notification.message,
       createdAt: notification.createdAt,
       status: notification.status,
@@ -550,9 +563,10 @@ export function NotificationsView({
                     </View>
                   </Pressable>
                   <View style={[styles.collaboratorChipRow, { marginTop: 6 }]}>
-                    {item.kind === 'approval' ? <Chip compact>{t(K.notifications.approval)}</Chip> : null}
-                    {item.kind === 'merge-request' || item.kind === 'merge-history' || item.kind === 'merge-invite' ? <Chip compact>{t(K.notifications.merge)}</Chip> : null}
-                    {item.kind === 'membership' ? <Chip compact>{t(K.notifications.access)}</Chip> : null}
+    {item.kind === 'approval' ? <Chip compact>{t(K.notifications.approval)}</Chip> : null}
+    {item.kind === 'merge-request' || item.kind === 'merge-history' || item.kind === 'merge-invite' ? <Chip compact>{t(K.notifications.merge)}</Chip> : null}
+    {item.kind === 'tree-access-request' || item.kind === 'tree-access-response' ? <Chip compact>{t(K.notifications.access)}</Chip> : null}
+    {item.kind === 'membership' ? <Chip compact>{t(K.notifications.access)}</Chip> : null}
                     {item.treeName ? <Chip compact>{item.treeName}</Chip> : null}
                   </View>
                   <View style={{ flexDirection: 'row', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
@@ -656,14 +670,24 @@ export function NotificationsView({
               </Button>
             ) : null}
             {selectedNotification?.kind === 'merge-invite' && selectedNotification.notificationId && selectedNotification.status === 'pending' ? (
-              <>
-                <Button mode="contained-tonal" onPress={() => onRespondToMergeInvite(selectedNotification.notificationId!, 'accepted')} disabled={mutating}>
-                  {t(K.notifications.accept)}
-                </Button>
-                <Button mode="text" onPress={() => onRespondToMergeInvite(selectedNotification.notificationId!, 'dismissed')} disabled={mutating}>
-                  {t(K.common.dismiss)}
-                </Button>
-              </>
+              <Button mode="contained-tonal" onPress={() => onRespondToMergeInvite(selectedNotification.notificationId!, 'accepted')} disabled={mutating}>
+                {t(K.notifications.accept)}
+              </Button>
+            ) : null}
+            {selectedNotification?.kind === 'merge-invite' && selectedNotification.notificationId && selectedNotification.status === 'pending' ? (
+              <Button mode="text" onPress={() => onRespondToMergeInvite(selectedNotification.notificationId!, 'dismissed')} disabled={mutating}>
+                {t(K.common.dismiss)}
+              </Button>
+            ) : null}
+            {selectedNotification?.kind === 'tree-access-request' && selectedNotification.notificationId && selectedNotification.status === 'pending' ? (
+              <Button mode="contained-tonal" onPress={() => onRespondToTreeAccessRequest(selectedNotification.notificationId!, 'accepted')} disabled={mutating}>
+                {t(K.notifications.approveAccess)}
+              </Button>
+            ) : null}
+            {selectedNotification?.kind === 'tree-access-request' && selectedNotification.notificationId && selectedNotification.status === 'pending' ? (
+              <Button mode="text" onPress={() => onRespondToTreeAccessRequest(selectedNotification.notificationId!, 'rejected')} disabled={mutating}>
+                {t(K.notifications.declineAccess)}
+              </Button>
             ) : null}
             {selectedNotification && (selectedNotification.kind === 'approval' || selectedNotification.kind === 'merge-request' || selectedNotification.kind === 'merge-history') ? (
               <Button mode="contained" onPress={() => { void handleOpenTarget(selectedNotification); }} disabled={mutating}>

@@ -10,6 +10,7 @@ export interface UserProfile {
   defaultTreeId?: string;
   preferredLanguage?: AppLanguage;
   lastSeenAppVersion?: string;
+  discoverabilityPromptSeenAt?: string;
   createdAt: string;
 }
 

@@ -123,10 +123,15 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     addSpouseRelationship,
     approveApprovalRequest,
     rejectApprovalRequest,
+    setTreeDiscoverability,
     setApprovalWindowHours,
     setSurnameVariantGroups,
     createMergeRequest,
     sendMergeInvite,
+    requestTreeAccess,
+    respondToTreeAccessRequest,
+    searchDiscoverableTrees,
+    searchDiscoverableTreesByUsername,
     respondToMergeInvite,
     markNotificationSeen,
     markNotificationOpened,
@@ -168,10 +173,15 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     addSpouseRelationship: state.addSpouseRelationship,
     approveApprovalRequest: state.approveApprovalRequest,
     rejectApprovalRequest: state.rejectApprovalRequest,
+    setTreeDiscoverability: state.setTreeDiscoverability,
     setApprovalWindowHours: state.setApprovalWindowHours,
     setSurnameVariantGroups: state.setSurnameVariantGroups,
     createMergeRequest: state.createMergeRequest,
     sendMergeInvite: state.sendMergeInvite,
+    requestTreeAccess: state.requestTreeAccess,
+    respondToTreeAccessRequest: state.respondToTreeAccessRequest,
+    searchDiscoverableTrees: state.searchDiscoverableTrees,
+    searchDiscoverableTreesByUsername: state.searchDiscoverableTreesByUsername,
     respondToMergeInvite: state.respondToMergeInvite,
     markNotificationSeen: state.markNotificationSeen,
     markNotificationOpened: state.markNotificationOpened,
@@ -745,6 +755,10 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     if (!user?.id) return;
     await rejectApprovalRequest(user.id, requestId);
   }, [rejectApprovalRequest, user?.id]);
+  const onSetTreeDiscoverability = useCallback(async (discoverable: boolean) => {
+    if (!selectedTree) return;
+    await setTreeDiscoverability(selectedTree.id, discoverable);
+  }, [selectedTree, setTreeDiscoverability]);
   const onSetSurnameVariantGroups = useCallback(async (groups: SharedTabProps['selectedTree']['surnameVariantGroups']) => {
     if (!selectedTree) return;
     await setSurnameVariantGroups(selectedTree.id, groups);
@@ -761,6 +775,22 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     if (!user?.id) return;
     await respondToMergeInvite(user.id, notificationId, status);
   }, [respondToMergeInvite, user?.id]);
+  const onRequestTreeAccess = useCallback(async (treeId: string) => {
+    if (!user?.id) return;
+    await requestTreeAccess(user.id, treeId);
+  }, [requestTreeAccess, user?.id]);
+  const onRespondToTreeAccessRequest = useCallback(async (notificationId: string, status: 'accepted' | 'rejected') => {
+    if (!user?.id) return;
+    await respondToTreeAccessRequest(user.id, notificationId, status);
+  }, [respondToTreeAccessRequest, user?.id]);
+  const onSearchDiscoverableTrees = useCallback(async (searchTerm: string) => {
+    if (!user?.id) return [];
+    return searchDiscoverableTrees(searchTerm, user.id);
+  }, [searchDiscoverableTrees, user?.id]);
+  const onSearchDiscoverableTreesByUsername = useCallback(async (username: string) => {
+    if (!user?.id) return [];
+    return searchDiscoverableTreesByUsername(username, user.id);
+  }, [searchDiscoverableTreesByUsername, user?.id]);
   const onMarkNotificationSeen = useCallback(async (notificationId: string) => {
     if (!user?.id) return;
     await markNotificationSeen(user.id, notificationId);
@@ -847,11 +877,16 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
       onClearSelfAssignment: handleClearSelfAssignment,
       onApproveApprovalRequest,
       onRejectApprovalRequest,
+      onSetTreeDiscoverability,
       onSetApprovalWindowHours,
       onSetSurnameVariantGroups,
       onCreateMergeRequest,
       onSendMergeInvite,
       onRespondToMergeInvite,
+      onRequestTreeAccess,
+      onRespondToTreeAccessRequest,
+      onSearchDiscoverableTrees,
+      onSearchDiscoverableTreesByUsername,
       onMarkNotificationSeen,
       onMarkNotificationOpened,
       onMarkNotificationActivityActioned,
@@ -874,7 +909,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     openConfirm, openPersonProfile, onOpenAddPerson, onOpenRelationshipDialog, onOpenPersonQuickActions,
     onOpenCollaboratorDialog, onOpenAddSelf, onEditPerson, onDeletePerson, onRemoveCollaborator,
     handleAssignPersonToUser, handleClearSelfAssignment, onApproveApprovalRequest, onRejectApprovalRequest,
-    onSetApprovalWindowHours, onSetSurnameVariantGroups, onCreateMergeRequest, onSendMergeInvite, onRespondToMergeInvite, onMarkNotificationSeen, onMarkNotificationOpened, onMarkNotificationActivityActioned, onLoadTreeMergePreview,
+    onSetTreeDiscoverability, onSetApprovalWindowHours, onSetSurnameVariantGroups, onCreateMergeRequest, onSendMergeInvite, onRespondToMergeInvite, onRequestTreeAccess, onRespondToTreeAccessRequest, onSearchDiscoverableTrees, onSearchDiscoverableTreesByUsername, onMarkNotificationSeen, onMarkNotificationOpened, onMarkNotificationActivityActioned, onLoadTreeMergePreview,
     onApproveMergeRequest, onRejectMergeRequest, onRequestMergeChanges, onUndoMerge, onGrantMergeViewerAccess, onCreateSurnameTree, treeSettingsFocus, onOpenTreeSettingsTarget,
     canvasFamilySwitchRef, canvasActiveFamilyRef,
   ]);

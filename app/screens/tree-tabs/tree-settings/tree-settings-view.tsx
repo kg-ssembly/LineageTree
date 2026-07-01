@@ -91,6 +91,7 @@ function TreeSettingsContent({
   openPersonProfile,
   onApproveApprovalRequest,
   onRejectApprovalRequest,
+  onSetTreeDiscoverability,
   onSetApprovalWindowHours,
   onSetSurnameVariantGroups,
   onSendMergeInvite,
@@ -544,6 +545,7 @@ function TreeSettingsContent({
             filteredLinkPeople={filteredLinkPeople}
             onOpenHelperDialog={openHelperDialog}
             onOpenSurnameVariantDialog={openSurnameVariantDialog}
+            onSetTreeDiscoverability={onSetTreeDiscoverability}
             onOpenAddSelf={onOpenAddSelf}
             openPersonProfile={openPersonProfile}
             onAssignPersonToUser={onAssignPersonToUser}

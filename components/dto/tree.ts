@@ -30,6 +30,8 @@ export interface FamilyTree {
   id: string;
   ownerId: string;
   name: string;
+  discoverable?: boolean;
+  searchKeywords: string[];
   memberIds: string[];
   editorIds: string[];
   collaborators: TreeCollaborator[];
@@ -69,6 +71,14 @@ export function canEditTreeContent(tree: FamilyTree, userId?: string | null) {
 export function canSetDefaultTree(tree: FamilyTree, userId?: string | null) {
   const role = getTreeRole(tree, userId);
   return role !== null && role !== 'viewer';
+}
+
+export function isTreeDiscoverable(tree?: Pick<FamilyTree, 'discoverable'> | null) {
+  return tree?.discoverable === true;
+}
+
+export function treeNeedsDiscoverabilityChoice(tree?: Pick<FamilyTree, 'discoverable'> | null) {
+  return tree?.discoverable == null;
 }
 
 export function getAssignedPersonId(tree: FamilyTree, userId?: string | null) {

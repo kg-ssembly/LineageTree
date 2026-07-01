@@ -10,6 +10,7 @@ import {
 } from '../../../components/dto/tree';
 import { getUserNameParts, type UserProfile } from '../../../components/dto/user';
 import { formatPersonName } from '../../../components/person-formatting';
+import type { DiscoverableTreeSummary } from '../../../providers/family-tree-service';
 
 export type SelfAssignmentSuggestion = {
   person: PersonRecord;
@@ -57,11 +58,16 @@ export interface SharedTabProps {
   onClearSelfAssignment: () => Promise<void>;
   onApproveApprovalRequest: (requestId: string) => Promise<void>;
   onRejectApprovalRequest: (requestId: string) => Promise<void>;
+  onSetTreeDiscoverability: (discoverable: boolean) => Promise<void>;
   onSetApprovalWindowHours: (hours: number) => Promise<void>;
   onSetSurnameVariantGroups: (groups: SurnameVariantGroup[]) => Promise<void>;
   onCreateMergeRequest: (targetTreeId: string) => Promise<void>;
   onSendMergeInvite: (sourceTreeId: string, identifier: string) => Promise<void>;
   onRespondToMergeInvite: (notificationId: string, status: 'accepted' | 'dismissed') => Promise<void>;
+  onRequestTreeAccess: (treeId: string) => Promise<void>;
+  onRespondToTreeAccessRequest: (notificationId: string, status: 'accepted' | 'rejected') => Promise<void>;
+  onSearchDiscoverableTrees: (searchTerm: string) => Promise<DiscoverableTreeSummary[]>;
+  onSearchDiscoverableTreesByUsername: (username: string) => Promise<DiscoverableTreeSummary[]>;
   onMarkNotificationSeen: (notificationId: string) => Promise<void>;
   onMarkNotificationOpened: (notificationId: string) => Promise<void>;
   onMarkNotificationActivityActioned: (sourceKind: NotificationActivityState['sourceKind'], sourceId: string) => Promise<void>;

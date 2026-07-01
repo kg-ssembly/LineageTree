@@ -1,20 +1,29 @@
-import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import React, { useState } from 'react';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Button, Chip, Surface, Text } from 'react-native-paper';
-import { Reveal } from '../../../components';
+import { ActivityIndicator, Button, Card, Chip, Dialog, IconButton, Portal, Surface, Text, TextInput } from 'react-native-paper';
+import { HorizontalTabStrip, Reveal } from '../../../components';
 import { GlobalStyles } from '../../../constants/styles';
 import { I18N_KEYS as K } from '../../../i18n/keys';
 import type { useMainScreenController } from './main-controller';
 
 const homeStyles = GlobalStyles.home;
+const dialogChrome = GlobalStyles.dialogChrome;
+const treeDetailStyles = GlobalStyles.treeDetail;
+const RESULTS_PER_PAGE = 5;
+type RequestAccessTabKey = 'search' | 'direct';
 
 const localStyles = StyleSheet.create({
   noTreeGate: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: 48,
+  },
+  contentWrap: {
+    width: '100%',
+    maxWidth: 480,
+    alignSelf: 'center',
   },
   backgroundOrb: {
     position: 'absolute',
@@ -23,36 +32,92 @@ const localStyles = StyleSheet.create({
   },
   card: {
     width: '100%',
-    maxWidth: 520,
-    borderRadius: 30,
-    padding: 28,
-    alignItems: 'center',
-    borderWidth: StyleSheet.hairlineWidth,
   },
   crest: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 18,
+    marginBottom: 16,
+    alignSelf: 'center',
   },
   chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
     gap: 8,
-    marginBottom: 18,
+    marginBottom: 16,
   },
   noTreeGateText: {
     textAlign: 'center',
   },
   title: {
-    marginBottom: 10,
+    marginBottom: 8,
   },
   body: {
-    maxWidth: 360,
-    marginBottom: 22,
+    maxWidth: 320,
+    marginBottom: 18,
+    alignSelf: 'center',
+  },
+  secondaryAction: {
+    marginTop: 10,
+  },
+  dialogSection: {
+    marginBottom: 18,
+    gap: 10,
+  },
+  resultCard: {
+    marginBottom: 10,
+    borderRadius: 18,
+  },
+  resultMeta: {
+    marginTop: 4,
+  },
+  resultActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 12,
+    gap: 12,
+  },
+  paginationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginTop: 8,
+  },
+  tabStripCard: {
+    borderRadius: 20,
+    marginBottom: 16,
+    overflow: 'hidden',
+  },
+  tabStripContent: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  tabStripItem: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginHorizontal: 2,
+  },
+  pendingRequestCard: {
+    width: '100%',
+    marginBottom: 14,
+    borderRadius: 20,
+  },
+  pendingRequestNotice: {
+    width: '100%',
+    marginBottom: 14,
+    alignItems: 'center',
+  },
+  pendingRequestNoticeText: {
+    textAlign: 'center',
+    marginBottom: 6,
+  },
+  primaryAction: {
+    width: '100%',
   },
 });
 
@@ -63,6 +128,73 @@ export function MainNoTreeGate({
   onCreateTree: () => void;
   controller: ReturnType<typeof useMainScreenController>;
 }) {
+  const [requestDialogVisible, setRequestDialogVisible] = useState(false);
+  const [pendingRequestDialogVisible, setPendingRequestDialogVisible] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [usernameQuery, setUsernameQuery] = useState('');
+  const [results, setResults] = useState<Awaited<ReturnType<typeof controller.onSearchDiscoverableTrees>>>([]);
+  const [searching, setSearching] = useState(false);
+  const [resultsPage, setResultsPage] = useState(1);
+  const [activeTab, setActiveTab] = useState<RequestAccessTabKey>('search');
+
+  const requestAccessTabs: Array<{ key: RequestAccessTabKey; label: string }> = [
+    { key: 'search', label: controller.t(K.app.requestAccessSearchTab) },
+    { key: 'direct', label: controller.t(K.app.requestAccessDirectTab) },
+  ];
+
+  const handleSearch = async () => {
+    setSearching(true);
+    try {
+      const nextResults = await controller.onSearchDiscoverableTrees(searchQuery);
+      setResults(nextResults);
+      setResultsPage(1);
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const handleIdentifierRequest = async () => {
+    await controller.onRequestTreeAccessByIdentifier(usernameQuery);
+    setRequestDialogVisible(false);
+    setResults([]);
+    setResultsPage(1);
+    setSearchQuery('');
+    setUsernameQuery('');
+  };
+
+  const handleRequestAccess = async (treeId: string) => {
+    await controller.onRequestTreeAccess(treeId);
+    setRequestDialogVisible(false);
+    setResults([]);
+    setResultsPage(1);
+    setSearchQuery('');
+    setUsernameQuery('');
+  };
+
+  const handleCancelPendingRequest = async () => {
+    if (!controller.pendingTreeAccessRequest) {
+      return;
+    }
+
+    await controller.onCancelTreeAccessRequest(controller.pendingTreeAccessRequest.id);
+    setPendingRequestDialogVisible(false);
+  };
+
+  const totalPages = Math.max(1, Math.ceil(results.length / RESULTS_PER_PAGE));
+  const pagedResults = results.slice((resultsPage - 1) * RESULTS_PER_PAGE, resultsPage * RESULTS_PER_PAGE);
+  const pendingRequestTreeId = controller.pendingTreeAccessRequest?.sourceTreeId;
+  const pendingRequestTreeName = controller.pendingTreeAccessRequest?.sourceTreeName?.trim() || controller.t(K.common.unknown);
+  const pendingRequestIdentifier = controller.pendingTreeAccessRequest?.targetIdentifier?.trim() || '';
+  const pendingRequestMessage = controller.pendingTreeAccessRequest?.message?.trim() || '';
+  const hasRenderablePendingRequest = Boolean(
+    controller.pendingTreeAccessRequest
+    && (
+      pendingRequestMessage
+      || controller.pendingTreeAccessRequest.sourceTreeName?.trim()
+      || pendingRequestIdentifier
+    ),
+  );
+
   return (
     <View style={[localStyles.noTreeGate, { backgroundColor: controller.theme.colors.background }]}>
       <View style={[localStyles.backgroundOrb, {
@@ -80,13 +212,18 @@ export function MainNoTreeGate({
         backgroundColor: controller.theme.colors.tertiaryContainer,
       }]} />
 
-      <Reveal delay={60}>
-        <Surface style={[localStyles.card, {
-          backgroundColor: controller.theme.colors.surface,
-          borderColor: controller.theme.colors.outlineVariant,
-        }]} elevation={2}>
+      <View style={localStyles.contentWrap}>
+        <Reveal delay={60}>
+          <Surface
+            style={[
+              treeDetailStyles.sectionCard,
+              localStyles.card,
+              { backgroundColor: controller.theme.colors.surface },
+            ]}
+            elevation={1}
+          >
           <View style={[localStyles.crest, { backgroundColor: controller.theme.colors.primaryContainer }]}>
-            <MaterialCommunityIcons name="family-tree" size={48} color={controller.theme.colors.primary} />
+            <MaterialCommunityIcons name="family-tree" size={40} color={controller.theme.colors.primary} />
           </View>
 
           <View style={localStyles.chipRow}>
@@ -95,17 +232,204 @@ export function MainNoTreeGate({
             <Chip compact icon="image-outline">{controller.t(K.memories.memories)}</Chip>
           </View>
 
-          <Text variant="headlineMedium" style={[localStyles.noTreeGateText, localStyles.title, { color: controller.theme.colors.onSurface }]}>
+          <Text variant="headlineSmall" style={[localStyles.noTreeGateText, localStyles.title, { color: controller.theme.colors.onSurface }]}>
             {controller.t(K.app.noFamilyTreeYet)}
           </Text>
-          <Text variant="bodyLarge" style={[localStyles.noTreeGateText, localStyles.body, { color: controller.theme.colors.onSurfaceVariant }]}>
+          <Text variant="bodyMedium" style={[localStyles.noTreeGateText, localStyles.body, { color: controller.theme.colors.onSurfaceVariant }]}>
             {controller.t(K.app.createFirstFamilyTree)}
           </Text>
-          <Button mode="contained" icon="plus" onPress={onCreateTree} contentStyle={homeStyles.headerButtonContent}>
-            {controller.t(K.app.createFamilyTree)}
+          {hasRenderablePendingRequest ? (
+            <View style={localStyles.pendingRequestNotice}>
+              <Text
+                variant="bodyMedium"
+                style={[localStyles.pendingRequestNoticeText, { color: controller.theme.colors.onSurfaceVariant }]}
+              >
+                {controller.t(K.app.requestedAccessPendingMessage, { treeName: pendingRequestTreeName })}
+              </Text>
+              <Button mode="text" icon="clock-check-outline" onPress={() => setPendingRequestDialogVisible(true)}>
+                {controller.t(K.app.requestedAccessPending)}
+              </Button>
+            </View>
+          ) : null}
+          <Button
+            mode="contained"
+            icon="account-search-outline"
+            onPress={() => setRequestDialogVisible(true)}
+            contentStyle={homeStyles.headerButtonContent}
+            style={localStyles.primaryAction}
+          >
+            {controller.t(K.app.requestAccessToTree)}
           </Button>
-        </Surface>
-      </Reveal>
+          <Button
+            mode="outlined"
+            icon="plus"
+            onPress={onCreateTree}
+            contentStyle={homeStyles.headerButtonContent}
+            style={localStyles.secondaryAction}
+          >
+            {controller.t(K.app.startOwnFamilyTree)}
+          </Button>
+          </Surface>
+        </Reveal>
+      </View>
+
+      <Portal>
+        <Dialog
+          visible={pendingRequestDialogVisible}
+          onDismiss={() => setPendingRequestDialogVisible(false)}
+          style={[dialogChrome.dialog, { backgroundColor: controller.theme.colors.surface }]}
+        >
+          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>
+            {controller.t(K.app.requestedAccessDetails)}
+          </Dialog.Title>
+          <IconButton
+            icon="close"
+            onPress={() => setPendingRequestDialogVisible(false)}
+            accessibilityLabel={controller.t(K.common.close)}
+            style={dialogChrome.closeButton}
+          />
+          <Dialog.Content>
+            {hasRenderablePendingRequest ? (
+              <View style={localStyles.dialogSection}>
+                <Text variant="titleMedium">{pendingRequestTreeName}</Text>
+                <Text variant="bodyMedium" style={{ color: controller.theme.colors.onSurfaceVariant }}>
+                  {pendingRequestMessage || controller.t(K.app.requestedAccessPendingMessage, { treeName: pendingRequestTreeName })}
+                </Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                  {pendingRequestIdentifier ? <Chip compact icon="account-arrow-right-outline">{pendingRequestIdentifier}</Chip> : null}
+                  <Chip compact icon="calendar-clock">
+                    {new Date(controller.pendingTreeAccessRequest.createdAt).toLocaleDateString()}
+                  </Chip>
+                </View>
+              </View>
+            ) : null}
+          </Dialog.Content>
+          <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: controller.theme.colors.outlineVariant }]}>
+            <Button onPress={() => setPendingRequestDialogVisible(false)}>{controller.t(K.common.close)}</Button>
+            {hasRenderablePendingRequest ? (
+              <Button mode="contained-tonal" onPress={() => { void handleCancelPendingRequest(); }} disabled={controller.mutating}>
+                {controller.t(K.app.requestedAccessCancel)}
+              </Button>
+            ) : null}
+          </Dialog.Actions>
+        </Dialog>
+        <Dialog
+          visible={requestDialogVisible}
+          onDismiss={() => setRequestDialogVisible(false)}
+          style={[dialogChrome.dialog, { backgroundColor: controller.theme.colors.surface }]}
+        >
+          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>
+            {controller.t(K.app.requestAccessToTree)}
+          </Dialog.Title>
+          <IconButton
+            icon="close"
+            onPress={() => setRequestDialogVisible(false)}
+            accessibilityLabel={controller.t(K.common.close)}
+            style={dialogChrome.closeButton}
+          />
+          <Dialog.ScrollArea style={dialogChrome.scrollArea}>
+            <ScrollView contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 8 }}>
+              <Card mode="elevated" style={[localStyles.tabStripCard, { backgroundColor: controller.theme.colors.surfaceVariant }]}>
+                <HorizontalTabStrip
+                  items={requestAccessTabs}
+                  activeKey={activeTab}
+                  onChange={setActiveTab}
+                  contentContainerStyle={localStyles.tabStripContent}
+                  itemStyle={localStyles.tabStripItem}
+                />
+              </Card>
+
+              {activeTab === 'search' ? (
+                <View style={localStyles.dialogSection}>
+                  <Text variant="titleSmall">{controller.t(K.app.searchBySurnameOrTreeName)}</Text>
+                  <TextInput
+                    mode="outlined"
+                    label={controller.t(K.app.surnameOrTreeName)}
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                    left={<TextInput.Icon icon="magnify" />}
+                  />
+                  <Button mode="contained-tonal" onPress={() => { void handleSearch(); }} disabled={!searchQuery.trim() || searching || controller.mutating}>
+                    {controller.t(K.app.searchTrees)}
+                  </Button>
+                </View>
+              ) : (
+                <View style={localStyles.dialogSection}>
+                  <Text variant="titleSmall">{controller.t(K.app.enterUsernameOrEmailDirectly)}</Text>
+                  <Text variant="bodySmall" style={{ color: controller.theme.colors.onSurfaceVariant }}>
+                    {controller.t(K.app.enterUsernameOrEmailDirectlyHelper)}
+                  </Text>
+                  <TextInput
+                    mode="outlined"
+                    label={controller.t(K.app.usernameEmailOrTreeId)}
+                    value={usernameQuery}
+                    onChangeText={setUsernameQuery}
+                    autoCapitalize="none"
+                    left={<TextInput.Icon icon="account" />}
+                  />
+                  <Button mode="outlined" onPress={() => { void handleIdentifierRequest(); }} disabled={!usernameQuery.trim() || searching || controller.mutating}>
+                    {controller.t(K.app.requestAccessDirectly)}
+                  </Button>
+                </View>
+              )}
+
+              {searching ? (
+                <ActivityIndicator color={controller.theme.colors.primary} style={{ marginVertical: 12 }} />
+              ) : null}
+
+              {activeTab === 'search' ? pagedResults.map((result) => {
+                const requestIsPending = pendingRequestTreeId === result.id;
+
+                return (
+                  <Card key={result.id} mode="elevated" style={[localStyles.resultCard, { backgroundColor: controller.theme.colors.surfaceVariant }]}>
+                    <Card.Content>
+                      <Text variant="titleMedium">{result.name}</Text>
+                      <Text variant="bodySmall" style={[localStyles.resultMeta, { color: controller.theme.colors.onSurfaceVariant }]}>
+                        {controller.t(K.app.discoverableTreeOwnedBy, { name: result.ownerDisplayName || result.ownerUsername || controller.t(K.common.unknown) })}
+                      </Text>
+                      <View style={[localStyles.resultActions]}>
+                        <Chip compact icon={result.matchedBy === 'username' ? 'account-search' : 'family-tree'}>
+                          {result.matchedLabel}
+                        </Chip>
+                        <Button
+                          mode={requestIsPending ? 'outlined' : 'contained'}
+                          onPress={() => { void handleRequestAccess(result.id); }}
+                          disabled={controller.mutating || requestIsPending}
+                        >
+                          {requestIsPending ? controller.t(K.app.requestedAccessPending) : controller.t(K.app.requestAccess)}
+                        </Button>
+                      </View>
+                    </Card.Content>
+                  </Card>
+                );
+              }) : null}
+
+              {activeTab === 'search' && results.length > RESULTS_PER_PAGE ? (
+                <View style={localStyles.paginationRow}>
+                  <Button mode="outlined" onPress={() => setResultsPage((page) => Math.max(1, page - 1))} disabled={resultsPage === 1}>
+                    {controller.t(K.common.previous)}
+                  </Button>
+                  <Text variant="bodySmall" style={{ color: controller.theme.colors.onSurfaceVariant }}>
+                    {controller.t(K.app.resultsPageCount, { current: resultsPage, total: totalPages })}
+                  </Text>
+                  <Button mode="outlined" onPress={() => setResultsPage((page) => Math.min(totalPages, page + 1))} disabled={resultsPage === totalPages}>
+                    {controller.t(K.common.next)}
+                  </Button>
+                </View>
+              ) : null}
+
+              {!searching && activeTab === 'search' && results.length === 0 && searchQuery.trim() ? (
+                <Text variant="bodyMedium" style={{ color: controller.theme.colors.onSurfaceVariant }}>
+                  {controller.t(K.app.noDiscoverableTreesFound)}
+                </Text>
+              ) : null}
+            </ScrollView>
+          </Dialog.ScrollArea>
+          <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: controller.theme.colors.outlineVariant }]}>
+            <Button onPress={() => setRequestDialogVisible(false)}>{controller.t(K.common.close)}</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
     </View>
   );
 }

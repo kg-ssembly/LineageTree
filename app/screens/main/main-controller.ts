@@ -14,6 +14,7 @@ import {
   canEditTreeContent,
   canManageTree,
   getTreeRole,
+  treeNeedsDiscoverabilityChoice,
   type CollaboratorRole,
   type FamilyTree,
 } from '../../../components/dto/tree';
@@ -70,6 +71,21 @@ export type TreeSettingsFocus = {
   token: number;
 } | null;
 
+export type PriorityAlertState = {
+  id: string;
+  kind: 'merge-invite' | 'tree-access-request' | 'tree-access-response' | 'merge-request' | 'merge-history';
+  title: string;
+  message: string;
+  createdAt: string;
+  status?: string;
+  notificationId?: string;
+  sourceKind?: 'merge-request' | 'merge-history';
+  sourceId?: string;
+  requestId?: string;
+  seen?: boolean;
+  opened?: boolean;
+};
+
 type MemberProfileParams = {
   treeId: string;
   personId: string;
@@ -93,6 +109,7 @@ export function useMainScreenController({ navigation }: Props) {
     setDefaultTreeId,
     updatePreferredLanguage,
     markAppVersionSeen,
+    markDiscoverabilityPromptSeen,
   } = useAuthStore();
   const {
     trees,
@@ -117,6 +134,7 @@ export function useMainScreenController({ navigation }: Props) {
     createTree,
     createTreeFromSurname,
     renameTree,
+    setTreeDiscoverability,
     removeTree,
     assignPersonToUser,
     clearSelfAssignment,
@@ -130,6 +148,12 @@ export function useMainScreenController({ navigation }: Props) {
     setSurnameVariantGroups,
     createMergeRequest,
     sendMergeInvite,
+    requestTreeAccess,
+    requestTreeAccessByIdentifier,
+    cancelTreeAccessRequest,
+    respondToTreeAccessRequest,
+    searchDiscoverableTrees,
+    searchDiscoverableTreesByUsername,
     respondToMergeInvite,
     markNotificationSeen,
     markNotificationOpened,
@@ -165,6 +189,7 @@ export function useMainScreenController({ navigation }: Props) {
     createTree: state.createTree,
     createTreeFromSurname: state.createTreeFromSurname,
     renameTree: state.renameTree,
+    setTreeDiscoverability: state.setTreeDiscoverability,
     removeTree: state.removeTree,
     assignPersonToUser: state.assignPersonToUser,
     clearSelfAssignment: state.clearSelfAssignment,
@@ -178,6 +203,12 @@ export function useMainScreenController({ navigation }: Props) {
     setSurnameVariantGroups: state.setSurnameVariantGroups,
     createMergeRequest: state.createMergeRequest,
     sendMergeInvite: state.sendMergeInvite,
+    requestTreeAccess: state.requestTreeAccess,
+    requestTreeAccessByIdentifier: state.requestTreeAccessByIdentifier,
+    cancelTreeAccessRequest: state.cancelTreeAccessRequest,
+    respondToTreeAccessRequest: state.respondToTreeAccessRequest,
+    searchDiscoverableTrees: state.searchDiscoverableTrees,
+    searchDiscoverableTreesByUsername: state.searchDiscoverableTreesByUsername,
     respondToMergeInvite: state.respondToMergeInvite,
     markNotificationSeen: state.markNotificationSeen,
     markNotificationOpened: state.markNotificationOpened,
@@ -208,6 +239,7 @@ export function useMainScreenController({ navigation }: Props) {
   const [memberProfileParams, setMemberProfileParams] = useState<MemberProfileParams | null>(null);
   const [snackVisible, setSnackVisible] = useState(false);
   const [startupModalSubmitting, setStartupModalSubmitting] = useState(false);
+  const [priorityAlert, setPriorityAlert] = useState<PriorityAlertState | null>(null);
   const [confirmState, setConfirmState] = useState<ConfirmState>({
     visible: false,
     title: '',
@@ -215,6 +247,7 @@ export function useMainScreenController({ navigation }: Props) {
     confirmLabel: t(K.common.confirm),
     action: null,
   });
+  const dismissedPriorityAlertIdsRef = useRef(new Set<string>());
 
   const selectedTree = useMemo(
     () => getTreeById(trees, selectedTreeId),
@@ -327,6 +360,18 @@ export function useMainScreenController({ navigation }: Props) {
   const shouldShowUpdateModal = !shouldShowLanguageModal
     && Boolean(user)
     && user.lastSeenAppVersion !== CURRENT_APP_VERSION;
+  const ownedTreesNeedingDiscoverabilityChoice = useMemo(
+    () => trees.filter((tree) => tree.ownerId === user?.id && tree.discoverable == null),
+    [trees, user?.id],
+  );
+  const shouldShowDiscoverabilityPrompt = !shouldShowLanguageModal
+    && !shouldShowUpdateModal
+    && Boolean(user)
+    && !user?.discoverabilityPromptSeenAt
+    && ownedTreesNeedingDiscoverabilityChoice.length > 0;
+  const shouldBlockPriorityAlerts = shouldShowLanguageModal
+    || shouldShowUpdateModal
+    || shouldShowDiscoverabilityPrompt;
 
   const handleStartupLanguageSubmit = useCallback(async (nextLanguage: AppLanguage) => {
     setStartupModalSubmitting(true);
@@ -346,6 +391,13 @@ export function useMainScreenController({ navigation }: Props) {
       setStartupModalSubmitting(false);
     }
   }, [markAppVersionSeen]);
+
+  const handleDiscoverabilityPromptChoice = useCallback(async (discoverable: boolean) => {
+    for (const tree of ownedTreesNeedingDiscoverabilityChoice) {
+      await setTreeDiscoverability(tree.id, discoverable);
+    }
+    await markDiscoverabilityPromptSeen();
+  }, [markDiscoverabilityPromptSeen, ownedTreesNeedingDiscoverabilityChoice, setTreeDiscoverability]);
 
   const openConfirm = useCallback((title: string, message: string, confirmLabel: string, action: () => Promise<void>) => {
     setConfirmState({ visible: true, title, message, confirmLabel, action });
@@ -802,6 +854,14 @@ export function useMainScreenController({ navigation }: Props) {
     await setSurnameVariantGroups(selectedTree.id, groups);
   }, [selectedTree, setSurnameVariantGroups]);
 
+  const onSetTreeDiscoverability = useCallback(async (discoverable: boolean) => {
+    if (!selectedTree) {
+      return;
+    }
+
+    await setTreeDiscoverability(selectedTree.id, discoverable);
+  }, [selectedTree, setTreeDiscoverability]);
+
   const onCreateMergeRequest = useCallback(async (targetTreeId: string) => {
     if (!user?.id || !selectedTree) {
       return;
@@ -825,6 +885,54 @@ export function useMainScreenController({ navigation }: Props) {
 
     await respondToMergeInvite(user.id, notificationId, status);
   }, [respondToMergeInvite, user?.id]);
+
+  const onRequestTreeAccess = useCallback(async (treeId: string) => {
+    if (!user?.id) {
+      return;
+    }
+
+    await requestTreeAccess(user.id, treeId);
+  }, [requestTreeAccess, user?.id]);
+
+  const onRequestTreeAccessByIdentifier = useCallback(async (identifier: string) => {
+    if (!user?.id) {
+      return;
+    }
+
+    await requestTreeAccessByIdentifier(user.id, identifier);
+  }, [requestTreeAccessByIdentifier, user?.id]);
+
+  const onCancelTreeAccessRequest = useCallback(async (notificationId: string) => {
+    if (!user?.id) {
+      return;
+    }
+
+    await cancelTreeAccessRequest(user.id, notificationId);
+  }, [cancelTreeAccessRequest, user?.id]);
+
+  const onRespondToTreeAccessRequest = useCallback(async (notificationId: string, status: 'accepted' | 'rejected') => {
+    if (!user?.id) {
+      return;
+    }
+
+    await respondToTreeAccessRequest(user.id, notificationId, status);
+  }, [respondToTreeAccessRequest, user?.id]);
+
+  const onSearchDiscoverableTrees = useCallback(async (searchTerm: string) => {
+    if (!user?.id) {
+      return [];
+    }
+
+    return searchDiscoverableTrees(searchTerm, user.id);
+  }, [searchDiscoverableTrees, user?.id]);
+
+  const onSearchDiscoverableTreesByUsername = useCallback(async (username: string) => {
+    if (!user?.id) {
+      return [];
+    }
+
+    return searchDiscoverableTreesByUsername(username, user.id);
+  }, [searchDiscoverableTreesByUsername, user?.id]);
 
   const onMarkNotificationSeen = useCallback(async (notificationId: string) => {
     if (!user?.id) {
@@ -919,6 +1027,97 @@ export function useMainScreenController({ navigation }: Props) {
     () => [],
     [],
   );
+  const pendingTreeAccessRequest = useMemo(
+    () => notifications
+      .filter((notification) => notification.type === 'tree-access-response' && notification.status === 'pending')
+      .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))[0] ?? null,
+    [notifications],
+  );
+
+  const importantPriorityAlerts = useMemo<PriorityAlertState[]>(() => {
+    const actionedStateKeys = new Set(
+      notificationActivityStates
+        .filter((state) => Boolean(state.actionedAt))
+        .map((state) => `${state.sourceKind}:${state.sourceId}`),
+    );
+
+    const directAlerts = notifications.flatMap<PriorityAlertState>((notification) => {
+      if (notification.type === 'tree-access-request' && notification.status === 'pending') {
+        return [{
+          id: `priority-notification-${notification.id}`,
+          kind: 'tree-access-request',
+          title: t(K.notifications.treeAccessRequest),
+          message: notification.message,
+          createdAt: notification.createdAt,
+          status: notification.status,
+          notificationId: notification.id,
+          seen: Boolean(notification.seenAt),
+          opened: Boolean(notification.openedAt),
+        }];
+      }
+
+      if (notification.type === 'tree-access-response' && (notification.status === 'accepted' || notification.status === 'rejected')) {
+        return [{
+          id: `priority-notification-${notification.id}`,
+          kind: 'tree-access-response',
+          title: t(K.notifications.treeAccessUpdate),
+          message: notification.message,
+          createdAt: notification.createdAt,
+          status: notification.status,
+          notificationId: notification.id,
+          seen: Boolean(notification.seenAt),
+          opened: Boolean(notification.openedAt),
+        }];
+      }
+
+      if (notification.type === 'merge-invite' && notification.status === 'pending') {
+        return [{
+          id: `priority-notification-${notification.id}`,
+          kind: 'merge-invite',
+          title: t(K.notifications.mergeInvitation),
+          message: notification.message,
+          createdAt: notification.createdAt,
+          status: notification.status,
+          notificationId: notification.id,
+          seen: Boolean(notification.seenAt),
+          opened: Boolean(notification.openedAt),
+        }];
+      }
+
+      return [];
+    });
+
+    const mergeRequestAlerts = mergeRequests
+      .filter((request) => !actionedStateKeys.has(`merge-request:${request.id}`))
+      .map<PriorityAlertState>((request) => ({
+        id: `priority-merge-request-${request.id}`,
+        kind: 'merge-request',
+        title: t(K.notifications.mergeRequest),
+        message: `${request.preview.sourceTree.treeName} ↔ ${request.preview.targetTree.treeName}`,
+        createdAt: request.updatedAt,
+        status: request.status,
+        sourceKind: 'merge-request',
+        sourceId: request.id,
+        requestId: request.id,
+      }));
+
+    const mergeHistoryAlerts = mergeHistory
+      .filter((entry) => !actionedStateKeys.has(`merge-history:${entry.id}`))
+      .map<PriorityAlertState>((entry) => ({
+        id: `priority-merge-history-${entry.id}`,
+        kind: 'merge-history',
+        title: t(K.notifications.mergeActivity),
+        message: entry.summary,
+        createdAt: entry.updatedAt,
+        status: entry.status,
+        sourceKind: 'merge-history',
+        sourceId: entry.id,
+        requestId: entry.mergeRequestId,
+      }));
+
+    return [...directAlerts, ...mergeRequestAlerts, ...mergeHistoryAlerts]
+      .sort((left, right) => right.createdAt.localeCompare(left.createdAt));
+  }, [mergeHistory, mergeRequests, notificationActivityStates, notifications, t]);
 
   const sharedTabProps = useMemo((): SharedTabProps | null => {
     if (!selectedTree) {
@@ -965,11 +1164,16 @@ export function useMainScreenController({ navigation }: Props) {
       onClearSelfAssignment: handleClearSelfAssignment,
       onApproveApprovalRequest,
       onRejectApprovalRequest,
+      onSetTreeDiscoverability,
       onSetApprovalWindowHours,
       onSetSurnameVariantGroups,
       onCreateMergeRequest,
       onSendMergeInvite,
       onRespondToMergeInvite,
+      onRequestTreeAccess,
+      onRespondToTreeAccessRequest,
+      onSearchDiscoverableTrees,
+      onSearchDiscoverableTreesByUsername,
       onMarkNotificationSeen,
       onMarkNotificationOpened,
       onMarkNotificationActivityActioned,
@@ -1038,10 +1242,16 @@ export function useMainScreenController({ navigation }: Props) {
     onRejectApprovalRequest,
     onRejectMergeRequest,
     onRemoveCollaborator,
+    onRequestTreeAccess,
+    onRequestTreeAccessByIdentifier,
+    onRespondToTreeAccessRequest,
     onRequestMergeChanges,
     onRespondToMergeInvite,
+    onSearchDiscoverableTrees,
+    onSearchDiscoverableTreesByUsername,
     onSendMergeInvite,
     onSetApprovalWindowHours,
+    onSetTreeDiscoverability,
     onSetSurnameVariantGroups,
     onUndoMerge,
     openConfirm,
@@ -1062,6 +1272,84 @@ export function useMainScreenController({ navigation }: Props) {
     clearError();
     clearNotice();
   }, [clearError, clearNotice]);
+
+  useEffect(() => {
+    if (!isFocused || shouldBlockPriorityAlerts || priorityAlert) {
+      return;
+    }
+
+    const nextAlert = importantPriorityAlerts.find((item) => !dismissedPriorityAlertIdsRef.current.has(item.id));
+    if (nextAlert) {
+      setPriorityAlert(nextAlert);
+    }
+  }, [importantPriorityAlerts, isFocused, priorityAlert, shouldBlockPriorityAlerts]);
+
+  useEffect(() => {
+    if (!priorityAlert) {
+      return;
+    }
+
+    const stillExists = importantPriorityAlerts.some((item) => item.id === priorityAlert.id);
+    if (!stillExists) {
+      setPriorityAlert(null);
+    }
+  }, [importantPriorityAlerts, priorityAlert]);
+
+  const dismissPriorityAlert = useCallback(async () => {
+    if (!priorityAlert) {
+      return;
+    }
+
+    dismissedPriorityAlertIdsRef.current.add(priorityAlert.id);
+    if (priorityAlert.notificationId && !priorityAlert.seen) {
+      await onMarkNotificationSeen(priorityAlert.notificationId);
+    }
+    setPriorityAlert(null);
+  }, [onMarkNotificationSeen, priorityAlert]);
+
+  const openPriorityAlertTarget = useCallback(async () => {
+    if (!priorityAlert) {
+      return;
+    }
+
+    dismissedPriorityAlertIdsRef.current.add(priorityAlert.id);
+
+    if (priorityAlert.notificationId && !priorityAlert.opened) {
+      await onMarkNotificationOpened(priorityAlert.notificationId);
+    }
+
+    if ((priorityAlert.kind === 'merge-request' || priorityAlert.kind === 'merge-history') && priorityAlert.requestId && priorityAlert.sourceKind && priorityAlert.sourceId) {
+      await onMarkNotificationActivityActioned(priorityAlert.sourceKind, priorityAlert.sourceId);
+      onOpenTreeSettingsTarget({
+        tab: 'merges',
+        itemId: priorityAlert.requestId,
+        mode: 'merge',
+      });
+      navigation.navigate('Main', { screen: 'treeSettings' });
+    }
+
+    setPriorityAlert(null);
+  }, [navigation, onMarkNotificationActivityActioned, onMarkNotificationOpened, onOpenTreeSettingsTarget, priorityAlert]);
+
+  const respondToPriorityMergeInvite = useCallback(async (status: 'accepted' | 'dismissed') => {
+    if (!priorityAlert?.notificationId || priorityAlert.kind !== 'merge-invite') {
+      return;
+    }
+
+    dismissedPriorityAlertIdsRef.current.add(priorityAlert.id);
+    await onRespondToMergeInvite(priorityAlert.notificationId, status);
+    setPriorityAlert(null);
+  }, [onRespondToMergeInvite, priorityAlert]);
+
+  const respondToPriorityTreeAccess = useCallback(async (status: 'accepted' | 'rejected') => {
+    if (!priorityAlert?.notificationId || priorityAlert.kind !== 'tree-access-request') {
+      return;
+    }
+
+    dismissedPriorityAlertIdsRef.current.add(priorityAlert.id);
+    await onRespondToTreeAccessRequest(priorityAlert.notificationId, status);
+    setPriorityAlert(null);
+  }, [onRespondToTreeAccessRequest, priorityAlert]);
 
   return {
     authLoading,
@@ -1121,8 +1409,28 @@ export function useMainScreenController({ navigation }: Props) {
       updateHighlights: currentReleaseNote.highlights,
       visible: shouldShowLanguageModal || shouldShowUpdateModal,
     },
+    discoverabilityPrompt: {
+      visible: shouldShowDiscoverabilityPrompt,
+      loading: mutating,
+      pendingCount: ownedTreesNeedingDiscoverabilityChoice.length,
+    },
+    pendingTreeAccessRequest,
+    priorityAlert,
+    dismissPriorityAlert,
+    handleDiscoverabilityPromptChoice,
+    openPriorityAlertTarget,
+    respondToPriorityMergeInvite,
+    respondToPriorityTreeAccess,
     handleStartupLanguageSubmit,
     handleUpdateModalDismiss,
+    onCancelTreeAccessRequest,
+    onRequestTreeAccess,
+    onRequestTreeAccessByIdentifier,
+    onRespondToTreeAccessRequest,
+    onSearchDiscoverableTrees,
+    onSearchDiscoverableTreesByUsername,
+    onSetTreeDiscoverability,
+    treeNeedsDiscoverabilityChoice,
     t,
     theme,
     trees,

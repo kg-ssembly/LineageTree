@@ -3,6 +3,7 @@ import { View } from 'react-native';
 import { Button, Card, Chip, IconButton, Text, TextInput, useTheme } from 'react-native-paper';
 import { Reveal } from '../../../../components';
 import { isPersonDeceased } from '../../../../components/dto/person';
+import { isTreeDiscoverable, treeNeedsDiscoverabilityChoice } from '../../../../components/dto/tree';
 import { formatPersonName } from '../../../../components/person-formatting';
 import { GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
@@ -29,6 +30,7 @@ export function OverviewSection({
   filteredLinkPeople,
   onOpenHelperDialog,
   onOpenSurnameVariantDialog,
+  onSetTreeDiscoverability,
   onOpenAddSelf,
   openPersonProfile,
   onAssignPersonToUser,
@@ -57,6 +59,35 @@ export function OverviewSection({
       </View>
 
       <Reveal delay={80}>
+        <Card mode="elevated" style={[styles.selfAssignmentCard, { backgroundColor: theme.colors.surface, marginBottom: 12 }]}>
+          <Card.Content>
+            <View style={styles.sectionHeader}>
+              <View style={styles.titleWrap}>
+                <Text variant="titleLarge">{t(K.treeSettings.treeDiscoverability)}</Text>
+              </View>
+            </View>
+            <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>
+              {treeNeedsDiscoverabilityChoice(selectedTree)
+                ? t(K.treeSettings.treeDiscoverabilityPrompt)
+                : isTreeDiscoverable(selectedTree)
+                  ? t(K.treeSettings.treeDiscoverabilityOn)
+                  : t(K.treeSettings.treeDiscoverabilityOff)}
+            </Text>
+            {isOwner ? (
+              <View style={[styles.collaboratorChipRow, { marginTop: 12 }]}>
+                <Button mode={isTreeDiscoverable(selectedTree) ? 'contained' : 'outlined'} onPress={() => { void onSetTreeDiscoverability(true); }} disabled={mutating}>
+                  {t(K.treeSettings.makeTreeDiscoverable)}
+                </Button>
+                <Button mode={!isTreeDiscoverable(selectedTree) && !treeNeedsDiscoverabilityChoice(selectedTree) ? 'contained' : 'outlined'} onPress={() => { void onSetTreeDiscoverability(false); }} disabled={mutating}>
+                  {t(K.treeSettings.keepTreePrivate)}
+                </Button>
+              </View>
+            ) : null}
+          </Card.Content>
+        </Card>
+      </Reveal>
+
+      <Reveal delay={90}>
         <Card mode="elevated" style={[styles.selfAssignmentCard, { backgroundColor: theme.colors.surface, marginBottom: 12 }]}>
           <Card.Content>
           <View style={styles.sectionHeader}>
@@ -92,7 +123,7 @@ export function OverviewSection({
       </Reveal>
 
       <View style={styles.selfAssignmentSectionWrap}>
-        <Reveal delay={100}>
+        <Reveal delay={110}>
           <Card mode="elevated" style={[styles.selfAssignmentCard, { backgroundColor: theme.colors.surface }]}>
             <Card.Content>
               <View style={styles.sectionHeader}>

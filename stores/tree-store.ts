@@ -12,6 +12,7 @@ import {
   addCollaboratorToTree,
   assignTreePersonToUser,
   clearTreePersonAssignment,
+  cancelTreeAccessRequest,
   createSuggestedSurnameTree,
   createMergeRequest,
   createParentChildRelationship,
@@ -28,10 +29,16 @@ import {
   markNotificationOpened,
   markNotificationSeen,
   processExpiredApprovalRequests,
+  requestAccessFromIdentifier,
+  requestAccessToTree,
   removeCollaboratorFromTree,
+  respondToTreeAccessRequest,
   respondToMergeInvite,
   reviewMergeRequest,
+  searchDiscoverableTrees,
+  searchDiscoverableTreesByOwnerUsername,
   sendMergeInviteByIdentifier,
+  type DiscoverableTreeSummary,
   subscribeToApprovalRequests,
   subscribeToMergeHistory,
   subscribeToMergeRequests,
@@ -45,6 +52,7 @@ import {
   updatePerson,
   updateSurnameVariantGroups,
   updateTreeApprovalWindow,
+  updateTreeDiscoverability,
   updateTreeName,
 } from '../providers/family-tree-service';
 
@@ -144,6 +152,7 @@ interface TreeState {
   createTree: (owner: Pick<UserProfile, 'id' | 'email' | 'displayName'>, name: string) => Promise<FamilyTree>;
   createTreeFromSurname: (owner: Pick<UserProfile, 'id' | 'email' | 'displayName'>, sourceTreeId: string, surname: string) => Promise<FamilyTree>;
   renameTree: (treeId: string, name: string) => Promise<void>;
+  setTreeDiscoverability: (treeId: string, discoverable: boolean) => Promise<void>;
   setApprovalWindowHours: (treeId: string, hours: number) => Promise<void>;
   setSurnameVariantGroups: (treeId: string, groups: SurnameVariantGroup[]) => Promise<void>;
   addCollaborator: (treeId: string, email: string, role: CollaboratorRole) => Promise<void>;
@@ -161,6 +170,12 @@ interface TreeState {
   createMergeRequest: (actorUserId: string, sourceTreeId: string, targetTreeId: string) => Promise<void>;
   sendMergeInvite: (actorUserId: string, sourceTreeId: string, identifier: string) => Promise<void>;
   respondToMergeInvite: (actorUserId: string, notificationId: string, status: 'accepted' | 'dismissed') => Promise<void>;
+  requestTreeAccess: (actorUserId: string, treeId: string) => Promise<void>;
+  requestTreeAccessByIdentifier: (actorUserId: string, identifier: string) => Promise<void>;
+  cancelTreeAccessRequest: (actorUserId: string, notificationId: string) => Promise<void>;
+  respondToTreeAccessRequest: (actorUserId: string, notificationId: string, status: 'accepted' | 'rejected') => Promise<void>;
+  searchDiscoverableTrees: (searchTerm: string, actorUserId: string) => Promise<DiscoverableTreeSummary[]>;
+  searchDiscoverableTreesByUsername: (username: string, actorUserId: string) => Promise<DiscoverableTreeSummary[]>;
   markNotificationSeen: (actorUserId: string, notificationId: string) => Promise<void>;
   markNotificationOpened: (actorUserId: string, notificationId: string) => Promise<void>;
   markNotificationActivityActioned: (actorUserId: string, sourceKind: NotificationActivityState['sourceKind'], sourceId: string) => Promise<void>;
@@ -464,6 +479,17 @@ export const useTreeStore = create<TreeState>()(persist((set, get) => {
       }
     },
 
+    setTreeDiscoverability: async (treeId, discoverable) => {
+      set({ mutating: true, error: null });
+      try {
+        await updateTreeDiscoverability(treeId, discoverable);
+        set({ mutating: false, notice: discoverable ? 'Tree discoverability turned on.' : 'Tree discoverability turned off.' });
+      } catch (error) {
+        set({ mutating: false, error: normaliseError(error) });
+        throw error;
+      }
+    },
+
     setApprovalWindowHours: async (treeId, hours) => {
       set({ mutating: true, error: null });
       try {
@@ -645,6 +671,39 @@ export const useTreeStore = create<TreeState>()(persist((set, get) => {
       }
     },
 
+    requestTreeAccess: async (actorUserId, treeId) => {
+      set({ mutating: true, error: null });
+      try {
+        await requestAccessToTree(actorUserId, treeId);
+        set({ mutating: false, notice: 'Access request sent.' });
+      } catch (error) {
+        set({ mutating: false, error: normaliseError(error) });
+        throw error;
+      }
+    },
+
+    requestTreeAccessByIdentifier: async (actorUserId, identifier) => {
+      set({ mutating: true, error: null });
+      try {
+        await requestAccessFromIdentifier(actorUserId, identifier);
+        set({ mutating: false, notice: 'Access request sent.' });
+      } catch (error) {
+        set({ mutating: false, error: normaliseError(error) });
+        throw error;
+      }
+    },
+
+    cancelTreeAccessRequest: async (actorUserId, notificationId) => {
+      set({ mutating: true, error: null });
+      try {
+        await cancelTreeAccessRequest(actorUserId, notificationId);
+        set({ mutating: false, notice: 'Access request cancelled.' });
+      } catch (error) {
+        set({ mutating: false, error: normaliseError(error) });
+        throw error;
+      }
+    },
+
     respondToMergeInvite: async (actorUserId, notificationId, status) => {
       set({ mutating: true, error: null });
       try {
@@ -652,6 +711,37 @@ export const useTreeStore = create<TreeState>()(persist((set, get) => {
         set({ mutating: false, notice: status === 'accepted' ? 'Merge invitation accepted.' : 'Merge invitation dismissed.' });
       } catch (error) {
         set({ mutating: false, error: normaliseError(error) });
+        throw error;
+      }
+    },
+
+    respondToTreeAccessRequest: async (actorUserId, notificationId, status) => {
+      set({ mutating: true, error: null });
+      try {
+        await respondToTreeAccessRequest(actorUserId, notificationId, status);
+        set({ mutating: false, notice: status === 'accepted' ? 'Access request approved.' : 'Access request declined.' });
+      } catch (error) {
+        set({ mutating: false, error: normaliseError(error) });
+        throw error;
+      }
+    },
+
+    searchDiscoverableTrees: async (searchTerm, actorUserId) => {
+      set({ error: null });
+      try {
+        return await searchDiscoverableTrees(searchTerm, actorUserId);
+      } catch (error) {
+        set({ error: normaliseError(error) });
+        throw error;
+      }
+    },
+
+    searchDiscoverableTreesByUsername: async (username, actorUserId) => {
+      set({ error: null });
+      try {
+        return await searchDiscoverableTreesByOwnerUsername(username, actorUserId);
+      } catch (error) {
+        set({ error: normaliseError(error) });
         throw error;
       }
     },
