@@ -241,6 +241,9 @@ export function MemoriesSection({
           <IconButton icon="close" size={20} onPress={() => setSelectedPhotoId(null)} style={dialogChrome.closeButton} accessibilityLabel={t(K.common.close)} />
           <Dialog.ScrollArea style={dialogChrome.scrollArea}>
             <View style={personProfileStyles.memoryDialogContent}>
+              <Text variant="bodySmall" style={personProfileStyles.memoryDialogHint}>
+                {t(K.memories.photoInfoSummary)}
+              </Text>
               {selectedPhoto ? <Image source={{ uri: selectedPhoto.url }} style={personProfileStyles.timelinePhoto} /> : null}
               {selectedDraft ? (
                 <>

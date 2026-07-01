@@ -83,14 +83,17 @@ export function PhotoViewerModal({
         ) : null}
         {selectedPhoto ? (
           <View style={personProfileStyles.viewerInfoCard}>
-            <Text variant="labelLarge" style={personProfileStyles.viewerInfoLabel}>About this photo</Text>
+            <Text variant="labelLarge" style={personProfileStyles.viewerInfoLabel}>{t(K.memories.photoInfo)}</Text>
+            <Text variant="bodySmall" style={personProfileStyles.viewerInfoValue}>
+              {t(K.memories.photoViewerSummary)}
+            </Text>
             {selectedPhoto.description?.trim() ? (
               <Text variant="bodyMedium" style={personProfileStyles.viewerInfoValue}>
                 {selectedPhoto.description.trim()}
               </Text>
             ) : (
               <Text variant="bodyMedium" style={personProfileStyles.viewerInfoValue}>
-                Nothing about this photo yet
+                {t(K.memories.noPhotoDescriptionYet)}
               </Text>
             )}
             {linkedEventLabel ? (

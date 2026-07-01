@@ -1,6 +1,6 @@
 import React from 'react';
 import { ScrollView } from 'react-native';
-import { Button, Dialog, IconButton, Portal, TextInput, useTheme } from 'react-native-paper';
+import { Button, Dialog, IconButton, Portal, Text, TextInput, useTheme } from 'react-native-paper';
 import { GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
@@ -33,6 +33,9 @@ export function NotesDialog({
         <IconButton icon="close" onPress={onDismiss} disabled={mutating} accessibilityLabel={t(K.common.cancel)} style={dialogChrome.closeButton} />
         <Dialog.ScrollArea style={personProfileStyles.memoryDialogScrollArea}>
           <ScrollView contentContainerStyle={personProfileStyles.memoryDialogContent} keyboardShouldPersistTaps="handled">
+            <Text variant="bodySmall" style={personProfileStyles.memoryDialogHint}>
+              {t(K.memories.notesSummary)}
+            </Text>
             <TextInput
               mode="outlined"
               label={t(K.memories.familyNotes)}

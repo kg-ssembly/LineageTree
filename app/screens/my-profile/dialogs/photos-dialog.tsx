@@ -53,6 +53,9 @@ export function PhotosDialog({
         <IconButton icon="close" onPress={onDismiss} disabled={mutating} accessibilityLabel={t(K.common.cancel)} style={dialogChrome.closeButton} />
         <Dialog.ScrollArea style={personProfileStyles.memoryDialogScrollArea}>
           <ScrollView contentContainerStyle={personProfileStyles.memoryDialogContent} keyboardShouldPersistTaps="handled">
+            <Text variant="bodySmall" style={personProfileStyles.memoryDialogHint}>
+              {t(K.memories.managePhotosSummary)}
+            </Text>
             <View style={personProfileStyles.memoryDialogPhotoActions}>
               <Button mode="outlined" icon="image-plus" onPress={onLibrary} disabled={mutating || photoProcessing || photoEditorCount >= MAX_PHOTOS_PER_PERSON}>
                 {t(K.common.library)}
