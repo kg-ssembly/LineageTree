@@ -9,6 +9,7 @@ import type { MainTabParamList } from '../../../../components/dto/navigation';
 import type { AppTheme } from '../../../../constants/theme';
 import { GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
+import { I18N_KEYS as K } from '../../../../i18n/keys';
 import { getActivityNotificationCount } from '../shared';
 import type { SharedTabProps } from '../shared';
 import { FamilyHighlightsPanel } from '../tree-settings/family-highlights-panel';
@@ -83,7 +84,10 @@ function getUrgencyTone(theme: AppTheme, level: 'urgent' | 'attention' | 'calm')
   };
 }
 
-function buildDashboardTasks(props: SharedTabProps) {
+function buildDashboardTasks(
+  props: SharedTabProps,
+  t: (key: string, params?: Record<string, string | number | null | undefined>) => string,
+) {
   const {
     people,
     currentAssignedPerson,
@@ -100,9 +104,9 @@ function buildDashboardTasks(props: SharedTabProps) {
     const initialTasks: DashboardTask[] = [
       {
         id: 'link-self',
-        title: 'Create your family profile',
-        description: 'Link yourself into the tree so the app can guide your next steps more personally.',
-        ctaLabel: 'Start my profile',
+        title: t(K.home.createYourFamilyProfile),
+        description: t(K.home.linkYourselfIntoTheTree),
+        ctaLabel: t(K.home.startMyProfile),
         category: 'story',
         priority: 'urgent',
         score: 1000,
@@ -111,9 +115,9 @@ function buildDashboardTasks(props: SharedTabProps) {
       },
       {
         id: 'add-first-member',
-        title: 'Add the first family member',
-        description: 'Start your tree with the first relative or ancestor you want to build around.',
-        ctaLabel: 'Add family member',
+        title: t(K.home.addTheFirstFamilyMember),
+        description: t(K.home.startYourTreeWithTheFirstRelative),
+        ctaLabel: t(K.home.addFamilyMember),
         category: 'tree',
         priority: 'urgent',
         score: 960,
@@ -146,9 +150,9 @@ function buildDashboardTasks(props: SharedTabProps) {
   const taskList: DashboardTask[] = [
     {
       id: 'photo',
-      title: 'Add a profile photo',
-      description: 'A face makes the tree feel instantly more human and recognizable.',
-      ctaLabel: 'Add portrait',
+      title: t(K.home.addAProfilePhoto),
+      description: t(K.home.aFaceMakesTheTreeFeelInstantlyMoreHumanAndRecognizable),
+      ctaLabel: t(K.home.addPortrait),
       category: 'story',
       priority: 'easy-win',
       score: hasBirthDetails ? 270 : 220,
@@ -157,9 +161,9 @@ function buildDashboardTasks(props: SharedTabProps) {
     },
     {
       id: 'birth',
-      title: 'Fill in birth details',
-      description: 'Dates anchor the story and help place each generation correctly.',
-      ctaLabel: 'Add birth details',
+      title: t(K.home.fillInBirthDetails),
+      description: t(K.home.datesAnchorTheStoryAndHelpPlaceEachGenerationCorrectly),
+      ctaLabel: t(K.home.addBirthDetails),
       category: 'story',
       priority: 'urgent',
       score: 420,
@@ -168,9 +172,9 @@ function buildDashboardTasks(props: SharedTabProps) {
     },
     {
       id: 'story',
-      title: 'Write a story note',
-      description: 'A small memory or description brings the profile to life for family members.',
-      ctaLabel: 'Write note',
+      title: t(K.home.writeAStoryNote),
+      description: t(K.home.aSmallMemoryOrDescriptionBringsTheProfileToLife),
+      ctaLabel: t(K.home.writeNote),
       category: 'story',
       priority: 'recommended',
       score: hasProfilePhoto || hasMemories ? 260 : 180,
@@ -179,9 +183,9 @@ function buildDashboardTasks(props: SharedTabProps) {
     },
     {
       id: 'memory',
-      title: 'Record a milestone',
-      description: 'Add one life event so the timeline starts feeling like a living scrapbook.',
-      ctaLabel: 'Add memory',
+      title: t(K.home.recordAMilestone),
+      description: t(K.home.addOneLifeEventSoTheTimelineStartsFeelingLikeALivingScrapbook),
+      ctaLabel: t(K.home.addMemory),
       category: 'story',
       priority: 'recommended',
       score: hasStoryNote || hasProfilePhoto ? 250 : 190,
@@ -190,9 +194,9 @@ function buildDashboardTasks(props: SharedTabProps) {
     },
     {
       id: 'relationships',
-      title: 'Connect family relationships',
-      description: 'Parents, partners, and children are what turn a profile into a branch.',
-      ctaLabel: canEdit ? 'Connect family' : 'View profile',
+      title: t(K.home.connectFamilyRelationships),
+      description: t(K.home.parentsPartnersAndChildrenAreWhatTurnAProfileIntoABranch),
+      ctaLabel: canEdit ? t(K.home.connectFamily) : t(K.home.viewProfile),
       category: 'tree',
       priority: 'urgent',
       score: 390,
@@ -201,9 +205,9 @@ function buildDashboardTasks(props: SharedTabProps) {
     },
     {
       id: 'branch',
-      title: 'Add branch or clan detail',
-      description: 'Branch and clan details help relatives recognise where this profile belongs in the wider family.',
-      ctaLabel: 'Add family detail',
+      title: t(K.home.addBranchOrClanDetail),
+      description: t(K.home.branchAndClanDetailsHelpRelativesRecogniseWhereThisProfileBelongs),
+      ctaLabel: t(K.home.addFamilyDetail),
       category: 'story',
       priority: 'easy-win',
       score: hasRelationships ? 230 : 170,
@@ -212,11 +216,11 @@ function buildDashboardTasks(props: SharedTabProps) {
     },
     {
       id: 'add-family-member',
-      title: otherPeopleCount > 0 ? 'Add another family member' : 'Add the first family member',
+      title: otherPeopleCount > 0 ? t(K.home.addAnotherFamilyMember) : t(K.home.addTheFirstFamilyMember),
       description: otherPeopleCount > 0
-        ? 'Each new relative gives the tree more shape and makes family connections easier to discover.'
-        : 'Start building outward from your own page by adding the next person in the family.',
-      ctaLabel: 'Add family member',
+        ? t(K.home.eachNewRelativeGivesTheTreeMoreShapeAndMakesFamilyConnectionsEasierToDiscover)
+        : t(K.home.startBuildingOutwardFromYourOwnPageByAddingTheNextPersonInTheFamily),
+      ctaLabel: t(K.home.addFamilyMember),
       category: 'tree',
       priority: 'urgent',
       score: otherPeopleCount > 0 ? 240 : 410,
@@ -225,9 +229,9 @@ function buildDashboardTasks(props: SharedTabProps) {
     },
     {
       id: 'review-matches',
-      title: 'Review possible profile matches',
-      description: 'Suggested matches can help you quickly link the right person to your account or spot likely overlaps.',
-      ctaLabel: currentSelfAssignmentSuggestions.length > 0 ? 'Review matches' : 'Add more relatives',
+      title: t(K.home.reviewPossibleProfileMatches),
+      description: t(K.home.suggestedMatchesCanHelpYouQuicklyLinkTheRightPersonOrSpotLikelyOverlaps),
+      ctaLabel: currentSelfAssignmentSuggestions.length > 0 ? t(K.home.reviewMatches) : t(K.home.addMoreRelatives),
       category: 'tree',
       priority: currentSelfAssignmentSuggestions.length > 0 ? 'recommended' : 'easy-win',
       score: currentSelfAssignmentSuggestions.length > 0 ? 280 : 150,
@@ -246,7 +250,7 @@ function buildDashboardTasks(props: SharedTabProps) {
 
 export function HomeDashboardView(props: SharedTabProps) {
   const theme = useTheme();
-  useI18n();
+  const { t } = useI18n();
   const navigation = useNavigation<any>();
   const {
     selectedTree,
@@ -270,7 +274,7 @@ export function HomeDashboardView(props: SharedTabProps) {
     onOpenTreeSettingsTarget,
   } = props;
 
-  const { storyTasks, treeTasks } = useMemo(() => buildDashboardTasks(props), [
+  const { storyTasks, treeTasks } = useMemo(() => buildDashboardTasks(props, t), [
     props.people,
     props.currentAssignedPerson,
     props.currentSelfAssignmentSuggestions,
@@ -280,6 +284,7 @@ export function HomeDashboardView(props: SharedTabProps) {
     props.onOpenAddSelf,
     props.openPersonProfile,
     props.onOpenRelationshipDialog,
+    t,
   ]);
   const tasks = useMemo(() => [...storyTasks, ...treeTasks], [storyTasks, treeTasks]);
   const [dismissedTaskIds, setDismissedTaskIds] = useState<string[]>([]);
@@ -344,29 +349,29 @@ export function HomeDashboardView(props: SharedTabProps) {
     return [
       {
         id: 'setup-profile',
-        title: 'Create your profile',
-        description: 'Link yourself into the tree so the app can guide your next steps personally.',
+        title: t(K.home.createYourProfile),
+        description: t(K.home.linkYourselfIntoTheTreePersonally),
         done: hasLinkedProfile,
         action: hasLinkedProfile && currentAssignedPerson ? () => openPersonProfile(currentAssignedPerson) : onOpenAddSelf,
       },
       {
         id: 'setup-member',
-        title: 'Add a family member',
-        description: 'Bring in a parent, child, partner, or ancestor so the tree starts to branch.',
+        title: t(K.home.addAFamilyMember),
+        description: t(K.home.bringInAParentChildPartnerOrAncestorSoTheTreeStartsToBranch),
         done: hasOtherFamilyMember,
         action: onOpenAddPerson,
       },
       {
         id: 'setup-relationship',
-        title: 'Connect the relationship',
-        description: 'Link people together so the tree becomes a connected family instead of separate pages.',
+        title: t(K.home.connectTheRelationship),
+        description: t(K.home.linkPeopleTogetherSoTheTreeBecomesAConnectedFamilyInsteadOfSeparatePages),
         done: hasFirstConnection,
         action: onOpenRelationshipDialog,
       },
       {
         id: 'setup-story',
-        title: 'Add one story detail',
-        description: 'A photo, date, or memory gives the tree a more human starting point.',
+        title: t(K.home.addOneStoryDetail),
+        description: t(K.home.aPhotoDateOrMemoryGivesTheTreeAMoreHumanStartingPoint),
         done: hasStoryStarter,
         action: currentAssignedPerson ? () => openPersonProfile(currentAssignedPerson) : onOpenAddSelf,
       },
@@ -395,7 +400,7 @@ export function HomeDashboardView(props: SharedTabProps) {
 
       activityAttentionItems.push({
         id: `notification-${notification.id}`,
-        title: 'Merge invitation',
+        title: t(K.notifications.mergeInvitation),
         description: notification.message,
         createdAt: notification.createdAt,
         actionKey: 'activity-feed',
@@ -413,7 +418,7 @@ export function HomeDashboardView(props: SharedTabProps) {
       }
       activityAttentionItems.push({
         id: `approval-${request.id}`,
-        title: 'Approval request',
+        title: t(K.notifications.approvalRequest),
         description: `${request.title} · ${request.description}`,
         createdAt: request.updatedAt,
         actionKey: 'approvals',
@@ -431,7 +436,7 @@ export function HomeDashboardView(props: SharedTabProps) {
       }
       activityAttentionItems.push({
         id: `merge-${request.id}`,
-        title: 'Merge review',
+        title: t(K.notifications.mergeActivity),
         description: `${request.preview.sourceTree.treeName} ↔ ${request.preview.targetTree.treeName}`,
         createdAt: request.updatedAt,
         actionKey: 'merge-reviews',
@@ -620,7 +625,7 @@ export function HomeDashboardView(props: SharedTabProps) {
     if (newlyCompletedId) {
       const completedTask = completedTasks.find((task) => task.id === newlyCompletedId);
       if (completedTask) {
-        setCelebrationMessage(`${completedTask.title} complete`);
+        setCelebrationMessage(t(K.home.taskCompleted, { title: completedTask.title }));
       }
     }
 
@@ -677,12 +682,12 @@ export function HomeDashboardView(props: SharedTabProps) {
 
   const dashboardTabs = useMemo<Array<{ key: DashboardTabKey; label: string }>>(
     () => [
-      { key: 'overview', label: 'Overview' },
-      { key: 'highlights', label: 'Highlights' },
-      { key: 'activity', label: activityNotificationCount > 0 ? `Activity (${activityNotificationCount})` : 'Activity' },
-      { key: 'build', label: 'Build' },
+      { key: 'overview', label: t(K.home.overview) },
+      { key: 'highlights', label: t(K.home.highlights) },
+      { key: 'activity', label: activityNotificationCount > 0 ? t(K.home.activityCount, { count: activityNotificationCount }) : t(K.home.activity) },
+      { key: 'build', label: t(K.home.build) },
     ],
-    [activityNotificationCount],
+    [activityNotificationCount, t],
   );
 
   const openFamilyActivity = () => {
@@ -726,14 +731,14 @@ export function HomeDashboardView(props: SharedTabProps) {
           label: latestActivityAttentionItem.title,
           description: latestActivityAttentionItem.description,
           action,
-          buttonLabel: 'Open activities',
+          buttonLabel: t(K.home.openActivities),
         };
       }
       return {
-        label: 'View family activity',
-        description: 'Everything is calm right now, but you can still open the activity areas.',
+        label: t(K.home.viewFamilyActivity),
+        description: t(K.home.everythingIsCalmRightNowButYouCanStillOpenTheActivityAreas),
         action: openFamilyActivity,
-        buttonLabel: 'Open activities',
+        buttonLabel: t(K.home.openActivities),
       };
     }
 
@@ -747,10 +752,10 @@ export function HomeDashboardView(props: SharedTabProps) {
       }
 
       return {
-        label: canEdit ? 'Add family member' : 'Open stories',
+        label: canEdit ? t(K.home.addFamilyMember) : t(K.home.openStories),
         description: canEdit
-          ? 'Grow the tree by adding a new person, memory, or branch connection.'
-          : 'Explore the latest stories and people in your family space.',
+          ? t(K.home.growTheTreeByAddingANewPersonMemoryOrBranchConnection)
+          : t(K.home.exploreTheLatestStoriesAndPeopleInYourFamilySpace),
         action: canEdit ? onOpenAddPerson : () => focusSection('family-highlights'),
       };
     }
@@ -780,8 +785,8 @@ export function HomeDashboardView(props: SharedTabProps) {
     }
 
     return {
-      label: currentAssignedPerson ? 'Open my profile' : 'Start my profile',
-      description: 'Your essentials are in place. Open the story page and keep building from there.',
+      label: currentAssignedPerson ? t(K.home.openMyProfile) : t(K.home.startMyProfile),
+      description: t(K.home.yourEssentialsAreInPlaceOpenTheStoryPageAndKeepBuildingFromThere),
       action: currentAssignedPerson ? () => openPersonProfile(currentAssignedPerson) : onOpenAddSelf,
     };
   }, [
@@ -804,14 +809,14 @@ export function HomeDashboardView(props: SharedTabProps) {
   ]);
 
   const lensSubtitle = isSetupMode
-    ? 'Start with the setup steps below. Once the basics are in place, this home screen opens up into the full family dashboard.'
+    ? t(K.home.startWithTheSetupStepsBelowOnceTheBasicsAreInPlaceThisHomeScreenOpensUpIntoTheFullFamilyDashboard)
     : dashboardLens === 'activity'
-      ? 'Review what changed, what is waiting, and where shared work needs a decision.'
+      ? t(K.home.reviewWhatChangedWhatIsWaitingAndWhereSharedWorkNeedsADecision)
       : dashboardLens === 'growth'
-        ? 'Focus on adding people, strengthening branches, and growing the family story.'
+        ? t(K.home.focusOnAddingPeopleStrengtheningBranchesAndGrowingTheFamilyStory)
         : currentAssignedPerson
-          ? 'Here is the best next step to make your profile feel fuller and your branch more connected.'
-          : 'Start by linking yourself into the tree, then the app can guide you through the steps that already exist here.';
+          ? t(K.home.hereIsTheBestNextStepToMakeYourProfileFeelFullerAndYourBranchMoreConnected)
+          : t(K.home.startByLinkingYourselfIntoTheTreeThenTheAppCanGuideYouThroughTheStepsThatAlreadyExistHere);
 
   const sinceLastVisit = useMemo(() => {
     if (!lastVisitAt) {
@@ -825,16 +830,16 @@ export function HomeDashboardView(props: SharedTabProps) {
     const newInviteCount = notifications.filter((notification) => notification.createdAt > lastVisitAt && notification.type === 'merge-invite').length;
 
     if (newPeopleCount > 0) {
-      items.push({ id: 'people', label: `${newPeopleCount} new family member${newPeopleCount === 1 ? '' : 's'}`, onPress: () => focusSection('family-highlights') });
+      items.push({ id: 'people', label: t(K.home.newFamilyMembersCount, { count: newPeopleCount }), onPress: () => focusSection('family-highlights') });
     }
     if (updatedRelationshipCount > 0) {
-      items.push({ id: 'relationships', label: `${updatedRelationshipCount} new connection${updatedRelationshipCount === 1 ? '' : 's'}`, onPress: () => navigation.navigate('members' satisfies keyof MainTabParamList) });
+      items.push({ id: 'relationships', label: t(K.home.newConnectionsCount, { count: updatedRelationshipCount }), onPress: () => navigation.navigate('members' satisfies keyof MainTabParamList) });
     }
     if (pendingApprovalCount > 0) {
-      items.push({ id: 'approvals', label: `${pendingApprovalCount} approval${pendingApprovalCount === 1 ? '' : 's'} waiting`, onPress: openApprovals });
+      items.push({ id: 'approvals', label: t(K.home.approvalsWaitingCount, { count: pendingApprovalCount }), onPress: openApprovals });
     }
     if (newInviteCount > 0) {
-      items.push({ id: 'invites', label: `${newInviteCount} new merge invite${newInviteCount === 1 ? '' : 's'}`, onPress: openMergeInvites });
+      items.push({ id: 'invites', label: t(K.home.newMergeInvitesCount, { count: newInviteCount }), onPress: openMergeInvites });
     }
 
     return items;
@@ -859,7 +864,7 @@ export function HomeDashboardView(props: SharedTabProps) {
           <View style={styles.sectionHeader}>
             <View style={styles.titleWrap}>
               <Text variant="headlineSmall">
-                {currentAssignedPerson ? `Welcome back, ${currentAssignedPerson.firstName}` : 'Welcome to your family home'}
+                {currentAssignedPerson ? t(K.home.welcomeBackName, { name: currentAssignedPerson.firstName }) : t(K.home.welcomeToYourFamilyHome)}
               </Text>
             </View>
             <Chip icon="home-heart">{selectedTree.name}</Chip>
@@ -868,35 +873,35 @@ export function HomeDashboardView(props: SharedTabProps) {
           {isSetupMode ? (
             <View style={{ marginTop: 18 }}>
               <View style={[styles.dashboardMetricRow, { marginBottom: 10 }]}>
-                <Text variant="titleMedium">Complete your tree</Text>
+                <Text variant="titleMedium">{t(K.home.completeYourTree)}</Text>
                 <Text variant="titleMedium">{Math.round(setupProgress * 100)}%</Text>
               </View>
               <ProgressBar progress={setupProgress} color={theme.colors.primary} style={{ height: 10, borderRadius: 999 }} />
-              <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant, marginTop: 8 }]}>
-                {setupCompletedCount} of {setupSteps.length} guided setup steps finished
-              </Text>
+                <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant, marginTop: 8 }]}>
+                  {t(K.home.guidedSetupStepsFinishedCount, { completed: setupCompletedCount, total: setupSteps.length })}
+                </Text>
             </View>
           ) : (
             <View style={[styles.dashboardMetricRow, { marginTop: 18 }]}>
               <View style={{ flex: 1, minWidth: 220 }}>
                 <View style={[styles.dashboardMetricRow, { marginBottom: 10 }]}>
-                  <Text variant="titleMedium">Complete your story</Text>
+                  <Text variant="titleMedium">{t(K.home.completeYourStory)}</Text>
                   <Text variant="titleMedium">{Math.round(storyProgress * 100)}%</Text>
                 </View>
                 <ProgressBar progress={storyProgress} color={theme.colors.primary} style={{ height: 10, borderRadius: 999 }} />
                 <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant, marginTop: 8 }]}>
-                  {storyCompletedCount} of {storyTasks.length} profile steps finished
+                  {t(K.home.profileStepsFinishedCount, { completed: storyCompletedCount, total: storyTasks.length })}
                 </Text>
               </View>
 
               <View style={{ flex: 1, minWidth: 220 }}>
                 <View style={[styles.dashboardMetricRow, { marginBottom: 10 }]}>
-                  <Text variant="titleMedium">Complete your tree</Text>
+                  <Text variant="titleMedium">{t(K.home.completeYourTree)}</Text>
                   <Text variant="titleMedium">{Math.round(treeProgress * 100)}%</Text>
                 </View>
                 <ProgressBar progress={treeProgress} color={theme.colors.secondary} style={{ height: 10, borderRadius: 999 }} />
                 <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant, marginTop: 8 }]}>
-                  {treeCompletedCount} of {treeTasks.length} tree-building steps finished
+                  {t(K.home.treeBuildingStepsFinishedCount, { completed: treeCompletedCount, total: treeTasks.length })}
                 </Text>
               </View>
             </View>
@@ -938,7 +943,7 @@ export function HomeDashboardView(props: SharedTabProps) {
                     <View style={styles.sectionHeader}>
                       <View style={styles.titleWrap}>
                         <Chip compact icon={step.done ? 'check-circle-outline' : 'numeric'}>
-                          {step.done ? 'Done' : 'Next step'}
+                          {step.done ? t(K.common.done) : t(K.common.next)}
                         </Chip>
                         <Text variant="titleMedium" style={{ marginTop: 8 }}>{step.title}</Text>
                         <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
@@ -946,7 +951,7 @@ export function HomeDashboardView(props: SharedTabProps) {
                         </Text>
                       </View>
                       <Button mode={step.done ? 'text' : 'contained-tonal'} onPress={step.action}>
-                        {step.done ? 'Open' : 'Do this'}
+                        {step.done ? t(K.common.open) : t(K.home.doThis)}
                       </Button>
                     </View>
                   </Surface>
@@ -957,15 +962,15 @@ export function HomeDashboardView(props: SharedTabProps) {
 
           {bestNextStep ? (
             <View style={[styles.dashboardAccentCard, { backgroundColor: theme.colors.elevation.level1, borderColor: theme.colors.outlineVariant }]}>
-              <Chip compact icon={dashboardLens === 'activity' ? 'bell-badge-outline' : dashboardLens === 'growth' ? 'sprout-outline' : 'star-four-points-outline'}>
-                {isSetupMode
-                  ? 'Setup wizard'
+                <Chip compact icon={dashboardLens === 'activity' ? 'bell-badge-outline' : dashboardLens === 'growth' ? 'sprout-outline' : 'star-four-points-outline'}>
+                  {isSetupMode
+                  ? t(K.home.setupWizard)
                   : dashboardLens === 'activity'
-                    ? 'What needs review'
+                    ? t(K.home.whatNeedsReview)
                     : dashboardLens === 'growth'
-                      ? 'Grow the tree'
-                      : 'Best next step'}
-              </Chip>
+                      ? t(K.home.growTheTree)
+                      : t(K.home.bestNextStep)}
+                </Chip>
               <Text variant="titleMedium" style={{ marginTop: 10 }}>
                 {isSetupMode
                   ? nextSetupStep?.title ?? heroAction.label
@@ -981,30 +986,30 @@ export function HomeDashboardView(props: SharedTabProps) {
               </Text>
               <View style={styles.dashboardActionRow}>
                 <Button mode="contained" onPress={heroAction.action} style={styles.dashboardInlineAction}>
-                  {isSetupMode ? 'Continue setup' : heroAction.buttonLabel ?? heroAction.label}
+                  {isSetupMode ? t(K.home.continueSetup) : heroAction.buttonLabel ?? heroAction.label}
                 </Button>
                 {!isSetupMode && dashboardLens === 'focus' ? (
                   <Button mode="text" onPress={() => dismissTask((bestStoryStep ?? bestNextStep).id)} style={styles.dashboardInlineAction}>
-                    Hide for now
+                    {t(K.home.hideForNow)}
                   </Button>
                 ) : null}
               </View>
             </View>
           ) : (
             <View style={[styles.dashboardAccentCard, { backgroundColor: theme.colors.elevation.level1, borderColor: theme.colors.outlineVariant }]}>
-              <Chip compact icon="check-decagram">{dismissedTaskIds.length > 0 ? 'Prompts cleared for now' : 'Profile looking strong'}</Chip>
-              <Text variant="titleMedium" style={{ marginTop: 10 }}>Your essentials are in place</Text>
+              <Chip compact icon="check-decagram">{dismissedTaskIds.length > 0 ? t(K.home.promptsClearedForNow) : t(K.home.profileLookingStrong)}</Chip>
+              <Text variant="titleMedium" style={{ marginTop: 10 }}>{t(K.home.yourEssentialsAreInPlace)}</Text>
               <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 6 }}>
                 {dismissedTaskIds.length > 0
-                  ? 'You have cleared the current prompts. Bring them back whenever you want another nudge.'
-                  : 'Keep the story growing by adding more memories, photos, and relatives around your branch.'}
+                  ? t(K.home.youHaveClearedTheCurrentPromptsBringThemBackWheneverYouWantAnotherNudge)
+                  : t(K.home.keepTheStoryGrowingByAddingMoreMemoriesPhotosAndRelativesAroundYourBranch)}
               </Text>
               <View style={styles.dashboardActionRow}>
                 <Button mode="contained-tonal" onPress={currentAssignedPerson ? () => openPersonProfile(currentAssignedPerson) : onOpenAddSelf}>
-                  {currentAssignedPerson ? 'Open my profile' : 'Start my profile'}
+                  {currentAssignedPerson ? t(K.home.openMyProfile) : t(K.home.startMyProfile)}
                 </Button>
-                {canEdit ? <Button mode="outlined" onPress={onOpenAddPerson}>Add family member</Button> : null}
-                {dismissedTaskIds.length > 0 ? <Button mode="text" onPress={restoreHiddenPrompts}>Restore prompts</Button> : null}
+                {canEdit ? <Button mode="outlined" onPress={onOpenAddPerson}>{t(K.home.addFamilyMember)}</Button> : null}
+                {dismissedTaskIds.length > 0 ? <Button mode="text" onPress={restoreHiddenPrompts}>{t(K.home.restorePrompts)}</Button> : null}
               </View>
             </View>
           )}
@@ -1018,19 +1023,19 @@ export function HomeDashboardView(props: SharedTabProps) {
             <View style={styles.dashboardMetricRow}>
               <Card mode="elevated" style={[styles.dashboardMetricCard, { backgroundColor: theme.colors.surface }]}>
                 <Card.Content>
-                  <Text variant="labelLarge">Family members</Text>
+                  <Text variant="labelLarge">{t(K.home.familyMembersMetric)}</Text>
                   <Text variant="headlineSmall">{people.length}</Text>
                 </Card.Content>
               </Card>
               <Card mode="elevated" style={[styles.dashboardMetricCard, { backgroundColor: theme.colors.surface }]}>
                 <Card.Content>
-                  <Text variant="labelLarge">New matches</Text>
+                  <Text variant="labelLarge">{t(K.home.newMatchesMetric)}</Text>
                   <Text variant="headlineSmall">{currentSelfAssignmentSuggestions.length}</Text>
                 </Card.Content>
               </Card>
               <Card mode="elevated" style={[styles.dashboardMetricCard, { backgroundColor: theme.colors.surface }]}>
                 <Card.Content>
-                  <Text variant="labelLarge">Open tasks</Text>
+                  <Text variant="labelLarge">{t(K.home.openTasksMetric)}</Text>
                   <Text variant="headlineSmall">{visibleRemainingTasks.length}</Text>
                 </Card.Content>
               </Card>
@@ -1056,9 +1061,9 @@ export function HomeDashboardView(props: SharedTabProps) {
           {sinceLastVisit.length > 0 ? (
             <Reveal delay={105}>
               <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1} onLayout={registerSectionOffset('since-last-visit')}>
-                <Text variant="titleLarge">Since your last visit</Text>
+                <Text variant="titleLarge">{t(K.home.sinceYourLastVisit)}</Text>
                 <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-                  A quick digest of what changed while you were away.
+                  {t(K.home.aQuickDigestOfWhatChangedWhileYouWereAway)}
                 </Text>
                 <View style={[styles.dashboardActionRow, { marginTop: 14 }]}>
                   {sinceLastVisit.map((item) => (
@@ -1074,9 +1079,9 @@ export function HomeDashboardView(props: SharedTabProps) {
           {needsAttentionCount > 0 ? (
             <Reveal delay={120}>
               <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
-                <Text variant="titleLarge">Needs attention</Text>
+                <Text variant="titleLarge">{t(K.notifications.needsAttention)}</Text>
                 <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-                  Shared activity that could use a look before it slips out of view.
+                  {t(K.home.sharedActivityThatCouldUseALookBeforeItSlipsOutOfView)}
                 </Text>
                 <View style={[styles.dashboardActionRow, { marginTop: 14 }]}>
                   {pendingApprovals > 0 ? (
@@ -1086,7 +1091,7 @@ export function HomeDashboardView(props: SharedTabProps) {
                       style={{ backgroundColor: approvalsTone.backgroundColor, borderColor: approvalsTone.borderColor, borderWidth: 1 }}
                       textStyle={{ color: approvalsTone.textColor }}
                     >
-                      {pendingApprovals} approval{pendingApprovals === 1 ? '' : 's'} waiting
+                      {t(K.home.approvalsWaitingCount, { count: pendingApprovals })}
                     </Chip>
                   ) : null}
                   {pendingInvites > 0 ? (
@@ -1096,7 +1101,7 @@ export function HomeDashboardView(props: SharedTabProps) {
                       style={{ backgroundColor: invitesTone.backgroundColor, borderColor: invitesTone.borderColor, borderWidth: 1 }}
                       textStyle={{ color: invitesTone.textColor }}
                     >
-                      {pendingInvites} merge invite{pendingInvites === 1 ? '' : 's'}
+                      {t(K.home.mergeInvitesWaitingCount, { count: pendingInvites })}
                     </Chip>
                   ) : null}
                   {activeMergeReviews > 0 ? (
@@ -1106,7 +1111,7 @@ export function HomeDashboardView(props: SharedTabProps) {
                       style={{ backgroundColor: mergeTone.backgroundColor, borderColor: mergeTone.borderColor, borderWidth: 1 }}
                       textStyle={{ color: mergeTone.textColor }}
                     >
-                      {activeMergeReviews} merge review{activeMergeReviews === 1 ? '' : 's'}
+                      {t(K.home.mergeReviewsWaitingCount, { count: activeMergeReviews })}
                     </Chip>
                   ) : null}
                 </View>
@@ -1125,20 +1130,20 @@ export function HomeDashboardView(props: SharedTabProps) {
                 <View style={styles.sectionHeader}>
                   <View style={styles.titleWrap}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <Text variant="titleLarge">{isSetupMode ? 'Setup wizard' : 'Build your family'}</Text>
+                      <Text variant="titleLarge">{isSetupMode ? t(K.home.setupWizard) : t(K.home.buildYourFamily)}</Text>
                       <IconButton
                         icon="information-outline"
                         size={18}
                         style={{ margin: 0 }}
                         onPress={() => setBuildInfoVisible(true)}
-                        accessibilityLabel="About build your family"
+                        accessibilityLabel={t(K.home.aboutBuildYourFamily)}
                       />
                     </View>
                   </View>
                   <IconButton
                     icon={deeperExpanded ? 'chevron-up' : 'chevron-down'}
                     onPress={() => setDeeperExpanded((current) => !current)}
-                    accessibilityLabel={deeperExpanded ? 'Collapse build your family' : 'Expand build your family'}
+                    accessibilityLabel={deeperExpanded ? t(K.home.collapseBuildYourFamily) : t(K.home.expandBuildYourFamily)}
                   />
                 </View>
 
@@ -1146,9 +1151,9 @@ export function HomeDashboardView(props: SharedTabProps) {
                 <View style={{ marginTop: 14, gap: 18 }}>
                   {visibleStoryTasks.length > 0 ? (
                     <View>
-                      <Text variant="titleMedium">Complete your story</Text>
+                      <Text variant="titleMedium">{t(K.home.completeYourStory)}</Text>
                       <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
-                        These steps shape your own page into a fuller biography.
+                        {t(K.home.theseStepsShapeYourOwnPageIntoAFullerBiography)}
                       </Text>
                       <View style={{ marginTop: 12 }}>
                         {visibleStoryTasks.map((task, index) => (
@@ -1167,7 +1172,7 @@ export function HomeDashboardView(props: SharedTabProps) {
                                       {task.ctaLabel}
                                     </Button>
                                     <Button mode="text" compact onPress={() => dismissTask(task.id)}>
-                                      Hide
+                                      {t(K.home.hide)}
                                     </Button>
                                   </View>
                                 </View>
@@ -1181,9 +1186,9 @@ export function HomeDashboardView(props: SharedTabProps) {
 
                   {visibleTreeTasks.length > 0 ? (
                     <View>
-                      <Text variant="titleMedium">Complete your tree</Text>
+                      <Text variant="titleMedium">{t(K.home.completeYourTree)}</Text>
                       <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
-                        These steps grow the family beyond one person and strengthen the branch structure.
+                        {t(K.home.theseStepsGrowTheFamilyBeyondOnePersonAndStrengthenTheBranchStructure)}
                       </Text>
                       <View style={{ marginTop: 12 }}>
                         {visibleTreeTasks.map((task, index) => (
@@ -1202,7 +1207,7 @@ export function HomeDashboardView(props: SharedTabProps) {
                                       {task.ctaLabel}
                                     </Button>
                                     <Button mode="text" compact onPress={() => dismissTask(task.id)}>
-                                      Hide
+                                      {t(K.home.hide)}
                                     </Button>
                                   </View>
                                 </View>
@@ -1221,22 +1226,22 @@ export function HomeDashboardView(props: SharedTabProps) {
         ) : (
           <Reveal delay={140}>
             <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
-              <Text variant="titleLarge">Your build list is clear</Text>
+              <Text variant="titleLarge">{t(K.home.yourBuildListIsClear)}</Text>
               <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-                Your story and tree prompts are covered for now. Add a new family member or open your profile to keep growing.
+                {t(K.home.yourStoryAndTreePromptsAreCoveredForNowAddANewFamilyMemberOrOpenYourProfileToKeepGrowing)}
               </Text>
               <View style={styles.dashboardActionRow}>
                 {currentAssignedPerson ? (
                   <Button mode="contained-tonal" onPress={() => openPersonProfile(currentAssignedPerson)}>
-                    Open my profile
+                    {t(K.home.openMyProfile)}
                   </Button>
                 ) : (
                   <Button mode="contained-tonal" onPress={onOpenAddSelf}>
-                    Start my profile
+                    {t(K.home.startMyProfile)}
                   </Button>
                 )}
-                {canEdit ? <Button mode="outlined" onPress={onOpenAddPerson}>Add family member</Button> : null}
-                {dismissedTaskIds.length > 0 ? <Button mode="text" onPress={restoreHiddenPrompts}>Restore prompts</Button> : null}
+                {canEdit ? <Button mode="outlined" onPress={onOpenAddPerson}>{t(K.home.addFamilyMember)}</Button> : null}
+                {dismissedTaskIds.length > 0 ? <Button mode="text" onPress={restoreHiddenPrompts}>{t(K.home.restorePrompts)}</Button> : null}
               </View>
             </Surface>
           </Reveal>
@@ -1249,13 +1254,13 @@ export function HomeDashboardView(props: SharedTabProps) {
           onDismiss={() => setActivityModalVisible(false)}
           style={[dialogChrome.dialog, { backgroundColor: theme.colors.surface, maxHeight: '88%' }]}
         >
-          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>Family activities</Dialog.Title>
+          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{t(K.home.familyActivities)}</Dialog.Title>
           <IconButton
             icon="close"
             size={20}
             onPress={() => setActivityModalVisible(false)}
             style={dialogChrome.closeButton}
-            accessibilityLabel="Close family activities"
+            accessibilityLabel={t(K.home.closeFamilyActivities)}
           />
           <Dialog.ScrollArea style={dialogChrome.scrollArea}>
             {activityModalVisible ? (
@@ -1274,16 +1279,16 @@ export function HomeDashboardView(props: SharedTabProps) {
       </Portal>
       <Portal>
         <Dialog visible={buildInfoVisible} onDismiss={() => setBuildInfoVisible(false)}>
-          <Dialog.Title>{isSetupMode ? 'About setup wizard' : 'About build your family'}</Dialog.Title>
+          <Dialog.Title>{isSetupMode ? t(K.home.aboutSetupWizard) : t(K.home.aboutBuildYourFamily)}</Dialog.Title>
           <Dialog.Content>
             <Text variant="bodyMedium">
               {isSetupMode
-                ? 'These steps guide a brand-new tree from first profile to first real family structure.'
-                : 'Build your family separates profile work from tree-building so it is easier to grow your own story and the wider tree without mixing them together.'}
+                ? t(K.home.theseStepsGuideABrandNewTreeFromFirstProfileToFirstRealFamilyStructure)
+                : t(K.home.buildYourFamilySeparatesProfileWorkFromTreeBuildingSoItIsEasierToGrowYourOwnStoryAndTheWiderTreeWithoutMixingThemTogether)}
             </Text>
           </Dialog.Content>
           <Dialog.Actions>
-            <Button onPress={() => setBuildInfoVisible(false)}>Close</Button>
+            <Button onPress={() => setBuildInfoVisible(false)}>{t(K.common.close)}</Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>
@@ -1292,7 +1297,7 @@ export function HomeDashboardView(props: SharedTabProps) {
         onDismiss={() => setCelebrationMessage(null)}
         duration={2600}
         action={{
-          label: 'Nice',
+          label: t(K.home.nice),
           onPress: () => setCelebrationMessage(null),
         }}
       >

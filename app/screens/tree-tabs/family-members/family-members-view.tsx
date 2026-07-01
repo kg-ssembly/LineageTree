@@ -303,14 +303,12 @@ export function FamilyMembersView({
             left={<TextInput.Icon icon="magnify" />}
             right={searchQuery ? <TextInput.Icon icon="close" onPress={() => setSearchQuery('')} /> : undefined}
           />
-          <Button
+          <IconButton
             mode={activeFilterCount > 0 ? 'contained' : 'outlined'}
             icon="tune"
             onPress={openFilterModal}
-            style={styles.filterButton}
-            contentStyle={styles.filterButtonContent}
-            compact>''
-          </Button>
+            style={styles.filterButton}>
+          </IconButton>
         </View>
 
         <View style={{ flex: 1 }}>
@@ -346,7 +344,6 @@ export function FamilyMembersView({
                   gap: 8,
                 },
               ]}>
-                <MaterialCommunityIcons name="star-four-points-outline" size={16} color={theme.colors.secondary} />
                 <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
                   {t(K.tree.familyMembers.count, { count: filteredPeople.length })}
                 </Text>

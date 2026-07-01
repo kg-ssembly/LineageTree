@@ -402,7 +402,7 @@ export function NotificationsView({
           <View style={styles.sectionHeader}>
             <View style={styles.titleWrap}>
               <View style={styles.titleWithHelperRow}>
-                <Text variant="headlineSmall">Family activity</Text>
+                <Text variant="headlineSmall">{t(K.notifications.familyActivity)}</Text>
                 <IconButton
                   icon="information-outline"
                   size={18}
@@ -431,14 +431,14 @@ export function NotificationsView({
               >
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
                   <View style={{ flex: 1 }}>
-                    <Text variant="titleSmall">Activity overview</Text>
+                    <Text variant="titleSmall">{t(K.notifications.activityOverview)}</Text>
                     <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 2 }}>
                       {feedMetrics.attentionItems.length} need attention • {feedMetrics.unseenDirectIds.length} new • {notificationFeed.length} total
                     </Text>
                   </View>
                   {feedMetrics.unactionedDerivedItems.length > 0 ? (
                     <Button compact mode="text" onPress={() => { void handleMarkAllActioned(); }} disabled={mutating}>
-                      Mark done
+                      {t(K.common.done)}
                     </Button>
                   ) : null}
                 </View>
@@ -446,12 +446,12 @@ export function NotificationsView({
 
               <View style={{ gap: 8 }}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-                  <Text variant="titleSmall">Needs attention</Text>
+                  <Text variant="titleSmall">{t(K.notifications.needsAttention)}</Text>
                   <Chip compact>{feedMetrics.attentionItems.length}</Chip>
                 </View>
                 {feedMetrics.embeddedAttentionItems.length > 0 ? feedMetrics.embeddedAttentionItems.map(renderCompactRow) : (
                   <View style={{ borderWidth: 1, borderColor: theme.colors.outlineVariant, borderRadius: 14, padding: 14 }}>
-                    <Text variant="bodyMedium">Everything here is caught up.</Text>
+                    <Text variant="bodyMedium">{t(K.notifications.everythingCaughtUp)}</Text>
                   </View>
                 )}
                 {feedMetrics.attentionItems.length > feedMetrics.embeddedAttentionItems.length ? (
@@ -464,7 +464,7 @@ export function NotificationsView({
               {feedMetrics.completedItems.length > 0 ? (
                 <View style={{ gap: 8 }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-                    <Text variant="titleSmall">Done</Text>
+                    <Text variant="titleSmall">{t(K.common.done)}</Text>
                     <Chip compact>{feedMetrics.completedItems.length}</Chip>
                   </View>
                   {feedMetrics.embeddedCompletedItems.map(renderCompactRow)}
@@ -478,7 +478,7 @@ export function NotificationsView({
             </View>
           ) : (
             <View style={styles.emptyState}>
-              <Text variant="titleMedium">Your family activity feed is quiet</Text>
+              <Text variant="titleMedium">{t(K.notifications.yourFamilyActivityFeedIsQuiet)}</Text>
               <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
                 Invites, edits, and merge moments will appear here as more people join in and your story grows.
               </Text>
@@ -489,7 +489,7 @@ export function NotificationsView({
           <Card mode="outlined" style={{ marginBottom: 16, backgroundColor: theme.colors.surface, borderRadius: 16 }}>
             <Card.Content style={{ gap: 12 }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                <Text variant="titleSmall">Most recent family activity</Text>
+                <Text variant="titleSmall">{t(K.notifications.mostRecentFamilyActivity)}</Text>
                 <Chip compact icon="timeline-clock-outline">
                   {notificationFeed.length} total
                 </Chip>
@@ -597,7 +597,7 @@ export function NotificationsView({
           </View>
         ) : !embedded ? (
           <View style={styles.emptyState}>
-            <Text variant="titleMedium">Your family activity feed is quiet</Text>
+            <Text variant="titleMedium">{t(K.notifications.yourFamilyActivityFeedIsQuiet)}</Text>
             <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
               Invites, edits, and merge moments will appear here as more people join in and your story grows.
             </Text>

@@ -92,7 +92,7 @@ export function MainNoTreeGate({
           <View style={localStyles.chipRow}>
             <Chip compact icon="account-group-outline">{controller.t(K.navigation.members)}</Chip>
             <Chip compact icon="timeline-text-outline">{controller.t(K.navigation.tree)}</Chip>
-            <Chip compact icon="image-outline">Memories</Chip>
+            <Chip compact icon="image-outline">{controller.t(K.memories.memories)}</Chip>
           </View>
 
           <Text variant="headlineMedium" style={[localStyles.noTreeGateText, localStyles.title, { color: controller.theme.colors.onSurface }]}>

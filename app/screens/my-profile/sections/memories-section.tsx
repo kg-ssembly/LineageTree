@@ -242,7 +242,7 @@ export function MemoriesSection({
       ) : null}
       <Portal>
         <Dialog visible={Boolean(selectedPhoto)} onDismiss={() => setSelectedPhotoId(null)} style={[dialogChrome.dialog, personProfileStyles.memoryDialog, { backgroundColor: theme.colors.surface }]}>
-          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>Photo info</Dialog.Title>
+          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{t(K.memories.photoInfo)}</Dialog.Title>
           <IconButton icon="close" size={20} onPress={() => setSelectedPhotoId(null)} style={dialogChrome.closeButton} accessibilityLabel={t(K.common.close)} />
           <Dialog.ScrollArea style={dialogChrome.scrollArea}>
             <View style={personProfileStyles.memoryDialogContent}>
@@ -251,7 +251,7 @@ export function MemoriesSection({
                 <>
                   <TextInput
                     mode="outlined"
-                    label="Tell us more about this photo"
+                    label={t(K.memories.tellUsMoreAboutThisPhoto)}
                     value={selectedDraft.description}
                     onChangeText={(value) => setPhotoDrafts((current) => ({
                       ...current,
@@ -271,7 +271,7 @@ export function MemoriesSection({
                       </Button>
                     </View>
                   ) : null}
-                  <Text variant="titleSmall">Link to memory</Text>
+                  <Text variant="titleSmall">{t(K.memories.linkToMemory)}</Text>
                   <View style={personProfileStyles.timelineChipRow}>
                     <Chip
                       selected={!selectedDraft.linkedLifeEventId}
@@ -281,7 +281,7 @@ export function MemoriesSection({
                       }))}
                       disabled={!canEditLinkedProfile || photoProcessing}
                     >
-                      None
+                      {t(K.common.none)}
                     </Chip>
                     {linkedPerson.lifeEvents.map((event) => (
                       <Chip

@@ -105,8 +105,8 @@ export function ProfileHeroSection({
               {fallbackSummary}
             </Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
-              <Chip compact icon="account-group-outline">Family circle</Chip>
-              <Chip compact icon="image-multiple-outline">Memories</Chip>
+              <Chip compact icon="account-group-outline">{t(K.personProfile.familyCircle)}</Chip>
+              <Chip compact icon="image-multiple-outline">{t(K.memories.memories)}</Chip>
             </View>
           </View>
         </View>

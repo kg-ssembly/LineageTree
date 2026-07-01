@@ -59,8 +59,8 @@ export function FamilyTreeView({
             <MaterialCommunityIcons name="family-tree" size={40} color={theme.colors.primary} />
           </View>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
-            <Chip compact icon="gesture-pinch">Zoom</Chip>
-            <Chip compact icon="gesture-tap">Tap to explore</Chip>
+            <Chip compact icon="gesture-pinch">{t(K.lineage.zoom)}</Chip>
+            <Chip compact icon="gesture-tap">{t(K.lineage.tapToExplore)}</Chip>
           </View>
           <Text variant="titleMedium">{t(K.lineage.noVisualTreeYet)}</Text>
           <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>

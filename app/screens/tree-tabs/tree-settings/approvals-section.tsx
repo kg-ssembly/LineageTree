@@ -133,7 +133,7 @@ export function ApprovalsSection({
           </View>
         ) : (
           <View style={styles.emptyState}>
-            <Text variant="titleMedium">Nothing is waiting on your eye right now</Text>
+            <Text variant="titleMedium">{t(K.treeSettings.nothingWaitingOnYourEye)}</Text>
             <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
               Fresh edits from collaborators will appear here whenever they need a quick review.
             </Text>

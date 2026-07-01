@@ -246,7 +246,7 @@ export function PersonMemoriesSection({
       ) : null}
       <Portal>
         <Dialog visible={Boolean(selectedPhoto)} onDismiss={() => setSelectedPhotoId(null)} style={[dialogChrome.dialog, styles.memoryDialog, { backgroundColor: theme.colors.surface }]}>
-          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>Photo info</Dialog.Title>
+          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{t(K.memories.photoInfo)}</Dialog.Title>
           <IconButton icon="close" size={20} onPress={() => setSelectedPhotoId(null)} style={dialogChrome.closeButton} accessibilityLabel={t(K.common.close)} />
           <Dialog.ScrollArea style={dialogChrome.scrollArea}>
             <View style={styles.memoryDialogContent}>
@@ -255,7 +255,7 @@ export function PersonMemoriesSection({
                 <>
                   <TextInput
                     mode="outlined"
-                    label="Tell us more about this photo"
+                    label={t(K.memories.tellUsMoreAboutThisPhoto)}
                     value={selectedDraft.description}
                     onChangeText={(value) => setPhotoDrafts((current) => ({
                       ...current,
@@ -275,7 +275,7 @@ export function PersonMemoriesSection({
                       </Button>
                     </View>
                   ) : null}
-                  <Text variant="titleSmall">Link to memory</Text>
+                  <Text variant="titleSmall">{t(K.memories.linkToMemory)}</Text>
                   <View style={styles.timelineChipRow}>
                     <Chip
                       selected={!selectedDraft.linkedLifeEventId}
@@ -285,7 +285,7 @@ export function PersonMemoriesSection({
                       }))}
                       disabled={!canEdit || photoProcessing}
                     >
-                      None
+                      {t(K.common.none)}
                     </Chip>
                     {person.lifeEvents.map((event) => (
                       <Chip

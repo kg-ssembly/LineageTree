@@ -151,7 +151,7 @@ export function FamilyHighlightsPanel({
       <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface, marginBottom: 18 }]} elevation={1}>
         <View style={styles.sectionHeader}>
           <View style={styles.titleWrap}>
-            <Text variant="titleLarge">Family highlights</Text>
+            <Text variant="titleLarge">{t(K.home.familyHighlights)}</Text>
             <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
               Fresh faces, remembered dates, and the branches growing around you.
             </Text>
@@ -163,7 +163,7 @@ export function FamilyHighlightsPanel({
             <View style={styles.highlightColumnHeader}>
               <View style={styles.sectionHeader}>
                 <View style={styles.titleWrap}>
-                  <Text variant="titleMedium">Recent additions</Text>
+                  <Text variant="titleMedium">{t(K.home.recentAdditions)}</Text>
                   <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
                     The newest people added to this family story.
                   </Text>
@@ -213,7 +213,7 @@ export function FamilyHighlightsPanel({
             <View style={styles.highlightColumnHeader}>
               <View style={styles.sectionHeader}>
                 <View style={styles.titleWrap}>
-                  <Text variant="titleMedium">Coming up</Text>
+                  <Text variant="titleMedium">{t(K.home.comingUp)}</Text>
                   <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
                     Birthdays and milestones that are approaching soon.
                   </Text>
@@ -263,7 +263,7 @@ export function FamilyHighlightsPanel({
             <View style={styles.highlightColumnHeader}>
               <View style={styles.sectionHeader}>
                 <View style={styles.titleWrap}>
-                  <Text variant="titleMedium">Branch growth</Text>
+                  <Text variant="titleMedium">{t(K.home.branchGrowth)}</Text>
                   <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
                     A quick look at the family names and branches growing most recently.
                   </Text>
@@ -303,7 +303,7 @@ export function FamilyHighlightsPanel({
             ) : null}
             {growthExpanded && currentAssignedPerson ? (
               <View style={[styles.highlightAside, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant }]}>
-                <Text variant="labelLarge">Your place in the story</Text>
+                <Text variant="labelLarge">{t(K.home.yourPlaceInTheStory)}</Text>
                 <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
                   {formatPersonName(currentAssignedPerson)} is linked to your account, so you can jump back into your branch anytime.
                 </Text>
