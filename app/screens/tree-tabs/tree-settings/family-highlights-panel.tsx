@@ -20,6 +20,13 @@ type HighlightAnniversary = {
 
 type HighlightPanelKey = 'recent' | 'anniversary' | 'growth';
 
+type HighlightSuggestion = {
+  title: string;
+  description: string;
+  actionLabel: string;
+  action: () => void;
+};
+
 function getAnniversaryDateForYear(dateValue: string, year: number) {
   if (!dateValue) {
     return null;
@@ -145,6 +152,39 @@ export function FamilyHighlightsPanel({
   const recentExpanded = expandedPanel === 'recent';
   const anniversaryExpanded = expandedPanel === 'anniversary';
   const growthExpanded = expandedPanel === 'growth';
+  const hasHighlights = recentAdditions.length > 0 || anniversaries.length > 0 || branchGrowth.length > 0;
+
+  const suggestedHighlight = useMemo<HighlightSuggestion | null>(() => {
+    if (anniversaries.length > 0 && currentAssignedPerson) {
+      return {
+        title: t(K.home.addMemoryForUpcomingMoment),
+        description: `${anniversaries[0].title} · ${anniversaries[0].subtitle}`,
+        actionLabel: t(K.home.openMyProfile),
+        action: () => openPersonProfile(currentAssignedPerson),
+      };
+    }
+
+    if (recentAdditions.length > 0) {
+      const person = recentAdditions[0];
+      return {
+        title: t(K.home.reviewRecentAddition),
+        description: `${formatPersonName(person)} · ${t(K.home.newFamilyMembersCount, { count: 1 })}`,
+        actionLabel: t(K.home.viewProfile),
+        action: () => openPersonProfile(person),
+      };
+    }
+
+    if (currentAssignedPerson && branchGrowth.length > 0) {
+      return {
+        title: t(K.home.exploreGrowingBranch),
+        description: `${branchGrowth[0].surname} · ${t(K.treeSettings.familyMembersCount, { count: branchGrowth[0].total })}`,
+        actionLabel: t(K.home.openMyProfile),
+        action: () => openPersonProfile(currentAssignedPerson),
+      };
+    }
+
+    return null;
+  }, [anniversaries, branchGrowth, currentAssignedPerson, openPersonProfile, recentAdditions, t]);
 
   return (
     <Reveal delay={80}>
@@ -153,10 +193,32 @@ export function FamilyHighlightsPanel({
           <View style={styles.titleWrap}>
             <Text variant="titleLarge">{t(K.home.familyHighlights)}</Text>
             <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-              Fresh faces, remembered dates, and the branches growing around you.
+              {t(K.home.thisTabHelpsYouSpotFreshFacesImportantDatesAndGrowingBranchesAcrossTheFamily)}
             </Text>
           </View>
         </View>
+
+        {suggestedHighlight ? (
+          <Surface style={[styles.dashboardAccentCard, { backgroundColor: theme.colors.elevation.level1, borderColor: theme.colors.outlineVariant, marginTop: 16 }]} elevation={0}>
+            <Text variant="labelLarge">{t(K.home.suggestedForYou)}</Text>
+            <Text variant="titleMedium" style={{ marginTop: 8 }}>{suggestedHighlight.title}</Text>
+            <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 6 }}>
+              {suggestedHighlight.description}
+            </Text>
+            <Button mode="contained-tonal" onPress={suggestedHighlight.action} style={{ alignSelf: 'flex-start', marginTop: 14 }}>
+              {suggestedHighlight.actionLabel}
+            </Button>
+          </Surface>
+        ) : null}
+
+        {!hasHighlights ? (
+          <Surface style={[styles.dashboardAccentCard, { backgroundColor: theme.colors.elevation.level1, borderColor: theme.colors.outlineVariant, marginTop: 16 }]} elevation={0}>
+            <Text variant="titleMedium">{t(K.home.familyHighlights)}</Text>
+            <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 6 }}>
+              {t(K.home.thisTabWillComeAliveAsSoonAsYouAddPeopleDatesOrMemoriesToTheTree)}
+            </Text>
+          </Surface>
+        ) : null}
 
         <View style={styles.highlightGrid}>
           <View style={[styles.highlightColumn, { backgroundColor: theme.colors.elevation.level1, borderColor: theme.colors.outlineVariant }]}>

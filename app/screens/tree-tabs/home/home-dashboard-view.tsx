@@ -10,6 +10,7 @@ import type { AppTheme } from '../../../../constants/theme';
 import { GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
+import { formatPersonName } from '../../../../components/person-formatting';
 import { getActivityNotificationCount } from '../shared';
 import type { SharedTabProps } from '../shared';
 import { FamilyHighlightsPanel } from '../tree-settings/family-highlights-panel';
@@ -58,6 +59,30 @@ type HeroAction = {
   description: string;
   action: () => void;
   buttonLabel?: string;
+};
+
+type HeroAttentionCallout = {
+  title: string;
+  description: string;
+  action: () => void;
+  buttonLabel: string;
+};
+
+type DashboardBundle = {
+  id: 'story' | 'tree';
+  title: string;
+  description: string;
+  actionLabel: string;
+  remainingCount: number;
+  action: () => void;
+};
+
+type MissingMemberDetail = {
+  personId: string;
+  name: string;
+  summary: string;
+  score: number;
+  action: () => void;
 };
 
 function getUrgencyTone(theme: AppTheme, level: 'urgent' | 'attention' | 'calm') {
@@ -143,6 +168,7 @@ function buildDashboardTasks(
   const hasRelationships = relationshipCount > 0;
   const hasBranchIdentity = Boolean(currentAssignedPerson.familyBranch?.trim() || currentAssignedPerson.clanName?.trim());
   const hasProfilePhoto = hasPhoto;
+  const hasCoreProfileFacts = hasBirthDetails && hasProfilePhoto && hasRelationships;
 
   const profileAction = () => openPersonProfile(currentAssignedPerson);
 
@@ -171,24 +197,13 @@ function buildDashboardTasks(
       action: profileAction,
     },
     {
-      id: 'story',
-      title: t(K.home.writeAStoryNote),
-      description: t(K.home.aSmallMemoryOrDescriptionBringsTheProfileToLife),
-      ctaLabel: t(K.home.writeNote),
-      category: 'story',
-      priority: 'recommended',
-      score: hasProfilePhoto || hasMemories ? 260 : 180,
-      done: hasStoryNote,
-      action: profileAction,
-    },
-    {
       id: 'memory',
       title: t(K.home.recordAMilestone),
       description: t(K.home.addOneLifeEventSoTheTimelineStartsFeelingLikeALivingScrapbook),
       ctaLabel: t(K.home.addMemory),
       category: 'story',
       priority: 'recommended',
-      score: hasStoryNote || hasProfilePhoto ? 250 : 190,
+      score: hasRelationships || hasProfilePhoto ? 280 : 210,
       done: hasMemories,
       action: profileAction,
     },
@@ -239,6 +254,20 @@ function buildDashboardTasks(
       action: currentSelfAssignmentSuggestions.length > 0 ? onOpenAddSelf : onOpenAddPerson,
     },
   ];
+
+  if (hasCoreProfileFacts) {
+    taskList.push({
+      id: 'story',
+      title: t(K.home.writeAStoryNote),
+      description: t(K.home.aSmallMemoryOrDescriptionBringsTheProfileToLife),
+      ctaLabel: t(K.home.writeNote),
+      category: 'story',
+      priority: 'recommended',
+      score: hasMemories ? 140 : 120,
+      done: hasStoryNote,
+      action: profileAction,
+    });
+  }
 
   const sortedTasks = taskList.sort((left, right) => right.score - left.score || left.title.localeCompare(right.title));
 
@@ -331,6 +360,7 @@ export function HomeDashboardView(props: SharedTabProps) {
     storyProgress,
     treeProgress,
   } = taskMetrics;
+  const pendingBuildTaskCount = visibleStoryTasks.length + visibleTreeTasks.length;
   const setupSteps = useMemo<SetupStep[]>(() => {
     const hasLinkedProfile = Boolean(currentAssignedPerson);
     const hasOtherFamilyMember = currentAssignedPerson
@@ -380,6 +410,7 @@ export function HomeDashboardView(props: SharedTabProps) {
   const setupCompletedCount = setupSteps.filter((step) => step.done).length;
   const setupProgress = setupSteps.length > 0 ? setupCompletedCount / setupSteps.length : 0;
   const nextSetupStep = setupSteps.find((step) => !step.done) ?? null;
+  const nextSetupStepIndex = setupSteps.findIndex((step) => !step.done);
   const isSetupMode = !currentAssignedPerson || people.length <= 2 || relationships.length === 0 || setupCompletedCount < setupSteps.length;
   const activityMetrics = useMemo(() => {
     const activityAttentionItems: ActivityAttentionItem[] = [];
@@ -483,6 +514,7 @@ export function HomeDashboardView(props: SharedTabProps) {
   const [deeperExpanded, setDeeperExpanded] = useState(false);
   const [activityModalVisible, setActivityModalVisible] = useState(false);
   const [buildInfoVisible, setBuildInfoVisible] = useState(false);
+  const [heroInfoVisible, setHeroInfoVisible] = useState(false);
   const [dashboardTab, setDashboardTab] = useState<DashboardTabKey>(needsAttentionCount > 0 ? 'activity' : 'overview');
   const promptStorageId = `${selectedTree.id}:${currentAssignedPerson?.id ?? 'unlinked'}`;
   const dashboardVisitStorageId = `${selectedTree.id}:${currentAssignedPerson?.id ?? 'unlinked'}`;
@@ -609,6 +641,12 @@ export function HomeDashboardView(props: SharedTabProps) {
     previousCompletedTaskIdsRef.current = null;
     setCelebrationMessage(null);
   }, [promptStorageId]);
+
+  useEffect(() => {
+    if (dashboardTab === 'build' && (isSetupMode || pendingBuildTaskCount > 0)) {
+      setDeeperExpanded(true);
+    }
+  }, [dashboardTab, isSetupMode, pendingBuildTaskCount]);
 
   useEffect(() => {
     if (!promptsHydrated) {
@@ -818,6 +856,131 @@ export function HomeDashboardView(props: SharedTabProps) {
           ? t(K.home.hereIsTheBestNextStepToMakeYourProfileFeelFullerAndYourBranchMoreConnected)
           : t(K.home.startByLinkingYourselfIntoTheTreeThenTheAppCanGuideYouThroughTheStepsThatAlreadyExistHere);
 
+  const heroAttentionCallout = useMemo<HeroAttentionCallout | null>(() => {
+    if (pendingApprovals > 0) {
+      return {
+        title: t(K.home.approvalsWaitingCount, { count: pendingApprovals }),
+        description: firstPendingApproval
+          ? `${firstPendingApproval.title} · ${firstPendingApproval.description}`
+          : t(K.home.sharedActivityThatCouldUseALookBeforeItSlipsOutOfView),
+        action: openApprovals,
+        buttonLabel: t(K.home.whatNeedsReview),
+      };
+    }
+
+    if (pendingInvites > 0) {
+      return {
+        title: t(K.home.mergeInvitesWaitingCount, { count: pendingInvites }),
+        description: latestActivityAttentionItem?.description ?? t(K.home.sharedActivityThatCouldUseALookBeforeItSlipsOutOfView),
+        action: openMergeInvites,
+        buttonLabel: t(K.home.openActivities),
+      };
+    }
+
+    if (activeMergeReviews > 0) {
+      return {
+        title: t(K.home.mergeReviewsWaitingCount, { count: activeMergeReviews }),
+        description: firstPendingMergeReview
+          ? `${firstPendingMergeReview.preview.sourceTree.treeName} ↔ ${firstPendingMergeReview.preview.targetTree.treeName}`
+          : t(K.home.sharedActivityThatCouldUseALookBeforeItSlipsOutOfView),
+        action: openMergeReviews,
+        buttonLabel: t(K.home.whatNeedsReview),
+      };
+    }
+
+    return null;
+  }, [
+    activeMergeReviews,
+    firstPendingApproval,
+    firstPendingMergeReview,
+    latestActivityAttentionItem,
+    openApprovals,
+    openMergeInvites,
+    openMergeReviews,
+    pendingApprovals,
+    pendingInvites,
+    t,
+  ]);
+
+  const heroSectionLabel = isSetupMode
+    ? t(K.home.setupWizard)
+    : dashboardLens === 'activity'
+      ? t(K.home.whatNeedsReview)
+      : dashboardLens === 'growth'
+        ? t(K.home.growTheTree)
+        : t(K.home.nextRecommendedAction);
+
+  const heroTitle = isSetupMode
+    ? nextSetupStep?.title ?? heroAction.label
+    : dashboardLens === 'focus'
+      ? bestStoryStep?.title ?? bestNextStep?.title ?? heroAction.label
+      : heroAction.label;
+
+  const dashboardBundles = useMemo<DashboardBundle[]>(() => {
+    const bundles: DashboardBundle[] = [];
+
+    if (visibleStoryTasks.length > 0 && bestStoryStep) {
+      bundles.push({
+        id: 'story',
+        title: t(K.home.completeYourStory),
+        description: t(K.home.theseStepsShapeYourOwnPageIntoAFullerBiography),
+        actionLabel: t(K.home.continueProfile),
+        remainingCount: visibleStoryTasks.length,
+        action: bestStoryStep.action,
+      });
+    }
+
+    if (visibleTreeTasks.length > 0 && bestTreeStep) {
+      bundles.push({
+        id: 'tree',
+        title: t(K.home.completeYourTree),
+        description: t(K.home.theseStepsGrowTheFamilyBeyondOnePersonAndStrengthenTheBranchStructure),
+        actionLabel: t(K.home.continueTree),
+        remainingCount: visibleTreeTasks.length,
+        action: bestTreeStep.action,
+      });
+    }
+
+    return bundles;
+  }, [bestStoryStep, bestTreeStep, t, visibleStoryTasks.length, visibleTreeTasks.length]);
+
+  const missingMemberDetails = useMemo<MissingMemberDetail[]>(() => {
+    return people
+      .map((person) => {
+        let score = 0;
+        const issues: string[] = [];
+        const relationshipCount = relationships.filter((relationship) => (
+          relationship.fromPersonId === person.id || relationship.toPersonId === person.id
+        )).length;
+
+        if (!person.birthDate?.trim()) {
+          score += 3;
+          issues.push(t(K.home.missingBirthDate));
+        }
+
+        if (!getDisplayPersonPhoto(person)) {
+          score += 2;
+          issues.push(t(K.home.missingProfilePhoto));
+        }
+
+        if (relationshipCount === 0) {
+          score += 3;
+          issues.push(t(K.home.missingFamilyConnections));
+        }
+
+        return {
+          personId: person.id,
+          name: formatPersonName(person),
+          summary: issues.join(' · '),
+          score,
+          action: () => openPersonProfile(person),
+        };
+      })
+      .filter((item) => item.score > 0)
+      .sort((left, right) => right.score - left.score || left.name.localeCompare(right.name))
+      .slice(0, 3);
+  }, [openPersonProfile, people, relationships, t]);
+
   const sinceLastVisit = useMemo(() => {
     if (!lastVisitAt) {
       return [];
@@ -906,6 +1069,7 @@ export function HomeDashboardView(props: SharedTabProps) {
               </View>
             </View>
           )}
+
         </Surface>
       </Reveal>
 
@@ -935,24 +1099,38 @@ export function HomeDashboardView(props: SharedTabProps) {
                   <Surface
                     key={step.id}
                     style={[styles.dashboardTaskCard, {
-                      backgroundColor: step.done ? theme.colors.elevation.level1 : theme.colors.surface,
-                      borderColor: step.done ? theme.colors.primary : theme.colors.outlineVariant,
+                      backgroundColor: step.done
+                        ? theme.colors.elevation.level1
+                        : setupSteps[nextSetupStepIndex]?.id === step.id
+                          ? theme.colors.secondaryContainer
+                          : theme.colors.surface,
+                      borderColor: step.done
+                        ? theme.colors.primary
+                        : setupSteps[nextSetupStepIndex]?.id === step.id
+                          ? theme.colors.secondary
+                          : theme.colors.outlineVariant,
                     }]}
                     elevation={0}
                   >
                     <View style={styles.sectionHeader}>
                       <View style={styles.titleWrap}>
-                        <Chip compact icon={step.done ? 'check-circle-outline' : 'numeric'}>
-                          {step.done ? t(K.common.done) : t(K.common.next)}
+                        <Chip compact icon={step.done ? 'check-circle-outline' : setupSteps[nextSetupStepIndex]?.id === step.id ? 'star-four-points-outline' : 'clock-outline'}>
+                          {step.done ? t(K.common.done) : setupSteps[nextSetupStepIndex]?.id === step.id ? t(K.home.upNext) : t(K.home.comingLater)}
                         </Chip>
                         <Text variant="titleMedium" style={{ marginTop: 8 }}>{step.title}</Text>
                         <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
                           {step.description}
                         </Text>
                       </View>
-                      <Button mode={step.done ? 'text' : 'contained-tonal'} onPress={step.action}>
-                        {step.done ? t(K.common.open) : t(K.home.doThis)}
-                      </Button>
+                      {step.done ? (
+                        <Button mode="text" onPress={step.action}>
+                          {t(K.common.open)}
+                        </Button>
+                      ) : setupSteps[nextSetupStepIndex]?.id === step.id ? (
+                        <Button mode="contained-tonal" onPress={step.action}>
+                          {t(K.home.doThis)}
+                        </Button>
+                      ) : null}
                     </View>
                   </Surface>
                 ))}
@@ -962,27 +1140,51 @@ export function HomeDashboardView(props: SharedTabProps) {
 
           {bestNextStep ? (
             <View style={[styles.dashboardAccentCard, { backgroundColor: theme.colors.elevation.level1, borderColor: theme.colors.outlineVariant }]}>
+              {dashboardTab === 'overview' && heroAttentionCallout ? (
+                <Surface
+                  style={[styles.dashboardTaskCard, {
+                    backgroundColor: theme.colors.errorContainer,
+                    borderColor: theme.colors.error,
+                    marginBottom: 16,
+                  }]}
+                  elevation={0}
+                >
+                  <Chip
+                    compact
+                    icon="alert-circle-outline"
+                    style={{ alignSelf: 'flex-start', backgroundColor: theme.colors.errorContainer }}
+                    textStyle={{ color: theme.colors.onErrorContainer }}
+                  >
+                    {t(K.home.needsAttentionNow)}
+                  </Chip>
+                  <Text variant="titleMedium" style={{ marginTop: 10, color: theme.colors.onErrorContainer }}>
+                    {heroAttentionCallout.title}
+                  </Text>
+                  <Text variant="bodyMedium" style={{ color: theme.colors.onErrorContainer, marginTop: 6 }}>
+                    {heroAttentionCallout.description}
+                  </Text>
+                  <View style={[styles.dashboardActionRow, { marginTop: 14 }]}>
+                    <Button mode="contained" onPress={heroAttentionCallout.action}>
+                      {heroAttentionCallout.buttonLabel}
+                    </Button>
+                  </View>
+                </Surface>
+              ) : null}
+
+              <View style={styles.sectionHeader}>
                 <Chip compact icon={dashboardLens === 'activity' ? 'bell-badge-outline' : dashboardLens === 'growth' ? 'sprout-outline' : 'star-four-points-outline'}>
-                  {isSetupMode
-                  ? t(K.home.setupWizard)
-                  : dashboardLens === 'activity'
-                    ? t(K.home.whatNeedsReview)
-                    : dashboardLens === 'growth'
-                      ? t(K.home.growTheTree)
-                      : t(K.home.bestNextStep)}
+                  {heroSectionLabel}
                 </Chip>
+                <IconButton
+                  icon="information-outline"
+                  size={18}
+                  style={{ margin: 0 }}
+                  onPress={() => setHeroInfoVisible(true)}
+                  accessibilityLabel={t(K.home.whyThisMatters)}
+                />
+              </View>
               <Text variant="titleMedium" style={{ marginTop: 10 }}>
-                {isSetupMode
-                  ? nextSetupStep?.title ?? heroAction.label
-                  : dashboardLens === 'focus'
-                    ? bestStoryStep?.title ?? bestNextStep.title
-                    : heroAction.label}
-              </Text>
-              <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 6 }}>
-                {lensSubtitle}
-              </Text>
-              <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 6 }}>
-                {heroAction.description}
+                {heroTitle}
               </Text>
               <View style={styles.dashboardActionRow}>
                 <Button mode="contained" onPress={heroAction.action} style={styles.dashboardInlineAction}>
@@ -1013,6 +1215,34 @@ export function HomeDashboardView(props: SharedTabProps) {
               </View>
             </View>
           )}
+
+          {dashboardTab === 'overview' && missingMemberDetails.length > 0 ? (
+            <View style={{ marginTop: 16 }}>
+              <Text variant="titleLarge">{t(K.home.membersMissingDetails)}</Text>
+              <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
+                {t(K.home.missingImportantDetailsSummary, { count: missingMemberDetails.length })}
+              </Text>
+              <View style={{ marginTop: 14 }}>
+                {missingMemberDetails.map((item) => (
+                  <Card key={item.personId} mode="outlined" style={[styles.dashboardTaskCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant }]}>
+                    <Card.Content>
+                      <View style={styles.sectionHeader}>
+                        <View style={styles.titleWrap}>
+                          <Text variant="titleMedium">{item.name}</Text>
+                          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
+                            {item.summary}
+                          </Text>
+                        </View>
+                        <Button mode="outlined" onPress={item.action}>
+                          {t(K.home.reviewMemberDetails)}
+                        </Button>
+                      </View>
+                    </Card.Content>
+                  </Card>
+                ))}
+              </View>
+            </View>
+          ) : null}
           </Surface>
         </Reveal>
       ) : null}
@@ -1021,26 +1251,54 @@ export function HomeDashboardView(props: SharedTabProps) {
         <>
           <Reveal delay={100}>
             <View style={styles.dashboardMetricRow}>
-              <Card mode="elevated" style={[styles.dashboardMetricCard, { backgroundColor: theme.colors.surface }]}>
+              <Card
+                mode="elevated"
+                style={[styles.dashboardMetricCard, { backgroundColor: theme.colors.surface }]}
+                onPress={() => (
+                  people.length > 0
+                    ? navigation.navigate('members' satisfies keyof MainTabParamList)
+                    : canEdit
+                      ? onOpenAddPerson()
+                      : focusSection('keep-building')
+                )}
+              >
                 <Card.Content>
                   <Text variant="labelLarge">{t(K.home.familyMembersMetric)}</Text>
                   <Text variant="headlineSmall">{people.length}</Text>
+                  <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 6 }}>
+                    {people.length > 0 ? t(K.home.openMembers) : canEdit ? t(K.home.addFamilyMember) : t(K.home.openBuildPlan)}
+                  </Text>
                 </Card.Content>
               </Card>
-              <Card mode="elevated" style={[styles.dashboardMetricCard, { backgroundColor: theme.colors.surface }]}>
+              <Card
+                mode="elevated"
+                style={[styles.dashboardMetricCard, { backgroundColor: theme.colors.surface }]}
+                onPress={() => (currentSelfAssignmentSuggestions.length > 0 ? onOpenAddSelf() : focusSection('keep-building'))}
+              >
                 <Card.Content>
                   <Text variant="labelLarge">{t(K.home.newMatchesMetric)}</Text>
                   <Text variant="headlineSmall">{currentSelfAssignmentSuggestions.length}</Text>
+                  <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 6 }}>
+                    {currentSelfAssignmentSuggestions.length > 0 ? t(K.home.reviewMatches) : t(K.home.openBuildPlan)}
+                  </Text>
                 </Card.Content>
               </Card>
-              <Card mode="elevated" style={[styles.dashboardMetricCard, { backgroundColor: theme.colors.surface }]}>
+              <Card
+                mode="elevated"
+                style={[styles.dashboardMetricCard, { backgroundColor: theme.colors.surface }]}
+                onPress={() => focusSection('keep-building')}
+              >
                 <Card.Content>
                   <Text variant="labelLarge">{t(K.home.openTasksMetric)}</Text>
                   <Text variant="headlineSmall">{visibleRemainingTasks.length}</Text>
+                  <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 6 }}>
+                    {t(K.home.openBuildPlan)}
+                  </Text>
                 </Card.Content>
               </Card>
             </View>
           </Reveal>
+
         </>
       ) : null}
 
@@ -1119,6 +1377,25 @@ export function HomeDashboardView(props: SharedTabProps) {
             </Reveal>
           ) : null}
 
+          {sinceLastVisit.length === 0 && needsAttentionCount === 0 ? (
+            <Reveal delay={130}>
+              <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
+                <Text variant="titleLarge">{t(K.home.activityCalm)}</Text>
+                <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
+                  {t(K.home.activitySummary)}
+                </Text>
+                <View style={styles.dashboardActionRow}>
+                  <Button mode="contained-tonal" onPress={() => setDashboardTab('highlights')}>
+                    {t(K.home.openHighlights)}
+                  </Button>
+                  <Button mode="text" onPress={() => focusSection('keep-building')}>
+                    {t(K.home.openBuildPlan)}
+                  </Button>
+                </View>
+              </Surface>
+            </Reveal>
+          ) : null}
+
         </>
       ) : null}
 
@@ -1149,6 +1426,31 @@ export function HomeDashboardView(props: SharedTabProps) {
 
                 {deeperExpanded ? (
                 <View style={{ marginTop: 14, gap: 18 }}>
+                  {dashboardBundles.length > 0 ? (
+                    <View style={styles.dashboardMetricRow}>
+                      {dashboardBundles.map((bundle) => (
+                        <Card key={bundle.id} mode="outlined" style={[styles.dashboardMetricCard, { backgroundColor: theme.colors.elevation.level1, borderColor: theme.colors.outlineVariant }]}>
+                          <Card.Content>
+                            <Text variant="titleMedium">{bundle.title}</Text>
+                            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
+                              {bundle.description}
+                            </Text>
+                            <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 10 }}>
+                              {t(K.home.stepsLeftCount, { count: bundle.remainingCount })}
+                            </Text>
+                            <Button mode={bundle.id === 'tree' ? 'contained-tonal' : 'outlined'} onPress={bundle.action} style={{ alignSelf: 'flex-start', marginTop: 12 }}>
+                              {bundle.actionLabel}
+                            </Button>
+                          </Card.Content>
+                        </Card>
+                      ))}
+                    </View>
+                  ) : null}
+
+                  <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+                    {t(K.home.buildOverviewHelper)}
+                  </Text>
+
                   {visibleStoryTasks.length > 0 ? (
                     <View>
                       <Text variant="titleMedium">{t(K.home.completeYourStory)}</Text>
@@ -1248,6 +1550,23 @@ export function HomeDashboardView(props: SharedTabProps) {
         )
       ) : null}
 
+      <Portal>
+        <Dialog visible={heroInfoVisible} onDismiss={() => setHeroInfoVisible(false)}>
+          <Dialog.Title>{heroTitle}</Dialog.Title>
+          <Dialog.Content>
+            <Text variant="labelLarge">{t(K.home.whyThisMatters)}</Text>
+            <Text variant="bodyMedium" style={{ marginTop: 8 }}>
+              {heroAction.description}
+            </Text>
+            <Text variant="bodyMedium" style={{ marginTop: 12 }}>
+              {lensSubtitle}
+            </Text>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setHeroInfoVisible(false)}>{t(K.common.close)}</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
       <Portal>
         <Dialog
           visible={activityModalVisible}
