@@ -56,14 +56,12 @@ export function MainNodeQuickActionsDialog({
             const marital = extractSurname(person);
             const currentFamily = controller.sharedTabProps?.activeFamilyRef?.current;
             const isViewingMaiden = currentFamily === maiden;
-            const targetSurname = isViewingMaiden ? marital : maiden;
             const label = isViewingMaiden
               ? controller.t(K.relationship.viewMaritalFamilyTree, { surname: marital })
               : controller.t(K.relationship.viewMaidenFamilyTree, { surname: maiden });
             const description = isViewingMaiden
               ? controller.t(K.relationship.switchToFamilyByMarriage, { surname: marital })
               : controller.t(K.relationship.switchToBirthFamily, { surname: maiden });
-            const linkedTree = controller.findConnectedTreeForSurname(person, targetSurname, controller.selectedTree, controller.sharedTabProps?.trees ?? []);
 
             return (
               <List.Item
@@ -71,16 +69,7 @@ export function MainNodeQuickActionsDialog({
                 description={description}
                 left={(props) => <List.Icon {...props} icon="family-tree" />}
                 onPress={() => {
-                  controller.closeNodeQuickActions();
-                  if (linkedTree) {
-                    controller.navigation.navigate('TreeDetail', {
-                      treeId: linkedTree.id,
-                      initialTab: 'VisualisationTab',
-                      returnTreeId: controller.selectedTree?.id,
-                    });
-                    return;
-                  }
-                  controller.sharedTabProps?.familySwitchRef?.current?.(targetSurname);
+                  controller.handleOpenMaidenFamilyTree(person, maiden, marital, isViewingMaiden);
                 }}
               />
             );

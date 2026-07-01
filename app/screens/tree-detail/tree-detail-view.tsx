@@ -540,6 +540,52 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     }
   }, [closeConfirm, confirmState.action]);
 
+  const handleOpenMaidenFamilyTree = useCallback((person: PersonRecord, maidenSurname: string, maritalSurname: string, isViewingMaiden: boolean) => {
+    if (!selectedTree) {
+      return;
+    }
+
+    const targetSurname = isViewingMaiden ? maritalSurname : maidenSurname;
+    const linkedTree = findConnectedTreeForSurname(person, targetSurname, selectedTree, trees);
+    closeNodeQuickActions();
+
+    if (linkedTree) {
+      navigation.push('TreeDetail', {
+        treeId: linkedTree.id,
+        initialTab: 'VisualisationTab',
+        returnTreeId: selectedTree.id,
+      });
+      return;
+    }
+
+    if (isViewingMaiden) {
+      canvasFamilySwitchRef.current?.(targetSurname);
+      return;
+    }
+
+    if (!user) {
+      return;
+    }
+
+    openConfirm(
+      t(K.relationship.createMaidenFamilyTreeTitle, { surname: maidenSurname }),
+      t(K.relationship.createMaidenFamilyTreeMessage, { surname: maidenSurname }),
+      t(K.treeSettings.createTree),
+      async () => {
+        const createdTree = await createTreeFromSurname(
+          { id: user.id, email: user.email, displayName: user.displayName },
+          selectedTree.id,
+          maidenSurname,
+        );
+        navigation.push('TreeDetail', {
+          treeId: createdTree.id,
+          initialTab: 'VisualisationTab',
+          returnTreeId: selectedTree.id,
+        });
+      },
+    );
+  }, [canvasFamilySwitchRef, closeNodeQuickActions, createTreeFromSurname, navigation, openConfirm, selectedTree, t, trees, user]);
+
   const handleCollaboratorSubmit = useCallback(async ({ email, role: collaboratorRole }: { email: string; role: CollaboratorRole }) => {
     if (!selectedTree) {
       return;
@@ -982,16 +1028,13 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
         t={t}
         canEdit={canEdit}
         mutating={mutating}
-        selectedTree={selectedTree}
-        trees={trees}
         closeNodeQuickActions={closeNodeQuickActions}
         openPersonProfile={openPersonProfile}
         openCreateRelativeDialog={openCreateRelativeDialog}
         crossSurnameChildIds={crossSurnameChildIds}
         canvasActiveFamilyRef={canvasActiveFamilyRef}
         canvasFamilySwitchRef={canvasFamilySwitchRef}
-        findConnectedTreeForSurname={findConnectedTreeForSurname}
-        navigation={navigation}
+        onOpenMaidenFamilyTree={handleOpenMaidenFamilyTree}
       />
 
       <ConfirmDialog

@@ -369,6 +369,52 @@ export function useMainScreenController({ navigation }: Props) {
     }
   }, [closeConfirm, confirmState.action]);
 
+  const handleOpenMaidenFamilyTree = useCallback((person: PersonRecord, maidenSurname: string, maritalSurname: string, isViewingMaiden: boolean) => {
+    if (!selectedTree) {
+      return;
+    }
+
+    const targetSurname = isViewingMaiden ? maritalSurname : maidenSurname;
+    const linkedTree = findConnectedTreeForSurname(person, targetSurname, selectedTree, trees);
+    setNodeQuickActionState({ visible: false, person: null });
+
+    if (linkedTree) {
+      navigation.navigate('TreeDetail', {
+        treeId: linkedTree.id,
+        initialTab: 'VisualisationTab',
+        returnTreeId: selectedTree.id,
+      });
+      return;
+    }
+
+    if (isViewingMaiden) {
+      canvasFamilySwitchRef.current?.(targetSurname);
+      return;
+    }
+
+    if (!user) {
+      return;
+    }
+
+    openConfirm(
+      t(K.relationship.createMaidenFamilyTreeTitle, { surname: maidenSurname }),
+      t(K.relationship.createMaidenFamilyTreeMessage, { surname: maidenSurname }),
+      t(K.treeSettings.createTree),
+      async () => {
+        const createdTree = await createTreeFromSurname(
+          { id: user.id, email: user.email, displayName: user.displayName },
+          selectedTree.id,
+          maidenSurname,
+        );
+        navigation.navigate('TreeDetail', {
+          treeId: createdTree.id,
+          initialTab: 'VisualisationTab',
+          returnTreeId: selectedTree.id,
+        });
+      },
+    );
+  }, [canvasFamilySwitchRef, createTreeFromSurname, navigation, openConfirm, selectedTree, t, trees, user]);
+
   const openPersonProfile = useCallback((person: PersonRecord) => {
     if (!selectedTree) {
       return;
@@ -1027,6 +1073,7 @@ export function useMainScreenController({ navigation }: Props) {
     existingLastNames,
     findConnectedTreeForSurname,
     handleConfirmDeleteTree,
+    handleOpenMaidenFamilyTree,
     openCreateTreeDialog,
     memberProfileNavigation,
     memberProfileParams,
