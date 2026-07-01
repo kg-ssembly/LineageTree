@@ -6,12 +6,12 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   ActivityIndicator,
-  Snackbar,
   useTheme,
 } from 'react-native-paper';
 import {
   CollaboratorDialog,
   ConfirmDialog,
+  FloatingSnackbar,
   PersonFormDialog,
   RelationshipDialog,
 } from '../../../components';
@@ -976,7 +976,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
         onConfirm={handleConfirm}
       />
 
-      <Snackbar
+      <FloatingSnackbar
         visible={snackVisible}
         onDismiss={() => {
           setSnackVisible(false);
@@ -994,7 +994,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
         }}
       >
         {error ?? notice}
-      </Snackbar>
+      </FloatingSnackbar>
     </View>
   );
 }

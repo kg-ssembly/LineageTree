@@ -1,7 +1,7 @@
 import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { FlatList, ScrollView, Share, StyleSheet, View } from 'react-native';
-import { Button, Chip, Dialog, IconButton, Portal, ProgressBar, Snackbar, Text, TextInput, useTheme } from 'react-native-paper';
-import { HorizontalTabStrip, Reveal } from '../../../../components';
+import { Button, Chip, Dialog, IconButton, Portal, ProgressBar, Text, TextInput, useTheme } from 'react-native-paper';
+import { FloatingSnackbar, HorizontalTabStrip, Reveal } from '../../../../components';
 import type { ApprovalRequest } from '../../../../components/dto/approval';
 import type { PersonRecord } from '../../../../components/dto/person';
 import {
@@ -808,9 +808,9 @@ function TreeSettingsContent({
         </Dialog>
       </Portal>
 
-      <Snackbar visible={copyNoticeVisible} onDismiss={() => setCopyNoticeVisible(false)} duration={2200} action={{ label: t(K.common.dismiss), onPress: () => setCopyNoticeVisible(false) }}>
+      <FloatingSnackbar visible={copyNoticeVisible} onDismiss={() => setCopyNoticeVisible(false)} duration={2200} action={{ label: t(K.common.dismiss), onPress: () => setCopyNoticeVisible(false) }}>
         {copyNoticeMessage}
-      </Snackbar>
+      </FloatingSnackbar>
     </ScrollView>
   );
 }

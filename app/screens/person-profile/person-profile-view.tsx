@@ -11,12 +11,11 @@ import {
   Divider,
   IconButton,
   Portal,
-  Snackbar,
   Surface,
   Text,
   useTheme,
 } from 'react-native-paper';
-import { ConfirmDialog, HorizontalTabStrip, LifeEventDialog, PersonFormDialog, PersonRelationshipDialog, Reveal } from '../../../components';
+import { ConfirmDialog, FloatingSnackbar, HorizontalTabStrip, LifeEventDialog, PersonFormDialog, PersonRelationshipDialog, Reveal } from '../../../components';
 import type { PersonRelationshipMode } from '../../../components/person-relationship-dialog';
 import { useAuthStore } from '../../../stores/auth-store';
 import { useTreeStore } from '../../../stores/tree-store';
@@ -1319,7 +1318,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
         </Dialog>
       </Portal>
 
-      <Snackbar
+      <FloatingSnackbar
         visible={snackVisible}
         onDismiss={() => {
           setSnackVisible(false);
@@ -1329,7 +1328,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
         duration={5000}
       >
         {error ?? notice}
-      </Snackbar>
+      </FloatingSnackbar>
     </View>
   );
 }

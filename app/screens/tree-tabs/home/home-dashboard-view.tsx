@@ -2,8 +2,8 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, View, type LayoutChangeEvent } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
-import { ActivityIndicator, Button, Card, Chip, Dialog, IconButton, Portal, ProgressBar, Snackbar, Surface, Text, useTheme } from 'react-native-paper';
-import { HorizontalTabStrip, Reveal } from '../../../../components';
+import { ActivityIndicator, Button, Card, Chip, Dialog, IconButton, Portal, ProgressBar, Surface, Text, useTheme } from 'react-native-paper';
+import { FloatingSnackbar, HorizontalTabStrip, Reveal } from '../../../../components';
 import { getDisplayPersonPhoto } from '../../../../components/dto/person';
 import type { MainTabParamList } from '../../../../components/dto/navigation';
 import type { AppTheme } from '../../../../constants/theme';
@@ -1292,7 +1292,7 @@ export function HomeDashboardView(props: SharedTabProps) {
           </Dialog.Actions>
         </Dialog>
       </Portal>
-      <Snackbar
+      <FloatingSnackbar
         visible={Boolean(celebrationMessage)}
         onDismiss={() => setCelebrationMessage(null)}
         duration={2600}
@@ -1302,7 +1302,7 @@ export function HomeDashboardView(props: SharedTabProps) {
         }}
       >
         {celebrationMessage}
-      </Snackbar>
+      </FloatingSnackbar>
     </ScrollView>
   );
 }
