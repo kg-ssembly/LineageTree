@@ -240,6 +240,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     ? route.params.initialTab
     : 'PeopleRelationshipsTab';
   const bottomInset = Platform.OS === 'android' && insets.bottom < 24 ? 0 : insets.bottom;
+  const isSharedLoaderVisible = mutating;
 
   const { peopleById, existingLastNames } = useMemo(
     () => buildPeopleDirectory(people),
@@ -1020,14 +1021,14 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
       </Tab.Navigator>
 
       <CollaboratorDialog
-        visible={collaboratorDialogVisible}
+        visible={collaboratorDialogVisible && !isSharedLoaderVisible}
         loading={mutating}
         onDismiss={() => setCollaboratorDialogVisible(false)}
         onSubmit={handleCollaboratorSubmit}
       />
 
       <PersonFormDialog
-        visible={personDialog.visible}
+        visible={personDialog.visible && !isSharedLoaderVisible}
         mode={personDialog.mode}
         person={personDialog.person}
         initialPendingRelationships={personDialog.initialPendingRelationships}
@@ -1048,7 +1049,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
       />
 
       <PersonFormDialog
-        visible={selfPersonDialogVisible}
+        visible={selfPersonDialogVisible && !isSharedLoaderVisible}
         mode="create"
         initialValues={useMemo(() => buildSelfPersonInitialValues(user), [user])}
         loading={mutating}
@@ -1059,7 +1060,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
       />
 
       <RelationshipDialog
-        visible={relationshipDialogVisible}
+        visible={relationshipDialogVisible && !isSharedLoaderVisible}
         people={people}
         relationships={relationships}
         loading={mutating}
@@ -1068,7 +1069,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
       />
 
       <TreeDetailNodeQuickActionsDialog
-        visible={nodeQuickActionState.visible}
+        visible={nodeQuickActionState.visible && !isSharedLoaderVisible}
         person={nodeQuickActionState.person}
         theme={theme}
         t={t}
@@ -1084,7 +1085,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
       />
 
       <ConfirmDialog
-        visible={confirmState.visible}
+        visible={confirmState.visible && !isSharedLoaderVisible}
         title={confirmState.title}
         message={confirmState.message}
         confirmLabel={confirmState.confirmLabel}
@@ -1093,7 +1094,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
         onConfirm={handleConfirm}
       />
 
-      <SharedLoader visible={mutating} />
+      <SharedLoader visible={isSharedLoaderVisible} />
 
       <FloatingSnackbar
         visible={snackVisible}

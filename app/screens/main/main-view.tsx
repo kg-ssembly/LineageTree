@@ -25,6 +25,7 @@ const dialogChrome = GlobalStyles.dialogChrome;
 export function MainScreenView({ controller }: { controller: ReturnType<typeof useMainScreenController> }) {
   const isWaitingForInitialTreeSelection = controller.loadingTrees
     || (controller.trees.length > 0 && !controller.selectedTree && !controller.sharedTabProps);
+  const isSharedLoaderVisible = controller.mutating || controller.startupModal.loading || controller.discoverabilityPrompt.loading;
 
   const noTreeGate = (
     <MainNoTreeGate
@@ -46,14 +47,14 @@ export function MainScreenView({ controller }: { controller: ReturnType<typeof u
       <MainTabNavigator controller={controller} noTreeGate={noTreeGate} styles={styles} />
 
       <CollaboratorDialog
-        visible={controller.collaboratorDialogVisible}
+        visible={controller.collaboratorDialogVisible && !isSharedLoaderVisible}
         loading={controller.mutating}
         onDismiss={controller.closeCollaboratorDialog}
         onSubmit={controller.dialogActions.handleCollaboratorSubmit}
       />
 
       <PersonFormDialog
-        visible={controller.personDialog.visible}
+        visible={controller.personDialog.visible && !isSharedLoaderVisible}
         mode={controller.personDialog.mode}
         person={controller.personDialog.person}
         initialPendingRelationships={controller.personDialog.initialPendingRelationships}
@@ -70,7 +71,7 @@ export function MainScreenView({ controller }: { controller: ReturnType<typeof u
       />
 
       <PersonFormDialog
-        visible={controller.selfPersonDialogVisible}
+        visible={controller.selfPersonDialogVisible && !isSharedLoaderVisible}
         mode="create"
         initialValues={controller.selfInitialValues}
         loading={controller.mutating}
@@ -81,7 +82,7 @@ export function MainScreenView({ controller }: { controller: ReturnType<typeof u
       />
 
       <RelationshipDialog
-        visible={controller.relationshipDialogVisible}
+        visible={controller.relationshipDialogVisible && !isSharedLoaderVisible}
         people={controller.sharedTabProps?.people ?? []}
         relationships={controller.relationships}
         loading={controller.mutating}
@@ -90,7 +91,7 @@ export function MainScreenView({ controller }: { controller: ReturnType<typeof u
       />
 
       <TreeFormDialog
-        visible={controller.treeDialog.visible}
+        visible={controller.treeDialog.visible && !isSharedLoaderVisible}
         mode={controller.treeDialog.mode}
         tree={controller.treeDialog.tree}
         loading={controller.mutating}
@@ -110,7 +111,7 @@ export function MainScreenView({ controller }: { controller: ReturnType<typeof u
 
       <Portal>
         <Dialog
-          visible={controller.treeNameSuggestion.visible}
+          visible={controller.treeNameSuggestion.visible && !isSharedLoaderVisible}
           onDismiss={controller.mutating ? undefined : controller.closeTreeNameSuggestion}
           style={[dialogChrome.dialog, { backgroundColor: controller.theme.colors.surface }]}
         >
@@ -161,10 +162,10 @@ export function MainScreenView({ controller }: { controller: ReturnType<typeof u
         </Dialog>
       </Portal>
 
-      <MainNodeQuickActionsDialog controller={controller} />
+      {!isSharedLoaderVisible ? <MainNodeQuickActionsDialog controller={controller} /> : null}
 
       <ConfirmDialog
-        visible={controller.confirmState.visible}
+        visible={controller.confirmState.visible && !isSharedLoaderVisible}
         title={controller.confirmState.title}
         message={controller.confirmState.message}
         confirmLabel={controller.confirmState.confirmLabel}
@@ -174,7 +175,7 @@ export function MainScreenView({ controller }: { controller: ReturnType<typeof u
       />
 
       <StartupModal
-        visible={controller.startupModal.visible}
+        visible={controller.startupModal.visible && !isSharedLoaderVisible}
         mode={controller.startupModal.mode}
         currentVersion={controller.startupModal.currentVersion}
         updateHighlights={controller.startupModal.updateHighlights}
@@ -184,11 +185,11 @@ export function MainScreenView({ controller }: { controller: ReturnType<typeof u
         onDismissUpdate={controller.handleUpdateModalDismiss}
       />
 
-      <SharedLoader visible={controller.mutating || controller.startupModal.loading || controller.discoverabilityPrompt.loading} />
+      <SharedLoader visible={isSharedLoaderVisible} />
 
       <Portal>
         <Dialog
-          visible={Boolean(controller.priorityAlert)}
+          visible={Boolean(controller.priorityAlert) && !isSharedLoaderVisible}
           onDismiss={() => { void controller.dismissPriorityAlert(); }}
           style={[dialogChrome.dialog, { backgroundColor: controller.theme.colors.surface }]}
         >
@@ -244,7 +245,7 @@ export function MainScreenView({ controller }: { controller: ReturnType<typeof u
           </Dialog.Actions>
         </Dialog>
         <Dialog
-          visible={controller.discoverabilityPrompt.visible}
+          visible={controller.discoverabilityPrompt.visible && !isSharedLoaderVisible}
           dismissable={false}
           style={[dialogChrome.dialog, { backgroundColor: controller.theme.colors.surface }]}
         >

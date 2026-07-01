@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import { ActivityIndicator, Portal, Surface, Text, useTheme } from 'react-native-paper';
+import { ActivityIndicator, Portal, Text, useTheme } from 'react-native-paper';
 
 type SharedLoaderProps = {
   visible: boolean;
@@ -18,12 +18,7 @@ const styles = StyleSheet.create({
   backdrop: {
     ...StyleSheet.absoluteFillObject,
   },
-  card: {
-    maxWidth: 280,
-    width: '100%',
-    borderRadius: 24,
-    paddingVertical: 22,
-    paddingHorizontal: 20,
+  content: {
     alignItems: 'center',
     gap: 10,
   },
@@ -49,17 +44,7 @@ export default function SharedLoader({
             { backgroundColor: theme.colors.backdrop, opacity: 0.35 },
           ]}
         />
-        <Surface
-          elevation={3}
-          style={[
-            styles.card,
-            {
-              backgroundColor: theme.colors.surface,
-              borderColor: theme.colors.outlineVariant,
-              borderWidth: StyleSheet.hairlineWidth,
-            },
-          ]}
-        >
+        <View style={styles.content}>
           <ActivityIndicator size="large" color={theme.colors.primary} />
           {label ? (
             <Text variant="titleMedium" style={{ textAlign: 'center', color: theme.colors.onSurface }}>
@@ -71,7 +56,7 @@ export default function SharedLoader({
               {description}
             </Text>
           ) : null}
-        </Surface>
+        </View>
       </View>
     </Portal>
   );

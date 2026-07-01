@@ -576,8 +576,8 @@ export default function PersonFormDialog({
     },
     { label: t(K.relationship.spouseOf), value: 'spouse-of' as PendingRelationshipMode },
   ], [gender, t]);
-  const hasExistingTreeMembers = relationshipCandidates.length > 0;
-  const requiresRelationshipStep = mode === 'create' && hasExistingTreeMembers;
+  const showRelationshipStep = mode === 'create' && relationshipCandidates.length > 0;
+  const requiresRelationshipStep = mode === 'create' && initialPendingRelationships.length > 0;
 
   const handleNextStep = () => {
     const firstError = personValidationFeedback.errors.find((message) => message === t(K.personForm.firstNameRequiredError));
@@ -717,11 +717,11 @@ export default function PersonFormDialog({
         >
           <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose, styles.dialogTitle]}>
             {mode === 'create'
-              ? (step === 1 || !requiresRelationshipStep ? t(K.personForm.addFamilyMember) : t(K.personForm.addRelationships))
+              ? (step === 1 || !showRelationshipStep ? t(K.personForm.addFamilyMember) : t(K.personForm.addRelationships))
               : t(K.personForm.editFamilyMember)}
           </Dialog.Title>
           <IconButton icon="close" onPress={onDismiss} disabled={loading} accessibilityLabel={t(K.common.cancel)} style={dialogChrome.closeButton} />
-          {mode === 'create' && requiresRelationshipStep ? (
+          {mode === 'create' && showRelationshipStep ? (
             <View style={[styles.stepProgressRow, { borderBottomColor: theme.colors.outlineVariant }]}>
               <View style={[styles.stepDot, step >= 1 && { backgroundColor: theme.colors.primary }]} />
               <View style={[styles.stepLine, { backgroundColor: step >= 2 ? theme.colors.primary : theme.colors.outlineVariant }]} />
@@ -922,7 +922,7 @@ export default function PersonFormDialog({
               {/* ── Step 2 content (or always visible in edit mode) ──────── */}
               {(mode === 'edit' || step === 2) ? (
                 <>
-              {mode === 'create' && requiresRelationshipStep ? (
+              {mode === 'create' && showRelationshipStep ? (
                 <View style={styles.sectionSpacing}>
                   <View style={styles.relationshipHeader}>
                     <Text variant="titleSmall">{t(K.personForm.createRelationshipsNow)}</Text>
@@ -1116,14 +1116,14 @@ export default function PersonFormDialog({
                 }}
                 accessibilityLabel={t(K.personForm.deleteMember)}
               />
-            ) : mode === 'create' && requiresRelationshipStep && step === 2 ? (
+            ) : mode === 'create' && showRelationshipStep && step === 2 ? (
               <Button mode="outlined" onPress={() => setStep(1)} disabled={loading}>{t(K.common.back)}</Button>
             ) : (
               <View />
             )}
             {/* Right side: step-1 next or final submit */}
               <View style={{ flexDirection: 'row', gap: 8 }}>
-              {mode === 'create' && requiresRelationshipStep && step === 1 ? (
+              {mode === 'create' && showRelationshipStep && step === 1 ? (
                 <>
                   <Button mode="contained" onPress={handleNextStep} disabled={loading}>{t(K.common.next)}</Button>
                 </>
