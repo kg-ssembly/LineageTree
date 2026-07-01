@@ -27,7 +27,7 @@ export default function RootNavigator() {
   const theme = useTheme();
   const { user, loading, init } = useAuthStore();
   const syncFamilyData = useTreeStore((state) => state.syncFamilyData);
-  const safeAreaEdges = user ? (['top'] as const) : (['top', 'bottom'] as const);
+  const safeAreaEdges = ['top'] as const;
 
   useEffect(() => {
     return init();

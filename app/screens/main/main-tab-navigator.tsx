@@ -1,6 +1,8 @@
 import React from 'react';
+import { Platform } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { MainTabParamList } from '../../../components/dto/navigation';
 import { I18N_KEYS as K } from '../../../i18n/keys';
 import PersonProfileScreen from '../person-profile';
@@ -27,6 +29,9 @@ export function MainTabNavigator({
   noTreeGate: React.ReactNode;
   styles: typeof import('../../../constants/styles').GlobalStyles.treeDetail;
 }) {
+  const insets = useSafeAreaInsets();
+  const bottomInset = Platform.OS === 'android' && insets.bottom < 24 ? 0 : insets.bottom;
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -37,7 +42,15 @@ export function MainTabNavigator({
         tabBarActiveBackgroundColor: controller.theme.colors.elevation.level2,
         tabBarShowIcon: true,
         tabBarShowLabel: false,
-        tabBarStyle: [styles.tabBar, { backgroundColor: controller.theme.colors.surface, borderTopColor: controller.theme.colors.outlineVariant }],
+        tabBarStyle: [
+          styles.tabBar,
+          {
+            backgroundColor: controller.theme.colors.surface,
+            borderTopColor: controller.theme.colors.outlineVariant,
+            paddingBottom: bottomInset,
+            height: styles.tabBar.height + bottomInset,
+          },
+        ],
         tabBarItemStyle: styles.tabItem,
         sceneStyle: [styles.tabScene, { backgroundColor: controller.theme.colors.background }],
         tabBarIcon: ({ color, size }) => (

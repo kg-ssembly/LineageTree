@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View } from 'react-native';
+import { Platform, View } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   useTheme,
 } from 'react-native-paper';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   CollaboratorDialog,
   ConfirmDialog,
@@ -90,6 +91,7 @@ const styles = GlobalStyles.treeDetail;
 export default function TreeDetailScreen({ navigation, route }: Props) {
   const isFocused = useIsFocused();
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const { t } = useI18n();
   const { user } = useAuthStore();
   const {
@@ -226,6 +228,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
   const initialTab = route.params.initialTab && route.params.initialTab !== 'HomeTab'
     ? route.params.initialTab
     : 'PeopleRelationshipsTab';
+  const bottomInset = Platform.OS === 'android' && insets.bottom < 24 ? 0 : insets.bottom;
 
   const { peopleById, existingLastNames } = useMemo(
     () => buildPeopleDirectory(people),
@@ -931,7 +934,15 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
           tabBarActiveTintColor: theme.colors.primary,
           tabBarInactiveTintColor: theme.colors.onSurfaceVariant,
           tabBarShowIcon: true,
-          tabBarStyle: [styles.tabBar, { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.outlineVariant }],
+          tabBarStyle: [
+            styles.tabBar,
+            {
+              backgroundColor: theme.colors.surface,
+              borderTopColor: theme.colors.outlineVariant,
+              paddingBottom: bottomInset,
+              height: styles.tabBar.height + bottomInset,
+            },
+          ],
           tabBarLabelStyle: styles.tabLabel,
           tabBarItemStyle: styles.tabItem,
           sceneStyle: [styles.tabScene, { backgroundColor: theme.colors.background }],
