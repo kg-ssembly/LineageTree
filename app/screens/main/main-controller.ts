@@ -236,7 +236,6 @@ export function useMainScreenController({ navigation }: Props) {
   const {
     assignedUserIdByPersonId,
     assignedPersonByUserId,
-    currentAssignedPersonId,
     currentAssignedPerson,
   } = useMemo(
     () => buildTreeAssignmentContext(selectedTree, peopleById, user?.id),

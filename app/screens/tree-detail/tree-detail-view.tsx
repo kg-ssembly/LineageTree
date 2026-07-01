@@ -244,7 +244,6 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
   const {
     assignedUserIdByPersonId,
     assignedPersonByUserId,
-    currentAssignedPersonId,
     currentAssignedPerson,
   } = useMemo(
     () => buildTreeAssignmentContext(selectedTree, peopleById, user?.id),

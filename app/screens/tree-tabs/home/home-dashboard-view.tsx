@@ -348,8 +348,6 @@ export function HomeDashboardView(props: SharedTabProps) {
   const [lastVisitAt, setLastVisitAt] = useState<string | null>(null);
   const taskMetrics = useMemo(() => {
     const dismissedTaskIdSet = new Set(dismissedTaskIds);
-    const completedTasks = tasks.filter((task) => task.done);
-    const completedTaskIds = completedTasks.map((task) => task.id).sort();
     const visibleStoryTasks = storyTasks.filter((task) => !task.done && !dismissedTaskIdSet.has(task.id));
     const visibleTreeTasks = treeTasks.filter((task) => !task.done && !dismissedTaskIdSet.has(task.id));
     const visibleRemainingTasks = [...visibleStoryTasks, ...visibleTreeTasks]
@@ -358,8 +356,6 @@ export function HomeDashboardView(props: SharedTabProps) {
     const treeCompletedCount = treeTasks.filter((task) => task.done).length;
 
     return {
-      completedTasks,
-      completedTaskIds,
       visibleStoryTasks,
       visibleTreeTasks,
       visibleRemainingTasks,
@@ -373,8 +369,6 @@ export function HomeDashboardView(props: SharedTabProps) {
     };
   }, [dismissedTaskIds, storyTasks, tasks, treeTasks]);
   const {
-    completedTasks,
-    completedTaskIds,
     visibleStoryTasks,
     visibleTreeTasks,
     visibleRemainingTasks,
@@ -516,7 +510,6 @@ export function HomeDashboardView(props: SharedTabProps) {
       firstPendingApproval,
       firstPendingMergeReview,
       needsAttentionCount: pendingApprovals + pendingInvites + activeMergeReviews,
-      activityAttentionItems,
       latestActivityAttentionItem: activityAttentionItems[0] ?? null,
     };
   }, [approvalRequests, mergeRequests, notifications]);
@@ -527,7 +520,6 @@ export function HomeDashboardView(props: SharedTabProps) {
     firstPendingApproval,
     firstPendingMergeReview,
     needsAttentionCount,
-    activityAttentionItems,
     latestActivityAttentionItem,
   } = activityMetrics;
   const approvalsTone = pendingApprovals > 0 ? getUrgencyTone(theme, pendingApprovals > 2 ? 'urgent' : 'attention') : getUrgencyTone(theme, 'calm');
