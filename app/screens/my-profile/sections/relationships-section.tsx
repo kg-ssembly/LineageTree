@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View } from 'react-native';
-import { Button, Chip, IconButton, Surface, Text, useTheme } from 'react-native-paper';
+import { Button, Chip, Dialog, IconButton, Portal, Surface, Text, useTheme } from 'react-native-paper';
 import { HorizontalTabStrip, RelationshipInsightCard, Reveal } from '../../../../components';
 import type { PersonRecord } from '../../../../components/dto/person';
 import type { RelationshipRecord } from '../../../../components/dto/relationship';
@@ -10,6 +10,7 @@ import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
 
 const personProfileStyles = GlobalStyles.personProfile;
+const dialogChrome = GlobalStyles.dialogChrome;
 
 export type RelationshipSectionTabKey = 'insight' | 'list';
 
@@ -43,13 +44,23 @@ export function RelationshipsSection({
 }) {
   const theme = useTheme();
   const { t } = useI18n();
+  const [helperVisible, setHelperVisible] = useState(false);
 
   return (
     <Reveal delay={110}>
     <Surface style={[personProfileStyles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
       <View style={personProfileStyles.sectionHeader}>
         <View style={personProfileStyles.sectionHeaderText}>
-          <Text variant="titleLarge">{t(K.personProfile.relationships)}</Text>
+          <View style={personProfileStyles.titleWithHelperRow}>
+            <Text variant="titleLarge">{t(K.personProfile.relationships)}</Text>
+            <IconButton
+              icon="information-outline"
+              size={20}
+              style={personProfileStyles.helperIconButton}
+              onPress={() => setHelperVisible(true)}
+              accessibilityLabel={t(K.personProfile.aboutRelationships)}
+            />
+          </View>
         </View>
         {canEditLinkedProfile ? (
           <Button mode="contained" icon="family-tree" onPress={onAddRelationship}>
@@ -57,9 +68,6 @@ export function RelationshipsSection({
           </Button>
         ) : null}
       </View>
-      <Text variant="bodyMedium" style={[personProfileStyles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-        {t(K.relationshipInsight.connectionFound)}
-      </Text>
 
       <HorizontalTabStrip
         items={[
@@ -109,6 +117,20 @@ export function RelationshipsSection({
         </View>
       )}
     </Surface>
+    <Portal>
+      <Dialog visible={helperVisible} onDismiss={() => setHelperVisible(false)} style={[dialogChrome.helperDialog, { backgroundColor: theme.colors.surface }]}>
+        <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>
+          {t(K.personProfile.relationships)}
+        </Dialog.Title>
+        <IconButton icon="close" size={20} onPress={() => setHelperVisible(false)} style={dialogChrome.closeButton} accessibilityLabel={t(K.common.close)} />
+        <Dialog.Content>
+          <Text variant="bodyMedium">{t(K.personProfile.relationshipActionsSummary)}</Text>
+        </Dialog.Content>
+        <Dialog.Actions>
+          <Button onPress={() => setHelperVisible(false)}>{t(K.common.close)}</Button>
+        </Dialog.Actions>
+      </Dialog>
+    </Portal>
     </Reveal>
   );
 }

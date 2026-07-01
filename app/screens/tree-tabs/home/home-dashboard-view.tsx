@@ -1377,25 +1377,6 @@ export function HomeDashboardView(props: SharedTabProps) {
             </Reveal>
           ) : null}
 
-          {sinceLastVisit.length === 0 && needsAttentionCount === 0 ? (
-            <Reveal delay={130}>
-              <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
-                <Text variant="titleLarge">{t(K.home.activityCalm)}</Text>
-                <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-                  {t(K.home.activitySummary)}
-                </Text>
-                <View style={styles.dashboardActionRow}>
-                  <Button mode="contained-tonal" onPress={() => setDashboardTab('highlights')}>
-                    {t(K.home.openHighlights)}
-                  </Button>
-                  <Button mode="text" onPress={() => focusSection('keep-building')}>
-                    {t(K.home.openBuildPlan)}
-                  </Button>
-                </View>
-              </Surface>
-            </Reveal>
-          ) : null}
-
         </>
       ) : null}
 
@@ -1551,7 +1532,7 @@ export function HomeDashboardView(props: SharedTabProps) {
       ) : null}
 
       <Portal>
-        <Dialog visible={heroInfoVisible} onDismiss={() => setHeroInfoVisible(false)}>
+        <Dialog visible={heroInfoVisible} onDismiss={() => setHeroInfoVisible(false)} style={[dialogChrome.helperDialog, { backgroundColor: theme.colors.surface }]}>
           <Dialog.Title>{heroTitle}</Dialog.Title>
           <Dialog.Content>
             <Text variant="labelLarge">{t(K.home.whyThisMatters)}</Text>
@@ -1597,7 +1578,7 @@ export function HomeDashboardView(props: SharedTabProps) {
         </Dialog>
       </Portal>
       <Portal>
-        <Dialog visible={buildInfoVisible} onDismiss={() => setBuildInfoVisible(false)}>
+        <Dialog visible={buildInfoVisible} onDismiss={() => setBuildInfoVisible(false)} style={[dialogChrome.helperDialog, { backgroundColor: theme.colors.surface }]}>
           <Dialog.Title>{isSetupMode ? t(K.home.aboutSetupWizard) : t(K.home.aboutBuildYourFamily)}</Dialog.Title>
           <Dialog.Content>
             <Text variant="bodyMedium">

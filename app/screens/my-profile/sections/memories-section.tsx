@@ -56,6 +56,7 @@ export function MemoriesSection({
 }) {
   const theme = useTheme();
   const { t } = useI18n();
+  const [helperVisible, setHelperVisible] = useState(false);
   const [photoDrafts, setPhotoDrafts] = useState<Record<string, { description: string; linkedLifeEventId: string }>>({});
 
   useEffect(() => {
@@ -90,10 +91,16 @@ export function MemoriesSection({
   return (
     <Reveal delay={130}>
       <Surface style={[personProfileStyles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
-      <Text variant="titleLarge">{t(K.memories.memories)}</Text>
-      <Text variant="bodyMedium" style={[personProfileStyles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-        {t(K.memories.momentsPhotosFragments)}
-      </Text>
+      <View style={personProfileStyles.titleWithHelperRow}>
+        <Text variant="titleLarge">{t(K.memories.memories)}</Text>
+        <IconButton
+          icon="information-outline"
+          size={20}
+          style={personProfileStyles.helperIconButton}
+          onPress={() => setHelperVisible(true)}
+          accessibilityLabel={t(K.memories.aboutMemoriesAndGallery)}
+        />
+      </View>
 
       <HorizontalTabStrip
         items={[
@@ -322,6 +329,15 @@ export function MemoriesSection({
               </Button>
             ) : null}
           </Dialog.Actions>
+        </Dialog>
+      </Portal>
+      <Portal>
+        <Dialog visible={helperVisible} onDismiss={() => setHelperVisible(false)} style={[dialogChrome.helperDialog, { backgroundColor: theme.colors.surface }]}>
+          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{t(K.memories.memories)}</Dialog.Title>
+          <IconButton icon="close" size={20} onPress={() => setHelperVisible(false)} style={dialogChrome.closeButton} accessibilityLabel={t(K.common.close)} />
+          <Dialog.Content style={dialogChrome.content}>
+            <Text variant="bodyMedium">{t(K.memories.momentsPhotosFragments)}</Text>
+          </Dialog.Content>
         </Dialog>
       </Portal>
       </Surface>

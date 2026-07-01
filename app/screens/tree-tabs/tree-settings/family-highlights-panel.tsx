@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { View } from 'react-native';
-import { Button, IconButton, Surface, Text, useTheme } from 'react-native-paper';
+import { Button, Dialog, IconButton, Portal, Surface, Text, useTheme } from 'react-native-paper';
 import { Reveal } from '../../../../components';
 import type { PersonLifeEvent, PersonRecord } from '../../../../components/dto/person';
 import { formatPersonDate, parsePersonDate } from '../../../../components/dto/person';
@@ -10,6 +10,7 @@ import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
 
 const styles = GlobalStyles.treeDetail;
+const dialogChrome = GlobalStyles.dialogChrome;
 
 type HighlightAnniversary = {
   id: string;
@@ -82,6 +83,7 @@ export function FamilyHighlightsPanel({
   const theme = useTheme();
   const { t } = useI18n();
   const pageSize = 3;
+  const [helperVisible, setHelperVisible] = useState(false);
   const [expandedPanel, setExpandedPanel] = useState<HighlightPanelKey | null>(null);
   const [recentPage, setRecentPage] = useState(0);
   const [anniversaryPage, setAnniversaryPage] = useState(0);
@@ -191,10 +193,16 @@ export function FamilyHighlightsPanel({
       <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface, marginBottom: 18 }]} elevation={1}>
         <View style={styles.sectionHeader}>
           <View style={styles.titleWrap}>
-            <Text variant="titleLarge">{t(K.home.familyHighlights)}</Text>
-            <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-              {t(K.home.thisTabHelpsYouSpotFreshFacesImportantDatesAndGrowingBranchesAcrossTheFamily)}
-            </Text>
+            <View style={styles.titleWithHelperRow}>
+              <Text variant="titleLarge">{t(K.home.familyHighlights)}</Text>
+              <IconButton
+                icon="information-outline"
+                size={18}
+                style={styles.helperIconButton}
+                onPress={() => setHelperVisible(true)}
+                accessibilityLabel={t(K.home.familyHighlights)}
+              />
+            </View>
           </View>
         </View>
 
@@ -373,6 +381,20 @@ export function FamilyHighlightsPanel({
             ) : null}
           </View>
         </View>
+        <Portal>
+        <Dialog visible={helperVisible} onDismiss={() => setHelperVisible(false)} style={[dialogChrome.helperDialog, { backgroundColor: theme.colors.surface }]}>
+            <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>
+              {t(K.home.familyHighlights)}
+            </Dialog.Title>
+            <IconButton icon="close" size={20} onPress={() => setHelperVisible(false)} style={dialogChrome.closeButton} accessibilityLabel={t(K.common.close)} />
+            <Dialog.Content>
+              <Text variant="bodyMedium">{t(K.home.thisTabHelpsYouSpotFreshFacesImportantDatesAndGrowingBranchesAcrossTheFamily)}</Text>
+            </Dialog.Content>
+            <Dialog.Actions>
+              <Button onPress={() => setHelperVisible(false)}>{t(K.common.close)}</Button>
+            </Dialog.Actions>
+          </Dialog>
+        </Portal>
       </Surface>
     </Reveal>
   );

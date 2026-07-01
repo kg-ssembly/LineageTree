@@ -37,6 +37,10 @@ export class GlobalStyles {
             marginHorizontal: 12,
             borderRadius: 20,
         },
+        helperDialog: {
+            marginHorizontal: 12,
+            borderRadius: 16,
+        },
         dialogTitle: {
             paddingBottom: 4,
         },

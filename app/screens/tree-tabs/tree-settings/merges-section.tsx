@@ -112,10 +112,16 @@ export function MergesSection({
       <Reveal delay={110}>
         <Card mode="elevated" style={[styles.selfAssignmentCard, { backgroundColor: theme.colors.surface, marginBottom: 16 }]}>
           <Card.Content>
-          <Text variant="titleMedium" style={{ marginBottom: 8 }}>{t(K.treeSettings.inviteAnotherUserToMerge)}</Text>
-          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-            Invite someone who holds another branch of the story and compare where your trees overlap.
-          </Text>
+          <View style={styles.titleWithHelperRow}>
+            <Text variant="titleMedium" style={{ marginBottom: 8 }}>{t(K.treeSettings.inviteAnotherUserToMerge)}</Text>
+            <IconButton
+              icon="information-outline"
+              size={18}
+              style={styles.helperIconButton}
+              onPress={() => onOpenHelperDialog('merge-invitations')}
+              accessibilityLabel={t(K.treeSettings.aboutMergeInvitations)}
+            />
+          </View>
           <Text variant="labelMedium" style={{ marginTop: 12 }}>{t(K.treeSettings.sourceTree)}</Text>
           <View style={[styles.collaboratorChipRow, { marginTop: 8 }]}>
             {availableMergeSourceTrees.map((tree) => (

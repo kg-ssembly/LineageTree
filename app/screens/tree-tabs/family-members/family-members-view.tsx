@@ -504,7 +504,7 @@ export function FamilyMembersView({
         <Dialog
           visible={helperVisible}
           onDismiss={() => setHelperVisible(false)}
-          style={[dialogChrome.dialog, { backgroundColor: theme.colors.surface }]}
+          style={[dialogChrome.helperDialog, { backgroundColor: theme.colors.surface }]}
         >
           <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{t(K.tree.familyMembers.title)}</Dialog.Title>
           <IconButton

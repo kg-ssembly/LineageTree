@@ -229,9 +229,6 @@ export default function RelationshipInsightCard({
                   relationship: insight.relationship.toLowerCase(),
                 })}
               </Text>
-              <Text variant="bodyMedium" style={[styles.pathText, { color: theme.colors.onSurfaceVariant }]}>
-                {t(K.relationshipInsight.connectionFound)}
-              </Text>
               <View style={styles.summaryRow}>
                 <Chip compact icon="account">{formatPersonName(fromPerson)}</Chip>
                 <Chip compact icon="arrow-right">{insight.relationship}</Chip>

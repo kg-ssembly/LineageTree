@@ -678,7 +678,7 @@ function TreeSettingsContent({
           ) : null}
         </Dialog>
 
-        <Dialog visible={helperDialog.visible} onDismiss={() => setHelperDialog((current) => ({ ...current, visible: false }))} style={[dialogChrome.dialog, { backgroundColor: theme.colors.surface }]}>
+        <Dialog visible={helperDialog.visible} onDismiss={() => setHelperDialog((current) => ({ ...current, visible: false }))} style={[dialogChrome.helperDialog, { backgroundColor: theme.colors.surface }]}>
           <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{t(TREE_HELPER_COPY[helperDialog.key].title)}</Dialog.Title>
           <IconButton icon="close" size={20} onPress={() => setHelperDialog((current) => ({ ...current, visible: false }))} style={dialogChrome.closeButton} accessibilityLabel={t(K.common.close)} />
           {helperDialog.visible ? (

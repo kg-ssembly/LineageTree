@@ -1247,7 +1247,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
         <Dialog
           visible={helperDialog.visible}
           onDismiss={() => setHelperDialog((current) => ({ ...current, visible: false }))}
-          style={[dialogChrome.dialog, { backgroundColor: theme.colors.surface }]}
+          style={[dialogChrome.helperDialog, { backgroundColor: theme.colors.surface }]}
         >
           <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{t(helperDialogCopy[helperDialog.key].title)}</Dialog.Title>
           <IconButton
