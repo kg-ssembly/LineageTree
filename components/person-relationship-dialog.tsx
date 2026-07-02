@@ -12,7 +12,7 @@ import { GlobalStyles } from '../constants/styles';
 
 const styles = GlobalStyles.personRelationshipDialog;
 const dialogChrome = GlobalStyles.dialogChrome;
-const MAX_VISIBLE_RESULTS = 3;
+const ITEMS_PER_PAGE = 5;
 
 export type PersonRelationshipMode = 'parent-of' | 'child-of' | 'spouse-of';
 
@@ -95,6 +95,9 @@ export default function PersonRelationshipDialog({
   const [relationshipStatus, setRelationshipStatus] = useState<SpouseRelationshipStatus>(DEFAULT_SPOUSE_RELATIONSHIP_STATUS);
   const [parentChildKind, setParentChildKind] = useState<ParentChildRelationshipKind>(DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND);
   const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [validationWarningDialogVisible, setValidationWarningDialogVisible] = useState(false);
+  const [pendingCandidateSelection, setPendingCandidateSelection] = useState<string | null>(null);
 
   useEffect(() => {
     if (!visible || !person) return;
@@ -105,6 +108,7 @@ export default function PersonRelationshipDialog({
     setParentChildKind(draft.parentChildKind);
     setSearchQuery('');
     setError(null);
+    setCurrentPage(0);
   }, [editingRelationship, person, visible]);
 
   // Gender-aware mode button labels
@@ -139,22 +143,37 @@ export default function PersonRelationshipDialog({
     });
   }, [people, person?.id, relationships, mode]);
 
+  const getExistingParentCount = useMemo(() => {
+   if (!person || mode !== 'child-of') return 0;
+   return relationships
+     .filter((r) => r.type === 'parent-child' && r.toPersonId === person.id)
+     .length;
+  }, [person, mode, relationships]);
+
+  const getExistingSpouseCount = useMemo(() => {
+   if (!person || mode !== 'spouse-of') return 0;
+   return relationships
+     .filter((r) => r.type === 'spouse' && (r.fromPersonId === person.id || r.toPersonId === person.id))
+     .length;
+  }, [person, mode, relationships]);
+
   const selectedPerson = useMemo(
-    () => (relatedPersonId ? candidates.find((c) => c.id === relatedPersonId) ?? null : null),
-    [candidates, relatedPersonId],
+   () => (relatedPersonId ? candidates.find((c) => c.id === relatedPersonId) ?? null : null),
+   [candidates, relatedPersonId],
   );
 
-  const filteredCandidates = useMemo(
-    () => candidates
-      .filter((c) => formatPersonName(c).toLowerCase().includes(searchQuery.trim().toLowerCase()))
-      .slice(0, MAX_VISIBLE_RESULTS),
-    [candidates, searchQuery],
+  const allFilteredCandidates = useMemo(
+   () => candidates.filter((c) => formatPersonName(c).toLowerCase().includes(searchQuery.trim().toLowerCase())),
+   [candidates, searchQuery],
   );
 
-  const totalCandidateMatches = useMemo(
-    () => candidates.filter((c) => formatPersonName(c).toLowerCase().includes(searchQuery.trim().toLowerCase())).length,
-    [candidates, searchQuery],
-  );
+  const totalCandidateMatches = allFilteredCandidates.length;
+
+  const filteredCandidates = useMemo(() => {
+   const start = currentPage * ITEMS_PER_PAGE;
+   const end = start + ITEMS_PER_PAGE;
+   return allFilteredCandidates.slice(start, end);
+  }, [allFilteredCandidates, currentPage]);
 
   const validationMessage = useMemo(() => {
     if (!person || !relatedPersonId) {
@@ -189,6 +208,22 @@ export default function PersonRelationshipDialog({
     }).warnings;
   }, [editingRelationship?.id, mode, parentChildKind, people, person, relatedPersonId, relationshipStatus, relationships]);
 
+  const getSoftValidationWarnings = (candidateId: string): string[] => {
+    if (!person) return [];
+    
+    const warnings: string[] = [];
+    
+    if (mode === 'child-of' && getExistingParentCount >= 2) {
+      warnings.push(t(K.relationship.personAlreadyHasTwoParents ?? 'This person already has two parents'));
+    }
+    
+    if (mode === 'spouse-of' && getExistingSpouseCount >= 1) {
+      warnings.push(t(K.relationship.personAlreadyHasOneSpouse ?? 'This person already has a spouse'));
+    }
+    
+    return warnings;
+  };
+
   const handleSubmit = async () => {
     if (!person) { setError(t(K.relationship.familyMemberCouldNotBeLoaded)); return; }
     if (!relatedPersonId) { setError(t(K.relationship.chooseRelatedFamilyMemberFirst)); return; }
@@ -205,6 +240,7 @@ export default function PersonRelationshipDialog({
     setRelatedPersonId('');
     setSearchQuery('');
     setError(null);
+    setCurrentPage(0);
   };
 
   return (
@@ -229,6 +265,7 @@ export default function PersonRelationshipDialog({
                 setRelatedPersonId('');
                 setSearchQuery('');
                 setError(null);
+                setCurrentPage(0);
               }}
               buttons={modeButtons}
               style={styles.segmentedButtons}
@@ -317,9 +354,14 @@ export default function PersonRelationshipDialog({
                         <Pressable
                           key={candidate.id}
                           onPress={() => {
+                            const warnings = getSoftValidationWarnings(candidate.id);
                             setRelatedPersonId(candidate.id);
-                          setSearchQuery('');
-                          setError(null);
+                            setSearchQuery('');
+                            if (warnings.length > 0) {
+                              setError(warnings[0]);
+                            } else {
+                              setError(null);
+                            }
                           }}
                           disabled={loading}
                           style={[
@@ -338,10 +380,26 @@ export default function PersonRelationshipDialog({
                       <Text variant="bodyMedium">{t(K.relationship.noMatchingForRelationshipType)}</Text>
                     </View>
                   )}
-                  {totalCandidateMatches > MAX_VISIBLE_RESULTS ? (
-                    <Text variant="bodySmall" style={styles.resultsFooterText}>
-                      {t(K.relationship.showThreeMatchesAddSearch)}
-                    </Text>
+                  {totalCandidateMatches > ITEMS_PER_PAGE ? (
+                    <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 8, marginTop: 12 }}>
+                      <Button
+                        mode="outlined"
+                        onPress={() => setCurrentPage((prev) => Math.max(0, prev - 1))}
+                        disabled={currentPage === 0 || loading}
+                      >
+                        {t(K.common.previous ?? 'Previous')}
+                      </Button>
+                      <Text style={{ alignSelf: 'center', paddingHorizontal: 8 }} variant="bodySmall">
+                        {`${currentPage + 1} / ${Math.ceil(totalCandidateMatches / ITEMS_PER_PAGE)}`}
+                      </Text>
+                      <Button
+                        mode="outlined"
+                        onPress={() => setCurrentPage((prev) => prev + 1)}
+                        disabled={currentPage >= Math.ceil(totalCandidateMatches / ITEMS_PER_PAGE) - 1 || loading}
+                      >
+                        {t(K.common.next ?? 'Next')}
+                      </Button>
+                    </View>
                   ) : null}
                 </>
               )}

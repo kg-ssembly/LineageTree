@@ -209,6 +209,7 @@ export default function PersonFormDialog({
   const [newPhotoUris, setNewPhotoUris] = useState<string[]>([]);
   const [firstNameError, setFirstNameError] = useState<string | null>(null);
   const [relationshipError, setRelationshipError] = useState<string | null>(null);
+  const [lastNameError, setLastNameError] = useState<string | null>(null);
   const [birthDateError, setBirthDateError] = useState<string | null>(null);
   const [deathDateError, setDeathDateError] = useState<string | null>(null);
   const [birthDatePickerVisible, setBirthDatePickerVisible] = useState(false);
@@ -220,6 +221,9 @@ export default function PersonFormDialog({
   const [previewState, setPreviewState] = useState<SubmissionPreviewState>({ visible: false, payload: null, warnings: [] });
   const [submitPending, setSubmitPending] = useState(false);
   const [addConnectionDialogVisible, setAddConnectionDialogVisible] = useState(false);
+  const [surnameVariantConfirmDialogVisible, setSurnameVariantConfirmDialogVisible] = useState(false);
+  const [proposedSurnameVariant, setProposedSurnameVariant] = useState<string | null>(null);
+  const [surnameVariantHints, setSurnameVariantHints] = useState<string[]>([]);
 
   // Track the last open-event key so we reinitialise only once per open, not
   // on every re-render, preventing the Portal infinite-update loop.
@@ -258,6 +262,7 @@ export default function PersonFormDialog({
     setNewPhotoUris(initialValues?.newPhotoUris ?? []);
     setFirstNameError(null);
     setRelationshipError(null);
+    setLastNameError(null);
     setBirthDateError(null);
     setDeathDateError(null);
     setBirthDatePickerVisible(false);
@@ -273,6 +278,9 @@ export default function PersonFormDialog({
     setPreviewState({ visible: false, payload: null, warnings: [] });
     setSubmitPending(false);
     setAddConnectionDialogVisible(false);
+    setSurnameVariantConfirmDialogVisible(false);
+    setProposedSurnameVariant(null);
+    setSurnameVariantHints([]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, mode, person?.id]);
 
@@ -297,6 +305,7 @@ export default function PersonFormDialog({
     existingPhotos,
     removedPhotos,
     newPhotoUris,
+    surnameVariantHints,
     pendingRelationships: pendingRelationships.map(({ mode: relationshipMode, relatedPersonId, parentChildKind }) => ({
       mode: relationshipMode,
       relatedPersonId,
@@ -492,6 +501,26 @@ export default function PersonFormDialog({
       setFirstNameError(firstError);
       return;
     }
+
+    // Check if last name is compulsory and not empty
+    if (!lastName.trim()) {
+      setLastNameError(t(K.personForm.lastNameRequired ?? 'Last name is required'));
+      return;
+    }
+
+    // Check if last name is different from existing surnames in create mode
+    if (mode === 'create' && uniqueLastNames.length > 0) {
+      const normalizedLastName = lastName.trim().toLowerCase();
+      const isNewSurname = !uniqueLastNames.some((name) => name.toLowerCase() === normalizedLastName);
+      
+      if (isNewSurname) {
+        // Show confirmation dialog for new surname
+        setProposedSurnameVariant(lastName.trim());
+        setSurnameVariantConfirmDialogVisible(true);
+        return;
+      }
+    }
+
     const futureBirthDateError = personValidationFeedback.errors.find((message) => message === t(K.personForm.birthDateInFuture));
     if (futureBirthDateError) {
       setBirthDateError(futureBirthDateError);
@@ -602,6 +631,49 @@ export default function PersonFormDialog({
   const removePendingRelationship = (relationshipKey: string) => {
     setRelationshipError(null);
     setPendingRelationships((current) => current.filter((relationship) => relationship.key !== relationshipKey));
+  };
+
+  const handleSurnameVariantConfirm = () => {
+    if (proposedSurnameVariant) {
+      // Build submission payload with the new surname variant
+      const newVariants = [...surnameVariantHints, proposedSurnameVariant];
+      const uniqueVariants = [...new Set(newVariants)]; // Remove duplicates
+      
+      setSurnameVariantConfirmDialogVisible(false);
+      setProposedSurnameVariant(null);
+      
+      setPreviewState({
+        visible: true,
+        payload: {
+          firstName,
+          middleNames,
+          lastName,
+          maidenName,
+          birthDate,
+          deathDate: isPresent ? '' : deathDate,
+          gender,
+          notes,
+          lifeEvents,
+          preferredPhotoRef,
+          cropPreferredPhotoRef: '',
+          existingPhotos,
+          removedPhotos,
+          newPhotoUris,
+          surnameVariantHints: uniqueVariants,
+          pendingRelationships: pendingRelationships.map(({ mode: relationshipMode, relatedPersonId, parentChildKind }) => ({
+            mode: relationshipMode,
+            relatedPersonId,
+            parentChildKind: relationshipMode === 'spouse-of' ? undefined : parentChildKind,
+          })),
+        } satisfies PersonFormSubmission,
+        warnings: [...personValidationFeedback.warnings, ...relationshipWarnings],
+      });
+    }
+  };
+
+  const handleSurnameVariantDismiss = () => {
+    setSurnameVariantConfirmDialogVisible(false);
+    setProposedSurnameVariant(null);
   };
 
   const handlePreviewConfirm = async () => {
@@ -750,10 +822,17 @@ export default function PersonFormDialog({
                   onChangeText={(value) => {
                     setLastName(value);
                     setLastNameTouched(true);
+                    if (lastNameError) {
+                      setLastNameError(null);
+                    }
                   }}
                   disabled={loading}
+                  error={!!lastNameError}
                   style={styles.fieldSpacing}
                 />
+                <HelperText type="error" visible={!!lastNameError}>
+                  {lastNameError}
+                </HelperText>
                 {mode === 'create' && suggestedLastName ? (
                   <HelperText type="info" visible>
                     {t(K.personForm.suggestedSurnameFromRelationship, { name: suggestedLastName })}
@@ -1031,6 +1110,38 @@ export default function PersonFormDialog({
               {t(K.personForm.savingFamilyMemberHelper)}
             </Text>
           </Dialog.Content>
+        </Dialog>
+      </Portal>
+      <Portal>
+        <Dialog
+          visible={surnameVariantConfirmDialogVisible}
+          onDismiss={handleSurnameVariantDismiss}
+          style={[dialogChrome.dialog, styles.dialog, { backgroundColor: theme.colors.surface }]}
+        >
+          <Dialog.Title style={dialogChrome.dialogTitle}>
+            {t(K.personForm.confirmNewSurname ?? 'Confirm New Surname')}
+          </Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodyMedium" style={styles.helperText}>
+              {t(K.personForm.surnameNotInTree ?? 'This surname is not in the current family tree.')}
+            </Text>
+            <Text variant="bodyMedium" style={styles.helperText}>
+              {t(K.personForm.confirmSurnameCorrect ?? 'Is "{surname}" correct? It will be added as a surname variant.')}
+            </Text>
+            {proposedSurnameVariant && (
+              <Text variant="titleSmall" style={[styles.sectionSpacing, { fontWeight: 'bold' }]}>
+                {proposedSurnameVariant}
+              </Text>
+            )}
+          </Dialog.Content>
+          <Dialog.Actions style={dialogChrome.dialogActions}>
+            <Button onPress={handleSurnameVariantDismiss} disabled={loading}>
+              {t(K.common.cancel)}
+            </Button>
+            <Button mode="contained" onPress={handleSurnameVariantConfirm} disabled={loading}>
+              {t(K.common.confirm ?? 'Confirm')}
+            </Button>
+          </Dialog.Actions>
         </Dialog>
       </Portal>
     </>

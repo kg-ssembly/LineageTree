@@ -88,6 +88,7 @@ export interface PersonMutationPayload extends PersonInput {
   removedPhotos: PersonPhoto[];
   newPhotoUris: string[];
   newPhotos?: NewPersonPhotoInput[];
+  surnameVariantHints?: string[];
 }
 
 export function getPreferredPersonPhoto(person?: PersonRecord | null) {

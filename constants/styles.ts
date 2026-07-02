@@ -1698,6 +1698,7 @@ export class GlobalStyles {
         pendingRelationshipsSection: {
             marginTop: 16,
             padding: 12,
+            paddingBottom: 20,
             borderRadius: 20,
             borderWidth: 1,
         },
