@@ -5,7 +5,7 @@ import { Reveal } from '../../../../components';
 import type { PersonPhoto, PersonRecord } from '../../../../components/dto/person';
 import { formatPersonDate, getPersonPresenceLabel, getPersonTreeMembershipIds, isPersonDeceased } from '../../../../components/dto/person';
 import { formatPersonGender, formatPersonName } from '../../../../components/person-formatting';
-import { GlobalStyles } from '../../../../constants/styles';
+import { getThemeChrome, GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
 
@@ -30,16 +30,17 @@ export function MemberProfileSection({
 }) {
   const theme = useTheme();
   const { t } = useI18n();
+  const chrome = getThemeChrome(theme);
   const biographyLead = [
-    person.birthDate ? `${formatPersonName(person)} was born on ${formatPersonDate(person.birthDate)}.` : null,
-    person.birthPlace?.trim() ? `Their story begins in ${person.birthPlace.trim()}.` : null,
-    person.hometown?.trim() ? `${person.hometown.trim()} helped shape their journey.` : null,
+    person.birthDate ? t(K.personProfile.biographyBornOnDate, { name: formatPersonName(person), date: formatPersonDate(person.birthDate) }) : null,
+    person.birthPlace?.trim() ? t(K.personProfile.biographyStoryBeginsInPlace, { place: person.birthPlace.trim() }) : null,
+    person.hometown?.trim() ? t(K.personProfile.biographyHometownShapedJourney, { place: person.hometown.trim() }) : null,
     person.notes?.trim() ? person.notes.trim() : null,
   ].filter(Boolean).join(' ');
 
   return (
     <Reveal delay={90}>
-      <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
+      <Surface style={[styles.sectionCard, { backgroundColor: chrome.primaryCardBackground }]} elevation={1}>
       <View style={styles.sectionHeader}>
         <View style={styles.sectionHeaderText}>
           <View style={styles.titleWithHelperRow}>
@@ -69,31 +70,31 @@ export function MemberProfileSection({
         {linkedCollaboratorLabel && !isCurrentUsersPerson ? <Chip compact icon="link-variant">{t(K.common.linked)}</Chip> : null}
         {person.canonicalPersonId?.trim() ? <Chip compact icon="merge">{t(K.personProfile.mergedCanonicalProfile)}</Chip> : null}
       </View>
-      <Text variant="bodyLarge" style={styles.biographyLead}>
+      <Text variant="bodyLarge" style={[styles.biographyLead, { color: chrome.noteText }]}>
         {biographyLead || t(K.personProfile.waitingForFirstStory, { name: formatPersonName(person) })}
       </Text>
 
-      <View style={[styles.biographyBlock, { backgroundColor: theme.colors.elevation.level1 }]}>
+      <View style={[styles.biographyBlock, { backgroundColor: chrome.secondaryCardBackground, borderColor: chrome.sectionBorder }]}>
         <Text variant="titleSmall">{t(K.personProfile.knownDetails)}</Text>
         <View style={styles.biographyFactRow}>
-          <View style={[styles.biographyFactCard, { backgroundColor: theme.colors.surface }]}>
-            <Text variant="labelMedium" style={styles.detailLabel}>{t(K.personProfile.born)}</Text>
+          <View style={[styles.biographyFactCard, { backgroundColor: chrome.primaryCardBackground, borderColor: chrome.sectionBorder }]}>
+            <Text variant="labelMedium" style={[styles.detailLabel, { color: chrome.subtitle }]}>{t(K.personProfile.born)}</Text>
             <Text variant="titleMedium">{person.birthDate ? formatPersonDate(person.birthDate) : t(K.common.unknown)}</Text>
           </View>
-          <View style={[styles.biographyFactCard, { backgroundColor: theme.colors.surface }]}>
-            <Text variant="labelMedium" style={styles.detailLabel}>{t(K.personProfile.nameTrail)}</Text>
+          <View style={[styles.biographyFactCard, { backgroundColor: chrome.primaryCardBackground, borderColor: chrome.sectionBorder }]}>
+            <Text variant="labelMedium" style={[styles.detailLabel, { color: chrome.subtitle }]}>{t(K.personProfile.nameTrail)}</Text>
             <Text variant="titleMedium">{person.maidenName?.trim() || person.lastName || t(K.common.unknown)}</Text>
           </View>
-          <View style={[styles.biographyFactCard, { backgroundColor: theme.colors.surface }]}>
-            <Text variant="labelMedium" style={styles.detailLabel}>{t(K.personProfile.familyCircle)}</Text>
+          <View style={[styles.biographyFactCard, { backgroundColor: chrome.primaryCardBackground, borderColor: chrome.sectionBorder }]}>
+            <Text variant="labelMedium" style={[styles.detailLabel, { color: chrome.subtitle }]}>{t(K.personProfile.familyCircle)}</Text>
             <Text variant="titleMedium">{getPersonTreeMembershipIds(person).join(', ') || t(K.personProfile.currentTreeOnly)}</Text>
           </View>
         </View>
       </View>
 
-      <View style={[styles.notesBox, { backgroundColor: theme.colors.surfaceVariant }]}>
+      <View style={[styles.notesBox, { backgroundColor: chrome.hintBackground }]}>
         <Text variant="titleSmall">{t(K.personProfile.storyNote)}</Text>
-        <Text variant="bodyMedium" style={[styles.notesText, { color: theme.colors.onSurfaceVariant }]}>
+        <Text variant="bodyMedium" style={[styles.notesText, { color: chrome.subtitle }]}>
           {person.notes || t(K.personProfile.addRealDetail)}
         </Text>
       </View>

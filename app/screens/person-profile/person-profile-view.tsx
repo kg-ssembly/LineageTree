@@ -33,7 +33,7 @@ import { getPersonValidationFeedback } from '../../../components/family-tree-val
 import { MAX_PHOTOS_PER_PERSON, MAX_PHOTO_BYTES, preparePhotoForUpload } from '../../../components/photo-utils';
 import { formatPersonName } from '../../../components/person-formatting';
 import { computeRelationshipInsight } from '../../../providers';
-import { GlobalStyles } from '../../../constants/styles';
+import { getThemeChrome, GlobalStyles } from '../../../constants/styles';
 import { useI18n } from '../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../i18n/keys';
 import { useShallow } from 'zustand/react/shallow';
@@ -101,11 +101,11 @@ function getRelationshipModeForPerson(personId: string, relationship: Relationsh
 function getPathRelationLabel(relation: 'parent' | 'child' | 'spouse') {
   switch (relation) {
     case 'parent':
-      return 'parent';
+      return K.relationship.parent;
     case 'child':
-      return 'child';
+      return K.relationship.child;
     default:
-      return 'spouse';
+      return K.relationship.spouse;
   }
 }
 
@@ -234,16 +234,17 @@ const APP_TAB_ROUTES: Array<{
   focusedIcon: keyof typeof MaterialCommunityIcons.glyphMap;
   unfocusedIcon: keyof typeof MaterialCommunityIcons.glyphMap;
 }> = [
-  { key: 'home', title: 'Home', focusedIcon: 'home-heart', unfocusedIcon: 'home-heart' },
-  { key: 'tree', title: 'Tree', focusedIcon: 'family-tree', unfocusedIcon: 'family-tree' },
-  { key: 'members', title: 'Members', focusedIcon: 'account-group-outline', unfocusedIcon: 'account-group-outline' },
-  { key: 'treeSettings', title: 'Settings', focusedIcon: 'cog-outline', unfocusedIcon: 'cog-outline' },
-  { key: 'myProfile', title: 'My profile', focusedIcon: 'account-circle-outline', unfocusedIcon: 'account-circle-outline' },
+  { key: 'home', title: K.navigation.home, focusedIcon: 'home-heart', unfocusedIcon: 'home-heart' },
+  { key: 'tree', title: K.navigation.tree, focusedIcon: 'family-tree', unfocusedIcon: 'family-tree' },
+  { key: 'members', title: K.navigation.members, focusedIcon: 'account-group-outline', unfocusedIcon: 'account-group-outline' },
+  { key: 'treeSettings', title: K.navigation.settings, focusedIcon: 'cog-outline', unfocusedIcon: 'cog-outline' },
+  { key: 'myProfile', title: K.navigation.profile, focusedIcon: 'account-circle-outline', unfocusedIcon: 'account-circle-outline' },
 ];
 
 export default function PersonProfileScreen({ navigation, route }: Props) {
   const isFocused = useIsFocused();
   const theme = useTheme();
+  const chrome = getThemeChrome(theme);
   const { t } = useI18n();
   const { user } = useAuthStore();
   const {
@@ -933,7 +934,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
       </View>
       <ScrollView contentContainerStyle={styles.content}>
         <Reveal delay={60}>
-          <Surface style={[styles.heroCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
+          <Surface style={[styles.heroCard, { backgroundColor: chrome.primaryCardBackground }]} elevation={1}>
           {canEdit ? (
             <IconButton
               icon="pencil"
@@ -948,9 +949,9 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
           <View style={styles.heroHeader}>
             <View style={styles.heroAvatarRow}>
               {preferredPhoto ? (
-                <Image source={{ uri: preferredPhoto.url }} style={styles.heroAvatar} />
+                <Image source={{ uri: preferredPhoto.url }} style={[styles.heroAvatar, { backgroundColor: chrome.avatarBackground, borderColor: chrome.avatarBorder }]} />
               ) : (
-                <View style={styles.heroAvatarFallback}>
+                <View style={[styles.heroAvatarFallback, { backgroundColor: chrome.avatarBackground, borderColor: chrome.avatarBorder }]}>
                   <MaterialCommunityIcons
                     name={isPersonDeceased(person) ? 'flower-outline' : 'account-heart-outline'}
                     size={38}
@@ -981,7 +982,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
           </View>
 
           {showClaimBox ? (
-            <View style={[styles.claimBox, { backgroundColor: theme.colors.elevation.level1 }]}>
+            <View style={[styles.claimBox, { backgroundColor: chrome.secondaryCardBackground }]}>
               {isCurrentUsersPerson ? (
                 <View style={styles.claimRow}>
                   <View style={styles.claimTextWrap}>

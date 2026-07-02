@@ -1,4 +1,5 @@
 import {StyleSheet} from 'react-native';
+import type { AppTheme } from './theme';
 
 // ── Soft neutral palette constants (mirrors theme.ts softPalettes) ───────────
 const F = {
@@ -39,6 +40,22 @@ export const BUTTON_CONTENT_CHROME = {
     height: 40,
     paddingHorizontal: 10,
 } as const;
+
+export function getThemeChrome(theme: AppTheme) {
+    return {
+        avatarBackground: theme.dark ? '#2C241F' : F.avatarBg,
+        avatarBorder: theme.dark ? theme.colors.outlineVariant : F.avatarBorder,
+        canvasBorder: theme.colors.outlineVariant,
+        hintBackground: theme.dark ? theme.colors.elevation.level2 : F.hintBg,
+        noteText: theme.dark ? theme.colors.onSurface : F.onSurfaceDeep,
+        panelBackground: theme.dark ? theme.colors.elevation.level2 : theme.colors.surface,
+        pillBackground: theme.dark ? theme.colors.elevation.level2 : theme.colors.surfaceVariant,
+        primaryCardBackground: theme.colors.surface,
+        secondaryCardBackground: theme.colors.elevation.level1,
+        sectionBorder: theme.colors.outlineVariant,
+        subtitle: theme.colors.onSurfaceVariant,
+    } as const;
+}
 
 export class GlobalStyles {
     static readonly dialogChrome = StyleSheet.create({

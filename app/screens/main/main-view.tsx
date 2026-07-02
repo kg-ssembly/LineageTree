@@ -151,11 +151,11 @@ export function MainScreenView({ controller }: { controller: ReturnType<typeof u
           style={[dialogChrome.dialog, { backgroundColor: controller.theme.colors.surface }]}
         >
           <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>
-            Similar family trees found
+            {controller.t(K.app.similarFamilyTreesFound)}
           </Dialog.Title>
           <Dialog.Content style={dialogChrome.content}>
             <Text variant="bodyMedium" style={{ color: controller.theme.colors.onSurfaceVariant }}>
-              We found discoverable trees named "{controller.treeNameSuggestion.requestedName}". You may want to request access instead of creating a duplicate tree.
+              {controller.t(K.app.similarFamilyTreesMessage, { name: controller.treeNameSuggestion.requestedName })}
             </Text>
             <View style={{ marginTop: 16, gap: 10 }}>
               {controller.treeNameSuggestion.matches.map((match) => (
@@ -172,7 +172,7 @@ export function MainScreenView({ controller }: { controller: ReturnType<typeof u
                 >
                   <Text variant="titleMedium">{match.name}</Text>
                   <Text variant="bodySmall" style={{ color: controller.theme.colors.onSurfaceVariant, marginTop: 4 }}>
-                    Owned by {match.ownerDisplayName || match.ownerUsername || controller.t(K.common.unknown)}
+                    {controller.t(K.app.discoverableTreeOwnedBy, { name: match.ownerDisplayName || match.ownerUsername || controller.t(K.common.unknown) })}
                   </Text>
                   <Button
                     mode="outlined"
@@ -194,7 +194,7 @@ export function MainScreenView({ controller }: { controller: ReturnType<typeof u
               {controller.t(K.common.cancel)}
             </Button>
             <Button mode="contained" onPress={() => { void controller.continueCreatingSuggestedTree(); }} disabled={controller.mutating} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>
-              Create anyway
+              {controller.t(K.app.createAnyway)}
             </Button>
           </Dialog.Actions>
         </Dialog>
