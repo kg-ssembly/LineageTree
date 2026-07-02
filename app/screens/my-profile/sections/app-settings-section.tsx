@@ -132,7 +132,7 @@ export function AppSettingsSection({ onSignOut, authLoading }: UserProfileTabPro
         </Surface>
       </Reveal>
 
-      <Button mode="contained-tonal" icon="logout" onPress={onSignOut} disabled={authLoading} contentStyle={homeStyles.signOutButtonContent} style={homeStyles.signOutButton}>
+      <Button mode="outlined" icon="logout" onPress={onSignOut} disabled={authLoading} contentStyle={homeStyles.signOutButtonContent} style={homeStyles.signOutButton} buttonColor={theme.colors.surface} textColor={theme.colors.primary}>
         {t(K.common.logOut)}
       </Button>
     </>

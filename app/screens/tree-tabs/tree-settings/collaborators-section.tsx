@@ -3,7 +3,7 @@ import { View } from 'react-native';
 import { Button, Card, Chip, IconButton, Text, TextInput, useTheme } from 'react-native-paper';
 import { Reveal } from '../../../../components';
 import { formatPersonName } from '../../../../components/person-formatting';
-import { GlobalStyles } from '../../../../constants/styles';
+import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
 import { buildSelfAssignmentSuggestions } from '../shared';
@@ -61,7 +61,7 @@ export function CollaboratorsSection({
           </View>
         </View>
         {isOwner ? (
-          <Button mode="contained" icon="account-plus" onPress={onOpenCollaboratorDialog} disabled={mutating}>
+          <Button mode="contained" icon="account-plus" onPress={onOpenCollaboratorDialog} disabled={mutating} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>
             {t(K.treeSettings.addCollaborator)}
           </Button>
         ) : null}
@@ -128,7 +128,7 @@ export function CollaboratorsSection({
                                   <Text variant="titleMedium" style={styles.selfAssignmentTitle}>{formatPersonName(suggestion.person)}</Text>
                                   <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>{suggestion.reason}</Text>
                                 </View>
-                                <Button mode="contained-tonal" onPress={() => handleOwnerLinkSuggestion(collaborator.userId, suggestion.person.id)} disabled={mutating}>
+                                <Button mode="contained" onPress={() => handleOwnerLinkSuggestion(collaborator.userId, suggestion.person.id)} disabled={mutating} style={BUTTON_CHROME} buttonColor={theme.colors.primary} textColor={theme.colors.onPrimary} contentStyle={BUTTON_CONTENT_CHROME}>
                                   {t(K.treeSettings.suggest)}
                                 </Button>
                               </View>
@@ -140,7 +140,7 @@ export function CollaboratorsSection({
                     ) : null}
 
                     <View style={{ flexDirection: 'row', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
-                      <Button mode="outlined" icon={isOwnerSuggestionTarget ? 'chevron-up' : 'account-search'} onPress={() => toggleOwnerLinkChooser(collaborator.userId)}>
+                      <Button mode="outlined" icon={isOwnerSuggestionTarget ? 'chevron-up' : 'account-search'} onPress={() => toggleOwnerLinkChooser(collaborator.userId)} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>
                         {isOwnerSuggestionTarget ? t(K.treeSettings.hideChooser) : t(K.treeSettings.browseFamilyMembers)}
                       </Button>
                     </View>
@@ -171,7 +171,7 @@ export function CollaboratorsSection({
                                         </Text>
                                       ) : null}
                                     </View>
-                                    <Button mode="contained" onPress={() => handleOwnerLinkSuggestion(collaborator.userId, person.id)} disabled={mutating}>
+                                    <Button mode="contained" onPress={() => handleOwnerLinkSuggestion(collaborator.userId, person.id)} disabled={mutating} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>
                                       {t(K.treeSettings.suggest)}
                                     </Button>
                                   </View>
@@ -181,26 +181,29 @@ export function CollaboratorsSection({
                             ))}
                             {ownerLinkTotalPages > 1 ? (
                               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
-                                <Button
-                                  mode="text"
+                                <IconButton
                                   icon="chevron-left"
                                   onPress={() => setOwnerLinkPage((page) => Math.max(1, page - 1))}
                                   disabled={ownerLinkPage === 1}
-                                >
-                                  {t(K.tree.familyMembers.previousPage)}
-                                </Button>
+                                  accessibilityLabel={t(K.tree.familyMembers.previousPage)}
+                                  mode="outlined"
+                                  style={BUTTON_CHROME}
+                                  containerColor={theme.colors.surface}
+                                  iconColor={theme.colors.primary}
+                                />
                                 <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
                                   {t(K.tree.familyMembers.pageOf, { current: ownerLinkPage, total: ownerLinkTotalPages })}
                                 </Text>
-                                <Button
-                                  mode="text"
+                                <IconButton
                                   icon="chevron-right"
-                                  contentStyle={{ flexDirection: 'row-reverse' }}
                                   onPress={() => setOwnerLinkPage((page) => Math.min(ownerLinkTotalPages, page + 1))}
                                   disabled={ownerLinkPage === ownerLinkTotalPages}
-                                >
-                                  {t(K.tree.familyMembers.nextPage)}
-                                </Button>
+                                  accessibilityLabel={t(K.tree.familyMembers.nextPage)}
+                                  mode="outlined"
+                                  style={BUTTON_CHROME}
+                                  containerColor={theme.colors.surface}
+                                  iconColor={theme.colors.primary}
+                                />
                               </View>
                             ) : null}
                           </View>

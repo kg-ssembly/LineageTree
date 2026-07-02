@@ -12,7 +12,7 @@ import {
 } from '../../../components';
 import { Button, Dialog, Portal, Surface, Text } from 'react-native-paper';
 import { canManageTree } from '../../../components/dto/tree';
-import { GlobalStyles } from '../../../constants/styles';
+import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, GlobalStyles } from '../../../constants/styles';
 import { I18N_KEYS as K } from '../../../i18n/keys';
 import type { useMainScreenController } from './main-controller';
 import { MainNoTreeGate } from './main-no-tree-gate';
@@ -187,10 +187,13 @@ export function MainScreenView({ controller }: { controller: ReturnType<typeof u
                     Owned by {match.ownerDisplayName || match.ownerUsername || controller.t(K.common.unknown)}
                   </Text>
                   <Button
-                    mode="contained-tonal"
+                    mode="outlined"
                     onPress={() => { void controller.requestAccessToSuggestedTree(match.id); }}
                     disabled={controller.mutating}
-                    style={{ marginTop: 12, alignSelf: 'flex-start' }}
+                    style={[BUTTON_CHROME, { marginTop: 12, alignSelf: 'flex-start' }]}
+                    buttonColor={controller.theme.colors.surface}
+                    textColor={controller.theme.colors.primary}
+                    contentStyle={BUTTON_CONTENT_CHROME}
                   >
                     {controller.t(K.app.requestAccess)}
                   </Button>
@@ -199,10 +202,10 @@ export function MainScreenView({ controller }: { controller: ReturnType<typeof u
             </View>
           </Dialog.Content>
           <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: controller.theme.colors.outlineVariant }]}>
-            <Button onPress={controller.closeTreeNameSuggestion} disabled={controller.mutating}>
+            <Button onPress={controller.closeTreeNameSuggestion} disabled={controller.mutating} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>
               {controller.t(K.common.cancel)}
             </Button>
-            <Button mode="contained" onPress={() => { void controller.continueCreatingSuggestedTree(); }} disabled={controller.mutating}>
+            <Button mode="contained" onPress={() => { void controller.continueCreatingSuggestedTree(); }} disabled={controller.mutating} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>
               Create anyway
             </Button>
           </Dialog.Actions>
@@ -261,31 +264,31 @@ export function MainScreenView({ controller }: { controller: ReturnType<typeof u
             ) : null}
           </Dialog.Content>
           <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: controller.theme.colors.outlineVariant }]}>
-            <Button onPress={() => { void controller.dismissPriorityAlert(); }}>
+            <Button onPress={() => { void controller.dismissPriorityAlert(); }} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>
               {controller.t(K.common.close)}
             </Button>
             {controller.priorityAlert?.kind === 'tree-access-request' ? (
-              <Button mode="text" onPress={() => { void controller.respondToPriorityTreeAccess('rejected'); }} disabled={controller.mutating}>
+              <Button mode="outlined" onPress={() => { void controller.respondToPriorityTreeAccess('rejected'); }} disabled={controller.mutating} style={BUTTON_CHROME} buttonColor={controller.theme.colors.surface} textColor={controller.theme.colors.primary} contentStyle={BUTTON_CONTENT_CHROME}>
                 {controller.t(K.notifications.declineAccess)}
               </Button>
             ) : null}
             {controller.priorityAlert?.kind === 'tree-access-request' ? (
-              <Button mode="contained" onPress={() => { void controller.respondToPriorityTreeAccess('accepted'); }} disabled={controller.mutating}>
+              <Button mode="contained" onPress={() => { void controller.respondToPriorityTreeAccess('accepted'); }} disabled={controller.mutating} style={BUTTON_CHROME} buttonColor={controller.theme.colors.primary} textColor={controller.theme.colors.onPrimary} contentStyle={BUTTON_CONTENT_CHROME}>
                 {controller.t(K.notifications.approveAccess)}
               </Button>
             ) : null}
             {controller.priorityAlert?.kind === 'merge-invite' ? (
-              <Button mode="text" onPress={() => { void controller.respondToPriorityMergeInvite('dismissed'); }} disabled={controller.mutating}>
+              <Button mode="outlined" onPress={() => { void controller.respondToPriorityMergeInvite('dismissed'); }} disabled={controller.mutating} style={BUTTON_CHROME} buttonColor={controller.theme.colors.surface} textColor={controller.theme.colors.primary} contentStyle={BUTTON_CONTENT_CHROME}>
                 {controller.t(K.common.dismiss)}
               </Button>
             ) : null}
             {controller.priorityAlert?.kind === 'merge-invite' ? (
-              <Button mode="contained" onPress={() => { void controller.respondToPriorityMergeInvite('accepted'); }} disabled={controller.mutating}>
+              <Button mode="contained" onPress={() => { void controller.respondToPriorityMergeInvite('accepted'); }} disabled={controller.mutating} style={BUTTON_CHROME} buttonColor={controller.theme.colors.primary} textColor={controller.theme.colors.onPrimary} contentStyle={BUTTON_CONTENT_CHROME}>
                 {controller.t(K.notifications.accept)}
               </Button>
             ) : null}
             {controller.priorityAlert && (controller.priorityAlert.kind === 'merge-request' || controller.priorityAlert.kind === 'merge-history') ? (
-              <Button mode="contained" onPress={() => { void controller.openPriorityAlertTarget(); }} disabled={controller.mutating}>
+              <Button mode="contained" onPress={() => { void controller.openPriorityAlertTarget(); }} disabled={controller.mutating} style={BUTTON_CHROME} buttonColor={controller.theme.colors.primary} textColor={controller.theme.colors.onPrimary} contentStyle={BUTTON_CONTENT_CHROME}>
                 {controller.t(K.notifications.openMerge)}
               </Button>
             ) : null}
@@ -305,10 +308,10 @@ export function MainScreenView({ controller }: { controller: ReturnType<typeof u
             </Text>
           </Dialog.Content>
           <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: controller.theme.colors.outlineVariant }]}>
-            <Button mode="text" onPress={() => { void controller.handleDiscoverabilityPromptChoice(false); }} disabled={controller.discoverabilityPrompt.loading}>
+            <Button mode="outlined" onPress={() => { void controller.handleDiscoverabilityPromptChoice(false); }} disabled={controller.discoverabilityPrompt.loading} style={BUTTON_CHROME} buttonColor={controller.theme.colors.surface} textColor={controller.theme.colors.primary} contentStyle={BUTTON_CONTENT_CHROME}>
               {controller.t(K.app.discoverabilityPromptKeepPrivate)}
             </Button>
-            <Button mode="contained" onPress={() => { void controller.handleDiscoverabilityPromptChoice(true); }} disabled={controller.discoverabilityPrompt.loading}>
+            <Button mode="contained" onPress={() => { void controller.handleDiscoverabilityPromptChoice(true); }} disabled={controller.discoverabilityPrompt.loading} style={BUTTON_CHROME} buttonColor={controller.theme.colors.primary} textColor={controller.theme.colors.onPrimary} contentStyle={BUTTON_CONTENT_CHROME}>
               {controller.t(K.app.discoverabilityPromptMake)}
             </Button>
           </Dialog.Actions>

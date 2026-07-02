@@ -42,7 +42,7 @@ export function ProfileHeroSection({
           {canEditLinkedProfile ? (
             <IconButton
               icon="pencil"
-              mode="contained-tonal"
+              mode="contained"
               size={22}
               onPress={onEdit}
               style={[personProfileStyles.heroFloatingButton, personProfileStyles.heroFloatingButtonRight]}

@@ -4,6 +4,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ActivityIndicator, Button, Card, Chip, Dialog, IconButton, Portal, Surface, Text, TextInput } from 'react-native-paper';
 import { HorizontalTabStrip, Reveal } from '../../../components';
 import { GlobalStyles } from '../../../constants/styles';
+import { BUTTON_CHROME, BUTTON_CONTENT_CHROME } from '../../../constants/styles';
 import { I18N_KEYS as K } from '../../../i18n/keys';
 import type { useMainScreenController } from './main-controller';
 
@@ -267,10 +268,10 @@ export function MainNoTreeGate({
                 {pendingRequestIdentifier ? `${pendingRequestTreeName} • ${pendingRequestIdentifier}` : pendingRequestTreeName}
               </Text>
               <View style={localStyles.pendingRequestActions}>
-                <Button mode="text" onPress={() => setPendingRequestDialogVisible(true)}>
+                <Button mode="outlined" onPress={() => setPendingRequestDialogVisible(true)} buttonColor={controller.theme.colors.surface} textColor={controller.theme.colors.primary}>
                   {controller.t(K.common.open)}
                 </Button>
-                <Button mode="contained-tonal" onPress={() => { void handleCancelPendingRequest(); }} disabled={controller.mutating}>
+                <Button mode="outlined" onPress={() => { void handleCancelPendingRequest(); }} disabled={controller.mutating} buttonColor={controller.theme.colors.surface} textColor={controller.theme.colors.primary}>
                   {controller.t(K.app.requestedAccessCancel)}
                 </Button>
               </View>
@@ -289,8 +290,8 @@ export function MainNoTreeGate({
             mode="contained"
             icon="account-search-outline"
             onPress={() => setRequestDialogVisible(true)}
-            contentStyle={homeStyles.headerButtonContent}
-            style={localStyles.primaryAction}
+            style={[localStyles.primaryAction, BUTTON_CHROME]}
+            contentStyle={BUTTON_CONTENT_CHROME}
           >
             {controller.t(K.app.requestAccessToTree)}
           </Button>
@@ -298,8 +299,8 @@ export function MainNoTreeGate({
             mode="outlined"
             icon="plus"
             onPress={onCreateTree}
-            contentStyle={homeStyles.headerButtonContent}
-            style={localStyles.secondaryAction}
+            style={[localStyles.secondaryAction, BUTTON_CHROME]}
+            contentStyle={BUTTON_CONTENT_CHROME}
           >
             {controller.t(K.app.startOwnFamilyTree)}
           </Button>
@@ -341,7 +342,7 @@ export function MainNoTreeGate({
           <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: controller.theme.colors.outlineVariant }]}>
             <Button onPress={() => setPendingRequestDialogVisible(false)}>{controller.t(K.common.close)}</Button>
             {hasRenderablePendingRequest ? (
-              <Button mode="contained-tonal" onPress={() => { void handleCancelPendingRequest(); }} disabled={controller.mutating}>
+              <Button mode="outlined" onPress={() => { void handleCancelPendingRequest(); }} disabled={controller.mutating} buttonColor={controller.theme.colors.surface} textColor={controller.theme.colors.primary}>
                 {controller.t(K.app.requestedAccessCancel)}
               </Button>
             ) : null}
@@ -383,7 +384,7 @@ export function MainNoTreeGate({
                     onChangeText={setSearchQuery}
                     left={<TextInput.Icon icon="magnify" />}
                   />
-                  <Button mode="contained-tonal" onPress={() => { void handleSearch(); }} disabled={!searchQuery.trim() || searching || controller.mutating}>
+                  <Button mode="contained" onPress={() => { void handleSearch(); }} disabled={!searchQuery.trim() || searching || controller.mutating} buttonColor={controller.theme.colors.primary} textColor={controller.theme.colors.onPrimary}>
                     {controller.t(K.app.searchTrees)}
                   </Button>
                 </View>
@@ -405,6 +406,8 @@ export function MainNoTreeGate({
                     mode="outlined"
                     onPress={() => { void handleIdentifierRequest(); }}
                     disabled={!usernameQuery.trim() || pendingIdentifierKeys.has(usernameQuery.trim().toLowerCase()) || searching || controller.mutating}
+                    buttonColor={controller.theme.colors.surface}
+                    textColor={controller.theme.colors.primary}
                   >
                     {controller.t(K.app.requestAccessDirectly)}
                   </Button>

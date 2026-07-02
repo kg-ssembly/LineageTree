@@ -13,7 +13,7 @@ import {
 import { InfoDialog, Reveal } from '../../../../components';
 import type { NotificationActivityState } from '../../../../components/dto/notification';
 import type { MainTabParamList } from '../../../../components/dto/navigation';
-import { GlobalStyles } from '../../../../constants/styles';
+import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
 import type { SharedTabProps } from '../shared';
@@ -450,7 +450,7 @@ export function NotificationsView({
                     </Text>
                   </View>
                   {feedMetrics.unactionedDerivedItems.length > 0 ? (
-                    <Button compact mode="text" onPress={() => { void handleMarkAllActioned(); }} disabled={mutating}>
+                    <Button compact mode="outlined" onPress={() => { void handleMarkAllActioned(); }} disabled={mutating} style={BUTTON_CHROME} buttonColor={theme.colors.surface} textColor={theme.colors.primary} contentStyle={BUTTON_CONTENT_CHROME}>
                       {t(K.common.done)}
                     </Button>
                   ) : null}
@@ -513,13 +513,13 @@ export function NotificationsView({
                 <Chip compact icon="check-decagram-outline">{feedMetrics.unactionedDerivedItems.length} to follow up</Chip>
               </View>
               <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-                <Button mode="outlined" onPress={() => { void handleMarkAllSeen(); }} disabled={mutating || feedMetrics.unseenDirectIds.length === 0}>
+                <Button mode="outlined" onPress={() => { void handleMarkAllSeen(); }} disabled={mutating || feedMetrics.unseenDirectIds.length === 0} style={BUTTON_CHROME} buttonColor={theme.colors.surface} textColor={theme.colors.primary} contentStyle={BUTTON_CONTENT_CHROME}>
                   Quiet new alerts
                 </Button>
-                <Button mode="outlined" onPress={() => { void handleMarkAllOpened(); }} disabled={mutating || feedMetrics.unopenedDirectIds.length === 0}>
+                <Button mode="outlined" onPress={() => { void handleMarkAllOpened(); }} disabled={mutating || feedMetrics.unopenedDirectIds.length === 0} style={BUTTON_CHROME} buttonColor={theme.colors.surface} textColor={theme.colors.primary} contentStyle={BUTTON_CONTENT_CHROME}>
                   Open everything
                 </Button>
-                <Button mode="outlined" onPress={() => { void handleMarkAllActioned(); }} disabled={mutating || feedMetrics.unactionedDerivedItems.length === 0}>
+                <Button mode="outlined" onPress={() => { void handleMarkAllActioned(); }} disabled={mutating || feedMetrics.unactionedDerivedItems.length === 0} style={BUTTON_CHROME} buttonColor={theme.colors.surface} textColor={theme.colors.primary} contentStyle={BUTTON_CONTENT_CHROME}>
                   Mark follow-up done
                 </Button>
               </View>
@@ -571,22 +571,22 @@ export function NotificationsView({
                   </View>
                   <View style={{ flexDirection: 'row', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
                     {item.notificationId && !item.seen && !item.opened ? (
-                      <Button compact mode="text" onPress={() => onMarkNotificationSeen(item.notificationId!)} disabled={mutating}>
+                      <Button compact mode="outlined" onPress={() => onMarkNotificationSeen(item.notificationId!)} disabled={mutating} style={BUTTON_CHROME} buttonColor={theme.colors.surface} textColor={theme.colors.primary} contentStyle={BUTTON_CONTENT_CHROME}>
                         Notice
                       </Button>
                     ) : null}
                     {item.notificationId && !item.opened ? (
-                      <Button compact mode="text" onPress={() => onMarkNotificationOpened(item.notificationId!)} disabled={mutating}>
+                      <Button compact mode="outlined" onPress={() => onMarkNotificationOpened(item.notificationId!)} disabled={mutating} style={BUTTON_CHROME} buttonColor={theme.colors.surface} textColor={theme.colors.primary} contentStyle={BUTTON_CONTENT_CHROME}>
                         Open
                       </Button>
                     ) : null}
                     {item.sourceKind && item.sourceId && !item.actioned ? (
-                      <Button compact mode="text" onPress={() => { void handleMarkActioned(item); }} disabled={mutating}>
+                      <Button compact mode="outlined" onPress={() => { void handleMarkActioned(item); }} disabled={mutating} style={BUTTON_CHROME} buttonColor={theme.colors.surface} textColor={theme.colors.primary} contentStyle={BUTTON_CONTENT_CHROME}>
                         Done
                       </Button>
                     ) : null}
                     {(item.kind === 'approval' || item.kind === 'merge-request' || item.kind === 'merge-history') ? (
-                      <Button compact mode="contained-tonal" onPress={() => { void handleOpenTarget(item); }} disabled={mutating}>
+                      <Button compact mode="contained" onPress={() => { void handleOpenTarget(item); }} disabled={mutating} style={BUTTON_CHROME} buttonColor={theme.colors.primary} textColor={theme.colors.onPrimary} contentStyle={BUTTON_CONTENT_CHROME}>
                         {item.kind === 'approval' ? 'Review' : 'Open'}
                       </Button>
                     ) : null}
@@ -597,15 +597,29 @@ export function NotificationsView({
             ))}
             {totalPages > 1 ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingTop: 4 }}>
-                <Button compact mode="outlined" onPress={() => setCurrentPage((page) => Math.max(1, page - 1))} disabled={currentPage === 1}>
-                  Previous
-                </Button>
+                <IconButton
+                  icon="chevron-left"
+                  onPress={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                  disabled={currentPage === 1}
+                  accessibilityLabel={t(K.tree.familyMembers.previousPage)}
+                  mode="outlined"
+                  style={BUTTON_CHROME}
+                  containerColor={theme.colors.surface}
+                  iconColor={theme.colors.primary}
+                />
                 <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
                   Page {currentPage} of {totalPages}
                 </Text>
-                <Button compact mode="outlined" onPress={() => setCurrentPage((page) => Math.min(totalPages, page + 1))} disabled={currentPage === totalPages}>
-                  Next
-                </Button>
+                <IconButton
+                  icon="chevron-right"
+                  onPress={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                  disabled={currentPage === totalPages}
+                  accessibilityLabel={t(K.tree.familyMembers.nextPage)}
+                  mode="outlined"
+                  style={BUTTON_CHROME}
+                  containerColor={theme.colors.surface}
+                  iconColor={theme.colors.primary}
+                />
               </View>
             ) : null}
           </View>
@@ -655,42 +669,42 @@ export function NotificationsView({
           </Dialog.Content>
           <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
             {selectedNotification?.notificationId && !selectedNotification.seen && !selectedNotification.opened ? (
-              <Button mode="text" onPress={() => onMarkNotificationSeen(selectedNotification.notificationId!)} disabled={mutating}>
+              <Button mode="outlined" onPress={() => onMarkNotificationSeen(selectedNotification.notificationId!)} disabled={mutating} style={BUTTON_CHROME} buttonColor={theme.colors.surface} textColor={theme.colors.primary} contentStyle={BUTTON_CONTENT_CHROME}>
                 {t(K.notifications.markSeen)}
               </Button>
             ) : null}
             {selectedNotification?.notificationId && !selectedNotification.opened ? (
-              <Button mode="text" onPress={() => onMarkNotificationOpened(selectedNotification.notificationId!)} disabled={mutating}>
+              <Button mode="outlined" onPress={() => onMarkNotificationOpened(selectedNotification.notificationId!)} disabled={mutating} style={BUTTON_CHROME} buttonColor={theme.colors.surface} textColor={theme.colors.primary} contentStyle={BUTTON_CONTENT_CHROME}>
                 {t(K.notifications.markOpened)}
               </Button>
             ) : null}
             {selectedNotification?.sourceKind && selectedNotification.sourceId && !selectedNotification.actioned ? (
-              <Button mode="text" onPress={() => { void handleMarkActioned(selectedNotification); }} disabled={mutating}>
+              <Button mode="outlined" onPress={() => { void handleMarkActioned(selectedNotification); }} disabled={mutating} style={BUTTON_CHROME} buttonColor={theme.colors.surface} textColor={theme.colors.primary} contentStyle={BUTTON_CONTENT_CHROME}>
                 {t(K.notifications.markActioned)}
               </Button>
             ) : null}
             {selectedNotification?.kind === 'merge-invite' && selectedNotification.notificationId && selectedNotification.status === 'pending' ? (
-              <Button mode="contained-tonal" onPress={() => onRespondToMergeInvite(selectedNotification.notificationId!, 'accepted')} disabled={mutating}>
+              <Button mode="contained" onPress={() => onRespondToMergeInvite(selectedNotification.notificationId!, 'accepted')} disabled={mutating} style={BUTTON_CHROME} buttonColor={theme.colors.primary} textColor={theme.colors.onPrimary} contentStyle={BUTTON_CONTENT_CHROME}>
                 {t(K.notifications.accept)}
               </Button>
             ) : null}
             {selectedNotification?.kind === 'merge-invite' && selectedNotification.notificationId && selectedNotification.status === 'pending' ? (
-              <Button mode="text" onPress={() => onRespondToMergeInvite(selectedNotification.notificationId!, 'dismissed')} disabled={mutating}>
+              <Button mode="outlined" onPress={() => onRespondToMergeInvite(selectedNotification.notificationId!, 'dismissed')} disabled={mutating} style={BUTTON_CHROME} buttonColor={theme.colors.surface} textColor={theme.colors.primary} contentStyle={BUTTON_CONTENT_CHROME}>
                 {t(K.common.dismiss)}
               </Button>
             ) : null}
             {selectedNotification?.kind === 'tree-access-request' && selectedNotification.notificationId && selectedNotification.status === 'pending' ? (
-              <Button mode="contained-tonal" onPress={() => onRespondToTreeAccessRequest(selectedNotification.notificationId!, 'accepted')} disabled={mutating}>
+              <Button mode="contained" onPress={() => onRespondToTreeAccessRequest(selectedNotification.notificationId!, 'accepted')} disabled={mutating} style={BUTTON_CHROME} buttonColor={theme.colors.primary} textColor={theme.colors.onPrimary} contentStyle={BUTTON_CONTENT_CHROME}>
                 {t(K.notifications.approveAccess)}
               </Button>
             ) : null}
             {selectedNotification?.kind === 'tree-access-request' && selectedNotification.notificationId && selectedNotification.status === 'pending' ? (
-              <Button mode="text" onPress={() => onRespondToTreeAccessRequest(selectedNotification.notificationId!, 'rejected')} disabled={mutating}>
+              <Button mode="outlined" onPress={() => onRespondToTreeAccessRequest(selectedNotification.notificationId!, 'rejected')} disabled={mutating} style={BUTTON_CHROME} buttonColor={theme.colors.surface} textColor={theme.colors.primary} contentStyle={BUTTON_CONTENT_CHROME}>
                 {t(K.notifications.declineAccess)}
               </Button>
             ) : null}
             {selectedNotification && (selectedNotification.kind === 'approval' || selectedNotification.kind === 'merge-request' || selectedNotification.kind === 'merge-history') ? (
-              <Button mode="contained" onPress={() => { void handleOpenTarget(selectedNotification); }} disabled={mutating}>
+              <Button mode="contained" onPress={() => { void handleOpenTarget(selectedNotification); }} disabled={mutating} style={BUTTON_CHROME} buttonColor={theme.colors.primary} textColor={theme.colors.onPrimary} contentStyle={BUTTON_CONTENT_CHROME}>
                 {selectedNotification.kind === 'approval' ? t(K.notifications.openApproval) : t(K.notifications.openMerge)}
               </Button>
             ) : null}

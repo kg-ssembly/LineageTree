@@ -7,7 +7,7 @@ import { FloatingSnackbar, HorizontalTabStrip, InfoDialog, Reveal } from '../../
 import { getDisplayPersonPhoto } from '../../../../components/dto/person';
 import type { MainTabParamList } from '../../../../components/dto/navigation';
 import type { AppTheme } from '../../../../constants/theme';
-import { GlobalStyles } from '../../../../constants/styles';
+import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
 import { formatPersonName } from '../../../../components/person-formatting';
@@ -1140,11 +1140,11 @@ export function HomeDashboardView(props: SharedTabProps) {
                         </Text>
                       </View>
                       {step.done ? (
-                        <Button mode="text" onPress={step.action}>
+                        <Button mode="text" onPress={step.action} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>
                           {t(K.common.open)}
                         </Button>
                       ) : setupSteps[nextSetupStepIndex]?.id === step.id ? (
-                        <Button mode="contained-tonal" onPress={step.action}>
+                        <Button mode="contained" onPress={step.action} style={BUTTON_CHROME} buttonColor={theme.colors.primary} textColor={theme.colors.onPrimary} contentStyle={BUTTON_CONTENT_CHROME}>
                           {t(K.home.doThis)}
                         </Button>
                       ) : null}
@@ -1183,7 +1183,7 @@ export function HomeDashboardView(props: SharedTabProps) {
                         {heroAttentionCallout.description}
                       </Text>
                     </View>
-                    <Button mode="contained" onPress={heroAttentionCallout.action}>
+                    <Button mode="contained" onPress={heroAttentionCallout.action} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>
                       {heroAttentionCallout.buttonLabel}
                     </Button>
                   </View>
@@ -1209,7 +1209,7 @@ export function HomeDashboardView(props: SharedTabProps) {
                       {heroAction.description}
                     </Text>
                   </View>
-                  <Button mode="contained-tonal" onPress={heroAction.action}>
+                  <Button mode="contained" onPress={heroAction.action} style={BUTTON_CHROME} buttonColor={theme.colors.primary} textColor={theme.colors.onPrimary} contentStyle={BUTTON_CONTENT_CHROME}>
                     {heroAction.buttonLabel ?? heroAction.label}
                   </Button>
                 </View>
@@ -1223,7 +1223,7 @@ export function HomeDashboardView(props: SharedTabProps) {
                 {heroAction.description}
               </Text>
               <View style={styles.dashboardActionRow}>
-                <Button mode="contained" onPress={heroAction.action}>
+                <Button mode="contained" onPress={heroAction.action} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>
                   {heroAction.buttonLabel ?? heroAction.label}
                 </Button>
               </View>
@@ -1238,11 +1238,11 @@ export function HomeDashboardView(props: SharedTabProps) {
                   : t(K.home.keepTheStoryGrowingByAddingMoreMemoriesPhotosAndRelativesAroundYourBranch)}
               </Text>
               <View style={styles.dashboardActionRow}>
-                <Button mode="contained-tonal" onPress={currentAssignedPerson ? () => openPersonProfile(currentAssignedPerson) : onOpenAddSelf}>
+                <Button mode="contained" onPress={currentAssignedPerson ? () => openPersonProfile(currentAssignedPerson) : onOpenAddSelf} style={BUTTON_CHROME} buttonColor={theme.colors.primary} textColor={theme.colors.onPrimary} contentStyle={BUTTON_CONTENT_CHROME}>
                   {currentAssignedPerson ? t(K.home.openMyProfile) : t(K.home.startMyProfile)}
                 </Button>
-                {canEdit ? <Button mode="outlined" onPress={onOpenAddPerson}>{t(K.home.addFamilyMember)}</Button> : null}
-                {dismissedTaskIds.length > 0 ? <Button mode="text" onPress={restoreHiddenPrompts}>{t(K.home.restorePrompts)}</Button> : null}
+                {canEdit ? <Button mode="outlined" onPress={onOpenAddPerson} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>{t(K.home.addFamilyMember)}</Button> : null}
+                {dismissedTaskIds.length > 0 ? <Button mode="text" onPress={restoreHiddenPrompts} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>{t(K.home.restorePrompts)}</Button> : null}
               </View>
             </View>
           )}
@@ -1264,7 +1264,7 @@ export function HomeDashboardView(props: SharedTabProps) {
                             {item.summary}
                           </Text>
                         </View>
-                        <Button mode="outlined" onPress={item.action}>
+                        <Button mode="outlined" onPress={item.action} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>
                           {t(K.home.reviewMemberDetails)}
                         </Button>
                       </View>
@@ -1287,11 +1287,11 @@ export function HomeDashboardView(props: SharedTabProps) {
                   {t(K.home.startTheTreeWithYourselfOrFirstRelative)}
                 </Text>
                 <View style={[styles.dashboardActionRow, { marginTop: 16 }]}>
-                  <Button mode="contained" onPress={onOpenAddSelf}>
+                  <Button mode="contained" onPress={onOpenAddSelf} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>
                     {t(K.home.startMyProfile)}
                   </Button>
                   {canEdit ? (
-                    <Button mode="outlined" onPress={onOpenAddPerson}>
+                    <Button mode="outlined" onPress={onOpenAddPerson} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>
                       {t(K.home.addFamilyMember)}
                     </Button>
                   ) : null}
@@ -1420,7 +1420,7 @@ export function HomeDashboardView(props: SharedTabProps) {
                             <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 10 }}>
                               {t(K.home.stepsLeftCount, { count: bundle.remainingCount })}
                             </Text>
-                            <Button mode={bundle.id === 'tree' ? 'contained-tonal' : 'outlined'} onPress={bundle.action} style={{ alignSelf: 'flex-start', marginTop: 12 }}>
+                            <Button mode={bundle.id === 'tree' ? 'contained' : 'outlined'} onPress={bundle.action} style={[BUTTON_CHROME, { alignSelf: 'flex-start', marginTop: 12 }]} buttonColor={theme.colors.primary} textColor={theme.colors.onPrimary} contentStyle={BUTTON_CONTENT_CHROME}>
                               {bundle.actionLabel}
                             </Button>
                           </Card.Content>
@@ -1452,10 +1452,10 @@ export function HomeDashboardView(props: SharedTabProps) {
                                     </Text>
                                   </View>
                                   <View style={{ alignItems: 'flex-end' }}>
-                                    <Button mode="outlined" onPress={task.action}>
+                                    <Button mode="outlined" onPress={task.action} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>
                                       {task.ctaLabel}
                                     </Button>
-                                    <Button mode="text" compact onPress={() => dismissTask(task.id)}>
+                                    <Button mode="text" compact onPress={() => dismissTask(task.id)} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>
                                       {t(K.home.hide)}
                                     </Button>
                                   </View>
@@ -1487,10 +1487,10 @@ export function HomeDashboardView(props: SharedTabProps) {
                                     </Text>
                                   </View>
                                   <View style={{ alignItems: 'flex-end' }}>
-                                    <Button mode="contained-tonal" onPress={task.action}>
+                                    <Button mode="contained" onPress={task.action} style={BUTTON_CHROME} buttonColor={theme.colors.primary} textColor={theme.colors.onPrimary} contentStyle={BUTTON_CONTENT_CHROME}>
                                       {task.ctaLabel}
                                     </Button>
-                                    <Button mode="text" compact onPress={() => dismissTask(task.id)}>
+                                    <Button mode="text" compact onPress={() => dismissTask(task.id)} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>
                                       {t(K.home.hide)}
                                     </Button>
                                   </View>
@@ -1516,16 +1516,16 @@ export function HomeDashboardView(props: SharedTabProps) {
               </Text>
               <View style={styles.dashboardActionRow}>
                 {currentAssignedPerson ? (
-                  <Button mode="contained-tonal" onPress={() => openPersonProfile(currentAssignedPerson)}>
+                  <Button mode="contained" onPress={() => openPersonProfile(currentAssignedPerson)} style={BUTTON_CHROME} buttonColor={theme.colors.primary} textColor={theme.colors.onPrimary} contentStyle={BUTTON_CONTENT_CHROME}>
                     {t(K.home.openMyProfile)}
                   </Button>
                 ) : (
-                  <Button mode="contained" onPress={onOpenAddSelf}>
+                  <Button mode="contained" onPress={onOpenAddSelf} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>
                     {t(K.home.startMyProfile)}
                   </Button>
                 )}
-                {canEdit ? <Button mode="outlined" onPress={onOpenAddPerson}>{t(K.home.addFamilyMember)}</Button> : null}
-                {dismissedTaskIds.length > 0 ? <Button mode="text" onPress={restoreHiddenPrompts}>{t(K.home.restorePrompts)}</Button> : null}
+                {canEdit ? <Button mode="outlined" onPress={onOpenAddPerson} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>{t(K.home.addFamilyMember)}</Button> : null}
+                {dismissedTaskIds.length > 0 ? <Button mode="text" onPress={restoreHiddenPrompts} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>{t(K.home.restorePrompts)}</Button> : null}
               </View>
             </Surface>
           </Reveal>

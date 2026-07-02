@@ -3,7 +3,7 @@ import { View } from 'react-native';
 import { ActivityIndicator, Button, Card, Chip, IconButton, Text, useTheme } from 'react-native-paper';
 import { Reveal } from '../../../../components';
 import { getTreeRole } from '../../../../components/dto/tree';
-import { GlobalStyles } from '../../../../constants/styles';
+import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
 import type { TreesSectionProps } from './tree-settings-shared';
@@ -60,7 +60,7 @@ export function TreesSection({
                       {t(K.treeSettings.maidenSurnameReferenceCount, { count: suggestion.count })}
                     </Text>
                     <View style={{ flexDirection: 'row', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
-                      <Button mode="contained-tonal" onPress={() => onCreateSurnameTree(suggestion.surname)} disabled={mutating}>
+                      <Button mode="outlined" onPress={() => onCreateSurnameTree(suggestion.surname)} disabled={mutating} style={BUTTON_CHROME} buttonColor={theme.colors.surface} textColor={theme.colors.primary} contentStyle={BUTTON_CONTENT_CHROME}>
                         {t(K.treeSettings.createTree)}
                       </Button>
                     </View>
@@ -100,7 +100,7 @@ export function TreesSection({
             Start your first family space here, then let it grow branch by branch and story by story.
           </Text>
           {onCreateTree ? (
-            <Button mode="contained" icon="plus" onPress={onCreateTree} disabled={mutating} style={styles.emptyStateButton}>
+            <Button mode="contained" icon="plus" onPress={onCreateTree} disabled={mutating} style={[styles.emptyStateButton, BUTTON_CHROME]} contentStyle={BUTTON_CONTENT_CHROME}>
               {t(K.treeSettings.createATree)}
             </Button>
           ) : null}

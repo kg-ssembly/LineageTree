@@ -31,6 +31,15 @@ const CARD_CHROME = {
     elevation: 4,
 } as const;
 
+export const BUTTON_CHROME = {
+    borderRadius: 999,
+} as const;
+
+export const BUTTON_CONTENT_CHROME = {
+    height: 40,
+    paddingHorizontal: 10,
+} as const;
+
 export class GlobalStyles {
     static readonly dialogChrome = StyleSheet.create({
         dialog: {
@@ -140,7 +149,7 @@ export class GlobalStyles {
             flexGrow: 1,
         },
         headerButtonContent: {
-            height: 52,
+            height: 40,
         },
         sectionCard: {
             ...CARD_CHROME,
@@ -1942,8 +1951,8 @@ export class GlobalStyles {
         title: {marginBottom: 4, fontWeight: '700'},
         subtitle: {marginBottom: 20},
         input: {marginTop: 6},
-        button: {marginTop: 24, borderRadius: 999},
-        buttonContent: {height: 52},
+        button: {marginTop: 24, ...BUTTON_CHROME},
+        buttonContent: BUTTON_CONTENT_CHROME,
         linkButton: {marginTop: 12, alignSelf: 'center'},
     });
 
@@ -1969,8 +1978,8 @@ export class GlobalStyles {
         title: {marginBottom: 4, fontWeight: '700'},
         subtitle: {marginBottom: 20},
         input: {marginTop: 6},
-        button: {marginTop: 24, borderRadius: 999},
-        buttonContent: {height: 52},
+        button: {marginTop: 24, ...BUTTON_CHROME},
+        buttonContent: BUTTON_CONTENT_CHROME,
         linkButton: {marginTop: 12, alignSelf: 'center'},
     });
 }

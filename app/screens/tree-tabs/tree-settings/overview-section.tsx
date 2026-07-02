@@ -6,6 +6,7 @@ import { isPersonDeceased } from '../../../../components/dto/person';
 import { isTreeDiscoverable, treeNeedsDiscoverabilityChoice } from '../../../../components/dto/tree';
 import { formatPersonName } from '../../../../components/person-formatting';
 import { GlobalStyles } from '../../../../constants/styles';
+import { BUTTON_CHROME, BUTTON_CONTENT_CHROME } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
 import type { OverviewSectionProps } from './tree-settings-shared';
@@ -95,10 +96,22 @@ export function OverviewSection({
             </Text>
             {isOwner ? (
               <View style={[styles.collaboratorChipRow, { marginTop: 12 }]}>
-                <Button mode={isTreeDiscoverable(selectedTree) ? 'contained' : 'outlined'} onPress={() => { void onSetTreeDiscoverability(true); }} disabled={mutating}>
+                <Button
+                  mode={isTreeDiscoverable(selectedTree) ? 'contained' : 'outlined'}
+                  onPress={() => { void onSetTreeDiscoverability(true); }}
+                  disabled={mutating}
+                  style={BUTTON_CHROME}
+                  contentStyle={BUTTON_CONTENT_CHROME}
+                >
                   {t(K.treeSettings.makeTreeDiscoverable)}
                 </Button>
-                <Button mode={!isTreeDiscoverable(selectedTree) && !treeNeedsDiscoverabilityChoice(selectedTree) ? 'contained' : 'outlined'} onPress={() => { void onSetTreeDiscoverability(false); }} disabled={mutating}>
+                <Button
+                  mode={!isTreeDiscoverable(selectedTree) && !treeNeedsDiscoverabilityChoice(selectedTree) ? 'contained' : 'outlined'}
+                  onPress={() => { void onSetTreeDiscoverability(false); }}
+                  disabled={mutating}
+                  style={BUTTON_CHROME}
+                  contentStyle={BUTTON_CONTENT_CHROME}
+                >
                   {t(K.treeSettings.keepTreePrivate)}
                 </Button>
               </View>
@@ -133,7 +146,7 @@ export function OverviewSection({
 
           {isOwner || role === 'editor' ? (
             <View style={{ marginTop: 8 }}>
-              <Button mode="outlined" icon="shape-plus-outline" onPress={onOpenSurnameVariantDialog} style={{ marginBottom: 8 }}>
+              <Button mode="outlined" icon="shape-plus-outline" onPress={onOpenSurnameVariantDialog} style={[BUTTON_CHROME, { marginBottom: 8 }]} contentStyle={BUTTON_CONTENT_CHROME}>
                 {treeSurnameVariants.length > 0 ? t(K.treeSettings.manageVariantsCount, { count: treeSurnameVariants.length }) : t(K.treeSettings.manageVariants)}
               </Button>
             </View>
@@ -160,7 +173,7 @@ export function OverviewSection({
                   </View>
                 </View>
                 {!currentAssignedPerson ? (
-                  <Button mode="contained-tonal" icon="account-plus" onPress={onOpenAddSelf} disabled={mutating || !canCreateSelfProfile}>
+                  <Button mode="contained" icon="account-plus" onPress={onOpenAddSelf} disabled={mutating || !canCreateSelfProfile} style={BUTTON_CHROME} buttonColor={theme.colors.primary} textColor={theme.colors.onPrimary} contentStyle={BUTTON_CONTENT_CHROME}>
                     {t(K.treeSettings.addMyself)}
                   </Button>
                 ) : null}
@@ -182,7 +195,7 @@ export function OverviewSection({
                 </View>
                 {currentAssignedPerson ? (
                   <View style={styles.selfAssignmentActions}>
-                    <Button mode="contained" icon="open-in-new" onPress={() => openPersonProfile(currentAssignedPerson)} disabled={mutating}>
+                    <Button mode="contained" icon="open-in-new" onPress={() => openPersonProfile(currentAssignedPerson)} disabled={mutating} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>
                       {t(K.common.open)}
                     </Button>
                     <Button
@@ -196,6 +209,8 @@ export function OverviewSection({
                         onClearSelfAssignment,
                       )}
                       disabled={mutating}
+                      style={BUTTON_CHROME}
+                      contentStyle={BUTTON_CONTENT_CHROME}
                     >
                       {t(K.common.unlink)}
                     </Button>
@@ -222,7 +237,7 @@ export function OverviewSection({
                                   <Text variant="titleMedium" style={styles.selfAssignmentTitle}>{formatPersonName(suggestion.person)}</Text>
                                   <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>{suggestion.reason}</Text>
                                 </View>
-                                <Button mode="contained" onPress={() => handleSelfLink(suggestion.person.id)} disabled={mutating || !userId}>
+                                <Button mode="contained" onPress={() => handleSelfLink(suggestion.person.id)} disabled={mutating || !userId} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>
                                   {t(K.treeSettings.linkMe)}
                                 </Button>
                               </View>
@@ -261,7 +276,7 @@ export function OverviewSection({
                                       </Chip>
                                     </View>
                                   </View>
-                                  <Button mode="contained-tonal" onPress={() => handleSelfLink(person.id)} disabled={mutating || !userId}>
+                                  <Button mode="contained" onPress={() => handleSelfLink(person.id)} disabled={mutating || !userId} style={BUTTON_CHROME} buttonColor={theme.colors.primary} textColor={theme.colors.onPrimary} contentStyle={BUTTON_CONTENT_CHROME}>
                                     {t(K.treeSettings.linkMe)}
                                   </Button>
                                 </View>
@@ -274,26 +289,29 @@ export function OverviewSection({
 
                     {linkPeopleTotalPages > 1 ? (
                       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginTop: 8 }}>
-                        <Button
-                          mode="text"
+                        <IconButton
                           icon="chevron-left"
                           onPress={() => setLinkPeoplePage((page) => Math.max(1, page - 1))}
                           disabled={linkPeoplePage === 1}
-                        >
-                          {t(K.tree.familyMembers.previousPage)}
-                        </Button>
+                          accessibilityLabel={t(K.tree.familyMembers.previousPage)}
+                          mode="outlined"
+                          style={BUTTON_CHROME}
+                          containerColor={theme.colors.surface}
+                          iconColor={theme.colors.primary}
+                        />
                         <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
                           {t(K.tree.familyMembers.pageOf, { current: linkPeoplePage, total: linkPeopleTotalPages })}
                         </Text>
-                        <Button
-                          mode="text"
+                        <IconButton
                           icon="chevron-right"
-                          contentStyle={{ flexDirection: 'row-reverse' }}
                           onPress={() => setLinkPeoplePage((page) => Math.min(linkPeopleTotalPages, page + 1))}
                           disabled={linkPeoplePage === linkPeopleTotalPages}
-                        >
-                          {t(K.tree.familyMembers.nextPage)}
-                        </Button>
+                          accessibilityLabel={t(K.tree.familyMembers.nextPage)}
+                          mode="outlined"
+                          style={BUTTON_CHROME}
+                          containerColor={theme.colors.surface}
+                          iconColor={theme.colors.primary}
+                        />
                       </View>
                     ) : null}
                   </View>

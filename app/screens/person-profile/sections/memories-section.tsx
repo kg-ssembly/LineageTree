@@ -4,7 +4,7 @@ import { Button, Card, Chip, Dialog, IconButton, Portal, Surface, Text, TextInpu
 import { HorizontalTabStrip, Reveal } from '../../../../components';
 import type { NewPersonPhotoInput, PersonLifeEvent, PersonPhoto, PersonRecord } from '../../../../components/dto/person';
 import { formatPersonDate } from '../../../../components/dto/person';
-import { GlobalStyles } from '../../../../constants/styles';
+import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
 
@@ -123,7 +123,7 @@ export function PersonMemoriesSection({
               <Text variant="titleSmall">{t(K.memories.notes)}</Text>
             </View>
             {canEdit ? (
-              <Button mode="contained-tonal" icon="pencil" onPress={onOpenNotesDialog}>
+              <Button mode="contained" icon="pencil" onPress={onOpenNotesDialog} style={BUTTON_CHROME} buttonColor={theme.colors.primary} textColor={theme.colors.onPrimary} contentStyle={BUTTON_CONTENT_CHROME}>
                 {person.notes ? t(K.personProfile.shapeThisStory) : t(K.memories.addFirstStoryNote)}
               </Button>
             ) : null}
@@ -142,10 +142,10 @@ export function PersonMemoriesSection({
             </View>
             {canEdit ? (
               <View style={styles.memoryDialogPhotoActions}>
-                <Button mode="contained-tonal" icon="image" onPress={onAddPhotoFromLibrary} disabled={photoProcessing}>
+                <Button mode="contained" icon="image" onPress={onAddPhotoFromLibrary} disabled={photoProcessing} style={BUTTON_CHROME} buttonColor={theme.colors.primary} textColor={theme.colors.onPrimary} contentStyle={BUTTON_CONTENT_CHROME}>
                   {t(K.memories.bringInPhotos)}
                 </Button>
-                <Button mode="contained-tonal" icon="camera" onPress={onAddPhotoFromCamera} disabled={photoProcessing}>
+                <Button mode="contained" icon="camera" onPress={onAddPhotoFromCamera} disabled={photoProcessing} style={BUTTON_CHROME} buttonColor={theme.colors.primary} textColor={theme.colors.onPrimary} contentStyle={BUTTON_CONTENT_CHROME}>
                   {t(K.memories.captureMoment)}
                 </Button>
               </View>
@@ -193,7 +193,7 @@ export function PersonMemoriesSection({
               <Text variant="titleSmall">{t(K.memories.lifeEventsCount, { count: memoryTimeline.length })}</Text>
             </View>
             {canEdit ? (
-              <Button mode="contained-tonal" icon="plus" onPress={onAddLifeEvent}>
+              <Button mode="contained" icon="plus" onPress={onAddLifeEvent} style={BUTTON_CHROME} buttonColor={theme.colors.primary} textColor={theme.colors.onPrimary} contentStyle={BUTTON_CONTENT_CHROME}>
                 {t(K.memories.addLifeEvent)}
               </Button>
             ) : null}
@@ -219,7 +219,7 @@ export function PersonMemoriesSection({
                         <Text variant="titleMedium" style={styles.relationshipTitle}>{item.title}</Text>
                         <Text variant="bodyMedium" style={[styles.relationshipSubtitle, { color: theme.colors.onSurfaceVariant }]}>{item.description || t(K.memories.rememberedFamilyMoment)}</Text>
                         {canEdit && editableEvent ? (
-                          <Button mode="text" onPress={() => onEditLifeEvent(editableEvent)} disabled={mutating} compact style={styles.timelineAction}>
+                          <Button mode="text" onPress={() => onEditLifeEvent(editableEvent)} disabled={mutating} compact style={[styles.timelineAction, BUTTON_CHROME]} contentStyle={BUTTON_CONTENT_CHROME}>
                             {t(K.memories.refineThisMemory)}
                           </Button>
                         ) : null}

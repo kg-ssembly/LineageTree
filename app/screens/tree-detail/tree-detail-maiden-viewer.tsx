@@ -85,7 +85,7 @@ export function TreeDetailMaidenViewer({
           justifyContent: 'space-between',
         }}
       >
-        <Button mode="contained-tonal" icon="arrow-left" onPress={navigationGoBack} style={{ borderRadius: 999 }} contentStyle={{ paddingHorizontal: 6 }}>
+        <Button mode="outlined" icon="arrow-left" onPress={navigationGoBack} style={{ borderRadius: 999 }} buttonColor={theme.colors.surface} textColor={theme.colors.primary} contentStyle={{ height: 36, paddingHorizontal: 4 }}>
           {t(K.treeSettings.backToTreeName, { treeName: returnTreeName ?? t(K.common.originalTree) })}
         </Button>
         <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -99,7 +99,7 @@ export function TreeDetailMaidenViewer({
             }}
           />
           <IconButton
-            mode={maidenMembersVisible ? 'contained' : 'contained-tonal'}
+            mode={maidenMembersVisible ? 'contained' : 'outlined'}
             icon="account-group-outline"
             onPress={() => setMaidenMembersVisible(true)}
             selected={maidenMembersVisible}

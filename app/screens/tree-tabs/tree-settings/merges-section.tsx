@@ -2,7 +2,7 @@ import React from 'react';
 import { Pressable, View } from 'react-native';
 import { Button, Card, Chip, Divider, IconButton, ProgressBar, Text, TextInput, useTheme } from 'react-native-paper';
 import { Reveal } from '../../../../components';
-import { GlobalStyles } from '../../../../constants/styles';
+import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
 import type { MergesSectionProps } from './tree-settings-shared';
@@ -92,10 +92,10 @@ export function MergesSection({
                       <Chip compact icon="calendar-clock">{notification.createdAt.slice(0, 16).replace('T', ' ')}</Chip>
                     </View>
                     <View style={{ flexDirection: 'row', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
-                      <Button mode="contained" onPress={() => handleUseMergeInvite(notification)} disabled={mutating || !canEdit || notification.sourceTreeId === selectedTree.id}>
+                      <Button mode="contained" onPress={() => handleUseMergeInvite(notification)} disabled={mutating || !canEdit || notification.sourceTreeId === selectedTree.id} style={BUTTON_CHROME} buttonColor={theme.colors.primary} textColor={theme.colors.onPrimary} contentStyle={BUTTON_CONTENT_CHROME}>
                         {t(K.treeSettings.useThisTree)}
                       </Button>
-                      <Button mode="text" onPress={() => onRespondToMergeInvite(notification.id, 'dismissed')} disabled={mutating}>
+                      <Button mode="outlined" onPress={() => onRespondToMergeInvite(notification.id, 'dismissed')} disabled={mutating} style={BUTTON_CHROME} buttonColor={theme.colors.surface} textColor={theme.colors.primary} contentStyle={BUTTON_CONTENT_CHROME}>
                         {t(K.common.dismiss)}
                       </Button>
                     </View>
@@ -138,7 +138,7 @@ export function MergesSection({
             style={{ marginTop: 8 }}
           />
           <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
-            <Button mode="contained-tonal" onPress={handleSendMergeInvite} disabled={mutating || !mergeInviteIdentifier.trim() || !mergeInviteSourceTreeId.trim()}>
+            <Button mode="contained" onPress={handleSendMergeInvite} disabled={mutating || !mergeInviteIdentifier.trim() || !mergeInviteSourceTreeId.trim()} style={BUTTON_CHROME} buttonColor={theme.colors.primary} textColor={theme.colors.onPrimary} contentStyle={BUTTON_CONTENT_CHROME}>
               {t(K.treeSettings.sendInvitation)}
             </Button>
           </View>
@@ -147,7 +147,7 @@ export function MergesSection({
       </Reveal>
 
       {mergePreview ? (
-        <Button mode="outlined" icon="eye-outline" onPress={() => setMergePreviewVisible(true)} style={{ marginBottom: 16, alignSelf: 'flex-start' }}>
+        <Button mode="outlined" icon="eye-outline" onPress={() => setMergePreviewVisible(true)} style={[BUTTON_CHROME, { marginBottom: 16, alignSelf: 'flex-start' }]} buttonColor={theme.colors.surface} textColor={theme.colors.primary} contentStyle={BUTTON_CONTENT_CHROME}>
           {t(K.treeSettings.viewMergePreview)}
         </Button>
       ) : null}
@@ -214,13 +214,13 @@ export function MergesSection({
                     </Text>
                   </View>
                   <View style={{ flexDirection: 'row', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
-                    <Button mode="contained" onPress={() => onApproveMergeRequest(request.id, undefined, selectedMatchIds)} disabled={mutating || selectedMatchIds.length === 0}>
+                    <Button mode="contained" onPress={() => onApproveMergeRequest(request.id, undefined, selectedMatchIds)} disabled={mutating || selectedMatchIds.length === 0} style={BUTTON_CHROME} buttonColor={theme.colors.primary} textColor={theme.colors.onPrimary} contentStyle={BUTTON_CONTENT_CHROME}>
                       {t(K.treeSettings.approve)}
                     </Button>
-                    <Button mode="outlined" onPress={() => onRequestMergeChanges(request.id, t(K.treeSettings.requestMergeChangesMessage), selectedMatchIds)} disabled={mutating}>
+                    <Button mode="outlined" onPress={() => onRequestMergeChanges(request.id, t(K.treeSettings.requestMergeChangesMessage), selectedMatchIds)} disabled={mutating} style={BUTTON_CHROME} buttonColor={theme.colors.surface} textColor={theme.colors.primary} contentStyle={BUTTON_CONTENT_CHROME}>
                       {t(K.treeSettings.requestChanges)}
                     </Button>
-                    <Button mode="text" textColor={theme.colors.error} onPress={() => onRejectMergeRequest(request.id)} disabled={mutating}>
+                    <Button mode="outlined" textColor={theme.colors.error} onPress={() => onRejectMergeRequest(request.id)} disabled={mutating} style={BUTTON_CHROME} buttonColor={theme.colors.surface} contentStyle={BUTTON_CONTENT_CHROME}>
                       {t(K.treeSettings.reject)}
                     </Button>
                   </View>
@@ -241,7 +241,7 @@ export function MergesSection({
 
       <Divider style={{ marginVertical: 16 }} />
 
-      <Button mode="outlined" icon="history" onPress={() => setMergeHistoryVisible(true)} style={{ alignSelf: 'flex-start' }}>
+      <Button mode="outlined" icon="history" onPress={() => setMergeHistoryVisible(true)} style={[BUTTON_CHROME, { alignSelf: 'flex-start' }]} buttonColor={theme.colors.surface} textColor={theme.colors.primary} contentStyle={BUTTON_CONTENT_CHROME}>
         {t(K.treeSettings.mergeHistoryAndUndo)}
       </Button>
     </View>

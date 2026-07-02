@@ -3,7 +3,7 @@ import { View } from 'react-native';
 import { Button, Card, Chip, IconButton, SegmentedButtons, Text, useTheme } from 'react-native-paper';
 import { Reveal } from '../../../../components';
 import { canUserReviewApprovalRequest, isApprovalExpired } from '../../../../components/dto/approval';
-import { GlobalStyles } from '../../../../constants/styles';
+import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
 import type { ApprovalsSectionProps } from './tree-settings-shared';
@@ -110,15 +110,15 @@ export function ApprovalsSection({
                         <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>{t(K.treeSettings.requestedByName, { name: request.requestedByLabel })}</Text>
                       </View>
                       <View style={styles.approvalRequestActions}>
-                        <Button mode="outlined" icon="eye-outline" onPress={() => setPreviewApprovalRequest(request)}>
+                        <Button mode="outlined" icon="eye-outline" onPress={() => setPreviewApprovalRequest(request)} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>
                           {t(K.treeSettings.previewChange)}
                         </Button>
                         {canReview ? (
                           <>
-                            <Button mode="contained" onPress={() => onApproveApprovalRequest(request.id)} disabled={mutating}>
+                            <Button mode="contained" onPress={() => onApproveApprovalRequest(request.id)} disabled={mutating} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>
                               {t(K.treeSettings.approve)}
                             </Button>
-                            <Button mode="outlined" textColor={theme.colors.error} onPress={() => onRejectApprovalRequest(request.id)} disabled={mutating}>
+                            <Button mode="outlined" textColor={theme.colors.error} onPress={() => onRejectApprovalRequest(request.id)} disabled={mutating} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>
                               {t(K.treeSettings.reject)}
                             </Button>
                           </>

@@ -23,7 +23,7 @@ import {
   parsePersonDate,
 } from '../../../../components/dto/person';
 import { formatPersonGender, formatPersonName } from '../../../../components/person-formatting';
-import { GlobalStyles } from '../../../../constants/styles';
+import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
 import type { SharedTabProps } from '../shared';
@@ -282,6 +282,7 @@ export function FamilyMembersView({
           onPress={() => setCurrentPage((page) => Math.max(1, page - 1))}
           disabled={currentPage === 1}
           accessibilityLabel={t(K.tree.familyMembers.previousPage)}
+          mode="outlined"
         />
         <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
           {t(K.tree.familyMembers.pageOf, { current: currentPage, total: totalPages })}
@@ -291,6 +292,7 @@ export function FamilyMembersView({
           onPress={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
           disabled={currentPage === totalPages}
           accessibilityLabel={t(K.tree.familyMembers.nextPage)}
+          mode="outlined"
         />
       </View>
     );
@@ -313,7 +315,7 @@ export function FamilyMembersView({
             </View>
           </View>
           {canEdit ? (
-            <Button mode="contained" icon="account-plus" onPress={onOpenAddPerson} disabled={mutating}>
+            <Button mode="contained" icon="account-plus" onPress={onOpenAddPerson} disabled={mutating} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>
               {t(K.common.add)}
             </Button>
           ) : null}
@@ -354,7 +356,7 @@ export function FamilyMembersView({
                   : t(K.tree.familyMembers.adjustSearchOrFilters)}
               </Text>
               {activeFilterCount > 0 ? (
-                <Button mode="outlined" onPress={() => setFilters(DEFAULT_FILTERS)} style={{ marginTop: 8 }}>
+                <Button mode="outlined" onPress={() => setFilters(DEFAULT_FILTERS)} style={[BUTTON_CHROME, { marginTop: 8 }]} contentStyle={BUTTON_CONTENT_CHROME}>
                   {t(K.tree.familyMembers.clearFilters)}
                 </Button>
               ) : null}

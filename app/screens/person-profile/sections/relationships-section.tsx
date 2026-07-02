@@ -6,7 +6,7 @@ import type { PersonRelationshipMode } from '../../../../components/person-relat
 import type { PersonRecord } from '../../../../components/dto/person';
 import type { RelationshipRecord } from '../../../../components/dto/relationship';
 import { formatPersonName } from '../../../../components/person-formatting';
-import { GlobalStyles } from '../../../../constants/styles';
+import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
 
@@ -71,7 +71,7 @@ export function PersonRelationshipsSection({
           </View>
         </View>
         {canEdit ? (
-          <Button mode="contained" icon="family-tree" onPress={onAddRelationship}>
+          <Button mode="contained" icon="family-tree" onPress={onAddRelationship} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>
             {t(K.personProfile.addRelationship)}
           </Button>
         ) : null}

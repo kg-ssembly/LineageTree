@@ -54,7 +54,7 @@ export function MemberProfileSection({
           </View>
         </View>
         {canEdit ? (
-          <Button mode="contained-tonal" icon="pencil" onPress={onEdit}>
+          <Button mode="contained" icon="pencil" onPress={onEdit} buttonColor={theme.colors.primary} textColor={theme.colors.onPrimary}>
             {t(K.personProfile.shapeThisStory)}
           </Button>
         ) : null}

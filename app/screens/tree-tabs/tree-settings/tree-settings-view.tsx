@@ -30,6 +30,7 @@ import {
   type TreeManagementTabKey,
 } from './tree-settings-shared';
 import { TreesSection } from './trees-section';
+import { BUTTON_CHROME, BUTTON_CONTENT_CHROME } from '../../../../constants/styles';
 
 const dialogChrome = GlobalStyles.dialogChrome;
 const styles = GlobalStyles.treeDetail;
@@ -486,11 +487,11 @@ function TreeSettingsContent({
               <Chip compact icon="history">{entry.status}</Chip>
               <Chip compact icon="calendar-clock">{entry.createdAt.slice(0, 16).replace('T', ' ')}</Chip>
             </View>
-            <Button mode="outlined" icon="undo" onPress={() => onUndoMerge(entry.mergeRequestId)} disabled={mutating || entry.status !== 'applied'} style={{ marginTop: 8 }}>
+            <Button mode="outlined" icon="undo" onPress={() => onUndoMerge(entry.mergeRequestId)} disabled={mutating || entry.status !== 'applied'} style={[BUTTON_CHROME, { marginTop: 8 }]} buttonColor={theme.colors.surface} textColor={theme.colors.primary} contentStyle={BUTTON_CONTENT_CHROME}>
               {t(K.treeSettings.previewAndUndoMerge)}
             </Button>
             {canGrantViewerAccess ? (
-              <Button mode="contained-tonal" icon="account-eye-outline" onPress={() => onGrantMergeViewerAccess(entry.mergeRequestId, selectedTree.id)} disabled={mutating} style={{ marginTop: 8 }}>
+              <Button mode="outlined" icon="account-eye-outline" onPress={() => onGrantMergeViewerAccess(entry.mergeRequestId, selectedTree.id)} disabled={mutating} style={[BUTTON_CHROME, { marginTop: 8 }]} buttonColor={theme.colors.surface} textColor={theme.colors.primary} contentStyle={BUTTON_CONTENT_CHROME}>
                 {t(K.treeSettings.grantViewerAccessToName, { name: mergeRequest?.suggestedByLabel ?? t(K.treeSettings.requester) })}
               </Button>
             ) : null}
@@ -679,7 +680,7 @@ function TreeSettingsContent({
                   {t(K.treeSettings.addAlternateSurnameHelper)}
                 </Text>
                 <TextInput mode="outlined" label={t(K.treeSettings.addVariant)} value={surnameVariantDraft} onChangeText={setSurnameVariantDraft} onSubmitEditing={handleAddSurnameVariantDraft} style={{ marginBottom: 12 }} />
-                <Button mode="contained-tonal" icon="plus" onPress={handleAddSurnameVariantDraft} disabled={!surnameVariantDraft.trim()} style={{ marginBottom: 12 }}>
+                <Button mode="contained" icon="plus" onPress={handleAddSurnameVariantDraft} disabled={!surnameVariantDraft.trim()} style={[BUTTON_CHROME, { marginBottom: 12 }]} buttonColor={theme.colors.primary} textColor={theme.colors.onPrimary} contentStyle={BUTTON_CONTENT_CHROME}>
                   {t(K.treeSettings.addVariant)}
                 </Button>
                 <View style={styles.collaboratorChipRow}>
@@ -695,10 +696,10 @@ function TreeSettingsContent({
                   setSurnameVariantDraft('');
                   setSurnameVariantDrafts(treeSurnameVariants);
                   setSurnameVariantDialogVisible(false);
-                }}>
+                }} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>
                   {t(K.common.cancel)}
                 </Button>
-                <Button mode="contained" onPress={handleSaveSurnameVariants} disabled={mutating}>
+                <Button mode="contained" onPress={handleSaveSurnameVariants} disabled={mutating} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>
                   {t(K.common.save)}
                 </Button>
               </Dialog.Actions>

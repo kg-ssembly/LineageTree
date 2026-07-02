@@ -919,14 +919,16 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <View pointerEvents="box-none" style={styles.stickyActionBarHost}>
         <Button
-          mode="contained-tonal"
+          mode="outlined"
           icon="arrow-left"
           onPress={handleGoBack}
           style={[styles.heroFloatingButton, styles.heroFloatingButtonLeft]}
-          contentStyle={{ height: 44, paddingHorizontal: 6 }}
+          contentStyle={{ height: 36, paddingHorizontal: 4 }}
           accessibilityLabel={t(K.personProfile.backToMemberSearch)}
+          buttonColor={theme.colors.surface}
+          textColor={theme.colors.primary}
         >
-          {t(K.personProfile.backToMemberSearch)}
+          {null}
         </Button>
       </View>
       <ScrollView contentContainerStyle={styles.content}>
@@ -935,11 +937,12 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
           {canEdit ? (
             <IconButton
               icon="pencil"
-              mode="contained-tonal"
+              mode="contained"
               size={22}
               onPress={() => setEditorVisible(true)}
               style={[styles.heroFloatingButton, styles.heroFloatingButtonRight]}
               accessibilityLabel={t(K.personProfile.editFamilyMember)}
+              contentStyle={{ height: 36, width: 36 }}
             />
           ) : null}
           <View style={styles.heroHeader}>

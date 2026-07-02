@@ -212,7 +212,7 @@ export function FamilyHighlightsPanel({
             <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 6 }}>
               {suggestedHighlight.description}
             </Text>
-            <Button mode="contained-tonal" onPress={suggestedHighlight.action} style={{ alignSelf: 'flex-start', marginTop: 14 }}>
+            <Button mode="contained" onPress={suggestedHighlight.action} style={{ alignSelf: 'flex-start', marginTop: 14 }} buttonColor={theme.colors.primary} textColor={theme.colors.onPrimary}>
               {suggestedHighlight.actionLabel}
             </Button>
           </Surface>
@@ -265,15 +265,23 @@ export function FamilyHighlightsPanel({
             )}
             {recentExpanded && recentAdditions.length > pageSize ? (
               <View style={styles.dashboardActionRow}>
-                <Button mode="text" disabled={recentPage === 0} onPress={() => setRecentPage((current) => Math.max(0, current - 1))}>
-                  Previous
-                </Button>
+                <IconButton
+                  icon="chevron-left"
+                  disabled={recentPage === 0}
+                  onPress={() => setRecentPage((current) => Math.max(0, current - 1))}
+                  accessibilityLabel={t(K.tree.familyMembers.previousPage)}
+                  mode="outlined"
+                />
                 <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 8 }}>
                   Page {recentPage + 1} of {recentPageCount}
                 </Text>
-                <Button mode="text" disabled={recentPage >= recentPageCount - 1} onPress={() => setRecentPage((current) => Math.min(recentPageCount - 1, current + 1))}>
-                  Next
-                </Button>
+                <IconButton
+                  icon="chevron-right"
+                  disabled={recentPage >= recentPageCount - 1}
+                  onPress={() => setRecentPage((current) => Math.min(recentPageCount - 1, current + 1))}
+                  accessibilityLabel={t(K.tree.familyMembers.nextPage)}
+                  mode="outlined"
+                />
               </View>
             ) : null}
           </View>
@@ -315,15 +323,23 @@ export function FamilyHighlightsPanel({
             )}
             {anniversaryExpanded && anniversaries.length > pageSize ? (
               <View style={styles.dashboardActionRow}>
-                <Button mode="text" disabled={anniversaryPage === 0} onPress={() => setAnniversaryPage((current) => Math.max(0, current - 1))}>
-                  Previous
-                </Button>
+                <IconButton
+                  icon="chevron-left"
+                  disabled={anniversaryPage === 0}
+                  onPress={() => setAnniversaryPage((current) => Math.max(0, current - 1))}
+                  accessibilityLabel={t(K.tree.familyMembers.previousPage)}
+                  mode="outlined"
+                />
                 <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 8 }}>
                   Page {anniversaryPage + 1} of {anniversaryPageCount}
                 </Text>
-                <Button mode="text" disabled={anniversaryPage >= anniversaryPageCount - 1} onPress={() => setAnniversaryPage((current) => Math.min(anniversaryPageCount - 1, current + 1))}>
-                  Next
-                </Button>
+                <IconButton
+                  icon="chevron-right"
+                  disabled={anniversaryPage >= anniversaryPageCount - 1}
+                  onPress={() => setAnniversaryPage((current) => Math.min(anniversaryPageCount - 1, current + 1))}
+                  accessibilityLabel={t(K.tree.familyMembers.nextPage)}
+                  mode="outlined"
+                />
               </View>
             ) : null}
           </View>
@@ -359,15 +375,23 @@ export function FamilyHighlightsPanel({
             )) : null}
             {growthExpanded && branchGrowth.length > pageSize ? (
               <View style={styles.dashboardActionRow}>
-                <Button mode="text" disabled={growthPage === 0} onPress={() => setGrowthPage((current) => Math.max(0, current - 1))}>
-                  Previous
-                </Button>
+                <IconButton
+                  icon="chevron-left"
+                  disabled={growthPage === 0}
+                  onPress={() => setGrowthPage((current) => Math.max(0, current - 1))}
+                  accessibilityLabel={t(K.tree.familyMembers.previousPage)}
+                  mode="outlined"
+                />
                 <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 8 }}>
                   Page {growthPage + 1} of {growthPageCount}
                 </Text>
-                <Button mode="text" disabled={growthPage >= growthPageCount - 1} onPress={() => setGrowthPage((current) => Math.min(growthPageCount - 1, current + 1))}>
-                  Next
-                </Button>
+                <IconButton
+                  icon="chevron-right"
+                  disabled={growthPage >= growthPageCount - 1}
+                  onPress={() => setGrowthPage((current) => Math.min(growthPageCount - 1, current + 1))}
+                  accessibilityLabel={t(K.tree.familyMembers.nextPage)}
+                  mode="outlined"
+                />
               </View>
             ) : null}
             {growthExpanded && currentAssignedPerson ? (
