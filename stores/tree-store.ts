@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
-import { createJSONStorage, persist } from 'zustand/middleware';
+import type { createJSONStorage as createJSONStorageFn, persist as persistFn } from 'zustand/middleware';
 import type { ApprovalRequest } from '../components/dto/approval';
 import type { MergeConflictChoice, MergeHistoryRecord, MergeRequestRecord } from '../components/dto/merge';
 import type { AppNotification, NotificationActivityState } from '../components/dto/notification';
@@ -55,6 +55,11 @@ import {
   updateTreeDiscoverability,
   updateTreeName,
 } from '../providers/family-tree-service';
+
+const { createJSONStorage, persist } = require('zustand/middleware.js') as {
+  createJSONStorage: typeof createJSONStorageFn;
+  persist: typeof persistFn;
+};
 
 let unsubscribeTrees: (() => void) | null = null;
 let unsubscribePeople: (() => void) | null = null;

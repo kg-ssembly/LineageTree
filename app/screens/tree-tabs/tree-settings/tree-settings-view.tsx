@@ -57,7 +57,6 @@ const settingsTabStripStyles = StyleSheet.create({
   },
 });
 
-const MAX_LINK_CHOOSER_RESULTS = 8;
 const OWNER_LINK_PAGE_SIZE = 3;
 
 function TreeSettingsContent({
@@ -176,7 +175,6 @@ function TreeSettingsContent({
 
         return searchableText.includes(normalizedQuery);
       })
-      .slice(0, MAX_LINK_CHOOSER_RESULTS)
       .map(({ person }) => person);
   }, [currentAssignedPerson?.id, deferredLinkSearchQuery, selfLinkSearchIndex]);
 

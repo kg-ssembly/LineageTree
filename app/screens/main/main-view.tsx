@@ -1,5 +1,5 @@
 import React from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import {
   CollaboratorDialog,
   ConfirmDialog,
@@ -22,6 +22,49 @@ import { MainTabNavigator } from './main-tab-navigator';
 const styles = GlobalStyles.treeDetail;
 const dialogChrome = GlobalStyles.dialogChrome;
 
+const localStyles = StyleSheet.create({
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    overflow: 'hidden',
+  },
+  orb: {
+    position: 'absolute',
+    borderRadius: 999,
+    opacity: 0.7,
+  },
+});
+
+function MainBackground({ theme }: { theme: { colors: { background: string; secondaryContainer: string; tertiaryContainer: string } } }) {
+  return (
+    <View pointerEvents="none" style={[localStyles.backdrop, { backgroundColor: theme.colors.background }]}>
+      <View
+        style={[
+          localStyles.orb,
+          {
+            width: 220,
+            height: 220,
+            top: 72,
+            left: -44,
+            backgroundColor: theme.colors.secondaryContainer,
+          },
+        ]}
+      />
+      <View
+        style={[
+          localStyles.orb,
+          {
+            width: 180,
+            height: 180,
+            bottom: 72,
+            right: -24,
+            backgroundColor: theme.colors.tertiaryContainer,
+          },
+        ]}
+      />
+    </View>
+  );
+}
+
 export function MainScreenView({ controller }: { controller: ReturnType<typeof useMainScreenController> }) {
   const isWaitingForInitialTreeSelection = controller.loadingTrees
     || (controller.trees.length > 0 && !controller.selectedTree && !controller.sharedTabProps);
@@ -36,14 +79,18 @@ export function MainScreenView({ controller }: { controller: ReturnType<typeof u
 
   if (isWaitingForInitialTreeSelection) {
     return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', backgroundColor: controller.theme.colors.background }]}>
-        <ActivityIndicator size="large" color={controller.theme.colors.primary} />
+      <View style={[styles.container, { backgroundColor: controller.theme.colors.background }]}>
+        <MainBackground theme={controller.theme} />
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color={controller.theme.colors.primary} />
+        </View>
       </View>
     );
   }
 
   return (
     <View style={[styles.container, { backgroundColor: controller.theme.colors.background }]}>
+      <MainBackground theme={controller.theme} />
       <MainTabNavigator controller={controller} noTreeGate={noTreeGate} styles={styles} />
 
       <CollaboratorDialog

@@ -219,22 +219,7 @@ export function MainNoTreeGate({
   );
 
   return (
-    <View style={[localStyles.noTreeGate, { backgroundColor: controller.theme.colors.background }]}>
-      <View style={[localStyles.backgroundOrb, {
-        width: 220,
-        height: 220,
-        top: 70,
-        left: -40,
-        backgroundColor: controller.theme.colors.secondaryContainer,
-      }]} />
-      <View style={[localStyles.backgroundOrb, {
-        width: 180,
-        height: 180,
-        bottom: 60,
-        right: -20,
-        backgroundColor: controller.theme.colors.tertiaryContainer,
-      }]} />
-
+    <View style={localStyles.noTreeGate}>
       <View style={localStyles.contentWrap}>
         <Reveal delay={60}>
           <Surface

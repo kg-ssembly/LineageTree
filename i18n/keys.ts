@@ -1659,7 +1659,7 @@ export const TRANSLATION_FALLBACKS: Record<string, string> = {
   [I18N_KEYS.treeSettings.invite]: 'Invite',
   [I18N_KEYS.treeSettings.inviteAnotherUserToMerge]: 'Invite another user to merge',
   [I18N_KEYS.treeSettings.link]: 'Link',
-  [I18N_KEYS.treeSettings.linkExistingFamilyMember]: 'Link to an existing family member',
+  [I18N_KEYS.treeSettings.linkExistingFamilyMember]: 'Link me to an existing family member',
   [I18N_KEYS.treeSettings.linkMe]: 'Link me',
   [I18N_KEYS.treeSettings.linkYourselfEditorAccess]: 'You can link yourself to an existing person right now. Creating a new profile still requires editor access on this tree.',
   [I18N_KEYS.treeSettings.likelyMatch]: 'Likely match',
