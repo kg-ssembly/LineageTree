@@ -364,6 +364,7 @@ export default function PersonFormDialog({
     pendingValidationRelationships,
     personId: person?.id,
     requireIdentityContext: mode === 'create',
+    requireRelationshipContext: mode === 'create' && relationshipCandidates.length > 0,
   });
   const personValidationFeedback = useMemo(
     () => getPersonValidationFeedback({
@@ -384,6 +385,7 @@ export default function PersonFormDialog({
       removedPhotos: deferredValidationInput.removedPhotos,
       newPhotoUris: deferredValidationInput.newPhotoUris,
       requireIdentityContext: deferredValidationInput.requireIdentityContext,
+      requireRelationshipContext: deferredValidationInput.requireRelationshipContext,
       ignorePersonId: deferredValidationInput.personId,
     }),
     [deferredValidationInput, relationshipCandidates, relationships],
@@ -577,7 +579,7 @@ export default function PersonFormDialog({
     { label: t(K.relationship.spouseOf), value: 'spouse-of' as PendingRelationshipMode },
   ], [gender, t]);
   const showRelationshipStep = mode === 'create' && relationshipCandidates.length > 0;
-  const requiresRelationshipStep = mode === 'create' && initialPendingRelationships.length > 0;
+  const requiresRelationshipStep = mode === 'create' && relationshipCandidates.length > 0;
 
   const handleNextStep = () => {
     const firstError = personValidationFeedback.errors.find((message) => message === t(K.personForm.firstNameRequiredError));

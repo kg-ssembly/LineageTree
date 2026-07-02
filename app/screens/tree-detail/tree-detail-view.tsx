@@ -23,7 +23,7 @@ import { useAuthStore } from '../../../stores/auth-store';
 import { useTreeStore } from '../../../stores/tree-store';
 import type { PersonRecord } from '../../../components/dto/person';
 import { getDisplayPersonPhoto, getLifeEventTypeLabel, getPersonPresenceLabel } from '../../../components/dto/person';
-import type { ParentChildRelationshipKind, SpouseRelationshipStatus } from '../../../components/dto/relationship';
+import { DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND, type ParentChildRelationshipKind, type SpouseRelationshipStatus } from '../../../components/dto/relationship';
 import type { RelationshipRecord } from '../../../components/dto/relationship';
 import type { RootStackParamList, TreeDetailTabParamList } from '../../../components/dto/navigation';
 import { getUserDisplayLabel } from '../../../components/dto/user';
@@ -720,7 +720,14 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     [people, personDialog.person?.id],
   );
 
-  const onOpenAddPerson = useCallback(() => setPersonDialog({ visible: true, mode: 'create', person: null, initialPendingRelationships: [] }), []);
+  const onOpenAddPerson = useCallback(() => setPersonDialog({
+    visible: true,
+    mode: 'create',
+    person: null,
+    initialPendingRelationships: people.length > 0
+      ? [{ mode: 'parent-of', relatedPersonId: '', parentChildKind: DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND }]
+      : [],
+  }), [people.length]);
   const onOpenRelationshipDialog = useCallback(() => setRelationshipDialogVisible(true), []);
   const onOpenPersonQuickActions = useCallback((person: PersonRecord) => {
     if (isMaidenViewerMode) {

@@ -32,6 +32,7 @@ type PersonValidationInput = {
   removedPhotos?: PersonPhoto[];
   newPhotoUris?: string[];
   requireIdentityContext?: boolean;
+  requireRelationshipContext?: boolean;
   ignorePersonId?: string | null;
 };
 
@@ -229,6 +230,7 @@ export function getPersonValidationFeedback({
   removedPhotos = [],
   newPhotoUris = [],
   requireIdentityContext = false,
+  requireRelationshipContext = false,
   ignorePersonId,
 }: PersonValidationInput): ValidationFeedback {
   const errors: string[] = [];
@@ -245,6 +247,10 @@ export function getPersonValidationFeedback({
 
   if (requireIdentityContext && !lastName && !birthDate && pendingRelationships.filter((relationship) => relationship.relatedPersonId).length === 0) {
     errors.push(translate(K.personForm.identityDetailRequired));
+  }
+
+  if (requireRelationshipContext && pendingRelationships.filter((relationship) => relationship.relatedPersonId).length === 0) {
+    errors.push(translate(K.personForm.addRelationshipToConnectMember));
   }
 
   if (birthDate && birthDate > formatDateToIso(new Date())) {

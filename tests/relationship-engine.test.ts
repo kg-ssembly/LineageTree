@@ -351,6 +351,26 @@ test('requires at least one additional identity detail when creating a person', 
   assert.ok(feedback.errors.includes('Add at least one identifying detail: surname, birth date, or a relationship.'));
 });
 
+test('requires a relationship anchor when the create flow is in connected mode', () => {
+  const feedback = getPersonValidationFeedback({
+    people: [makePerson('existing', 'Alex', 'male')],
+    person: {
+      firstName: 'Jordan',
+      middleNames: '',
+      lastName: 'Example',
+      maidenName: '',
+      birthDate: '',
+      deathDate: '',
+      notes: '',
+      lifeEvents: [],
+    },
+    pendingRelationships: [],
+    requireRelationshipContext: true,
+  });
+
+  assert.ok(feedback.errors.includes('Add at least one relationship so this family member stays connected to the tree.'));
+});
+
 test('blocks duplicate photos before saving', () => {
   const feedback = getPersonValidationFeedback({
     people: [],

@@ -5,7 +5,7 @@ import { useTheme } from 'react-native-paper';
 import type { PersonFormSubmission, PendingRelationshipSubmission } from '../../../components/person-form-dialog';
 import type { PersonRecord } from '../../../components/dto/person';
 import type { RootStackParamList } from '../../../components/dto/navigation';
-import type { ParentChildRelationshipKind, SpouseRelationshipStatus } from '../../../components/dto/relationship';
+import { DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND, type ParentChildRelationshipKind, type SpouseRelationshipStatus } from '../../../components/dto/relationship';
 import { getUserDisplayLabel } from '../../../components/dto/user';
 import { formatPersonName } from '../../../components/person-formatting';
 import { findCrossSurnameChildren } from '../../../components/family-tree-surname-clusters';
@@ -846,8 +846,15 @@ export function useMainScreenController({ navigation }: Props) {
   }, [addParentChildRelationship, addSpouseRelationship, selectedTree, user?.id]);
 
   const onOpenAddPerson = useCallback(() => {
-    setPersonDialog({ visible: true, mode: 'create', person: null, initialPendingRelationships: [] });
-  }, []);
+    setPersonDialog({
+      visible: true,
+      mode: 'create',
+      person: null,
+      initialPendingRelationships: people.length > 0
+        ? [{ mode: 'parent-of', relatedPersonId: '', parentChildKind: DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND }]
+        : [],
+    });
+  }, [people.length]);
 
   const onOpenRelationshipDialog = useCallback(() => {
     setRelationshipDialogVisible(true);
