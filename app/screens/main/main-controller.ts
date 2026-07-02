@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useIsFocused } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTheme } from 'react-native-paper';
-import type { PersonFormSubmission, PendingRelationshipSubmission } from '../../../components/person-form-dialog';
+import type { PersonFormSubmission, PendingRelationshipMode, PendingRelationshipSubmission } from '../../../components/person-form-dialog';
 import type { PersonRecord } from '../../../components/dto/person';
 import type { RootStackParamList } from '../../../components/dto/navigation';
 import { DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND, type ParentChildRelationshipKind, type SpouseRelationshipStatus } from '../../../components/dto/relationship';
@@ -236,6 +236,7 @@ export function useMainScreenController({ navigation }: Props) {
     person: null,
     initialPendingRelationships: [],
   });
+  const [addPersonChooserVisible, setAddPersonChooserVisible] = useState(false);
   const [selfPersonDialogVisible, setSelfPersonDialogVisible] = useState(false);
   const [relationshipDialogVisible, setRelationshipDialogVisible] = useState(false);
   const [collaboratorDialogVisible, setCollaboratorDialogVisible] = useState(false);
@@ -520,6 +521,10 @@ export function useMainScreenController({ navigation }: Props) {
 
   const closePersonDialog = useCallback(() => {
     setPersonDialog({ visible: false, mode: 'create', person: null, initialPendingRelationships: [] });
+  }, []);
+
+  const closeAddPersonChooser = useCallback(() => {
+    setAddPersonChooserVisible(false);
   }, []);
 
   const closeNodeQuickActions = useCallback(() => {
@@ -845,16 +850,30 @@ export function useMainScreenController({ navigation }: Props) {
     }
   }, [addParentChildRelationship, addSpouseRelationship, selectedTree, user?.id]);
 
-  const onOpenAddPerson = useCallback(() => {
+  const openCreatePersonDialog = useCallback((initialPendingRelationships: PendingRelationshipSubmission[] = []) => {
     setPersonDialog({
       visible: true,
       mode: 'create',
       person: null,
-      initialPendingRelationships: people.length > 0
-        ? [{ mode: 'parent-of', relatedPersonId: '', parentChildKind: DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND }]
-        : [],
+      initialPendingRelationships,
     });
-  }, [people.length]);
+  }, []);
+
+  const onOpenAddPerson = useCallback(() => {
+    setAddPersonChooserVisible(true);
+  }, []);
+
+  const handleAddPersonEntrySelection = useCallback((mode: PendingRelationshipMode, relatedPerson: PersonRecord) => {
+    setAddPersonChooserVisible(false);
+    openCreatePersonDialog(
+      [{ mode, relatedPersonId: relatedPerson.id, parentChildKind: mode === 'spouse-of' ? undefined : DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND }],
+    );
+  }, [openCreatePersonDialog]);
+
+  const handleAddFirstFamilyMember = useCallback(() => {
+    setAddPersonChooserVisible(false);
+    openCreatePersonDialog();
+  }, [openCreatePersonDialog]);
 
   const onOpenRelationshipDialog = useCallback(() => {
     setRelationshipDialogVisible(true);
@@ -1442,6 +1461,7 @@ export function useMainScreenController({ navigation }: Props) {
     clearNotice,
     closeCollaboratorDialog,
     closeConfirm,
+    closeAddPersonChooser,
     closeNodeQuickActions,
     closePersonDialog,
     closeRelationshipDialog,
@@ -1449,6 +1469,7 @@ export function useMainScreenController({ navigation }: Props) {
     closeTreeDialog,
     closeTreeNameSuggestion,
     collaboratorDialogVisible,
+    addPersonChooserVisible,
     confirmState,
     crossSurnameChildIds,
     dialogActions: {
@@ -1464,6 +1485,8 @@ export function useMainScreenController({ navigation }: Props) {
     findConnectedTreeForSurname,
     handleConfirmDeleteTree,
     handleOpenMaidenFamilyTree,
+    handleAddPersonEntrySelection,
+    handleAddFirstFamilyMember,
     openCreateTreeDialog,
     memberProfileNavigation,
     memberProfileParams,
@@ -1476,6 +1499,7 @@ export function useMainScreenController({ navigation }: Props) {
     openPersonProfile,
     personDialog,
     personDialogRelationshipCandidates,
+    people,
     relationshipDialogVisible,
     relationships,
     loadingTrees,

@@ -10,6 +10,7 @@ import {
 } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
+  AddPersonEntryDialog,
   CollaboratorDialog,
   ConfirmDialog,
   FloatingSnackbar,
@@ -17,8 +18,7 @@ import {
   RelationshipDialog,
   SharedLoader,
 } from '../../../components';
-import type { PersonFormSubmission } from '../../../components/person-form-dialog';
-import type { PendingRelationshipSubmission } from '../../../components/person-form-dialog';
+import type { PersonFormSubmission, PendingRelationshipMode, PendingRelationshipSubmission } from '../../../components/person-form-dialog';
 import { useAuthStore } from '../../../stores/auth-store';
 import { useTreeStore } from '../../../stores/tree-store';
 import type { PersonRecord } from '../../../components/dto/person';
@@ -203,6 +203,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     person: null,
     initialPendingRelationships: [],
   });
+  const [addPersonChooserVisible, setAddPersonChooserVisible] = useState(false);
   const [selfPersonDialogVisible, setSelfPersonDialogVisible] = useState(false);
   const [relationshipDialogVisible, setRelationshipDialogVisible] = useState(false);
   const [collaboratorDialogVisible, setCollaboratorDialogVisible] = useState(false);
@@ -519,6 +520,10 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     setPersonDialog({ visible: false, mode: 'create', person: null, initialPendingRelationships: [] });
   }, []);
 
+  const closeAddPersonChooser = useCallback(() => {
+    setAddPersonChooserVisible(false);
+  }, []);
+
   const closeNodeQuickActions = useCallback(() => {
     setNodeQuickActionState({ visible: false, person: null });
   }, []);
@@ -720,14 +725,24 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     [people, personDialog.person?.id],
   );
 
-  const onOpenAddPerson = useCallback(() => setPersonDialog({
+  const openCreatePersonDialog = useCallback((initialPendingRelationships: PendingRelationshipSubmission[] = []) => setPersonDialog({
     visible: true,
     mode: 'create',
     person: null,
-    initialPendingRelationships: people.length > 0
-      ? [{ mode: 'parent-of', relatedPersonId: '', parentChildKind: DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND }]
-      : [],
-  }), [people.length]);
+    initialPendingRelationships,
+  }), []);
+
+  const onOpenAddPerson = useCallback(() => setAddPersonChooserVisible(true), []);
+  const handleAddPersonEntrySelection = useCallback((mode: PendingRelationshipMode, relatedPerson: PersonRecord) => {
+    setAddPersonChooserVisible(false);
+    openCreatePersonDialog(
+      [{ mode, relatedPersonId: relatedPerson.id, parentChildKind: mode === 'spouse-of' ? undefined : DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND }],
+    );
+  }, [openCreatePersonDialog]);
+  const handleAddFirstFamilyMember = useCallback(() => {
+    setAddPersonChooserVisible(false);
+    openCreatePersonDialog();
+  }, [openCreatePersonDialog]);
   const onOpenRelationshipDialog = useCallback(() => setRelationshipDialogVisible(true), []);
   const onOpenPersonQuickActions = useCallback((person: PersonRecord) => {
     if (isMaidenViewerMode) {
@@ -1032,6 +1047,16 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
         loading={mutating}
         onDismiss={() => setCollaboratorDialogVisible(false)}
         onSubmit={handleCollaboratorSubmit}
+      />
+
+      <AddPersonEntryDialog
+        visible={addPersonChooserVisible && !isSharedLoaderVisible}
+        hasExistingFamilyMembers={people.length > 0}
+        relationshipCandidates={people}
+        relationships={relationships}
+        onDismiss={closeAddPersonChooser}
+        onSelectRelationship={handleAddPersonEntrySelection}
+        onAddFirstFamilyMember={handleAddFirstFamilyMember}
       />
 
       <PersonFormDialog

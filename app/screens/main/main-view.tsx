@@ -3,6 +3,7 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
 import {
   CollaboratorDialog,
+  AddPersonEntryDialog,
   ConfirmDialog,
   FloatingSnackbar,
   PersonFormDialog,
@@ -86,6 +87,16 @@ export function MainScreenView({ controller }: { controller: ReturnType<typeof u
         loading={controller.mutating}
         onDismiss={controller.closeCollaboratorDialog}
         onSubmit={controller.dialogActions.handleCollaboratorSubmit}
+      />
+
+      <AddPersonEntryDialog
+        visible={controller.addPersonChooserVisible && !isSharedLoaderVisible}
+        hasExistingFamilyMembers={controller.people.length > 0}
+        relationshipCandidates={controller.people}
+        relationships={controller.relationships}
+        onDismiss={controller.closeAddPersonChooser}
+        onSelectRelationship={controller.handleAddPersonEntrySelection}
+        onAddFirstFamilyMember={controller.handleAddFirstFamilyMember}
       />
 
       <PersonFormDialog

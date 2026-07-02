@@ -1695,6 +1695,22 @@ export class GlobalStyles {
             borderColor: F.pendingBorder,
             backgroundColor: F.pendingBg,
         },
+        pendingRelationshipsSection: {
+            marginTop: 16,
+            padding: 12,
+            borderRadius: 20,
+            borderWidth: 1,
+        },
+        pendingRelationshipItem: {
+            paddingHorizontal: 0,
+        },
+        relationshipSectionHelper: {
+            marginTop: 6,
+        },
+        addConnectionButton: {
+            alignSelf: 'flex-start',
+            marginTop: 8,
+        },
         relationshipChipRow: {
             paddingTop: 12,
             paddingRight: 8,
