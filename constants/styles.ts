@@ -472,7 +472,7 @@ export class GlobalStyles {
             borderColor: F.outlineVariant,
         },
         selfAssignmentSectionWrap: {
-            marginTop: 24,
+            marginTop: 4,
         },
         selfAssignmentCard: {
             ...CARD_CHROME,

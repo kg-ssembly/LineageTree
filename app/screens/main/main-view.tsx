@@ -1,5 +1,6 @@
 import React from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
 import {
   CollaboratorDialog,
   ConfirmDialog,
@@ -27,40 +28,27 @@ const localStyles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     overflow: 'hidden',
   },
-  orb: {
-    position: 'absolute',
-    borderRadius: 999,
-    opacity: 0.7,
-  },
 });
 
 function MainBackground({ theme }: { theme: { colors: { background: string; secondaryContainer: string; tertiaryContainer: string } } }) {
   return (
     <View pointerEvents="none" style={[localStyles.backdrop, { backgroundColor: theme.colors.background }]}>
-      <View
-        style={[
-          localStyles.orb,
-          {
-            width: 220,
-            height: 220,
-            top: 72,
-            left: -44,
-            backgroundColor: theme.colors.secondaryContainer,
-          },
-        ]}
-      />
-      <View
-        style={[
-          localStyles.orb,
-          {
-            width: 180,
-            height: 180,
-            bottom: 72,
-            right: -24,
-            backgroundColor: theme.colors.tertiaryContainer,
-          },
-        ]}
-      />
+      <Svg width="100%" height="100%" style={StyleSheet.absoluteFillObject}>
+        <Defs>
+          <RadialGradient id="secondaryGlow" cx="35%" cy="35%" r="60%">
+            <Stop offset="0%" stopColor={theme.colors.secondaryContainer} stopOpacity={0.9} />
+            <Stop offset="70%" stopColor={theme.colors.secondaryContainer} stopOpacity={0.45} />
+            <Stop offset="100%" stopColor={theme.colors.secondaryContainer} stopOpacity={0} />
+          </RadialGradient>
+          <RadialGradient id="tertiaryGlow" cx="65%" cy="65%" r="60%">
+            <Stop offset="0%" stopColor={theme.colors.tertiaryContainer} stopOpacity={0.82} />
+            <Stop offset="72%" stopColor={theme.colors.tertiaryContainer} stopOpacity={0.4} />
+            <Stop offset="100%" stopColor={theme.colors.tertiaryContainer} stopOpacity={0} />
+          </RadialGradient>
+        </Defs>
+        <Circle cx={88} cy={106} r={132} fill="url(#secondaryGlow)" />
+        <Circle cx={356} cy={642} r={110} fill="url(#tertiaryGlow)" />
+      </Svg>
     </View>
   );
 }

@@ -52,7 +52,7 @@ export function MainTabNavigator({
           },
         ],
         tabBarItemStyle: styles.tabItem,
-        sceneStyle: [styles.tabScene, { backgroundColor: controller.theme.colors.background }],
+        sceneStyle: [styles.tabScene, { backgroundColor: 'transparent' }],
         tabBarIcon: ({ color, size }) => (
           <MaterialCommunityIcons name={(TAB_ICONS[route.name as keyof MainTabParamList] ?? 'circle') as never} size={size} color={color} />
         ),

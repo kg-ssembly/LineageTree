@@ -121,7 +121,7 @@ export function OverviewSection({
       </Reveal>
 
       <Reveal delay={90}>
-        <Card mode="elevated" style={[styles.selfAssignmentCard, { backgroundColor: theme.colors.surface, marginBottom: 12 }]}>
+        <Card mode="elevated" style={[styles.selfAssignmentCard, { backgroundColor: theme.colors.surface, marginBottom: 8 }]}>
           <Card.Content>
           <View style={styles.sectionHeader}>
             <View style={styles.titleWrap}>
