@@ -39,6 +39,31 @@ type AddPersonEntryDialogProps = {
   onAddFirstFamilyMember?: () => void;
 };
 
+function getChooserModeLabel(
+  mode: PendingRelationshipMode,
+  name: string | undefined,
+  t: (key: string, values?: Record<string, string | number>) => string,
+) {
+  if (!name?.trim()) {
+    return t(
+      mode === 'parent-of'
+        ? K.relationship.parentOf
+        : mode === 'child-of'
+          ? K.relationship.childOf
+          : K.relationship.spouseOf,
+    );
+  }
+
+  return t(
+    mode === 'parent-of'
+      ? K.relationship.anotherParentOfName
+      : mode === 'child-of'
+        ? K.relationship.childOfName
+        : K.relationship.spouseOfName,
+    { name },
+  );
+}
+
 export default function AddPersonEntryDialog({
   visible,
   hasExistingFamilyMembers,
@@ -200,6 +225,8 @@ export default function AddPersonEntryDialog({
            ? newPersonName
              ? t(K.relationship.selectRelatedFamilyMemberFor, { name: newPersonName })
              : t(K.relationship.selectRelatedFamilyMember)
+           : chooserTitleKey === K.personForm.addAnotherConnectionTitle && newPersonName
+             ? t(K.personForm.addAnotherConnectionForName, { name: newPersonName })
            : chooserTitleKey
              ? t(chooserTitleKey)
              : t(K.personForm.addMemberChooserTitle)}
@@ -296,13 +323,13 @@ export default function AddPersonEntryDialog({
               {hasExistingFamilyMembers ? (
                 <>
                   <Button mode="contained" icon="account-arrow-up-outline" onPress={() => chooseMode('parent-of')}>
-                    {t(K.relationship.parentOf)}
+                    {getChooserModeLabel('parent-of', newPersonName, t)}
                   </Button>
                   <Button mode="outlined" icon="account-arrow-down-outline" onPress={() => chooseMode('child-of')}>
-                    {t(K.relationship.childOf)}
+                    {getChooserModeLabel('child-of', newPersonName, t)}
                   </Button>
                   <Button mode="outlined" icon="account-heart-outline" onPress={() => chooseMode('spouse-of')}>
-                    {t(K.relationship.spouseOf)}
+                    {getChooserModeLabel('spouse-of', newPersonName, t)}
                   </Button>
                   {allowUnrelatedEntry && onAddFirstFamilyMember ? (
                     <Button mode="text" icon="account-remove-outline" onPress={onAddFirstFamilyMember}>

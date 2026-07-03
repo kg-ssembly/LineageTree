@@ -111,6 +111,10 @@ function normaliseSurnameValue(value: string) {
   return value.trim().toLowerCase().replace(/\s+/g, ' ');
 }
 
+function getPendingRelationshipSectionName(firstNameValue: string, lastNameValue: string) {
+  return [firstNameValue, lastNameValue].join(' ').replace(/\s+/g, ' ').trim();
+}
+
 function createValidationPersonRecord(input: {
   firstName: string;
   middleNames: string;
@@ -502,6 +506,10 @@ export default function PersonFormDialog({
           ),
         })
       : t(K.personForm.addFamilyMember);
+  const pendingRelationshipSectionName = getPendingRelationshipSectionName(firstName, lastName);
+  const addAnotherConnectionLabel = pendingRelationshipSectionName
+    ? t(K.personForm.addAnotherConnectionForName, { name: pendingRelationshipSectionName })
+    : t(K.personForm.addAnotherConnection);
 
   const handleSubmit = async () => {
     const firstError = personValidationFeedback.errors.find((message) => message === t(K.personForm.firstNameRequiredError));
@@ -695,58 +703,6 @@ export default function PersonFormDialog({
           <IconButton icon="close" onPress={onDismiss} disabled={loading} accessibilityLabel={t(K.common.cancel)} style={dialogChrome.closeButton} />
           <Dialog.ScrollArea style={[dialogChrome.scrollArea, styles.scrollArea]}>
             <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-              {mode === 'create' ? (
-                <View style={[styles.sectionSpacing, styles.pendingRelationshipsSection, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outlineVariant }]}>
-                  <Text variant="labelMedium" style={{ color: theme.colors.onSecondaryContainer }}>
-                    {t(K.personForm.relationshipsToAdd)}
-                  </Text>
-                  <Text variant="bodySmall" style={[styles.relationshipSectionHelper, { color: theme.colors.onSurfaceVariant }]}>
-                    {t(K.personForm.addAnotherConnectionHelper)}
-                  </Text>
-                  {pendingRelationships.map((relationshipDraft) => {
-                    const relatedPerson = relationshipCandidatesById.get(relationshipDraft.relatedPersonId);
-                    const relatedPersonName = relatedPerson ? formatPersonName(relatedPerson) : relationshipDraft.relatedPersonId;
-
-                    return (
-                      <List.Item
-                        key={relationshipDraft.key}
-                        style={styles.pendingRelationshipItem}
-                        title={`${getRelationshipPreviewLabel(relationshipDraft.mode)} ${relatedPersonName}`}
-                        description={getRelationshipCreateDescription(relationshipDraft.mode, relatedPersonName)}
-                        left={(props) => (
-                          <List.Icon
-                            {...props}
-                            icon={
-                              relationshipDraft.mode === 'parent-of'
-                                ? 'account-arrow-up-outline'
-                                : relationshipDraft.mode === 'child-of'
-                                  ? 'account-arrow-down-outline'
-                                  : 'account-heart-outline'
-                            }
-                          />
-                        )}
-                        right={() => (
-                          <IconButton
-                            icon="close"
-                            onPress={() => removePendingRelationship(relationshipDraft.key)}
-                            accessibilityLabel={t(K.personForm.removePendingRelationship)}
-                          />
-                        )}
-                      />
-                    );
-                  })}
-                  <Button
-                    mode="text"
-                    icon="plus"
-                    onPress={openAddConnectionDialog}
-                    disabled={loading || relationshipCandidates.length === 0}
-                    style={styles.addConnectionButton}
-                  >
-                    {t(K.personForm.addAnotherConnection)}
-                  </Button>
-                </View>
-              ) : null}
-
               <TextInput
                 mode="outlined"
                 label={t(K.personForm.firstNameRequired)}
@@ -935,6 +891,59 @@ export default function PersonFormDialog({
               <HelperText type="error" visible={!!relationshipError}>
                 {relationshipError}
               </HelperText>
+              {mode === 'create' ? (
+                <View style={[styles.sectionSpacing, styles.pendingRelationshipsSection, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outlineVariant }]}>
+                  <Text variant="labelMedium" style={{ color: theme.colors.onSecondaryContainer }}>
+                    {t(K.personForm.relationshipsToAdd)}
+                  </Text>
+                  <Text variant="bodySmall" style={[styles.relationshipSectionHelper, { color: theme.colors.onSurfaceVariant }]}>
+                    {pendingRelationshipSectionName
+                      ? t(K.personForm.addAnotherConnectionForName, { name: pendingRelationshipSectionName })
+                      : t(K.personForm.addAnotherConnectionHelper)}
+                  </Text>
+                  {pendingRelationships.map((relationshipDraft) => {
+                    const relatedPerson = relationshipCandidatesById.get(relationshipDraft.relatedPersonId);
+                    const relatedPersonName = relatedPerson ? formatPersonName(relatedPerson) : relationshipDraft.relatedPersonId;
+
+                    return (
+                      <List.Item
+                        key={relationshipDraft.key}
+                        style={styles.pendingRelationshipItem}
+                        title={`${getRelationshipPreviewLabel(relationshipDraft.mode)} ${relatedPersonName}`}
+                        description={getRelationshipCreateDescription(relationshipDraft.mode, relatedPersonName)}
+                        left={(props) => (
+                          <List.Icon
+                            {...props}
+                            icon={
+                              relationshipDraft.mode === 'parent-of'
+                                ? 'account-arrow-up-outline'
+                                : relationshipDraft.mode === 'child-of'
+                                  ? 'account-arrow-down-outline'
+                                  : 'account-heart-outline'
+                            }
+                          />
+                        )}
+                        right={() => (
+                          <IconButton
+                            icon="close"
+                            onPress={() => removePendingRelationship(relationshipDraft.key)}
+                            accessibilityLabel={t(K.personForm.removePendingRelationship)}
+                          />
+                        )}
+                      />
+                    );
+                  })}
+                  <Button
+                    mode="text"
+                    icon="plus"
+                    onPress={openAddConnectionDialog}
+                    disabled={loading || relationshipCandidates.length === 0}
+                    style={styles.addConnectionButton}
+                  >
+                    {addAnotherConnectionLabel}
+                  </Button>
+                </View>
+              ) : null}
             </ScrollView>
           </Dialog.ScrollArea>
           <Dialog.Actions style={[dialogChrome.dialogActions, styles.dialogActions, { borderTopColor: theme.colors.outlineVariant, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
