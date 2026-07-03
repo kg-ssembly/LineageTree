@@ -13,5 +13,6 @@ export { default as RelationshipInsightCard } from './relationship-insight-card'
 export { FloatingSnackbar } from './floating-snackbar';
 export { default as SharedLoader } from './shared-loader';
 export { default as StartupModal } from './startup-modal';
+export { MaidenTreeSuggestionDialog } from './maiden-tree-suggestion-dialog';
 export { default as TreeFormDialog } from './tree-form-dialog';
 export { ScreenBackground, SectionCard, TabStripCard } from './ui';

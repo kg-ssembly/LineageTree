@@ -56,6 +56,7 @@ interface PersonFormDialogProps {
   relationshipCandidates?: PersonRecord[];
   /** All existing relationships in the tree — used to suggest co-parents */
   relationships?: RelationshipRecord[];
+  onSelectRelationshipAttempt?: (mode: PendingRelationshipMode, relatedPerson: PersonRecord) => Promise<boolean> | boolean;
   onDismiss: () => void;
   onSubmit: (payload: PersonFormSubmission) => void | Promise<void>;
   onDelete?: () => void | Promise<void>;
@@ -196,6 +197,7 @@ export default function PersonFormDialog({
   existingLastNames = [],
   relationshipCandidates = [],
   relationships = [],
+  onSelectRelationshipAttempt,
   onDismiss,
   onSubmit,
   onDelete,
@@ -1134,6 +1136,7 @@ export default function PersonFormDialog({
         newPersonName={firstName}
         onDismiss={() => setAddConnectionDialogVisible(false)}
         onSelectRelationship={handleAddConnection}
+        onSelectRelationshipAttempt={onSelectRelationshipAttempt}
       />
       <Portal>
         <Dialog

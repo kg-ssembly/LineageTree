@@ -10,10 +10,7 @@ import type { PendingRelationshipSubmission } from './person-form-dialog';
 import type { RelationshipRecord } from './dto/relationship';
 import { DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND } from './dto/relationship';
 import { getRelationshipValidationFeedback } from './family-tree-validation';
-
-function formatPersonName(person: PersonRecord) {
-  return [person.firstName, person.middleNames ?? '', person.lastName].join(' ').replace(/\s+/g, ' ').trim();
-}
+import { formatPersonName as formatPersonDisplayName } from './person-formatting';
 
 const dialogChrome = GlobalStyles.dialogChrome;
 const PAGE_SIZE = 5;
@@ -36,6 +33,7 @@ type AddPersonEntryDialogProps = {
   newPersonName?: string;
   onDismiss: () => void;
   onSelectRelationship: (mode: PendingRelationshipMode, relatedPerson: PersonRecord) => void;
+  onSelectRelationshipAttempt?: (mode: PendingRelationshipMode, relatedPerson: PersonRecord) => Promise<boolean> | boolean;
   onAddFirstFamilyMember?: () => void;
 };
 
@@ -76,6 +74,7 @@ export default function AddPersonEntryDialog({
   newPersonName,
   onDismiss,
   onSelectRelationship,
+  onSelectRelationshipAttempt,
   onAddFirstFamilyMember,
 }: AddPersonEntryDialogProps) {
   const theme = useTheme();
@@ -136,7 +135,7 @@ export default function AddPersonEntryDialog({
     return relationshipCandidates.filter((candidate) => (
       !excludedPersonIds.has(candidate.id)
       && (
-      !normalizedQuery || formatPersonName(candidate).toLowerCase().includes(normalizedQuery)
+      !normalizedQuery || formatPersonDisplayName(candidate).toLowerCase().includes(normalizedQuery)
       )
     ));
   }, [existingPendingRelationships, relationshipCandidates, searchQuery, selectedMode]);
@@ -171,7 +170,14 @@ export default function AddPersonEntryDialog({
     setPage(0);
   };
 
-  const handleRelationshipSelection = (mode: PendingRelationshipMode, relatedPerson: PersonRecord) => {
+  const handleRelationshipSelection = async (mode: PendingRelationshipMode, relatedPerson: PersonRecord) => {
+    if (onSelectRelationshipAttempt) {
+      const shouldContinue = await onSelectRelationshipAttempt(mode, relatedPerson);
+      if (!shouldContinue) {
+        return;
+      }
+    }
+
     const pendingValidationRelationships: RelationshipRecord[] = existingPendingRelationships.map((relationship, index) => ({
       id: `__pending-relationship__-${index}`,
       treeId: '',
@@ -265,14 +271,14 @@ export default function AddPersonEntryDialog({
                   {paginatedCandidates.map((candidate) => (
                     <List.Item
                       key={candidate.id}
-                      title={formatPersonName(candidate)}
+                      title={formatPersonDisplayName(candidate)}
                       description={t(
                         selectedMode === 'parent-of'
                           ? K.relationship.createParentForName
                           : selectedMode === 'child-of'
                             ? K.relationship.createChildForName
                             : K.relationship.createSpouseForName,
-                        { name: formatPersonName(candidate) },
+                        { name: formatPersonDisplayName(candidate) },
                       )}
                       left={(props) => (
                         <List.Icon
@@ -288,7 +294,7 @@ export default function AddPersonEntryDialog({
                       )}
                       right={(props) => <List.Icon {...props} icon="chevron-right" />}
                       onPress={() => {
-                        handleRelationshipSelection(selectedMode, candidate);
+                        void handleRelationshipSelection(selectedMode, candidate);
                       }}
                     />
                   ))}
@@ -299,7 +305,7 @@ export default function AddPersonEntryDialog({
                   ) : null}
                 </View>
               </ScrollView>
-              {filteredCandidates.length > 0 ? (
+              {totalPages > 1 ? (
                 <View style={{ marginTop: 12, gap: 8 }}>
                   <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center' }}>
                     {t(K.app.resultsPageCount, { current: page + 1, total: totalPages })}
@@ -367,7 +373,7 @@ export default function AddPersonEntryDialog({
                     : reviewState.mode === 'child-of'
                       ? K.relationship.createChildForName
                       : K.relationship.createSpouseForName,
-                  { name: formatPersonName(reviewState.relatedPerson) },
+                  { name: formatPersonDisplayName(reviewState.relatedPerson) },
                 )}
               </Text>
               <Text variant="bodyMedium">

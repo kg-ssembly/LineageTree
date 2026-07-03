@@ -3,27 +3,8 @@ import type { FamilyTree } from '../../components/dto/tree';
 import { getUserNameParts, type UserProfile } from '../../components/dto/user';
 import type { ParentChildRelationshipKind, SpouseRelationshipStatus } from '../../components/dto/relationship';
 import type { PersonFormSubmission } from '../../components/person-form-dialog';
-
-export function normaliseSurnameKey(value: string) {
-  return value.trim().toLowerCase().replace(/\s+/g, ' ');
-}
-
-export function treeMatchesSurname(tree: FamilyTree, surname: string) {
-  const key = normaliseSurnameKey(surname);
-  if (!key) {
-    return false;
-  }
-
-  if (normaliseSurnameKey(tree.name) === key) {
-    return true;
-  }
-
-  return tree.surnameVariantGroups.some((group) => (
-    [group.primarySurname, ...group.variants]
-      .map(normaliseSurnameKey)
-      .includes(key)
-  ));
-}
+import { treeMatchesSurname } from '../../providers/maiden-tree-search';
+export { findMaidenTreeCandidates, normaliseSurnameKey, type MaidenTreeSuggestionCandidate } from '../../providers/maiden-tree-search';
 
 export function findConnectedTreeForSurname(
   person: PersonRecord,

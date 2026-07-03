@@ -179,7 +179,13 @@ export default function RelationshipInsightCard({
 
         {!lockedFromPersonId ? (
           <View style={styles.section}>
-            <Button mode="outlined" icon="account-search" onPress={() => openPicker('from')}>
+            <Button
+              mode="outlined"
+              icon="share-variant"
+              buttonColor={theme.colors.surface}
+              textColor={theme.colors.primary}
+              onPress={() => openPicker('from')}
+            >
               {fromPerson ? formatPersonName(fromPerson) : t(K.common.selectFamilyMember)}
             </Button>
           </View>
@@ -187,8 +193,10 @@ export default function RelationshipInsightCard({
 
         <View style={styles.section}>
           <Button
-            mode="contained-tonal"
-            icon="account-search"
+            mode="outlined"
+            icon="share-variant"
+            buttonColor={theme.colors.surface}
+            textColor={theme.colors.primary}
             onPress={() => openPicker('to')}
             disabled={!fromPersonId}
           >
@@ -326,7 +334,7 @@ export default function RelationshipInsightCard({
               </View>
             )}
 
-            {filteredPickerCandidates.length > 0 ? (
+            {totalPickerPages > 1 ? (
               <View style={styles.paginationRow}>
                 <IconButton
                   icon="chevron-left"

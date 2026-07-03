@@ -5,6 +5,7 @@ import {
   AddPersonEntryDialog,
   ConfirmDialog,
   FloatingSnackbar,
+  MaidenTreeSuggestionDialog,
   PersonFormDialog,
   RelationshipDialog,
   ScreenBackground,
@@ -67,6 +68,7 @@ export function MainScreenView({ controller }: { controller: ReturnType<typeof u
         relationships={controller.relationships}
         onDismiss={controller.closeAddPersonChooser}
         onSelectRelationship={controller.handleAddPersonEntrySelection}
+        onSelectRelationshipAttempt={controller.handleMaidenParentSelectionAttempt}
         onAddFirstFamilyMember={controller.handleAddFirstFamilyMember}
       />
 
@@ -85,6 +87,7 @@ export function MainScreenView({ controller }: { controller: ReturnType<typeof u
           await controller.onDeletePerson(controller.personDialog.person!);
           controller.closePersonDialog();
         } : undefined}
+        onSelectRelationshipAttempt={controller.handleMaidenParentSelectionAttempt}
       />
 
       <PersonFormDialog
@@ -127,6 +130,16 @@ export function MainScreenView({ controller }: { controller: ReturnType<typeof u
       />
 
       <Portal>
+        <MaidenTreeSuggestionDialog
+          visible={controller.maidenTreeSuggestion.visible && !isSharedLoaderVisible}
+          surname={controller.maidenTreeSuggestion.person?.maidenName?.trim() ?? ''}
+          candidates={controller.maidenTreeSuggestion.relatedTreeCandidates}
+          theme={controller.theme}
+          t={controller.t}
+          onDismiss={controller.closeMaidenTreeSuggestion}
+          onOpenTree={controller.openMaidenTreeCandidate}
+          onRequestAccess={controller.requestMaidenTreeAccess}
+        />
         <Dialog
           visible={controller.treeNameSuggestion.visible && !isSharedLoaderVisible}
           onDismiss={controller.mutating ? undefined : controller.closeTreeNameSuggestion}

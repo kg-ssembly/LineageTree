@@ -32,7 +32,13 @@ import {
   getActivityNotificationCount,
   getTreeById,
 } from '../tree-tabs/shared';
-import { buildSelfPersonInitialValues, createPersonFromFormSubmission, findConnectedTreeForSurname } from '../tree-screen-helpers';
+import {
+  buildSelfPersonInitialValues,
+  createPersonFromFormSubmission,
+  findConnectedTreeForSurname,
+  findMaidenTreeCandidates,
+  type MaidenTreeSuggestionCandidate,
+} from '../tree-screen-helpers';
 import { CURRENT_APP_VERSION } from '../../../constants/app-metadata';
 import { getCurrentReleaseNote } from '../../../constants/release-notes';
 import type { AppLanguage } from '../../../i18n';
@@ -91,6 +97,13 @@ export type TreeNameSuggestionState = {
   visible: boolean;
   requestedName: string;
   matches: DiscoverableTreeSummary[];
+};
+
+export type MaidenTreeSuggestionState = {
+  visible: boolean;
+  person: PersonRecord | null;
+  relatedTreeCandidates: MaidenTreeSuggestionCandidate[];
+  pendingRelationships: PendingRelationshipSubmission[];
 };
 
 type MemberProfileParams = {
@@ -252,6 +265,12 @@ export function useMainScreenController({ navigation }: Props) {
     visible: false,
     requestedName: '',
     matches: [],
+  });
+  const [maidenTreeSuggestion, setMaidenTreeSuggestion] = useState<MaidenTreeSuggestionState>({
+    visible: false,
+    person: null,
+    relatedTreeCandidates: [],
+    pendingRelationships: [],
   });
   const [confirmState, setConfirmState] = useState<ConfirmState>({
     visible: false,
@@ -551,19 +570,84 @@ export function useMainScreenController({ navigation }: Props) {
     setTreeNameSuggestion({ visible: false, requestedName: '', matches: [] });
   }, []);
 
+  const closeMaidenTreeSuggestion = useCallback(() => {
+    setMaidenTreeSuggestion({
+      visible: false,
+      person: null,
+      relatedTreeCandidates: [],
+      pendingRelationships: [],
+    });
+  }, []);
+
+  const openMaidenTreeCandidate = useCallback((treeId: string) => {
+    const targetTree = trees.find((tree) => tree.id === treeId);
+    if (!targetTree || !selectedTree) {
+      return;
+    }
+
+    closeMaidenTreeSuggestion();
+    navigation.navigate('TreeDetail', {
+      treeId: targetTree.id,
+      initialTab: 'VisualisationTab',
+      returnTreeId: selectedTree.id,
+    });
+  }, [closeMaidenTreeSuggestion, navigation, selectedTree, trees]);
+
+  const requestMaidenTreeAccess = useCallback(async (treeId: string) => {
+    if (!user?.id) {
+      return;
+    }
+
+    await requestTreeAccess(user.id, treeId);
+    closeMaidenTreeSuggestion();
+  }, [closeMaidenTreeSuggestion, requestTreeAccess, user?.id]);
+
+  const handleMaidenParentSelectionAttempt = useCallback(async (mode: PendingRelationshipSubmission['mode'], relatedPerson: PersonRecord) => {
+    if (mode !== 'parent-of' || !relatedPerson.maidenName?.trim() || !user?.id || !selectedTree) {
+      return true;
+    }
+
+    const relatedTreeCandidates = await findMaidenTreeCandidates(
+      relatedPerson,
+      trees,
+      (searchTerm) => searchDiscoverableTrees(searchTerm, user.id),
+      selectedTree.id,
+    );
+
+    if (relatedTreeCandidates.length > 0) {
+      setMaidenTreeSuggestion({
+        visible: true,
+        person: relatedPerson,
+        relatedTreeCandidates,
+        pendingRelationships: [{ mode, relatedPersonId: relatedPerson.id }],
+      });
+      return false;
+    }
+
+    return true;
+  }, [searchDiscoverableTrees, selectedTree, trees, user?.id]);
+
   const openCreateTreeDialog = useCallback(() => {
     setTreeDialog({ visible: true, mode: 'create', tree: null });
   }, []);
 
   const openCreateRelativeDialog = useCallback((mode: PendingRelationshipSubmission['mode'], relatedPerson: PersonRecord) => {
     setNodeQuickActionState({ visible: false, person: null });
-    setPersonDialog({
-      visible: true,
-      mode: 'create',
-      person: null,
-      initialPendingRelationships: [{ mode, relatedPersonId: relatedPerson.id }],
-    });
-  }, []);
+
+    void (async () => {
+      const shouldContinue = await handleMaidenParentSelectionAttempt(mode, relatedPerson);
+      if (!shouldContinue) {
+        return;
+      }
+
+      setPersonDialog({
+        visible: true,
+        mode: 'create',
+        person: null,
+        initialPendingRelationships: [{ mode, relatedPersonId: relatedPerson.id }],
+      });
+    })();
+  }, [handleMaidenParentSelectionAttempt]);
 
   const handleTreeDialogSubmit = useCallback(async (name: string) => {
     if (!user) {
@@ -860,8 +944,13 @@ export function useMainScreenController({ navigation }: Props) {
   }, []);
 
   const onOpenAddPerson = useCallback(() => {
+    if (people.length === 0) {
+      openCreatePersonDialog();
+      return;
+    }
+
     setAddPersonChooserVisible(true);
-  }, []);
+  }, [openCreatePersonDialog, people.length]);
 
   const handleAddPersonEntrySelection = useCallback((mode: PendingRelationshipMode, relatedPerson: PersonRecord) => {
     setAddPersonChooserVisible(false);
@@ -1487,6 +1576,7 @@ export function useMainScreenController({ navigation }: Props) {
     handleOpenMaidenFamilyTree,
     handleAddPersonEntrySelection,
     handleAddFirstFamilyMember,
+    handleMaidenParentSelectionAttempt,
     openCreateTreeDialog,
     memberProfileNavigation,
     memberProfileParams,
@@ -1527,11 +1617,15 @@ export function useMainScreenController({ navigation }: Props) {
     pendingTreeAccessRequest,
     priorityAlert,
     treeNameSuggestion,
+    maidenTreeSuggestion,
     dismissPriorityAlert,
     continueCreatingSuggestedTree,
+    closeMaidenTreeSuggestion,
     handleDiscoverabilityPromptChoice,
     openPriorityAlertTarget,
     requestAccessToSuggestedTree,
+    openMaidenTreeCandidate,
+    requestMaidenTreeAccess,
     respondToPriorityMergeInvite,
     respondToPriorityTreeAccess,
     handleStartupLanguageSubmit,

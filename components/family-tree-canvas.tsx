@@ -224,6 +224,50 @@ function buildLineageSubtree(
   };
 }
 
+function countLineageGenerations(
+  people: PersonRecord[],
+  relationships: RelationshipRecord[],
+  rootPersonId: string | undefined,
+  direction: 'descendant' | 'ascendant',
+) {
+  if (!rootPersonId) {
+    return 0;
+  }
+
+  const peopleById = new Map(people.map((person) => [person.id, person]));
+  if (!peopleById.has(rootPersonId)) {
+    return 0;
+  }
+
+  const linkMap = new Map<string, Set<string>>();
+  relationships.forEach((relationship) => {
+    if (relationship.type !== 'parent-child') {
+      return;
+    }
+
+    const from = direction === 'descendant' ? relationship.fromPersonId : relationship.toPersonId;
+    const to = direction === 'descendant' ? relationship.toPersonId : relationship.fromPersonId;
+    if (!linkMap.has(from)) {
+      linkMap.set(from, new Set());
+    }
+    linkMap.get(from)!.add(to);
+  });
+
+  const lineage = new Set<string>([rootPersonId]);
+  const queue = [rootPersonId];
+  for (let queueIndex = 0; queueIndex < queue.length; queueIndex += 1) {
+    const current = queue[queueIndex];
+    (linkMap.get(current) ?? new Set()).forEach((next) => {
+      if (peopleById.has(next) && !lineage.has(next)) {
+        lineage.add(next);
+        queue.push(next);
+      }
+    });
+  }
+
+  return Math.max(0, lineage.size - 1);
+}
+
 // ---------------------------------------------------------------------------
 // Memoized PersonNode — wrapped in Pressable so taps work at any zoom level
 // ---------------------------------------------------------------------------
@@ -860,7 +904,26 @@ function FamilyTreeCanvas({
   }, []);
 
   // ---- Labels ----
-  const controlsLabel = lineageMode === 'ascendant'
+  const lineageCounts = useMemo(() => {
+    if (ascendantRootPersonId) {
+      return {
+        descendants: 0,
+        ancestors: countLineageGenerations(renderedPeople, renderedRelationships, ascendantRootPersonId, 'ascendant'),
+      };
+    }
+
+    if (descendantRootPersonId) {
+      return {
+        descendants: countLineageGenerations(renderedPeople, renderedRelationships, descendantRootPersonId, 'descendant'),
+        ancestors: 0,
+      };
+    }
+
+    return null;
+  }, [ascendantRootPersonId, descendantRootPersonId, renderedPeople, renderedRelationships]);
+  const controlsLabel = lineageCounts
+    ? `${lineageCounts.descendants} ${t(K.lineage.descendants)}, ${lineageCounts.ancestors} ${t(K.lineage.ancestors)}`
+    : lineageMode === 'ascendant'
       ? t(K.lineage.canvasControlsAscendants)
       : lineageMode === 'descendant'
           ? t(K.lineage.canvasControlsDescendants)

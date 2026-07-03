@@ -14,6 +14,7 @@ import {
   CollaboratorDialog,
   ConfirmDialog,
   FloatingSnackbar,
+  MaidenTreeSuggestionDialog,
   PersonFormDialog,
   RelationshipDialog,
   SharedLoader,
@@ -48,6 +49,8 @@ import {
   buildSelfPersonInitialValues,
   createPersonFromFormSubmission,
   findConnectedTreeForSurname,
+  findMaidenTreeCandidates,
+  type MaidenTreeSuggestionCandidate,
 } from '../tree-screen-helpers';
 import { TreeDetailMaidenViewer } from './tree-detail-maiden-viewer';
 import { TreeDetailNodeQuickActionsDialog } from '../profile-shared';
@@ -83,6 +86,13 @@ type TreeSettingsFocus = {
 
 type ViewerProfileTabKey = 'summary' | 'life' | 'photos';
 type TreeBundleState = Awaited<ReturnType<typeof getTreeBundle>> | null;
+
+type MaidenTreeSuggestionState = {
+  visible: boolean;
+  person: PersonRecord | null;
+  relatedTreeCandidates: MaidenTreeSuggestionCandidate[];
+  pendingRelationships: PendingRelationshipSubmission[];
+};
 
 const MAIDEN_MEMBERS_PER_PAGE = 3;
 
@@ -209,6 +219,12 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
   const [collaboratorDialogVisible, setCollaboratorDialogVisible] = useState(false);
   const [followUpTreePromptsPending, setFollowUpTreePromptsPending] = useState(false);
   const [nodeQuickActionState, setNodeQuickActionState] = useState<NodeQuickActionState>({ visible: false, person: null });
+  const [maidenTreeSuggestion, setMaidenTreeSuggestion] = useState<MaidenTreeSuggestionState>({
+    visible: false,
+    person: null,
+    relatedTreeCandidates: [],
+    pendingRelationships: [],
+  });
   const [snackVisible, setSnackVisible] = useState(false);
   const [confirmState, setConfirmState] = useState<ConfirmState>({
     visible: false,
@@ -536,15 +552,80 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     setMaidenMembersVisible(false);
   }, []);
 
+  const handleMaidenParentSelectionAttempt = useCallback(async (mode: PendingRelationshipMode, relatedPerson: PersonRecord) => {
+    if (mode !== 'parent-of' || !relatedPerson.maidenName?.trim() || !user?.id || !selectedTree) {
+      return true;
+    }
+
+    const relatedTreeCandidates = await findMaidenTreeCandidates(
+      relatedPerson,
+      trees,
+      (searchTerm) => searchDiscoverableTrees(searchTerm, user.id),
+      selectedTree.id,
+    );
+
+    if (relatedTreeCandidates.length > 0) {
+      setMaidenTreeSuggestion({
+        visible: true,
+        person: relatedPerson,
+        relatedTreeCandidates,
+        pendingRelationships: [{ mode, relatedPersonId: relatedPerson.id }],
+      });
+      return false;
+    }
+
+    return true;
+  }, [searchDiscoverableTrees, selectedTree, trees, user?.id]);
+
   const openCreateRelativeDialog = useCallback((mode: PendingRelationshipSubmission['mode'], relatedPerson: PersonRecord) => {
     setNodeQuickActionState({ visible: false, person: null });
-    setPersonDialog({
-      visible: true,
-      mode: 'create',
+
+    void (async () => {
+      const shouldContinue = await handleMaidenParentSelectionAttempt(mode, relatedPerson);
+      if (!shouldContinue) {
+        return;
+      }
+
+      setPersonDialog({
+        visible: true,
+        mode: 'create',
+        person: null,
+        initialPendingRelationships: [{ mode, relatedPersonId: relatedPerson.id }],
+      });
+    })();
+  }, [handleMaidenParentSelectionAttempt]);
+
+  const closeMaidenTreeSuggestion = useCallback(() => {
+    setMaidenTreeSuggestion({
+      visible: false,
       person: null,
-      initialPendingRelationships: [{ mode, relatedPersonId: relatedPerson.id }],
+      relatedTreeCandidates: [],
+      pendingRelationships: [],
     });
   }, []);
+
+  const openMaidenTreeCandidate = useCallback((treeId: string) => {
+    const targetTree = trees.find((tree) => tree.id === treeId);
+    if (!targetTree || !selectedTree) {
+      return;
+    }
+
+    closeMaidenTreeSuggestion();
+    navigation.navigate('TreeDetail', {
+      treeId: targetTree.id,
+      initialTab: 'VisualisationTab',
+      returnTreeId: selectedTree.id,
+    });
+  }, [closeMaidenTreeSuggestion, navigation, selectedTree, trees]);
+
+  const requestMaidenTreeAccess = useCallback(async (treeId: string) => {
+    if (!user?.id) {
+      return;
+    }
+
+    await requestTreeAccess(user.id, treeId);
+    closeMaidenTreeSuggestion();
+  }, [closeMaidenTreeSuggestion, requestTreeAccess, user?.id]);
 
   const handleConfirm = useCallback(async () => {
     if (!confirmState.action) {
@@ -741,7 +822,14 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     initialPendingRelationships,
   }), []);
 
-  const onOpenAddPerson = useCallback(() => setAddPersonChooserVisible(true), []);
+  const onOpenAddPerson = useCallback(() => {
+    if (people.length === 0) {
+      openCreatePersonDialog();
+      return;
+    }
+
+    setAddPersonChooserVisible(true);
+  }, [openCreatePersonDialog, people.length]);
   const handleAddPersonEntrySelection = useCallback((mode: PendingRelationshipMode, relatedPerson: PersonRecord) => {
     setAddPersonChooserVisible(false);
     openCreatePersonDialog(
@@ -1065,6 +1153,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
         relationships={relationships}
         onDismiss={closeAddPersonChooser}
         onSelectRelationship={handleAddPersonEntrySelection}
+        onSelectRelationshipAttempt={handleMaidenParentSelectionAttempt}
         onAddFirstFamilyMember={handleAddFirstFamilyMember}
       />
 
@@ -1087,6 +1176,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
           await onDeletePerson(person);
           closePersonDialog();
         } : undefined}
+        onSelectRelationshipAttempt={handleMaidenParentSelectionAttempt}
       />
 
       <PersonFormDialog
@@ -1123,6 +1213,17 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
         canvasActiveFamilyRef={canvasActiveFamilyRef}
         canvasFamilySwitchRef={canvasFamilySwitchRef}
         onOpenMaidenFamilyTree={handleOpenMaidenFamilyTree}
+      />
+
+      <MaidenTreeSuggestionDialog
+        visible={maidenTreeSuggestion.visible && !isSharedLoaderVisible}
+        surname={maidenTreeSuggestion.person?.maidenName?.trim() ?? ''}
+        candidates={maidenTreeSuggestion.relatedTreeCandidates}
+        theme={theme}
+        t={t}
+        onDismiss={closeMaidenTreeSuggestion}
+        onOpenTree={openMaidenTreeCandidate}
+        onRequestAccess={requestMaidenTreeAccess}
       />
 
       <ConfirmDialog
