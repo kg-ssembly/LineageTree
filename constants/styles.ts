@@ -1,35 +1,35 @@
 import {StyleSheet} from 'react-native';
 import type { AppTheme } from './theme';
 
-// ── Soft neutral palette constants (mirrors theme.ts softPalettes) ───────────
+// ── Shared chrome palette constants (mirrors theme.ts light palette) ─────────
 const F = {
-  background:       '#FBF6F0',
-  surface:          '#FFFDFC',
-  surfaceVariant:   '#F3EADF',
-  outlineVariant:   '#DECFC1',
-  onSurface:        '#201A16',
-  onSurfaceVariant: '#6D5C4E',
-  onSurfaceDeep:    '#3C3027',
-  primaryGreen:     '#2E7D67',
-  canvasBg:         '#F8F1E8',
-  canvasBorder:     '#E1D3C4',
-  nodeBg:           '#FFFDFC',
-  nodeBorder:       '#DECFC1',
-  avatarBg:         '#F2E6D8',
-  avatarBorder:     '#E4D2BF',
-  hintBg:           '#F5EDE3',
-  pendingBg:        '#FBF5EE',
-  pendingBorder:    '#E1D3C4',
-  photoPreferred:   '#2E7D67',
-  photoBg:          '#F2E6D8',
+  background:       '#FAF7F2',
+  surface:          '#FFFFFF',
+  surfaceVariant:   '#F1E8DE',
+  outlineVariant:   '#DDD0C3',
+  onSurface:        '#211A16',
+  onSurfaceVariant: '#6B5B4C',
+  onSurfaceDeep:    '#3F332B',
+  primaryGreen:     '#166B51',
+  canvasBg:         '#F7F0E8',
+  canvasBorder:     '#DCCFC2',
+  nodeBg:           '#FFFFFF',
+  nodeBorder:       '#DDD0C3',
+  avatarBg:         '#F2E7DA',
+  avatarBorder:     '#E5D7C8',
+  hintBg:           '#F6EFE6',
+  pendingBg:        '#FBF7F1',
+  pendingBorder:    '#DDD0C3',
+  photoPreferred:   '#166B51',
+  photoBg:          '#F1E5D7',
 };
 
 const CARD_CHROME = {
     shadowColor: '#2A1C14',
-    shadowOpacity: 0.1,
-    shadowRadius: 22,
-    shadowOffset: {width: 0, height: 10},
-    elevation: 4,
+    shadowOpacity: 0.12,
+    shadowRadius: 26,
+    shadowOffset: {width: 0, height: 12},
+    elevation: 5,
 } as const;
 
 export const BUTTON_CHROME = {

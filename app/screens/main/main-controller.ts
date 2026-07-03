@@ -22,6 +22,7 @@ import { useI18n } from '../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../i18n/keys';
 import { useAuthStore } from '../../../stores/auth-store';
 import { useTreeStore } from '../../../stores/tree-store';
+import { useThemeStore } from '../../../stores/theme-store';
 import { useShallow } from 'zustand/react/shallow';
 import { getTreeDeletionImpact, type DiscoverableTreeSummary } from '../../../providers/family-tree-service';
 import type { SharedTabProps } from '../tree-tab-content';
@@ -42,6 +43,7 @@ import {
 import { CURRENT_APP_VERSION } from '../../../constants/app-metadata';
 import { getCurrentReleaseNote } from '../../../constants/release-notes';
 import type { AppLanguage } from '../../../i18n';
+import type { ThemePreference } from '../../../constants/theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Main'>;
 
@@ -131,6 +133,8 @@ export function useMainScreenController({ navigation }: Props) {
     markAppVersionSeen,
     markDiscoverabilityPromptSeen,
   } = useAuthStore();
+  const themePreference = useThemeStore((state) => state.preference);
+  const setThemePreference = useThemeStore((state) => state.setPreference);
   const {
     trees,
     selectedTreeId,
@@ -405,15 +409,16 @@ export function useMainScreenController({ navigation }: Props) {
     || shouldShowUpdateModal
     || shouldShowDiscoverabilityPrompt;
 
-  const handleStartupLanguageSubmit = useCallback(async (nextLanguage: AppLanguage) => {
+  const handleStartupPreferencesSubmit = useCallback(async (preferences: { theme: ThemePreference; language: AppLanguage }) => {
     setStartupModalSubmitting(true);
     try {
-      await setLanguage(nextLanguage);
-      await updatePreferredLanguage(nextLanguage);
+      await setThemePreference(preferences.theme);
+      await setLanguage(preferences.language);
+      await updatePreferredLanguage(preferences.language);
     } finally {
       setStartupModalSubmitting(false);
     }
-  }, [setLanguage, updatePreferredLanguage]);
+  }, [setLanguage, setThemePreference, updatePreferredLanguage]);
 
   const handleUpdateModalDismiss = useCallback(async () => {
     setStartupModalSubmitting(true);
@@ -1602,6 +1607,7 @@ export function useMainScreenController({ navigation }: Props) {
     snackVisible,
     startupModal: {
       currentVersion: currentReleaseNote.version,
+      initialTheme: themePreference,
       initialLanguage: user?.preferredLanguage ?? language,
       loading: startupModalSubmitting,
       mode: (shouldShowLanguageModal ? 'language' : 'update') as 'language' | 'update',
@@ -1628,7 +1634,7 @@ export function useMainScreenController({ navigation }: Props) {
     requestMaidenTreeAccess,
     respondToPriorityMergeInvite,
     respondToPriorityTreeAccess,
-    handleStartupLanguageSubmit,
+    handleStartupPreferencesSubmit,
     handleUpdateModalDismiss,
     onCancelTreeAccessRequest,
     onRequestTreeAccess,

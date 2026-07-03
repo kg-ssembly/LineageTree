@@ -228,9 +228,10 @@ export function MainScreenView({ controller }: { controller: ReturnType<typeof u
         mode={controller.startupModal.mode}
         currentVersion={controller.startupModal.currentVersion}
         updateHighlights={controller.startupModal.updateHighlights}
+        initialTheme={controller.startupModal.initialTheme}
         initialLanguage={controller.startupModal.initialLanguage}
         loading={controller.startupModal.loading}
-        onSubmitLanguage={controller.handleStartupLanguageSubmit}
+        onSubmitPreferences={controller.handleStartupPreferencesSubmit}
         onDismissUpdate={controller.handleUpdateModalDismiss}
       />
 
