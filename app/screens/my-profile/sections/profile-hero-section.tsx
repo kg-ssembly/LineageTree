@@ -1,8 +1,8 @@
 import React from 'react';
 import { Image, View } from 'react-native';
-import { Avatar, Chip, IconButton, Surface, Text, useTheme } from 'react-native-paper';
+import { Avatar, Chip, IconButton, Text, useTheme } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Reveal } from '../../../../components';
+import { Reveal, SectionCard } from '../../../../components';
 import type { PersonRecord } from '../../../../components/dto/person';
 import { getPersonLifeSpanLabel, isPersonDeceased, type PersonPhoto } from '../../../../components/dto/person';
 import { formatPersonName } from '../../../../components/person-formatting';
@@ -38,7 +38,7 @@ export function ProfileHeroSection({
   if (shouldShowLinkedProfileTabs) {
     return (
       <Reveal delay={60}>
-        <Surface style={[personProfileStyles.heroCard, { backgroundColor: chrome.primaryCardBackground }]} elevation={1}>
+        <SectionCard variant="person" backgroundColor={chrome.primaryCardBackground} style={personProfileStyles.heroCard}>
           {canEditLinkedProfile ? (
             <IconButton
               icon="pencil"
@@ -79,14 +79,14 @@ export function ProfileHeroSection({
               </View>
             </View>
           </View>
-        </Surface>
+        </SectionCard>
       </Reveal>
     );
   }
 
   return (
     <Reveal delay={60}>
-      <Surface style={[personProfileStyles.heroCard, { backgroundColor: chrome.secondaryCardBackground }]} elevation={1}>
+      <SectionCard variant="person" backgroundColor={chrome.secondaryCardBackground} style={personProfileStyles.heroCard}>
         <View style={personProfileStyles.heroHeader}>
           <View style={personProfileStyles.heroAvatarRow}>
             <Avatar.Text
@@ -115,7 +115,7 @@ export function ProfileHeroSection({
             </View>
           </View>
         </View>
-      </Surface>
+      </SectionCard>
     </Reveal>
   );
 }

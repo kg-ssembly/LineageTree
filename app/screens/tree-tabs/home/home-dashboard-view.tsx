@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ScrollView, View, type LayoutChangeEvent } from 'react-native';
+import { ScrollView, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
-import { ActivityIndicator, Button, Card, Chip, Dialog, IconButton, Portal, Surface, Text, useTheme } from 'react-native-paper';
-import { FloatingSnackbar, HorizontalTabStrip, InfoDialog, Reveal, ScreenBackground, TabStripCard } from '../../../../components';
+import { ActivityIndicator, Button, Chip, Dialog, IconButton, Portal, Text, useTheme } from 'react-native-paper';
+import { FloatingSnackbar, HorizontalTabStrip, InfoDialog, Reveal, ScreenBackground, SectionCard, TabStripCard } from '../../../../components';
 import { getDisplayPersonPhoto } from '../../../../components/dto/person';
 import type { MainTabParamList } from '../../../../components/dto/navigation';
 import type { AppTheme } from '../../../../constants/theme';
@@ -108,6 +108,39 @@ function getUrgencyTone(theme: AppTheme, level: 'urgent' | 'attention' | 'calm')
     textColor: theme.colors.onTertiaryContainer,
     borderColor: theme.colors.tertiary,
   };
+}
+
+type DashboardCardProps = {
+  children: React.ReactNode;
+  style?: StyleProp<ViewStyle>;
+  backgroundColor: string;
+  borderColor: string;
+};
+
+function DashboardTaskCard({ children, style, backgroundColor, borderColor }: DashboardCardProps) {
+  return (
+    <SectionCard
+      nested
+      elevation={0}
+      backgroundColor={backgroundColor}
+      style={[styles.dashboardTaskCard, { borderColor }, style]}
+    >
+      {children}
+    </SectionCard>
+  );
+}
+
+function DashboardMetricCard({ children, style, backgroundColor, borderColor }: DashboardCardProps) {
+  return (
+    <SectionCard
+      nested
+      elevation={0}
+      backgroundColor={backgroundColor}
+      style={[styles.dashboardMetricCard, { borderColor }, style]}
+    >
+      {children}
+    </SectionCard>
+  );
 }
 
 function buildDashboardTasks(
@@ -1077,7 +1110,7 @@ export function HomeDashboardView(props: SharedTabProps) {
         showsVerticalScrollIndicator={false}
       >
         <Reveal delay={50}>
-          <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={2}>
+          <SectionCard elevation={2}>
           <View style={styles.sectionHeader}>
             <View style={styles.titleWrap}>
               <Text variant="headlineSmall">
@@ -1087,7 +1120,7 @@ export function HomeDashboardView(props: SharedTabProps) {
             <Chip icon="home-heart">{selectedTree.name}</Chip>
           </View>
 
-          </Surface>
+          </SectionCard>
         </Reveal>
 
         <Reveal delay={60}>
@@ -1108,26 +1141,27 @@ export function HomeDashboardView(props: SharedTabProps) {
 
       {dashboardTab !== 'highlights' && !isEmptyTree ? (
         <Reveal delay={70}>
-          <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
+          <SectionCard>
           {isSetupMode ? (
             <View>
               <View style={{ gap: 10 }}>
                 {setupSteps.map((step) => (
-                  <Surface
+                  <DashboardTaskCard
                     key={step.id}
-                    style={[styles.dashboardTaskCard, {
-                      backgroundColor: step.done
+                    backgroundColor={
+                      step.done
                         ? theme.colors.elevation.level1
                         : setupSteps[nextSetupStepIndex]?.id === step.id
                           ? theme.colors.secondaryContainer
-                          : theme.colors.surface,
-                      borderColor: step.done
+                          : theme.colors.surface
+                    }
+                    borderColor={
+                      step.done
                         ? theme.colors.primary
                         : setupSteps[nextSetupStepIndex]?.id === step.id
                           ? theme.colors.secondary
-                          : theme.colors.outlineVariant,
-                    }]}
-                    elevation={0}
+                          : theme.colors.outlineVariant
+                    }
                   >
                     <View style={styles.sectionHeader}>
                       <View style={styles.titleWrap}>
@@ -1151,7 +1185,7 @@ export function HomeDashboardView(props: SharedTabProps) {
                         </Button>
                       ) : null}
                     </View>
-                  </Surface>
+                  </DashboardTaskCard>
                 ))}
               </View>
             </View>
@@ -1160,13 +1194,10 @@ export function HomeDashboardView(props: SharedTabProps) {
           {!isSetupMode && bestNextStep ? (
             <View style={{ gap: 16 }}>
               {dashboardTab === 'overview' && heroAttentionCallout ? (
-                <Surface
-                  style={[styles.dashboardTaskCard, {
-                    backgroundColor: theme.colors.errorContainer,
-                    borderColor: theme.colors.error,
-                    marginBottom: 0,
-                  }]}
-                  elevation={0}
+                <DashboardTaskCard
+                  backgroundColor={theme.colors.errorContainer}
+                  borderColor={theme.colors.error}
+                  style={{ marginBottom: 0 }}
                 >
                   <View style={styles.sectionHeader}>
                     <View style={styles.titleWrap}>
@@ -1189,18 +1220,12 @@ export function HomeDashboardView(props: SharedTabProps) {
                       {heroAttentionCallout.buttonLabel}
                     </Button>
                   </View>
-                </Surface>
+                </DashboardTaskCard>
               ) : null}
 
-              <Surface
-                style={[
-                  styles.dashboardTaskCard,
-                  {
-                    backgroundColor: theme.colors.surface,
-                    borderColor: theme.colors.outlineVariant,
-                  },
-                ]}
-                elevation={0}
+              <DashboardTaskCard
+                backgroundColor={theme.colors.surface}
+                borderColor={theme.colors.outlineVariant}
               >
                 <View style={styles.sectionHeader}>
                   <View style={styles.titleWrap}>
@@ -1215,7 +1240,7 @@ export function HomeDashboardView(props: SharedTabProps) {
                     {heroAction.buttonLabel ?? heroAction.label}
                   </Button>
                 </View>
-              </Surface>
+              </DashboardTaskCard>
             </View>
           ) : dashboardLens === 'activity' ? (
             <View style={[styles.dashboardAccentCard, { backgroundColor: theme.colors.elevation.level1, borderColor: theme.colors.outlineVariant }]}>
@@ -1257,8 +1282,11 @@ export function HomeDashboardView(props: SharedTabProps) {
               </Text>
               <View style={{ marginTop: 14 }}>
                 {missingMemberDetails.map((item) => (
-                  <Card key={item.personId} mode="outlined" style={[styles.dashboardTaskCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant }]}>
-                    <Card.Content>
+                  <DashboardTaskCard
+                    key={item.personId}
+                    backgroundColor={theme.colors.surface}
+                    borderColor={theme.colors.outlineVariant}
+                  >
                       <View style={styles.sectionHeader}>
                         <View style={styles.titleWrap}>
                           <Text variant="titleMedium">{item.name}</Text>
@@ -1270,13 +1298,12 @@ export function HomeDashboardView(props: SharedTabProps) {
                           {t(K.home.reviewMemberDetails)}
                         </Button>
                       </View>
-                    </Card.Content>
-                  </Card>
+                  </DashboardTaskCard>
                 ))}
               </View>
             </View>
           ) : null}
-          </Surface>
+          </SectionCard>
         </Reveal>
       ) : null}
 
@@ -1284,7 +1311,7 @@ export function HomeDashboardView(props: SharedTabProps) {
         <>
           {isEmptyTree ? (
             <Reveal delay={90}>
-              <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
+              <SectionCard>
                 <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
                   {t(K.home.startTheTreeWithYourselfOrFirstRelative)}
                 </Text>
@@ -1298,7 +1325,7 @@ export function HomeDashboardView(props: SharedTabProps) {
                     </Button>
                   ) : null}
                 </View>
-              </Surface>
+              </SectionCard>
             </Reveal>
           ) : null}
 
@@ -1321,7 +1348,7 @@ export function HomeDashboardView(props: SharedTabProps) {
         <>
           {sinceLastVisit.length > 0 ? (
             <Reveal delay={105}>
-              <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1} onLayout={registerSectionOffset('since-last-visit')}>
+              <SectionCard onLayout={registerSectionOffset('since-last-visit')}>
                 <Text variant="titleLarge">{t(K.home.sinceYourLastVisit)}</Text>
                 <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
                   {t(K.home.aQuickDigestOfWhatChangedWhileYouWereAway)}
@@ -1333,13 +1360,13 @@ export function HomeDashboardView(props: SharedTabProps) {
                     </Chip>
                   ))}
                 </View>
-              </Surface>
+              </SectionCard>
             </Reveal>
           ) : null}
 
           {needsAttentionCount > 0 ? (
             <Reveal delay={120}>
-              <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
+              <SectionCard>
                 <Text variant="titleLarge">{t(K.notifications.needsAttention)}</Text>
                 <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
                   {t(K.home.sharedActivityThatCouldUseALookBeforeItSlipsOutOfView)}
@@ -1376,7 +1403,7 @@ export function HomeDashboardView(props: SharedTabProps) {
                     </Chip>
                   ) : null}
                 </View>
-              </Surface>
+              </SectionCard>
             </Reveal>
           ) : null}
 
@@ -1387,7 +1414,7 @@ export function HomeDashboardView(props: SharedTabProps) {
         visibleStoryTasks.length + visibleTreeTasks.length > 0 ? (
           <Reveal delay={140}>
             <View onLayout={registerSectionOffset('keep-building')}>
-              <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
+              <SectionCard>
                 <View style={styles.sectionHeader}>
                   <View style={styles.titleWrap}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -1413,8 +1440,11 @@ export function HomeDashboardView(props: SharedTabProps) {
                   {dashboardBundles.length > 0 ? (
                     <View style={styles.dashboardMetricRow}>
                       {dashboardBundles.map((bundle) => (
-                        <Card key={bundle.id} mode="outlined" style={[styles.dashboardMetricCard, { backgroundColor: theme.colors.elevation.level1, borderColor: theme.colors.outlineVariant }]}>
-                          <Card.Content>
+                        <DashboardMetricCard
+                          key={bundle.id}
+                          backgroundColor={theme.colors.elevation.level1}
+                          borderColor={theme.colors.outlineVariant}
+                        >
                             <Text variant="titleMedium">{bundle.title}</Text>
                             <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
                               {bundle.description}
@@ -1425,8 +1455,7 @@ export function HomeDashboardView(props: SharedTabProps) {
                             <Button mode={bundle.id === 'tree' ? 'contained' : 'outlined'} onPress={bundle.action} style={[BUTTON_CHROME, { alignSelf: 'flex-start', marginTop: 12 }]} buttonColor={theme.colors.primary} textColor={theme.colors.onPrimary} contentStyle={BUTTON_CONTENT_CHROME}>
                               {bundle.actionLabel}
                             </Button>
-                          </Card.Content>
-                        </Card>
+                        </DashboardMetricCard>
                       ))}
                     </View>
                   ) : null}
@@ -1444,8 +1473,10 @@ export function HomeDashboardView(props: SharedTabProps) {
                       <View style={{ marginTop: 12 }}>
                         {visibleStoryTasks.map((task, index) => (
                           <Reveal key={task.id} delay={170 + index * 35}>
-                            <Card mode="outlined" style={[styles.dashboardTaskCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant }]}>
-                              <Card.Content>
+                            <DashboardTaskCard
+                              backgroundColor={theme.colors.surface}
+                              borderColor={theme.colors.outlineVariant}
+                            >
                                 <View style={styles.sectionHeader}>
                                   <View style={styles.titleWrap}>
                                     <Text variant="titleMedium">{task.title}</Text>
@@ -1462,8 +1493,7 @@ export function HomeDashboardView(props: SharedTabProps) {
                                     </Button>
                                   </View>
                                 </View>
-                              </Card.Content>
-                            </Card>
+                            </DashboardTaskCard>
                           </Reveal>
                         ))}
                       </View>
@@ -1479,8 +1509,10 @@ export function HomeDashboardView(props: SharedTabProps) {
                       <View style={{ marginTop: 12 }}>
                         {visibleTreeTasks.map((task, index) => (
                           <Reveal key={task.id} delay={220 + index * 35}>
-                            <Card mode="outlined" style={[styles.dashboardTaskCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant }]}>
-                              <Card.Content>
+                            <DashboardTaskCard
+                              backgroundColor={theme.colors.surface}
+                              borderColor={theme.colors.outlineVariant}
+                            >
                                 <View style={styles.sectionHeader}>
                                   <View style={styles.titleWrap}>
                                     <Text variant="titleMedium">{task.title}</Text>
@@ -1497,8 +1529,7 @@ export function HomeDashboardView(props: SharedTabProps) {
                                     </Button>
                                   </View>
                                 </View>
-                              </Card.Content>
-                            </Card>
+                            </DashboardTaskCard>
                           </Reveal>
                         ))}
                       </View>
@@ -1506,12 +1537,12 @@ export function HomeDashboardView(props: SharedTabProps) {
                   ) : null}
                 </View>
                 ) : null}
-              </Surface>
+              </SectionCard>
             </View>
           </Reveal>
         ) : (
           <Reveal delay={140}>
-            <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
+            <SectionCard>
               <Text variant="titleLarge">{t(K.home.yourBuildListIsClear)}</Text>
               <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
                 {t(K.home.yourStoryAndTreePromptsAreCoveredForNowAddANewFamilyMemberOrOpenYourProfileToKeepGrowing)}
@@ -1529,7 +1560,7 @@ export function HomeDashboardView(props: SharedTabProps) {
                 {canEdit ? <Button mode="outlined" onPress={onOpenAddPerson} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>{t(K.home.addFamilyMember)}</Button> : null}
                 {dismissedTaskIds.length > 0 ? <Button mode="text" onPress={restoreHiddenPrompts} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>{t(K.home.restorePrompts)}</Button> : null}
               </View>
-            </Surface>
+            </SectionCard>
           </Reveal>
         )
       ) : null}

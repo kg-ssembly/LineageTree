@@ -1,8 +1,8 @@
 import React from 'react';
 import { Image, Modal, Pressable, ScrollView, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Button, Card, Chip, Dialog, IconButton, Portal, Text, TextInput } from 'react-native-paper';
-import { Reveal } from '../../../components';
+import { Button, Chip, Dialog, IconButton, Portal, Text, TextInput } from 'react-native-paper';
+import { Reveal, SectionCard } from '../../../components';
 import type { PersonPhoto, PersonRecord } from '../../../components/dto/person';
 import { formatPersonDate, getDisplayPersonPhoto, getPersonLifeSpanLabel, getPersonPresenceLabel } from '../../../components/dto/person';
 import { formatPersonName } from '../../../components/person-formatting';
@@ -154,8 +154,7 @@ export function TreeDetailMaidenViewer({
                         }}
                       >
                         <Reveal delay={70 + index * 30}>
-                          <Card mode="contained" style={{ borderRadius: 12 }}>
-                            <Card.Content style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                          <SectionCard nested style={{ borderRadius: 22, paddingVertical: 14, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                             {getDisplayPersonPhoto(person) ? (
                               <Image source={{ uri: getDisplayPersonPhoto(person)!.url }} style={{ width: 52, height: 52, borderRadius: 10 }} />
                             ) : (
@@ -170,8 +169,7 @@ export function TreeDetailMaidenViewer({
                               </Text>
                             </View>
                             <IconButton icon="chevron-right" size={18} />
-                            </Card.Content>
-                          </Card>
+                          </SectionCard>
                         </Reveal>
                       </Pressable>
                     ))}
@@ -240,8 +238,7 @@ export function TreeDetailMaidenViewer({
                 {viewerProfileTab === 'summary' ? (
                   <View style={{ gap: 12 }}>
                     <Reveal delay={80}>
-                      <Card mode="contained" style={{ borderRadius: 12 }}>
-                        <Card.Content>
+                      <SectionCard nested style={{ borderRadius: 22, paddingVertical: 14, paddingHorizontal: 14 }}>
                         <Text variant="titleMedium">{t(K.personProfile.howRelated)}</Text>
                         <Text variant="bodyMedium" style={{ marginTop: 8 }}>
                           {returnTreeAssignedPerson && viewerRelationshipInsight
@@ -253,12 +250,10 @@ export function TreeDetailMaidenViewer({
                               ? t(K.relationshipInsight.noRelationInTreeYet)
                               : t(K.relationshipInsight.noLinkedProfileInOriginalTree)}
                         </Text>
-                        </Card.Content>
-                      </Card>
+                      </SectionCard>
                     </Reveal>
                     <Reveal delay={100}>
-                      <Card mode="contained" style={{ borderRadius: 12 }}>
-                        <Card.Content>
+                      <SectionCard nested style={{ borderRadius: 22, paddingVertical: 14, paddingHorizontal: 14 }}>
                         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                           {viewerPerson.maidenName?.trim() ? <Chip>{viewerPerson.maidenName.trim()}</Chip> : null}
                           {viewerPerson.birthDate ? <Chip icon="calendar">{formatPersonDate(viewerPerson.birthDate)}</Chip> : null}
@@ -267,8 +262,7 @@ export function TreeDetailMaidenViewer({
                         <Text variant="bodyMedium" style={{ marginTop: 12, color: theme.colors.onSurfaceVariant }}>
                           {viewerPerson.notes?.trim() || t(K.memories.noNotesAddedYet)}
                         </Text>
-                        </Card.Content>
-                      </Card>
+                      </SectionCard>
                     </Reveal>
                   </View>
                 ) : null}
@@ -278,8 +272,7 @@ export function TreeDetailMaidenViewer({
                     <View style={{ gap: 12 }}>
                       {viewerTimeline.map((item, index) => (
                         <Reveal key={item.id} delay={90 + index * 25}>
-                          <Card mode="contained" style={{ borderRadius: 12 }}>
-                            <Card.Content>
+                          <SectionCard nested style={{ borderRadius: 22, paddingVertical: 14, paddingHorizontal: 14 }}>
                             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
                               <Chip compact>{item.badgeLabel}</Chip>
                               <Chip compact icon="calendar">{formatPersonDate(item.date)}</Chip>
@@ -288,8 +281,7 @@ export function TreeDetailMaidenViewer({
                             <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
                               {item.description}
                             </Text>
-                            </Card.Content>
-                          </Card>
+                          </SectionCard>
                         </Reveal>
                       ))}
                     </View>
@@ -309,9 +301,9 @@ export function TreeDetailMaidenViewer({
                       {viewerPerson.photos.map((photo, index) => (
                         <Pressable key={photo.id} onPress={() => setViewerPhotoIndex(index)}>
                           <Reveal key={photo.id} delay={90 + index * 25}>
-                            <Card mode="elevated" style={{ borderRadius: 12, overflow: 'hidden' }}>
+                            <SectionCard nested style={{ borderRadius: 22, overflow: 'hidden', padding: 0 }}>
                               <Image source={{ uri: photo.url }} style={{ width: 180, height: 180 }} />
-                            </Card>
+                            </SectionCard>
                           </Reveal>
                         </Pressable>
                       ))}

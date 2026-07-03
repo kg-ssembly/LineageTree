@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, View } from 'react-native';
 import {
   Button,
-  Card,
   Chip,
   Dialog,
   IconButton,
@@ -10,7 +9,7 @@ import {
   Text,
   useTheme,
 } from 'react-native-paper';
-import { InfoDialog, Reveal } from '../../../../components';
+import { InfoDialog, Reveal, SectionCard } from '../../../../components';
 import type { NotificationActivityState } from '../../../../components/dto/notification';
 import type { MainTabParamList } from '../../../../components/dto/navigation';
 import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, GlobalStyles } from '../../../../constants/styles';
@@ -499,8 +498,7 @@ export function NotificationsView({
           )
         ) : notificationFeed.length > 0 ? (
           <Reveal delay={60}>
-          <Card mode="outlined" style={{ marginBottom: 16, backgroundColor: theme.colors.surface, borderRadius: 16 }}>
-            <Card.Content style={{ gap: 12 }}>
+          <SectionCard nested style={{ marginBottom: 16, borderRadius: 22, gap: 12 }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                 <Text variant="titleSmall">{t(K.notifications.mostRecentFamilyActivity)}</Text>
                 <Chip compact icon="timeline-clock-outline">
@@ -523,8 +521,7 @@ export function NotificationsView({
                   Mark follow-up done
                 </Button>
               </View>
-            </Card.Content>
-          </Card>
+          </SectionCard>
           </Reveal>
         ) : null}
 
@@ -532,11 +529,10 @@ export function NotificationsView({
           <View style={styles.collaboratorList}>
             {paginatedFeed.map((item, index) => (
               <Reveal key={item.id} delay={80 + index * 35}>
-                <Card
-                  mode="outlined"
-                  style={[styles.collaboratorCard, { backgroundColor: theme.colors.surface, borderRadius: 12, marginBottom: 10 }]}
+                <SectionCard
+                  nested
+                  style={[styles.collaboratorCard, { backgroundColor: theme.colors.surface, borderRadius: 22, marginBottom: 10, paddingVertical: 14, paddingHorizontal: 14 }]}
                 >
-                  <Card.Content style={{ paddingVertical: 10, paddingHorizontal: 12 }}>
                   <Pressable onPress={() => { void openNotification(item); }}>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
                       <View style={{ flex: 1 }}>
@@ -591,8 +587,7 @@ export function NotificationsView({
                       </Button>
                     ) : null}
                   </View>
-                  </Card.Content>
-                </Card>
+                </SectionCard>
               </Reveal>
             ))}
             {totalPages > 1 ? (

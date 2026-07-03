@@ -1,7 +1,7 @@
 import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { FlatList, ScrollView, Share, View } from 'react-native';
 import { Button, Chip, Dialog, IconButton, Portal, ProgressBar, Text, TextInput, useTheme } from 'react-native-paper';
-import { FloatingSnackbar, HorizontalTabStrip, InfoDialog, Reveal, TabStripCard } from '../../../../components';
+import { FloatingSnackbar, HorizontalTabStrip, InfoDialog, Reveal, ScreenBackground, TabStripCard } from '../../../../components';
 import type { ApprovalRequest } from '../../../../components/dto/approval';
 import type { PersonRecord } from '../../../../components/dto/person';
 import {
@@ -479,8 +479,10 @@ function TreeSettingsContent({
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.content}>
-      <View>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <ScreenBackground />
+      <ScrollView contentContainerStyle={styles.content}>
+        <View>
         <View style={styles.titleWithHelperRow}>
           <Text variant="headlineSmall">{selectedTree.name}</Text>
           <IconButton
@@ -806,7 +808,8 @@ function TreeSettingsContent({
       <FloatingSnackbar visible={copyNoticeVisible} onDismiss={() => setCopyNoticeVisible(false)} duration={2200} action={{ label: t(K.common.dismiss), onPress: () => setCopyNoticeVisible(false) }}>
         {copyNoticeMessage}
       </FloatingSnackbar>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 

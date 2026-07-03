@@ -1,7 +1,7 @@
 import React from 'react';
 import { View } from 'react-native';
-import { Button, Chip, IconButton, Surface, Text, useTheme } from 'react-native-paper';
-import { HorizontalTabStrip, RelationshipInsightCard, Reveal } from '../../../../components';
+import { Button, Chip, IconButton, Text, useTheme } from 'react-native-paper';
+import { HorizontalTabStrip, RelationshipInsightCard, Reveal, SectionCard, TabStripCard } from '../../../../components';
 import type { PersonRelationshipMode } from '../../../../components/person-relationship-dialog';
 import type { PersonRecord } from '../../../../components/dto/person';
 import type { RelationshipRecord } from '../../../../components/dto/relationship';
@@ -56,7 +56,7 @@ export function PersonRelationshipsSection({
 
   return (
     <Reveal delay={110}>
-    <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
+    <SectionCard variant="person">
       <View style={styles.sectionHeader}>
         <View style={styles.sectionHeaderText}>
           <View style={styles.titleWithHelperRow}>
@@ -77,17 +77,18 @@ export function PersonRelationshipsSection({
         ) : null}
       </View>
 
-      <HorizontalTabStrip
-        items={[
-          { key: 'insight', label: t(K.personProfile.howRelated) },
-          { key: 'list', label: t(K.personProfile.allRelationships) },
-        ]}
-        activeKey={relationshipSectionTab}
-        onChange={(value) => setRelationshipSectionTab(value as PersonRelationshipSectionTabKey)}
-        containerStyle={[styles.tabStripCard, styles.relationshipTabStripCard, { backgroundColor: theme.colors.surface }]}
-        contentContainerStyle={styles.tabStripContent}
-        itemStyle={styles.tabStripItem}
-      />
+      <TabStripCard nested style={styles.relationshipTabStripCard}>
+        <HorizontalTabStrip
+          items={[
+            { key: 'insight', label: t(K.personProfile.howRelated) },
+            { key: 'list', label: t(K.personProfile.allRelationships) },
+          ]}
+          activeKey={relationshipSectionTab}
+          onChange={(value) => setRelationshipSectionTab(value as PersonRelationshipSectionTabKey)}
+          contentContainerStyle={styles.tabStripContent}
+          itemStyle={styles.tabStripItem}
+        />
+      </TabStripCard>
 
       {relationshipSectionTab === 'insight' ? (
         <RelationshipInsightCard
@@ -137,7 +138,7 @@ export function PersonRelationshipsSection({
           </Text>
         </View>
       )}
-    </Surface>
+    </SectionCard>
     </Reveal>
   );
 }

@@ -687,7 +687,9 @@ export class GlobalStyles {
         dashboardMetricCard: {
             flex: 1,
             minWidth: 96,
-            borderRadius: 16,
+            borderRadius: 22,
+            paddingVertical: 14,
+            paddingHorizontal: 14,
         },
         dashboardAccentCard: {
             marginTop: 18,
@@ -700,7 +702,9 @@ export class GlobalStyles {
             marginTop: 14,
         },
         dashboardTaskCard: {
-            borderRadius: 16,
+            borderRadius: 22,
+            paddingVertical: 14,
+            paddingHorizontal: 14,
             marginBottom: 12,
         },
         dashboardActionRow: {
@@ -1125,11 +1129,8 @@ export class GlobalStyles {
             marginRight: 0,
         },
         photoCardPreferred: {
-            shadowColor: F.photoPreferred,
-            shadowOpacity: 0.18,
-            shadowRadius: 14,
-            shadowOffset: {width: 0, height: 6},
-            elevation: 4,
+            borderColor: F.photoPreferred,
+            borderWidth: 1.5,
         },
         photo: {
             width: '100%',

@@ -2,7 +2,7 @@ import React from 'react';
 import { View } from 'react-native';
 import { ActivityIndicator, Chip, Text, useTheme } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { FamilyTreeCanvas } from '../../../../components';
+import { FamilyTreeCanvas, ScreenBackground } from '../../../../components';
 import { GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
@@ -24,7 +24,8 @@ export function FamilyTreeView({
   const { t } = useI18n();
 
   return (
-    <View style={styles.visualisationTabContainer}>
+    <View style={[styles.visualisationTabContainer, { backgroundColor: theme.colors.background }]}>
+      <ScreenBackground />
       {people.length > 0 ? (
         <FamilyTreeCanvas
           people={people}

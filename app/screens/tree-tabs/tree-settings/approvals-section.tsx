@@ -1,7 +1,7 @@
 import React from 'react';
 import { View } from 'react-native';
-import { Button, Card, Chip, IconButton, SegmentedButtons, Text, useTheme } from 'react-native-paper';
-import { Reveal } from '../../../../components';
+import { Button, Chip, IconButton, SegmentedButtons, Text, useTheme } from 'react-native-paper';
+import { Reveal, SectionCard } from '../../../../components';
 import { canUserReviewApprovalRequest, isApprovalExpired } from '../../../../components/dto/approval';
 import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
@@ -30,46 +30,48 @@ export function ApprovalsSection({
   return (
     <Reveal delay={80}>
     <View style={styles.collaboratorSectionWrap}>
-      <View style={styles.sectionHeader}>
-        <View style={styles.titleWrap}>
-          <View style={styles.titleWithHelperRow}>
-            <Text variant="titleLarge">{t(K.treeSettings.approvalSettings)}</Text>
-            <IconButton
-              icon="information-outline"
-              size={18}
-              style={styles.helperIconButton}
-              onPress={() => onOpenHelperDialog('approval-settings')}
-              accessibilityLabel={t(K.treeSettings.approvalSettings)}
-            />
+      <SectionCard>
+        <View style={styles.sectionHeader}>
+          <View style={styles.titleWrap}>
+            <View style={styles.titleWithHelperRow}>
+              <Text variant="titleLarge">{t(K.treeSettings.approvalSettings)}</Text>
+              <IconButton
+                icon="information-outline"
+                size={18}
+                style={styles.helperIconButton}
+                onPress={() => onOpenHelperDialog('approval-settings')}
+                accessibilityLabel={t(K.treeSettings.approvalSettings)}
+              />
+            </View>
           </View>
         </View>
-      </View>
 
-      <View style={styles.summaryChipRow}>
-        <Chip icon="timeline-clock-outline">
-          {approvalsDisabled ? t(K.treeSettings.currentWindowOff) : t(K.treeSettings.currentWindowHours, { hours: approvalWindowHours })}
-        </Chip>
-      </View>
+        <View style={styles.summaryChipRow}>
+          <Chip icon="timeline-clock-outline">
+            {approvalsDisabled ? t(K.treeSettings.currentWindowOff) : t(K.treeSettings.currentWindowHours, { hours: approvalWindowHours })}
+          </Chip>
+        </View>
 
-      <SegmentedButtons
-        value={approvalWindowValue}
-        onValueChange={(value) => {
-          if (!isOwner || mutating) {
-            return;
-          }
-          void onSetApprovalWindowHours(Number(value));
-        }}
-        buttons={[
-          { value: '0', label: t(K.treeSettings.off), disabled: !isOwner || mutating },
-          { value: '12', label: '12h', disabled: !isOwner || mutating },
-          { value: '24', label: '24h', disabled: !isOwner || mutating },
-          { value: '48', label: '48h', disabled: !isOwner || mutating },
-        ]}
-        style={styles.managementSegmentedButtons}
-        density="small"
-      />
+        <SegmentedButtons
+          value={approvalWindowValue}
+          onValueChange={(value) => {
+            if (!isOwner || mutating) {
+              return;
+            }
+            void onSetApprovalWindowHours(Number(value));
+          }}
+          buttons={[
+            { value: '0', label: t(K.treeSettings.off), disabled: !isOwner || mutating },
+            { value: '12', label: '12h', disabled: !isOwner || mutating },
+            { value: '24', label: '24h', disabled: !isOwner || mutating },
+            { value: '48', label: '48h', disabled: !isOwner || mutating },
+          ]}
+          style={styles.managementSegmentedButtons}
+          density="small"
+        />
+      </SectionCard>
 
-      <View style={styles.collaboratorSectionWrap}>
+      <SectionCard>
         <View style={styles.sectionHeader}>
           <View style={styles.titleWrap}>
             <View style={styles.titleWithHelperRow}>
@@ -93,8 +95,7 @@ export function ApprovalsSection({
 
               return (
                 <Reveal key={request.id} delay={120 + index * 25}>
-                  <Card mode="elevated" style={[styles.collaboratorCard, { backgroundColor: canReview ? theme.colors.surfaceVariant : theme.colors.surface }]}>
-                    <Card.Content>
+                  <SectionCard nested style={[styles.collaboratorCard, { backgroundColor: canReview ? theme.colors.surfaceVariant : theme.colors.surface, paddingVertical: 14, paddingHorizontal: 14 }]}>
                     <View style={styles.approvalRequestHeader}>
                       <View style={styles.collaboratorTextWrap}>
                         <View style={styles.collaboratorChipRow}>
@@ -125,8 +126,7 @@ export function ApprovalsSection({
                         ) : null}
                       </View>
                     </View>
-                    </Card.Content>
-                  </Card>
+                  </SectionCard>
                 </Reveal>
               );
             })}
@@ -139,7 +139,7 @@ export function ApprovalsSection({
             </Text>
           </View>
         )}
-      </View>
+      </SectionCard>
     </View>
     </Reveal>
   );

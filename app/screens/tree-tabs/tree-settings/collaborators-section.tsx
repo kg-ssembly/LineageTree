@@ -1,7 +1,7 @@
 import React from 'react';
 import { View } from 'react-native';
-import { Button, Card, Chip, IconButton, Text, TextInput, useTheme } from 'react-native-paper';
-import { Reveal } from '../../../../components';
+import { Button, Chip, IconButton, Text, TextInput, useTheme } from 'react-native-paper';
+import { Reveal, SectionCard } from '../../../../components';
 import { formatPersonName } from '../../../../components/person-formatting';
 import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
@@ -75,10 +75,9 @@ export function CollaboratorsSection({
             : [];
           const isOwnerSuggestionTarget = ownerLinkTargetUserId === collaborator.userId;
 
-          return (
-            <Reveal key={collaborator.userId} delay={90 + collaboratorIndex * 25}>
-              <Card mode="elevated" style={[styles.collaboratorCard, { backgroundColor: theme.colors.surface }]}>
-                <Card.Content>
+            return (
+              <Reveal key={collaborator.userId} delay={90 + collaboratorIndex * 25}>
+              <SectionCard nested style={[styles.collaboratorCard, { backgroundColor: theme.colors.surface, paddingVertical: 14, paddingHorizontal: 14 }]}>
                 <View style={styles.collaboratorRow}>
                   <View style={styles.collaboratorTextWrap}>
                     <Text variant="titleMedium">{collaborator.displayName || collaborator.email}</Text>
@@ -115,8 +114,7 @@ export function CollaboratorsSection({
                       <View style={styles.assignmentSuggestionList}>
                         {collaboratorSuggestions.map((suggestion, suggestionIndex) => (
                           <Reveal key={`owner-suggestion-${collaborator.userId}-${suggestion.person.id}`} delay={120 + suggestionIndex * 20}>
-                            <Card mode="elevated" style={[styles.assignmentSuggestionCard, { backgroundColor: theme.colors.surface }]}>
-                              <Card.Content>
+                            <SectionCard nested style={[styles.assignmentSuggestionCard, { backgroundColor: theme.colors.surface }]}>
                               <View style={styles.assignmentSuggestionRow}>
                                 <View style={styles.assignmentSuggestionTextWrap}>
                                   <View style={styles.collaboratorChipRow}>
@@ -132,8 +130,7 @@ export function CollaboratorsSection({
                                   {t(K.treeSettings.suggest)}
                                 </Button>
                               </View>
-                              </Card.Content>
-                            </Card>
+                            </SectionCard>
                           </Reveal>
                         ))}
                       </View>
@@ -160,8 +157,7 @@ export function CollaboratorsSection({
                           <View style={styles.assignmentSuggestionList}>
                             {filteredOwnerLinkPeople.map((person, personIndex) => (
                               <Reveal key={`owner-link-${collaborator.userId}-${person.id}`} delay={140 + personIndex * 15}>
-                                <Card mode="elevated" style={[styles.assignmentSuggestionCard, { backgroundColor: theme.colors.surface }]}>
-                                  <Card.Content>
+                                <SectionCard nested style={[styles.assignmentSuggestionCard, { backgroundColor: theme.colors.surface }]}>
                                   <View style={styles.assignmentSuggestionRow}>
                                     <View style={styles.assignmentSuggestionTextWrap}>
                                       <Text variant="titleMedium">{formatPersonName(person)}</Text>
@@ -175,8 +171,7 @@ export function CollaboratorsSection({
                                       {t(K.treeSettings.suggest)}
                                     </Button>
                                   </View>
-                                  </Card.Content>
-                                </Card>
+                                </SectionCard>
                               </Reveal>
                             ))}
                             {ownerLinkTotalPages > 1 ? (
@@ -216,8 +211,7 @@ export function CollaboratorsSection({
                     ) : null}
                   </View>
                 ) : null}
-                </Card.Content>
-              </Card>
+              </SectionCard>
             </Reveal>
           );
         })}

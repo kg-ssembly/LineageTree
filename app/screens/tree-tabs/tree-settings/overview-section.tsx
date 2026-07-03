@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
-import { Button, Card, Chip, IconButton, Text, TextInput, useTheme } from 'react-native-paper';
-import { Reveal } from '../../../../components';
+import { Button, Chip, IconButton, Text, TextInput, useTheme } from 'react-native-paper';
+import { Reveal, SectionCard } from '../../../../components';
 import { isPersonDeceased } from '../../../../components/dto/person';
 import { isTreeDiscoverable, treeNeedsDiscoverabilityChoice } from '../../../../components/dto/tree';
 import { formatPersonName } from '../../../../components/person-formatting';
@@ -80,8 +80,7 @@ export function OverviewSection({
       </View>
 
       <Reveal delay={80}>
-        <Card mode="elevated" style={[styles.selfAssignmentCard, { backgroundColor: theme.colors.surface, marginBottom: 12 }]}>
-          <Card.Content>
+        <SectionCard style={[styles.selfAssignmentCard, { marginBottom: 12 }]}>
             <View style={styles.sectionHeader}>
               <View style={styles.titleWrap}>
                 <Text variant="titleLarge">{t(K.treeSettings.treeDiscoverability)}</Text>
@@ -116,13 +115,11 @@ export function OverviewSection({
                 </Button>
               </View>
             ) : null}
-          </Card.Content>
-        </Card>
+        </SectionCard>
       </Reveal>
 
       <Reveal delay={90}>
-        <Card mode="elevated" style={[styles.selfAssignmentCard, { backgroundColor: theme.colors.surface, marginBottom: 8 }]}>
-          <Card.Content>
+        <SectionCard style={[styles.selfAssignmentCard, { marginBottom: 8 }]}>
           <View style={styles.sectionHeader}>
             <View style={styles.titleWrap}>
               <View style={styles.titleWithHelperRow}>
@@ -151,14 +148,12 @@ export function OverviewSection({
               </Button>
             </View>
           ) : null}
-          </Card.Content>
-        </Card>
+        </SectionCard>
       </Reveal>
 
       <View style={styles.selfAssignmentSectionWrap}>
         <Reveal delay={110}>
-          <Card mode="elevated" style={[styles.selfAssignmentCard, { backgroundColor: theme.colors.surface }]}>
-            <Card.Content>
+          <SectionCard style={styles.selfAssignmentCard}>
               <View style={styles.sectionHeader}>
                 <View style={styles.titleWrap}>
                   <View style={styles.titleWithHelperRow}>
@@ -224,8 +219,7 @@ export function OverviewSection({
                     <View style={styles.assignmentSuggestionList}>
                       {currentSelfAssignmentSuggestions.slice(0, 3).map((suggestion, index) => (
                         <Reveal key={`suggestion-${suggestion.person.id}`} delay={120 + index * 20}>
-                          <Card mode="elevated" style={[styles.assignmentSuggestionCard, { backgroundColor: theme.colors.surface }]}>
-                            <Card.Content>
+                          <SectionCard nested style={[styles.assignmentSuggestionCard, { backgroundColor: theme.colors.surface }]}>
                               <View style={styles.assignmentSuggestionRow}>
                                 <View style={styles.assignmentSuggestionTextWrap}>
                                   <View style={styles.collaboratorChipRow}>
@@ -241,8 +235,7 @@ export function OverviewSection({
                                   {t(K.treeSettings.linkMe)}
                                 </Button>
                               </View>
-                            </Card.Content>
-                          </Card>
+                          </SectionCard>
                         </Reveal>
                       ))}
                     </View>
@@ -264,8 +257,7 @@ export function OverviewSection({
                       <View style={styles.assignmentSuggestionList}>
                         {paginatedLinkPeople.map((person, index) => (
                           <Reveal key={`assignable-${person.id}`} delay={140 + index * 15}>
-                            <Card mode="elevated" style={[styles.assignmentSuggestionCard, { backgroundColor: theme.colors.surface }]}>
-                              <Card.Content>
+                            <SectionCard nested style={[styles.assignmentSuggestionCard, { backgroundColor: theme.colors.surface }]}>
                                 <View style={styles.assignmentSuggestionRow}>
                                   <View style={styles.assignmentSuggestionTextWrap}>
                                     <Text variant="titleMedium">{formatPersonName(person)}</Text>
@@ -280,8 +272,7 @@ export function OverviewSection({
                                     {t(K.treeSettings.linkMe)}
                                   </Button>
                                 </View>
-                              </Card.Content>
-                            </Card>
+                            </SectionCard>
                           </Reveal>
                         ))}
                       </View>
@@ -317,8 +308,7 @@ export function OverviewSection({
                   </View>
                 </>
               ) : null}
-            </Card.Content>
-          </Card>
+          </SectionCard>
         </Reveal>
       </View>
     </>

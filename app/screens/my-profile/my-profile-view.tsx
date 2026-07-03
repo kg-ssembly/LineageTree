@@ -5,8 +5,6 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as ImagePicker from 'expo-image-picker';
 import {
   ActivityIndicator,
-  Surface,
-  Text,
   useTheme,
 } from 'react-native-paper';
 import {
@@ -31,7 +29,6 @@ import type { ParentChildRelationshipKind, RelationshipRecord, SpouseRelationshi
 import { canEditTreeContent, getAssignedPersonId } from '../../../components/dto/tree';
 import { getPersonValidationFeedback } from '../../../components/family-tree-validation';
 import { formatPersonName } from '../../../components/person-formatting';
-import { GlobalStyles } from '../../../constants/styles';
 import { useI18n } from '../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../i18n/keys';
 import { useAuthStore } from '../../../stores/auth-store';
@@ -47,7 +44,8 @@ import { ProfileOverviewSection } from './sections/profile-overview-section';
 import { ProfileHeroSection } from './sections/profile-hero-section';
 import { RelationshipsSection, type RelationshipSectionTabKey } from './sections/relationships-section';
 
-const treeDetailStyles = GlobalStyles.treeDetail;
+import { GlobalStyles } from '../../../constants/styles';
+
 const personProfileStyles = GlobalStyles.personProfile;
 
 type ConfirmState = {

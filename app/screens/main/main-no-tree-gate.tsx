@@ -1,16 +1,14 @@
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { ActivityIndicator, Button, Card, Chip, Dialog, IconButton, Portal, Surface, Text, TextInput } from 'react-native-paper';
-import { HorizontalTabStrip, Reveal } from '../../../components';
+import { ActivityIndicator, Button, Chip, Dialog, IconButton, Portal, Text, TextInput } from 'react-native-paper';
+import { HorizontalTabStrip, Reveal, SectionCard, TabStripCard } from '../../../components';
 import { GlobalStyles } from '../../../constants/styles';
 import { BUTTON_CHROME, BUTTON_CONTENT_CHROME } from '../../../constants/styles';
 import { I18N_KEYS as K } from '../../../i18n/keys';
 import type { useMainScreenController } from './main-controller';
 
-const homeStyles = GlobalStyles.home;
 const dialogChrome = GlobalStyles.dialogChrome;
-const treeDetailStyles = GlobalStyles.treeDetail;
 const RESULTS_PER_PAGE = 5;
 type RequestAccessTabKey = 'search' | 'direct';
 
@@ -201,7 +199,6 @@ export function MainNoTreeGate({
   const pagedResults = results.slice((resultsPage - 1) * RESULTS_PER_PAGE, resultsPage * RESULTS_PER_PAGE);
   const pendingTreeAccessRequests = controller.pendingTreeAccessRequests ?? [];
   const pendingRequestTreeIds = new Set(pendingTreeAccessRequests.map((notification) => notification.sourceTreeId));
-  const pendingRequestTreeId = controller.pendingTreeAccessRequest?.sourceTreeId;
   const pendingRequestTreeName = controller.pendingTreeAccessRequest?.sourceTreeName?.trim() || controller.t(K.common.unknown);
   const pendingRequestIdentifier = controller.pendingTreeAccessRequest?.targetIdentifier?.trim() || '';
   const pendingRequestMessage = controller.pendingTreeAccessRequest?.message?.trim() || '';
@@ -223,11 +220,10 @@ export function MainNoTreeGate({
     <View style={localStyles.noTreeGate}>
       <View style={localStyles.contentWrap}>
         <Reveal delay={60}>
-          <Surface
+          <SectionCard
+            variant="tree"
             style={[
-              treeDetailStyles.sectionCard,
               localStyles.card,
-              { backgroundColor: controller.theme.colors.surface },
             ]}
             elevation={1}
           >
@@ -304,7 +300,7 @@ export function MainNoTreeGate({
           >
             {controller.t(K.app.startOwnFamilyTree)}
           </Button>
-          </Surface>
+          </SectionCard>
         </Reveal>
       </View>
 
@@ -364,7 +360,7 @@ export function MainNoTreeGate({
           />
           <Dialog.ScrollArea style={dialogChrome.scrollArea}>
             <ScrollView contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 8 }}>
-              <Card mode="elevated" style={[localStyles.tabStripCard, { backgroundColor: controller.theme.colors.surfaceVariant }]}>
+              <TabStripCard style={{ backgroundColor: controller.theme.colors.surfaceVariant }}>
                 <HorizontalTabStrip
                   items={requestAccessTabs}
                   activeKey={activeTab}
@@ -372,7 +368,7 @@ export function MainNoTreeGate({
                   contentContainerStyle={localStyles.tabStripContent}
                   itemStyle={localStyles.tabStripItem}
                 />
-              </Card>
+              </TabStripCard>
 
               {activeTab === 'search' ? (
                 <View style={localStyles.dialogSection}>
@@ -422,8 +418,12 @@ export function MainNoTreeGate({
                 const requestIsPending = pendingRequestTreeIds.has(result.id);
 
                 return (
-                  <Card key={result.id} mode="elevated" style={[localStyles.resultCard, { backgroundColor: controller.theme.colors.surfaceVariant }]}>
-                    <Card.Content>
+                  <SectionCard
+                    key={result.id}
+                    elevation={1}
+                    backgroundColor={controller.theme.colors.surfaceVariant}
+                    style={localStyles.resultCard}
+                  >
                       <Text variant="titleMedium">{result.name}</Text>
                       <Text variant="bodySmall" style={[localStyles.resultMeta, { color: controller.theme.colors.onSurfaceVariant }]}>
                         {controller.t(K.app.discoverableTreeOwnedBy, { name: result.ownerDisplayName || result.ownerUsername || controller.t(K.common.unknown) })}
@@ -440,8 +440,7 @@ export function MainNoTreeGate({
                           {requestIsPending ? controller.t(K.app.requestedAccessPending) : controller.t(K.app.requestAccess)}
                         </Button>
                       </View>
-                    </Card.Content>
-                  </Card>
+                  </SectionCard>
                 );
               }) : null}
 

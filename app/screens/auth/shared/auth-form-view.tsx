@@ -6,12 +6,11 @@ import {
   Chip,
   HelperText,
   Snackbar,
-  Surface,
   Text,
   TextInput,
   useTheme,
 } from 'react-native-paper';
-import { Reveal, ScreenBackground, SharedLoader } from '../../../../components';
+import { Reveal, ScreenBackground, SectionCard, SharedLoader } from '../../../../components';
 import { GlobalStyles } from '../../../../constants/styles';
 
 const loginStyles = GlobalStyles.login;
@@ -102,11 +101,13 @@ export function AuthFormView({
         </View>
 
         <Reveal delay={70}>
-          <Surface style={[styles.card, {
-            backgroundColor: theme.colors.surface,
-            borderColor: theme.colors.outlineVariant,
-            borderWidth: 1,
-          }]} elevation={2}>
+          <SectionCard
+            style={[styles.card, {
+              borderColor: theme.colors.outlineVariant,
+              borderWidth: 1,
+            }]}
+            elevation={2}
+          >
             <Text variant="headlineMedium" style={[styles.title, { color: theme.colors.onSurface }]}>
               {title}
             </Text>
@@ -155,7 +156,7 @@ export function AuthFormView({
             <Button mode="text" onPress={onSecondaryAction} style={styles.linkButton}>
               {secondaryActionLabel}
             </Button>
-          </Surface>
+          </SectionCard>
         </Reveal>
       </ScrollView>
 

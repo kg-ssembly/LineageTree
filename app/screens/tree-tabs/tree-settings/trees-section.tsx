@@ -1,7 +1,7 @@
 import React from 'react';
 import { View } from 'react-native';
 import { ActivityIndicator, Button, Card, Chip, IconButton, Text, useTheme } from 'react-native-paper';
-import { Reveal } from '../../../../components';
+import { Reveal, SectionCard } from '../../../../components';
 import { getTreeRole } from '../../../../components/dto/tree';
 import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
@@ -38,8 +38,7 @@ export function TreesSection({
     <View>
       {maidenSurnameSuggestions.length > 0 ? (
         <Reveal delay={80}>
-          <Card mode="elevated" style={[styles.collaboratorCard, { backgroundColor: theme.colors.surface, marginBottom: 16 }]}>
-            <Card.Content>
+          <SectionCard style={[styles.collaboratorCard, { marginBottom: 16 }]}>
             <View style={styles.titleWithHelperRow}>
               <Text variant="titleMedium">{t(K.treeSettings.suggestedMaidenSurnameTrees)}</Text>
               <IconButton
@@ -53,8 +52,7 @@ export function TreesSection({
             <View style={{ marginTop: 8 }}>
               {maidenSurnameSuggestions.map((suggestion, index) => (
                 <Reveal key={suggestion.surname} delay={100 + index * 20}>
-                  <Card mode="contained" style={{ marginTop: 8, borderRadius: 12 }}>
-                    <Card.Content>
+                  <SectionCard nested style={{ marginTop: 8, borderRadius: 22, paddingVertical: 14, paddingHorizontal: 14 }}>
                     <Text variant="titleSmall">{suggestion.surname}</Text>
                     <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
                       {t(K.treeSettings.maidenSurnameReferenceCount, { count: suggestion.count })}
@@ -64,13 +62,11 @@ export function TreesSection({
                         {t(K.treeSettings.createTree)}
                       </Button>
                     </View>
-                    </Card.Content>
-                  </Card>
+                  </SectionCard>
                 </Reveal>
               ))}
             </View>
-            </Card.Content>
-          </Card>
+          </SectionCard>
         </Reveal>
       ) : null}
 
@@ -114,8 +110,7 @@ export function TreesSection({
 
           return (
             <Reveal key={tree.id} delay={100 + index * 25}>
-              <Card style={[styles.personCard, { backgroundColor: isSelected ? theme.colors.primaryContainer : theme.colors.surface }]} mode="elevated">
-                <Card.Content>
+              <SectionCard nested style={[styles.personCard, { backgroundColor: isSelected ? theme.colors.primaryContainer : theme.colors.surface, paddingVertical: 14, paddingHorizontal: 14 }]}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                   <View style={{ flex: 1 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -148,8 +143,7 @@ export function TreesSection({
                     ) : null}
                   </View>
                 </View>
-                </Card.Content>
-              </Card>
+              </SectionCard>
             </Reveal>
           );
         })

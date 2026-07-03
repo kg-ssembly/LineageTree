@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Image, Pressable, View } from 'react-native';
-import { Button, Card, Chip, Dialog, IconButton, Portal, Surface, Text, TextInput, useTheme } from 'react-native-paper';
-import { HorizontalTabStrip, Reveal } from '../../../../components';
+import { Button, Chip, Dialog, IconButton, Portal, Text, TextInput, useTheme } from 'react-native-paper';
+import { HorizontalTabStrip, Reveal, SectionCard, TabStripCard } from '../../../../components';
 import type { NewPersonPhotoInput, PersonLifeEvent, PersonPhoto, PersonRecord } from '../../../../components/dto/person';
 import { formatPersonDate } from '../../../../components/dto/person';
 import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, GlobalStyles } from '../../../../constants/styles';
@@ -91,7 +91,7 @@ export function PersonMemoriesSection({
 
   return (
     <Reveal delay={130}>
-      <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
+      <SectionCard variant="person">
       <View style={styles.titleWithHelperRow}>
         <Text variant="titleLarge">{t(K.memories.memoriesAndGallery)}</Text>
         <IconButton
@@ -103,18 +103,19 @@ export function PersonMemoriesSection({
         />
       </View>
 
-      <HorizontalTabStrip
-        items={[
-          { key: 'events', label: t(K.memories.lifeEvents) },
-          { key: 'photos', label: t(K.memories.photos) },
-          { key: 'notes', label: t(K.memories.notes) },
-        ]}
-        activeKey={memorySectionTab}
-        onChange={(value) => setMemorySectionTab(value as PersonMemorySectionTabKey)}
-        containerStyle={[styles.tabStripCard, { backgroundColor: theme.colors.surface }]}
-        contentContainerStyle={styles.tabStripContent}
-        itemStyle={styles.tabStripItem}
-      />
+      <TabStripCard nested>
+        <HorizontalTabStrip
+          items={[
+            { key: 'events', label: t(K.memories.lifeEvents) },
+            { key: 'photos', label: t(K.memories.photos) },
+            { key: 'notes', label: t(K.memories.notes) },
+          ]}
+          activeKey={memorySectionTab}
+          onChange={(value) => setMemorySectionTab(value as PersonMemorySectionTabKey)}
+          contentContainerStyle={styles.tabStripContent}
+          itemStyle={styles.tabStripItem}
+        />
+      </TabStripCard>
 
       {memorySectionTab === 'notes' ? (
         <View style={[styles.notesBox, { backgroundColor: theme.colors.surfaceVariant }]}>
@@ -155,7 +156,11 @@ export function PersonMemoriesSection({
             <View style={styles.galleryGrid}>
               {photoCards.map(({ photo, index, draft }) => (
                 <Reveal key={photo.id} delay={80 + index * 50} style={styles.photoGridCard}>
-                <Card mode="elevated" style={[styles.photoCard, preferredPhoto?.id === photo.id && styles.photoCardPreferred]}>
+                <SectionCard
+                  variant="person"
+                  nested
+                  style={[styles.photoCard, preferredPhoto?.id === photo.id && styles.photoCardPreferred]}
+                >
                   <Pressable onPress={() => onOpenViewer(index)}>
                     <Image source={{ uri: photo.url }} style={styles.photo} />
                   </Pressable>
@@ -171,7 +176,7 @@ export function PersonMemoriesSection({
                       ) : null}
                     </View>
                   ) : null}
-                </Card>
+                </SectionCard>
                 </Reveal>
               ))}
             </View>
@@ -328,7 +333,7 @@ export function PersonMemoriesSection({
           </Dialog.Actions>
         </Dialog>
       </Portal>
-      </Surface>
+      </SectionCard>
     </Reveal>
   );
 }

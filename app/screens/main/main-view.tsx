@@ -8,11 +8,12 @@ import {
   PersonFormDialog,
   RelationshipDialog,
   ScreenBackground,
+  SectionCard,
   SharedLoader,
   StartupModal,
   TreeFormDialog,
 } from '../../../components';
-import { Button, Dialog, Portal, Surface, Text } from 'react-native-paper';
+import { Button, Dialog, Portal, Text } from 'react-native-paper';
 import { canManageTree } from '../../../components/dto/tree';
 import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, GlobalStyles } from '../../../constants/styles';
 import { I18N_KEYS as K } from '../../../i18n/keys';
@@ -140,16 +141,16 @@ export function MainScreenView({ controller }: { controller: ReturnType<typeof u
             </Text>
             <View style={{ marginTop: 16, gap: 10 }}>
               {controller.treeNameSuggestion.matches.map((match) => (
-                <Surface
+                <SectionCard
                   key={match.id}
+                  elevation={0}
+                  backgroundColor={controller.theme.colors.elevation.level1}
                   style={{
-                    backgroundColor: controller.theme.colors.elevation.level1,
                     borderColor: controller.theme.colors.outlineVariant,
                     borderWidth: 1,
                     borderRadius: 18,
                     padding: 14,
                   }}
-                  elevation={0}
                 >
                   <Text variant="titleMedium">{match.name}</Text>
                   <Text variant="bodySmall" style={{ color: controller.theme.colors.onSurfaceVariant, marginTop: 4 }}>
@@ -166,7 +167,7 @@ export function MainScreenView({ controller }: { controller: ReturnType<typeof u
                   >
                     {controller.t(K.app.requestAccess)}
                   </Button>
-                </Surface>
+                </SectionCard>
               ))}
             </View>
           </Dialog.Content>

@@ -14,7 +14,7 @@ import {
 } from 'react-native-paper';
 import { DatePickerModal } from 'react-native-paper-dates';
 import type { PersonGender, PersonRecord } from '../../../../components/dto/person';
-import { InfoDialog, Reveal } from '../../../../components';
+import { InfoDialog, Reveal, ScreenBackground } from '../../../../components';
 import {
   formatPersonDate,
   getDisplayPersonPhoto,
@@ -299,7 +299,8 @@ export function FamilyMembersView({
   }, [currentPage, t, theme.colors.onSurfaceVariant, totalPages]);
 
   return (
-    <View style={[styles.content, { flex: 1, paddingBottom: 0 }]}>
+    <View style={[styles.content, { flex: 1, paddingBottom: 0, backgroundColor: theme.colors.background }]}>
+      <ScreenBackground />
       <View style={{ flex: 1 }}>
         <View style={styles.sectionHeader}>
           <View style={styles.titleWrap}>
