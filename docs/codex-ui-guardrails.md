@@ -2,12 +2,19 @@
 
 Use these rules whenever adding or editing UI in this repo.
 
+## Canonical UI Families
+
+- Use the newer `personProfile` family as the canonical base for profile and member-facing screens.
+- Use the broader `treeDetail` family as the canonical base for tree, settings, and admin screens.
+- Prefer the shared component in `components/ui` over recreating a similar shell in a feature folder.
+
 ## Shared Component Rules
 
 - Before creating any new UI component, check `components/index.ts`, `components/ui`, and `constants/styles.ts`.
 - If a screen needs a card, dialog, tab strip, hero, or form input that already exists elsewhere, extend the shared component instead of creating a new one.
 - Do not create a new screen-local version of `Card`, `Modal`, `Dialog`, `Input`, `Select`, `Hero`, `TabStrip`, or `Background`.
 - If two screens differ only by copy or data shape, use one shared component with props.
+- If a card appears inside another card, use the nested card treatment instead of adding a second shadow layer.
 
 ## Styling Rules
 
@@ -15,12 +22,14 @@ Use these rules whenever adding or editing UI in this repo.
 - Prefer shared styles from `constants/styles.ts` before adding new `StyleSheet` groups.
 - Do not hardcode heading font weights for standard titles unless the theme variant cannot express the design.
 - Reuse the shared background component once extracted; do not redraw separate gradient backdrops per screen.
+- Treat the shared circle-gradient backdrop as the default screen background for main, profile, tree, and settings screens.
 
 ## Import Rules
 
 - Import shared UI from `components` or `components/ui`.
 - Avoid importing `Card`, `Dialog`, `Surface`, and `TextInput` directly in screen files once wrappers exist.
 - New wrappers belong in one place and should be re-exported from an index file.
+- Prefer updating `components/index.ts` and `components/ui/index.ts` rather than introducing feature-local wrapper exports.
 
 ## Extraction Heuristic
 
@@ -43,6 +52,7 @@ Extract a shared component when any of these is true:
 - Did this introduce any new raw colors, spacing, shadows, or font weights?
 - Did this add another direct `react-native-paper` primitive import in a screen?
 - Could this be handled by props on an existing component?
+- Would the same component work if we flipped only the content and not the shell?
 
 ## Recommended ESLint Policy To Add Next
 
@@ -52,3 +62,4 @@ After the canonical components are chosen, add ESLint with rules that:
 - forbid new files matching patterns like `*card.tsx`, `*modal.tsx`, `*dialog.tsx` inside screen folders unless explicitly allowed
 - flag raw color literals outside theme and token files
 - flag `fontWeight` overrides on `Text` in screen files unless explicitly allowed
+- flag screen-local gradient or background shells when `ScreenBackground` would apply

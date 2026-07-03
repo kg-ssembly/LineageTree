@@ -1,6 +1,6 @@
 import React from 'react';
 import { View } from 'react-native';
-import { ActivityIndicator, Button, Card, Chip, IconButton, Text, useTheme } from 'react-native-paper';
+import { ActivityIndicator, Button, Chip, IconButton, Text, useTheme } from 'react-native-paper';
 import { Reveal, SectionCard } from '../../../../components';
 import { getTreeRole } from '../../../../components/dto/tree';
 import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, GlobalStyles } from '../../../../constants/styles';

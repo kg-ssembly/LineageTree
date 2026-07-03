@@ -388,7 +388,7 @@ export default function PersonRelationshipDialog({
                     left={<TextInput.Icon icon="magnify" />}
                   />
                   {filteredCandidates.length > 0 ? (
-                    <View style={styles.resultsList}>
+                    <View style={[styles.resultsList, { borderColor: theme.colors.outlineVariant }]}>
                       {filteredCandidates.map((candidate, index) => (
                         <Pressable
                           key={candidate.id}
@@ -396,8 +396,12 @@ export default function PersonRelationshipDialog({
                           disabled={loading}
                           style={[
                             styles.resultRow,
-                            relatedPersonId === candidate.id ? styles.resultRowSelected : null,
-                            index > 0 ? styles.resultRowDivider : null,
+                            {
+                              backgroundColor: relatedPersonId === candidate.id
+                                ? theme.colors.primaryContainer
+                                : theme.colors.surface,
+                            },
+                            index > 0 ? [styles.resultRowDivider, { borderTopColor: theme.colors.outlineVariant }] : null,
                           ]}
                         >
                           <Text variant="titleSmall" style={styles.resultRowTitle}>{formatPersonName(candidate)}</Text>
@@ -406,7 +410,7 @@ export default function PersonRelationshipDialog({
                       ))}
                     </View>
                   ) : (
-                    <View style={styles.emptyState}>
+                    <View style={[styles.emptyState, { backgroundColor: theme.colors.elevation.level1 }]}>
                       <Text variant="bodyMedium">{t(K.relationship.noMatchingForRelationshipType)}</Text>
                     </View>
                   )}

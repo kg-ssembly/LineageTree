@@ -241,12 +241,37 @@ export function FamilyMembersView({
 
     return (
       <Reveal delay={90 + index * 35}>
-        <View style={styles.memberListRow}>
+        <View
+          style={[
+            styles.memberListRow,
+            {
+              borderColor: theme.colors.outlineVariant,
+              backgroundColor: theme.colors.surface,
+            },
+          ]}
+        >
           <View style={styles.personPhotoWrap}>
             {preferredPhoto ? (
-              <Image source={{ uri: preferredPhoto.url }} style={styles.personPhoto} />
+              <Image
+                source={{ uri: preferredPhoto.url }}
+                style={[
+                  styles.personPhoto,
+                  {
+                    borderColor: theme.colors.outlineVariant,
+                    backgroundColor: theme.colors.surfaceVariant,
+                  },
+                ]}
+              />
             ) : (
-              <View style={styles.personPhotoFallback}>
+              <View
+                style={[
+                  styles.personPhotoFallback,
+                  {
+                    borderColor: theme.colors.outlineVariant,
+                    backgroundColor: theme.colors.surfaceVariant,
+                  },
+                ]}
+              >
                 <MaterialCommunityIcons name={getPersonFallbackAvatarIcon(person)} size={30} color={theme.colors.primary} />
               </View>
             )}

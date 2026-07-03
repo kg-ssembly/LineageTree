@@ -269,7 +269,7 @@ export default function RelationshipDialog({
                 </View>
               ) : null}
               {filteredFromPeople.length > 0 ? (
-                <View style={styles.resultsList}>
+                <View style={[styles.resultsList, { borderColor: theme.colors.outlineVariant }]}>
                   {filteredFromPeople.map((person, index) => (
                     <Pressable
                       key={`from-${person.id}`}
@@ -280,8 +280,12 @@ export default function RelationshipDialog({
                       disabled={loading}
                       style={[
                         styles.resultRow,
-                        fromPersonId === person.id ? styles.resultRowSelected : null,
-                        index > 0 ? styles.resultRowDivider : null,
+                        {
+                          backgroundColor: fromPersonId === person.id
+                            ? theme.colors.primaryContainer
+                            : theme.colors.surface,
+                        },
+                        index > 0 ? [styles.resultRowDivider, { borderTopColor: theme.colors.outlineVariant }] : null,
                       ]}
                     >
                       <Text variant="titleSmall" style={styles.resultRowTitle}>{formatPersonName(person)}</Text>
@@ -290,7 +294,7 @@ export default function RelationshipDialog({
                   ))}
                 </View>
               ) : (
-                <View style={styles.emptyState}>
+                <View style={[styles.emptyState, { backgroundColor: theme.colors.elevation.level1 }]}>
                   <Text variant="bodyMedium">{t(K.relationship.noMatchesThisSide)}</Text>
                 </View>
               )}
@@ -330,7 +334,7 @@ export default function RelationshipDialog({
                 </View>
               ) : null}
               {filteredToPeople.length > 0 ? (
-                <View style={styles.resultsList}>
+                <View style={[styles.resultsList, { borderColor: theme.colors.outlineVariant }]}>
                   {filteredToPeople.map((person, index) => (
                     <Pressable
                       key={`to-${person.id}`}
@@ -341,8 +345,12 @@ export default function RelationshipDialog({
                       disabled={loading}
                       style={[
                         styles.resultRow,
-                        toPersonId === person.id ? styles.resultRowSelected : null,
-                        index > 0 ? styles.resultRowDivider : null,
+                        {
+                          backgroundColor: toPersonId === person.id
+                            ? theme.colors.primaryContainer
+                            : theme.colors.surface,
+                        },
+                        index > 0 ? [styles.resultRowDivider, { borderTopColor: theme.colors.outlineVariant }] : null,
                       ]}
                     >
                       <Text variant="titleSmall" style={styles.resultRowTitle}>{formatPersonName(person)}</Text>
@@ -351,7 +359,7 @@ export default function RelationshipDialog({
                   ))}
                 </View>
               ) : (
-                <View style={styles.emptyState}>
+                <View style={[styles.emptyState, { backgroundColor: theme.colors.elevation.level1 }]}>
                   <Text variant="bodyMedium">{t(K.relationship.noMatchesThisSide)}</Text>
                 </View>
               )}
