@@ -135,10 +135,21 @@ export default function PersonRelationshipDialog({
         .filter((r) => r.type === 'parent-child' && r.toPersonId === person?.id)
         .map((r) => r.fromPersonId),
     );
+    const spouseIds = new Set(
+      relationships
+        .filter((r) => r.type === 'spouse' && (r.fromPersonId === person?.id || r.toPersonId === person?.id))
+        .map((r) => r.fromPersonId === person?.id ? r.toPersonId : r.fromPersonId),
+    );
+    
+    // For soft validation: already have 2 parents, or already have 1 spouse
+    const hasMaxParents = parentIds.size >= 2;
+    const hasMaxSpouses = spouseIds.size >= 1;
+    
     return people.filter((candidate) => {
       if (candidate.id === person?.id) return false;
       if (mode === 'parent-of') return !childIds.has(candidate.id);
       if (mode === 'child-of') return !parentIds.has(candidate.id);
+      if (mode === 'spouse-of') return !spouseIds.has(candidate.id);
       return true;
     });
   }, [people, person?.id, relationships, mode]);
@@ -222,6 +233,34 @@ export default function PersonRelationshipDialog({
     }
     
     return warnings;
+  };
+
+  const handleCandidateClick = (candidateId: string) => {
+    const warnings = getSoftValidationWarnings(candidateId);
+    
+    if (warnings.length > 0) {
+      setPendingCandidateSelection(candidateId);
+      setValidationWarningDialogVisible(true);
+    } else {
+      setRelatedPersonId(candidateId);
+      setSearchQuery('');
+      setError(null);
+    }
+  };
+
+  const handleValidationWarningConfirm = () => {
+    if (pendingCandidateSelection) {
+      setRelatedPersonId(pendingCandidateSelection);
+      setSearchQuery('');
+      setError(null);
+    }
+    setValidationWarningDialogVisible(false);
+    setPendingCandidateSelection(null);
+  };
+
+  const handleValidationWarningDismiss = () => {
+    setValidationWarningDialogVisible(false);
+    setPendingCandidateSelection(null);
   };
 
   const handleSubmit = async () => {
@@ -353,16 +392,7 @@ export default function PersonRelationshipDialog({
                       {filteredCandidates.map((candidate, index) => (
                         <Pressable
                           key={candidate.id}
-                          onPress={() => {
-                            const warnings = getSoftValidationWarnings(candidate.id);
-                            setRelatedPersonId(candidate.id);
-                            setSearchQuery('');
-                            if (warnings.length > 0) {
-                              setError(warnings[0]);
-                            } else {
-                              setError(null);
-                            }
-                          }}
+                          onPress={() => handleCandidateClick(candidate.id)}
                           disabled={loading}
                           style={[
                             styles.resultRow,
@@ -424,6 +454,35 @@ export default function PersonRelationshipDialog({
           <Button mode="contained" onPress={handleSubmit} disabled={loading || !person || candidates.length === 0 || !!validationMessage}>{t(K.common.save)}</Button>
         </Dialog.Actions>
       </Dialog>
+      <Portal>
+        <Dialog
+          visible={validationWarningDialogVisible}
+          onDismiss={handleValidationWarningDismiss}
+          style={[dialogChrome.dialog, styles.dialog, { backgroundColor: theme.colors.surface }]}
+        >
+          <Dialog.Title style={dialogChrome.dialogTitle}>
+            {t(K.relationship.confirmSelection ?? 'Confirm Selection')}
+          </Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodyMedium" style={styles.helperText}>
+              {pendingCandidateSelection 
+                ? getSoftValidationWarnings(pendingCandidateSelection)[0] 
+                : ''}
+            </Text>
+            <Text variant="bodyMedium" style={[styles.helperText, { marginTop: 12 }]}>
+              {t(K.relationship.confirmProceedAnyway ?? 'Do you want to proceed anyway?')}
+            </Text>
+          </Dialog.Content>
+          <Dialog.Actions style={dialogChrome.dialogActions}>
+            <Button onPress={handleValidationWarningDismiss} disabled={loading}>
+              {t(K.common.cancel)}
+            </Button>
+            <Button mode="contained" onPress={handleValidationWarningConfirm} disabled={loading}>
+              {t(K.common.proceed)}
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
     </Portal>
   );
 }

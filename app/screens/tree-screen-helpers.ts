@@ -111,6 +111,7 @@ export async function createPersonFromFormSubmission(
       middleNames: payload.middleNames,
       lastName: payload.lastName,
       maidenName: payload.maidenName,
+      surnameVariantHints: payload.surnameVariantHints,
       birthDate: payload.birthDate,
       deathDate: payload.deathDate,
       gender: payload.gender,

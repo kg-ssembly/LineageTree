@@ -107,6 +107,10 @@ function formatPreviewName(payload: Pick<PersonFormSubmission, 'firstName' | 'mi
   return [payload.firstName, payload.middleNames, payload.lastName].join(' ').replace(/\s+/g, ' ').trim();
 }
 
+function normaliseSurnameValue(value: string) {
+  return value.trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
 function createValidationPersonRecord(input: {
   firstName: string;
   middleNames: string;
@@ -319,6 +323,10 @@ export default function PersonFormDialog({
     () => [...new Set(existingLastNames.map((value) => value.trim()).filter(Boolean))].sort((left, right) => left.localeCompare(right)),
     [existingLastNames],
   );
+  const normalizedTreeSurnames = useMemo(
+    () => new Set(uniqueLastNames.map(normaliseSurnameValue)),
+    [uniqueLastNames],
+  );
   const relationshipCandidatesById = useMemo(
     () => new Map(relationshipCandidates.map((candidate) => [candidate.id, candidate])),
     [relationshipCandidates],
@@ -504,21 +512,8 @@ export default function PersonFormDialog({
 
     // Check if last name is compulsory and not empty
     if (!lastName.trim()) {
-      setLastNameError(t(K.personForm.lastNameRequired ?? 'Last name is required'));
+      setLastNameError(t(K.personForm.lastNameRequired));
       return;
-    }
-
-    // Check if last name is different from existing surnames in create mode
-    if (mode === 'create' && uniqueLastNames.length > 0) {
-      const normalizedLastName = lastName.trim().toLowerCase();
-      const isNewSurname = !uniqueLastNames.some((name) => name.toLowerCase() === normalizedLastName);
-      
-      if (isNewSurname) {
-        // Show confirmation dialog for new surname
-        setProposedSurnameVariant(lastName.trim());
-        setSurnameVariantConfirmDialogVisible(true);
-        return;
-      }
     }
 
     const futureBirthDateError = personValidationFeedback.errors.find((message) => message === t(K.personForm.birthDateInFuture));
@@ -569,6 +564,18 @@ export default function PersonFormDialog({
     if (pendingRelationshipError) {
       setRelationshipError(pendingRelationshipError);
       return;
+    }
+
+    if (mode === 'create' && uniqueLastNames.length > 0) {
+      const trimmedLastName = lastName.trim();
+      const normalizedLastName = normaliseSurnameValue(trimmedLastName);
+      const isNewSurname = trimmedLastName.length > 0 && !normalizedTreeSurnames.has(normalizedLastName);
+
+      if (isNewSurname) {
+        setProposedSurnameVariant(trimmedLastName);
+        setSurnameVariantConfirmDialogVisible(true);
+        return;
+      }
     }
 
     setPreviewState({
@@ -635,37 +642,19 @@ export default function PersonFormDialog({
 
   const handleSurnameVariantConfirm = () => {
     if (proposedSurnameVariant) {
-      // Build submission payload with the new surname variant
       const newVariants = [...surnameVariantHints, proposedSurnameVariant];
-      const uniqueVariants = [...new Set(newVariants)]; // Remove duplicates
-      
+      const uniqueVariants = [...new Set(newVariants.map((value) => value.trim()).filter(Boolean))];
+
+      setSurnameVariantHints(uniqueVariants);
       setSurnameVariantConfirmDialogVisible(false);
       setProposedSurnameVariant(null);
-      
+
       setPreviewState({
         visible: true,
         payload: {
-          firstName,
-          middleNames,
-          lastName,
-          maidenName,
-          birthDate,
-          deathDate: isPresent ? '' : deathDate,
-          gender,
-          notes,
-          lifeEvents,
-          preferredPhotoRef,
-          cropPreferredPhotoRef: '',
-          existingPhotos,
-          removedPhotos,
-          newPhotoUris,
+          ...buildSubmissionPayload(),
           surnameVariantHints: uniqueVariants,
-          pendingRelationships: pendingRelationships.map(({ mode: relationshipMode, relatedPersonId, parentChildKind }) => ({
-            mode: relationshipMode,
-            relatedPersonId,
-            parentChildKind: relationshipMode === 'spouse-of' ? undefined : parentChildKind,
-          })),
-        } satisfies PersonFormSubmission,
+        },
         warnings: [...personValidationFeedback.warnings, ...relationshipWarnings],
       });
     }
@@ -1092,6 +1081,7 @@ export default function PersonFormDialog({
         allowUnrelatedEntry={false}
         chooserTitleKey={K.personForm.addAnotherConnectionTitle}
         chooserHelperKey={K.personForm.addAnotherConnectionHelper}
+        newPersonName={firstName}
         onDismiss={() => setAddConnectionDialogVisible(false)}
         onSelectRelationship={handleAddConnection}
       />
@@ -1123,10 +1113,10 @@ export default function PersonFormDialog({
           </Dialog.Title>
           <Dialog.Content>
             <Text variant="bodyMedium" style={styles.helperText}>
-              {t(K.personForm.surnameNotInTree ?? 'This surname is not in the current family tree.')}
+              {t(K.personForm.surnameNotInTree)}
             </Text>
             <Text variant="bodyMedium" style={styles.helperText}>
-              {t(K.personForm.confirmSurnameCorrect ?? 'Is "{surname}" correct? It will be added as a surname variant.')}
+              {t(K.personForm.confirmSurnameCorrect, { surname: proposedSurnameVariant ?? '' })}
             </Text>
             {proposedSurnameVariant && (
               <Text variant="titleSmall" style={[styles.sectionSpacing, { fontWeight: 'bold' }]}>

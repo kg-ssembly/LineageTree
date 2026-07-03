@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, ScrollView, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import { Button, Dialog, IconButton, List, Portal, Text, TextInput, useTheme } from 'react-native-paper';
 import { GlobalStyles } from '../constants/styles';
 import { useI18n } from '../hooks/use-i18n';
@@ -16,6 +16,13 @@ function formatPersonName(person: PersonRecord) {
 }
 
 const dialogChrome = GlobalStyles.dialogChrome;
+const PAGE_SIZE = 5;
+
+type ReviewState = {
+  mode: PendingRelationshipMode;
+  relatedPerson: PersonRecord;
+  warnings: string[];
+} | null;
 
 type AddPersonEntryDialogProps = {
   visible: boolean;
@@ -26,6 +33,7 @@ type AddPersonEntryDialogProps = {
   allowUnrelatedEntry?: boolean;
   chooserTitleKey?: string;
   chooserHelperKey?: string;
+  newPersonName?: string;
   onDismiss: () => void;
   onSelectRelationship: (mode: PendingRelationshipMode, relatedPerson: PersonRecord) => void;
   onAddFirstFamilyMember?: () => void;
@@ -40,6 +48,7 @@ export default function AddPersonEntryDialog({
   allowUnrelatedEntry = true,
   chooserTitleKey,
   chooserHelperKey,
+  newPersonName,
   onDismiss,
   onSelectRelationship,
   onAddFirstFamilyMember,
@@ -48,6 +57,8 @@ export default function AddPersonEntryDialog({
   const { t } = useI18n();
   const [selectedMode, setSelectedMode] = useState<PendingRelationshipMode | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [page, setPage] = useState(0);
+  const [reviewState, setReviewState] = useState<ReviewState>(null);
   const validationPeople = useMemo<PersonRecord[]>(() => [
     {
       id: '__new-person__',
@@ -84,6 +95,8 @@ export default function AddPersonEntryDialog({
     if (!visible) {
       setSelectedMode(null);
       setSearchQuery('');
+      setPage(0);
+      setReviewState(null);
     }
   }, [visible]);
 
@@ -93,20 +106,44 @@ export default function AddPersonEntryDialog({
     }
 
     const normalizedQuery = searchQuery.trim().toLowerCase();
+    const excludedPersonIds = new Set(existingPendingRelationships.map((relationship) => relationship.relatedPersonId).filter(Boolean));
+
     return relationshipCandidates.filter((candidate) => (
+      !excludedPersonIds.has(candidate.id)
+      && (
       !normalizedQuery || formatPersonName(candidate).toLowerCase().includes(normalizedQuery)
+      )
     ));
-  }, [relationshipCandidates, searchQuery, selectedMode]);
+  }, [existingPendingRelationships, relationshipCandidates, searchQuery, selectedMode]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredCandidates.length / PAGE_SIZE));
+  const paginatedCandidates = useMemo(
+    () => filteredCandidates.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE),
+    [filteredCandidates, page],
+  );
+
+  useEffect(() => {
+    setPage(0);
+  }, [searchQuery, selectedMode]);
+
+  useEffect(() => {
+    if (page > totalPages - 1) {
+      setPage(Math.max(0, totalPages - 1));
+    }
+  }, [page, totalPages]);
 
   const resetAndDismiss = () => {
     setSelectedMode(null);
     setSearchQuery('');
+    setPage(0);
+    setReviewState(null);
     onDismiss();
   };
 
   const chooseMode = (mode: PendingRelationshipMode) => {
     setSelectedMode(mode);
     setSearchQuery('');
+    setPage(0);
   };
 
   const handleRelationshipSelection = (mode: PendingRelationshipMode, relatedPerson: PersonRecord) => {
@@ -134,6 +171,7 @@ export default function AddPersonEntryDialog({
     ));
 
     const confirmSelection = () => {
+      setReviewState(null);
       resetAndDismiss();
       onSelectRelationship(mode, relatedPerson);
     };
@@ -143,14 +181,11 @@ export default function AddPersonEntryDialog({
       return;
     }
 
-    Alert.alert(
-      t(K.personForm.relationshipNeedsReviewTitle),
-      softWarnings.join('\n\n'),
-      [
-        { text: t(K.personForm.chooseAnotherMember), style: 'cancel' },
-        { text: t(K.startup.continue), onPress: confirmSelection },
-      ],
-    );
+    setReviewState({
+      mode,
+      relatedPerson,
+      warnings: softWarnings,
+    });
   };
 
   return (
@@ -162,10 +197,12 @@ export default function AddPersonEntryDialog({
       >
         <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>
           {selectedMode
-            ? t(K.relationship.selectRelatedFamilyMember)
-            : chooserTitleKey
-              ? t(chooserTitleKey)
-              : t(K.personForm.addMemberChooserTitle)}
+           ? newPersonName
+             ? t(K.relationship.selectRelatedFamilyMemberFor, { name: newPersonName })
+             : t(K.relationship.selectRelatedFamilyMember)
+           : chooserTitleKey
+             ? t(chooserTitleKey)
+             : t(K.personForm.addMemberChooserTitle)}
         </Dialog.Title>
         <IconButton
           icon="close"
@@ -176,7 +213,9 @@ export default function AddPersonEntryDialog({
         <Dialog.Content style={dialogChrome.content}>
           <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
             {selectedMode
-              ? t(K.personForm.addMemberChooserMemberListHelper)
+              ? newPersonName
+                ? t(K.personForm.selectRelatedMemberForPerson, { name: newPersonName })
+                : t(K.personForm.addMemberChooserMemberListHelper)
               : chooserHelperKey
                 ? t(chooserHelperKey)
                 : hasExistingFamilyMembers
@@ -196,7 +235,7 @@ export default function AddPersonEntryDialog({
               />
               <ScrollView style={{ maxHeight: 320 }} keyboardShouldPersistTaps="handled">
                 <View>
-                  {filteredCandidates.map((candidate) => (
+                  {paginatedCandidates.map((candidate) => (
                     <List.Item
                       key={candidate.id}
                       title={formatPersonName(candidate)}
@@ -233,6 +272,21 @@ export default function AddPersonEntryDialog({
                   ) : null}
                 </View>
               </ScrollView>
+              {filteredCandidates.length > 0 ? (
+                <View style={{ marginTop: 12, gap: 8 }}>
+                  <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center' }}>
+                    {t(K.app.resultsPageCount, { current: page + 1, total: totalPages })}
+                  </Text>
+                  <View style={{ flexDirection: 'row', gap: 8, justifyContent: 'space-between' }}>
+                    <Button mode="outlined" onPress={() => setPage((current) => Math.max(0, current - 1))} disabled={page === 0}>
+                      {t(K.common.previous)}
+                    </Button>
+                    <Button mode="outlined" onPress={() => setPage((current) => Math.min(totalPages - 1, current + 1))} disabled={page >= totalPages - 1}>
+                      {t(K.common.next)}
+                    </Button>
+                  </View>
+                </View>
+              ) : null}
               <Button mode="text" onPress={() => { setSelectedMode(null); setSearchQuery(''); }} style={{ marginTop: 12 }}>
                 {t(K.common.back)}
               </Button>
@@ -264,6 +318,59 @@ export default function AddPersonEntryDialog({
             </View>
           )}
         </Dialog.Content>
+      </Dialog>
+      <Dialog
+        visible={!!reviewState}
+        onDismiss={() => setReviewState(null)}
+        style={[dialogChrome.dialog, { backgroundColor: theme.colors.surface }]}
+      >
+        <Dialog.Title style={dialogChrome.dialogTitle}>
+          {t(K.personForm.relationshipNeedsReviewTitle)}
+        </Dialog.Title>
+        <Dialog.Content style={dialogChrome.content}>
+          {reviewState ? (
+            <View style={{ gap: 12 }}>
+              <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+                {t(K.personForm.relationshipValidationCheck)}
+              </Text>
+              <Text variant="titleSmall">
+                {t(
+                  reviewState.mode === 'parent-of'
+                    ? K.relationship.createParentForName
+                    : reviewState.mode === 'child-of'
+                      ? K.relationship.createChildForName
+                      : K.relationship.createSpouseForName,
+                  { name: formatPersonName(reviewState.relatedPerson) },
+                )}
+              </Text>
+              <Text variant="bodyMedium">
+                {reviewState.warnings.length === 1
+                  ? reviewState.warnings[0]
+                  : reviewState.warnings.map((warning, index) => `${index + 1}. ${warning}`).join('\n')}
+              </Text>
+            </View>
+          ) : null}
+        </Dialog.Content>
+        <Dialog.Actions style={dialogChrome.dialogActions}>
+          <Button onPress={() => setReviewState(null)}>
+            {t(K.personForm.chooseAnotherMember)}
+          </Button>
+          <Button
+            mode="contained"
+            onPress={() => {
+              if (!reviewState) {
+                return;
+              }
+
+              const { mode, relatedPerson } = reviewState;
+              setReviewState(null);
+              resetAndDismiss();
+              onSelectRelationship(mode, relatedPerson);
+            }}
+          >
+            {t(K.startup.continue)}
+          </Button>
+        </Dialog.Actions>
       </Dialog>
     </Portal>
   );

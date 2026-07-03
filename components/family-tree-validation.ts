@@ -245,6 +245,10 @@ export function getPersonValidationFeedback({
     errors.push(translate(K.personForm.firstNameRequiredError));
   }
 
+  if (!lastName) {
+    errors.push(translate(K.personForm.lastNameRequired));
+  }
+
   if (requireIdentityContext && !lastName && !birthDate && pendingRelationships.filter((relationship) => relationship.relatedPersonId).length === 0) {
     errors.push(translate(K.personForm.identityDetailRequired));
   }

@@ -3513,7 +3513,9 @@ export async function createPerson(
     familyBranch: '',
     hometown: '',
     birthPlace: '',
-    surnameVariantHints: [],
+    surnameVariantHints: Array.isArray(input.surnameVariantHints)
+      ? [...new Set(input.surnameVariantHints.map((value) => value.trim()).filter(Boolean))]
+      : [],
     canonicalPersonId: '',
     duplicatePersonIds: [],
     birthDate: input.birthDate.trim(),

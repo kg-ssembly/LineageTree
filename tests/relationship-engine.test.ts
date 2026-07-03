@@ -351,6 +351,24 @@ test('requires at least one additional identity detail when creating a person', 
   assert.ok(feedback.errors.includes('Add at least one identifying detail: surname, birth date, or a relationship.'));
 });
 
+test('requires a last name when creating a person', () => {
+  const feedback = getPersonValidationFeedback({
+    people: [],
+    person: {
+      firstName: 'Jordan',
+      middleNames: '',
+      lastName: '',
+      maidenName: '',
+      birthDate: '',
+      deathDate: '',
+      notes: '',
+      lifeEvents: [],
+    },
+  });
+
+  assert.ok(feedback.errors.includes('Last name is required.'));
+});
+
 test('requires a relationship anchor when the create flow is in connected mode', () => {
   const feedback = getPersonValidationFeedback({
     people: [makePerson('existing', 'Alex', 'male')],
