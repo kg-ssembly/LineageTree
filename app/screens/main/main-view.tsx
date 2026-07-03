@@ -1,6 +1,5 @@
 import React from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
-import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
+import { ActivityIndicator, View } from 'react-native';
 import {
   CollaboratorDialog,
   AddPersonEntryDialog,
@@ -8,6 +7,7 @@ import {
   FloatingSnackbar,
   PersonFormDialog,
   RelationshipDialog,
+  ScreenBackground,
   SharedLoader,
   StartupModal,
   TreeFormDialog,
@@ -24,36 +24,6 @@ import { MainTabNavigator } from './main-tab-navigator';
 const styles = GlobalStyles.treeDetail;
 const dialogChrome = GlobalStyles.dialogChrome;
 
-const localStyles = StyleSheet.create({
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    overflow: 'hidden',
-  },
-});
-
-function MainBackground({ theme }: { theme: { colors: { background: string; secondaryContainer: string; tertiaryContainer: string } } }) {
-  return (
-    <View pointerEvents="none" style={[localStyles.backdrop, { backgroundColor: theme.colors.background }]}>
-      <Svg width="100%" height="100%" style={StyleSheet.absoluteFillObject}>
-        <Defs>
-          <RadialGradient id="secondaryGlow" cx="35%" cy="35%" r="60%">
-            <Stop offset="0%" stopColor={theme.colors.secondaryContainer} stopOpacity={0.9} />
-            <Stop offset="70%" stopColor={theme.colors.secondaryContainer} stopOpacity={0.45} />
-            <Stop offset="100%" stopColor={theme.colors.secondaryContainer} stopOpacity={0} />
-          </RadialGradient>
-          <RadialGradient id="tertiaryGlow" cx="65%" cy="65%" r="60%">
-            <Stop offset="0%" stopColor={theme.colors.tertiaryContainer} stopOpacity={0.82} />
-            <Stop offset="72%" stopColor={theme.colors.tertiaryContainer} stopOpacity={0.4} />
-            <Stop offset="100%" stopColor={theme.colors.tertiaryContainer} stopOpacity={0} />
-          </RadialGradient>
-        </Defs>
-        <Circle cx={88} cy={106} r={132} fill="url(#secondaryGlow)" />
-        <Circle cx={356} cy={642} r={110} fill="url(#tertiaryGlow)" />
-      </Svg>
-    </View>
-  );
-}
-
 export function MainScreenView({ controller }: { controller: ReturnType<typeof useMainScreenController> }) {
   const isWaitingForInitialTreeSelection = controller.loadingTrees
     || (controller.trees.length > 0 && !controller.selectedTree && !controller.sharedTabProps);
@@ -69,7 +39,7 @@ export function MainScreenView({ controller }: { controller: ReturnType<typeof u
   if (isWaitingForInitialTreeSelection) {
     return (
       <View style={[styles.container, { backgroundColor: controller.theme.colors.background }]}>
-        <MainBackground theme={controller.theme} />
+        <ScreenBackground />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <ActivityIndicator size="large" color={controller.theme.colors.primary} />
         </View>
@@ -79,7 +49,7 @@ export function MainScreenView({ controller }: { controller: ReturnType<typeof u
 
   return (
     <View style={[styles.container, { backgroundColor: controller.theme.colors.background }]}>
-      <MainBackground theme={controller.theme} />
+      <ScreenBackground />
       <MainTabNavigator controller={controller} noTreeGate={noTreeGate} styles={styles} />
 
       <CollaboratorDialog

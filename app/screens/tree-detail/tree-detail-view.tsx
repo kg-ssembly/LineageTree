@@ -663,6 +663,15 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     }
   }, [assignPersonToUser, createPersonFromPayload, selectedTree, user?.id]);
 
+  const selfPersonInitialValues = useMemo(
+    () => buildSelfPersonInitialValues(user),
+    [user],
+  );
+
+  const closeSelfPersonDialog = useCallback(() => {
+    setSelfPersonDialogVisible(false);
+  }, []);
+
   const handleAssignPersonToUser = useCallback(async (targetUserId: string, personId: string) => {
     if (!user?.id || !selectedTree) {
       return;
@@ -1083,11 +1092,11 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
       <PersonFormDialog
         visible={selfPersonDialogVisible && !isSharedLoaderVisible}
         mode="create"
-        initialValues={useMemo(() => buildSelfPersonInitialValues(user), [user])}
+        initialValues={selfPersonInitialValues}
         loading={mutating}
         existingLastNames={existingLastNames}
         relationshipCandidates={people}
-        onDismiss={useCallback(() => setSelfPersonDialogVisible(false), [])}
+        onDismiss={closeSelfPersonDialog}
         onSubmit={handleSelfPersonSubmit}
       />
 

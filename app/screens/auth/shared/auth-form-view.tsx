@@ -11,7 +11,7 @@ import {
   TextInput,
   useTheme,
 } from 'react-native-paper';
-import { Reveal, SharedLoader } from '../../../../components';
+import { Reveal, ScreenBackground, SharedLoader } from '../../../../components';
 import { GlobalStyles } from '../../../../constants/styles';
 
 const loginStyles = GlobalStyles.login;
@@ -87,6 +87,7 @@ export function AuthFormView({
       style={[styles.flex, { backgroundColor: theme.colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
+      <ScreenBackground />
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <View style={styles.heroWrap}>
           <Chip icon={chipIcon} style={{ alignSelf: 'flex-start', backgroundColor: chipColor }}>

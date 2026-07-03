@@ -3,7 +3,7 @@ import { ScrollView, View, type LayoutChangeEvent } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
 import { ActivityIndicator, Button, Card, Chip, Dialog, IconButton, Portal, Surface, Text, useTheme } from 'react-native-paper';
-import { FloatingSnackbar, HorizontalTabStrip, InfoDialog, Reveal } from '../../../../components';
+import { FloatingSnackbar, HorizontalTabStrip, InfoDialog, Reveal, ScreenBackground, TabStripCard } from '../../../../components';
 import { getDisplayPersonPhoto } from '../../../../components/dto/person';
 import type { MainTabParamList } from '../../../../components/dto/navigation';
 import type { AppTheme } from '../../../../constants/theme';
@@ -1062,19 +1062,22 @@ export function HomeDashboardView(props: SharedTabProps) {
   if (loadingTreeData) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background }]}>
+        <ScreenBackground />
         <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   }
 
   return (
-    <ScrollView
-      ref={scrollRef}
-      contentContainerStyle={[styles.content, { paddingBottom: 72 }]}
-      showsVerticalScrollIndicator={false}
-    >
-      <Reveal delay={50}>
-        <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={2}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <ScreenBackground />
+      <ScrollView
+        ref={scrollRef}
+        contentContainerStyle={[styles.content, { paddingBottom: 72 }]}
+        showsVerticalScrollIndicator={false}
+      >
+        <Reveal delay={50}>
+          <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={2}>
           <View style={styles.sectionHeader}>
             <View style={styles.titleWrap}>
               <Text variant="headlineSmall">
@@ -1084,25 +1087,24 @@ export function HomeDashboardView(props: SharedTabProps) {
             <Chip icon="home-heart">{selectedTree.name}</Chip>
           </View>
 
-        </Surface>
-      </Reveal>
+          </Surface>
+        </Reveal>
 
-      <Reveal delay={60}>
-        <Surface style={[profileStyles.tabStripCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
-          <HorizontalTabStrip
-            items={dashboardTabs}
-            activeKey={dashboardTab}
-            onChange={(key) => {
-              hasUserSelectedDashboardTabRef.current = true;
-              setDashboardTab(key);
-              scrollRef.current?.scrollTo({ y: 0, animated: true });
-            }}
-            containerStyle={{ backgroundColor: theme.colors.surface }}
-            contentContainerStyle={profileStyles.tabStripContent}
-            itemStyle={profileStyles.tabStripItem}
-          />
-        </Surface>
-      </Reveal>
+        <Reveal delay={60}>
+          <TabStripCard>
+            <HorizontalTabStrip
+              items={dashboardTabs}
+              activeKey={dashboardTab}
+              onChange={(key) => {
+                hasUserSelectedDashboardTabRef.current = true;
+                setDashboardTab(key);
+                scrollRef.current?.scrollTo({ y: 0, animated: true });
+              }}
+              contentContainerStyle={profileStyles.tabStripContent}
+              itemStyle={profileStyles.tabStripItem}
+            />
+          </TabStripCard>
+        </Reveal>
 
       {dashboardTab !== 'highlights' && !isEmptyTree ? (
         <Reveal delay={70}>
@@ -1598,6 +1600,7 @@ export function HomeDashboardView(props: SharedTabProps) {
       >
         {celebrationMessage}
       </FloatingSnackbar>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }

@@ -1,7 +1,7 @@
 import React from 'react';
 import { View } from 'react-native';
-import { Button, Chip, IconButton, Surface, Text, useTheme } from 'react-native-paper';
-import { Reveal } from '../../../../components';
+import { Button, Chip, IconButton, Text, useTheme } from 'react-native-paper';
+import { Reveal, SectionCard } from '../../../../components';
 import type { PersonPhoto, PersonRecord } from '../../../../components/dto/person';
 import { formatPersonDate, getPersonPresenceLabel, getPersonTreeMembershipIds, isPersonDeceased } from '../../../../components/dto/person';
 import { formatPersonGender, formatPersonName } from '../../../../components/person-formatting';
@@ -40,7 +40,7 @@ export function MemberProfileSection({
 
   return (
     <Reveal delay={90}>
-      <Surface style={[styles.sectionCard, { backgroundColor: chrome.primaryCardBackground }]} elevation={1}>
+      <SectionCard variant="person" backgroundColor={chrome.primaryCardBackground}>
       <View style={styles.sectionHeader}>
         <View style={styles.sectionHeaderText}>
           <View style={styles.titleWithHelperRow}>
@@ -98,7 +98,7 @@ export function MemberProfileSection({
           {person.notes || t(K.personProfile.addRealDetail)}
         </Text>
       </View>
-      </Surface>
+      </SectionCard>
     </Reveal>
   );
 }

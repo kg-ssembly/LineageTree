@@ -1,7 +1,7 @@
 import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
-import { FlatList, ScrollView, Share, StyleSheet, View } from 'react-native';
+import { FlatList, ScrollView, Share, View } from 'react-native';
 import { Button, Chip, Dialog, IconButton, Portal, ProgressBar, Text, TextInput, useTheme } from 'react-native-paper';
-import { FloatingSnackbar, HorizontalTabStrip, InfoDialog, Reveal } from '../../../../components';
+import { FloatingSnackbar, HorizontalTabStrip, InfoDialog, Reveal, TabStripCard } from '../../../../components';
 import type { ApprovalRequest } from '../../../../components/dto/approval';
 import type { PersonRecord } from '../../../../components/dto/person';
 import {
@@ -34,29 +34,6 @@ import { BUTTON_CHROME, BUTTON_CONTENT_CHROME } from '../../../../constants/styl
 
 const dialogChrome = GlobalStyles.dialogChrome;
 const styles = GlobalStyles.treeDetail;
-
-const settingsTabStripStyles = StyleSheet.create({
-  card: {
-    borderRadius: 20,
-    marginTop: 8,
-    marginBottom: 16,
-    overflow: 'hidden',
-    shadowColor: '#1F2C1B',
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
-  },
-  content: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  item: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginHorizontal: 2,
-  },
-});
 
 const OWNER_LINK_PAGE_SIZE = 3;
 
@@ -516,14 +493,13 @@ function TreeSettingsContent({
         </View>
 
         <Reveal delay={70}>
-          <HorizontalTabStrip
-            items={TREE_MANAGEMENT_TABS.map((tab) => ({ ...tab, label: t(tab.label) }))}
-            activeKey={activeManagementTab}
-            onChange={setActiveManagementTab}
-            containerStyle={[settingsTabStripStyles.card, { backgroundColor: theme.colors.surface }]}
-            contentContainerStyle={settingsTabStripStyles.content}
-            itemStyle={settingsTabStripStyles.item}
-          />
+          <TabStripCard>
+            <HorizontalTabStrip
+              items={TREE_MANAGEMENT_TABS.map((tab) => ({ ...tab, label: t(tab.label) }))}
+              activeKey={activeManagementTab}
+              onChange={setActiveManagementTab}
+            />
+          </TabStripCard>
         </Reveal>
 
         {activeManagementTab === 'overview' ? (

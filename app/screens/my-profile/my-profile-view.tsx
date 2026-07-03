@@ -16,6 +16,8 @@ import {
   PersonFormDialog,
   PersonRelationshipDialog,
   Reveal,
+  ScreenBackground,
+  TabStripCard,
 } from '../../../components';
 import type { PersonRelationshipMode } from '../../../components/person-relationship-dialog';
 import type { RootStackParamList } from '../../../components/dto/navigation';
@@ -817,6 +819,7 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
 
   return (
     <View style={[personProfileStyles.container, { backgroundColor: theme.colors.background }]}>
+      <ScreenBackground />
       <ScrollView contentContainerStyle={personProfileStyles.compactContent}>
         <ProfileHeroSection
           shouldShowLinkedProfileTabs={shouldShowLinkedProfileTabs}
@@ -830,14 +833,15 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
         />
 
         <Reveal delay={70}>
-          <HorizontalTabStrip
-            items={shouldShowLinkedProfileTabs ? profileTabs : profileTabs.filter((tab) => tab.key === 'app-settings')}
-            activeKey={activeTab}
-            onChange={setActiveTab}
-            containerStyle={[personProfileStyles.tabStripCard, { backgroundColor: theme.colors.surface }]}
-            contentContainerStyle={personProfileStyles.tabStripContent}
-            itemStyle={personProfileStyles.tabStripItem}
-          />
+          <TabStripCard>
+            <HorizontalTabStrip
+              items={shouldShowLinkedProfileTabs ? profileTabs : profileTabs.filter((tab) => tab.key === 'app-settings')}
+              activeKey={activeTab}
+              onChange={setActiveTab}
+              contentContainerStyle={personProfileStyles.tabStripContent}
+              itemStyle={personProfileStyles.tabStripItem}
+            />
+          </TabStripCard>
         </Reveal>
 
         {shouldShowLinkedProfileTabs && activeTab === 'biography' && linkedPerson ? (

@@ -15,7 +15,7 @@ import {
   Text,
   useTheme,
 } from 'react-native-paper';
-import { ConfirmDialog, FloatingSnackbar, HorizontalTabStrip, InfoDialog, LifeEventDialog, PersonFormDialog, PersonRelationshipDialog, Reveal, SharedLoader } from '../../../components';
+import { ConfirmDialog, FloatingSnackbar, HorizontalTabStrip, InfoDialog, LifeEventDialog, PersonFormDialog, PersonRelationshipDialog, Reveal, ScreenBackground, SharedLoader, TabStripCard } from '../../../components';
 import type { PersonRelationshipMode } from '../../../components/person-relationship-dialog';
 import { useAuthStore } from '../../../stores/auth-store';
 import { useTreeStore } from '../../../stores/tree-store';
@@ -918,6 +918,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <ScreenBackground />
       <View pointerEvents="box-none" style={styles.stickyActionBarHost}>
         <Button
           mode="outlined"
@@ -1021,14 +1022,15 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
         </Reveal>
 
         <Reveal delay={75}>
-          <HorizontalTabStrip
-            items={PROFILE_TABS.map((tab) => ({ ...tab, label: t(tab.label) }))}
-            activeKey={activeTab}
-            onChange={setActiveTab}
-            containerStyle={[styles.tabStripCard, { backgroundColor: theme.colors.surface }]}
-            contentContainerStyle={styles.tabStripContent}
-            itemStyle={styles.tabStripItem}
-          />
+          <TabStripCard>
+            <HorizontalTabStrip
+              items={PROFILE_TABS.map((tab) => ({ ...tab, label: t(tab.label) }))}
+              activeKey={activeTab}
+              onChange={setActiveTab}
+              contentContainerStyle={styles.tabStripContent}
+              itemStyle={styles.tabStripItem}
+            />
+          </TabStripCard>
         </Reveal>
 
         {activeTab === 'biography' ? (

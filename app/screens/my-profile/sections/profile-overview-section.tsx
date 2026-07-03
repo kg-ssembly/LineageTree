@@ -1,7 +1,7 @@
 import React from 'react';
 import { View } from 'react-native';
-import { Chip, Surface, Text, useTheme } from 'react-native-paper';
-import { Reveal } from '../../../../components';
+import { Chip, Text, useTheme } from 'react-native-paper';
+import { Reveal, SectionCard } from '../../../../components';
 import type { PersonRecord, PersonPhoto } from '../../../../components/dto/person';
 import { formatPersonDate, getPersonPresenceLabel, getPersonTreeMembershipIds, isPersonDeceased } from '../../../../components/dto/person';
 import { formatPersonGender } from '../../../../components/person-formatting';
@@ -30,7 +30,7 @@ export function ProfileOverviewSection({
 
   return (
     <Reveal delay={70}>
-      <Surface style={[personProfileStyles.sectionCard, { backgroundColor: chrome.primaryCardBackground }]} elevation={1}>
+      <SectionCard variant="person" backgroundColor={chrome.primaryCardBackground}>
         <Text variant="titleLarge">{t(K.personProfile.biography)}</Text>
         <View style={personProfileStyles.metadataRow}>
           {linkedPerson.gender !== 'unspecified' ? <Chip compact>{formatPersonGender(linkedPerson.gender)}</Chip> : null}
@@ -67,7 +67,7 @@ export function ProfileOverviewSection({
             {linkedPerson.notes || t(K.personProfile.addRealDetail)}
           </Text>
         </View>
-      </Surface>
+      </SectionCard>
     </Reveal>
   );
 }
