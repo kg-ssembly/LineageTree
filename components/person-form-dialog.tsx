@@ -225,6 +225,7 @@ export default function PersonFormDialog({
   const [pendingRelationships, setPendingRelationships] = useState<PendingRelationshipDraft[]>([]);
   const [surnameMenuVisible, setSurnameMenuVisible] = useState(false);
   const [lastNameTouched, setLastNameTouched] = useState(false);
+  const [showCustomSurnameInput, setShowCustomSurnameInput] = useState(false);
   const [preferredPhotoRef, setPreferredPhotoRef] = useState('');
   const [previewState, setPreviewState] = useState<SubmissionPreviewState>({ visible: false, payload: null, warnings: [] });
   const [submitPending, setSubmitPending] = useState(false);
@@ -282,6 +283,7 @@ export default function PersonFormDialog({
     );
     setSurnameMenuVisible(false);
     setLastNameTouched(false);
+    setShowCustomSurnameInput(false);
     setPreferredPhotoRef(person?.preferredPhotoId ?? initialValues?.preferredPhotoRef ?? '');
     setPreviewState({ visible: false, payload: null, warnings: [] });
     setSubmitPending(false);
@@ -330,6 +332,10 @@ export default function PersonFormDialog({
   const normalizedTreeSurnames = useMemo(
     () => new Set(uniqueLastNames.map(normaliseSurnameValue)),
     [uniqueLastNames],
+  );
+  const hasMatchingExistingSurname = useMemo(
+    () => normalizedTreeSurnames.has(normaliseSurnameValue(lastName)),
+    [lastName, normalizedTreeSurnames],
   );
   const relationshipCandidatesById = useMemo(
     () => new Map(relationshipCandidates.map((candidate) => [candidate.id, candidate])),
@@ -477,6 +483,17 @@ export default function PersonFormDialog({
 
     return '';
   }, [mode, pendingRelationships, relationshipCandidatesById]);
+  const effectiveLastNameSelection = useMemo(() => {
+    if (lastName.trim()) {
+      return lastName.trim();
+    }
+
+    if (mode === 'create' && !lastNameTouched && suggestedLastName) {
+      return suggestedLastName;
+    }
+
+    return '';
+  }, [lastName, lastNameTouched, mode, suggestedLastName]);
 
   useEffect(() => {
     if (mode !== 'create' || !suggestedLastName || lastNameTouched) {
@@ -484,7 +501,17 @@ export default function PersonFormDialog({
     }
 
     setLastName(suggestedLastName);
+    setShowCustomSurnameInput(false);
   }, [lastNameTouched, mode, suggestedLastName]);
+
+  useEffect(() => {
+    if (!lastName.trim()) {
+      setShowCustomSurnameInput(uniqueLastNames.length === 0);
+      return;
+    }
+
+    setShowCustomSurnameInput(!hasMatchingExistingSurname);
+  }, [hasMatchingExistingSurname, lastName, uniqueLastNames.length]);
 
   const selectedRelationshipDraft = mode === 'create'
     ? pendingRelationships.find((relationship) => relationship.relatedPersonId) ?? null
@@ -744,7 +771,7 @@ export default function PersonFormDialog({
                       style={styles.fieldSpacing}
                       disabled={loading || uniqueLastNames.length === 0}
                     >
-                      {lastName || (uniqueLastNames.length > 0 ? t(K.personForm.chooseExistingSurname) : t(K.personForm.noExistingSurnames))}
+                      {effectiveLastNameSelection || (uniqueLastNames.length > 0 ? t(K.personForm.chooseExistingSurname) : t(K.personForm.noExistingSurnames))}
                     </Button>
                   )}
                 >
@@ -755,26 +782,40 @@ export default function PersonFormDialog({
                       onPress={() => {
                         setLastName(value);
                         setLastNameTouched(true);
+                        setShowCustomSurnameInput(false);
                         setSurnameMenuVisible(false);
+                        if (lastNameError) {
+                          setLastNameError(null);
+                        }
                       }}
                     />
                   ))}
+                  <Menu.Item
+                    title={t(K.personForm.addDifferentSurnameVariant)}
+                    onPress={() => {
+                      setShowCustomSurnameInput(true);
+                      setLastNameTouched(true);
+                      setSurnameMenuVisible(false);
+                    }}
+                  />
                 </Menu>
-                <TextInput
-                  mode="outlined"
-                  label={t(K.personForm.typeNewSurnameOrEditSelection)}
-                  value={lastName}
-                  onChangeText={(value) => {
-                    setLastName(value);
-                    setLastNameTouched(true);
-                    if (lastNameError) {
-                      setLastNameError(null);
-                    }
-                  }}
-                  disabled={loading}
-                  error={!!lastNameError}
-                  style={styles.fieldSpacing}
-                />
+                {showCustomSurnameInput ? (
+                  <TextInput
+                    mode="outlined"
+                    label={t(K.personForm.enterSurnameVariant)}
+                    value={lastName}
+                    onChangeText={(value) => {
+                      setLastName(value);
+                      setLastNameTouched(true);
+                      if (lastNameError) {
+                        setLastNameError(null);
+                      }
+                    }}
+                    disabled={loading}
+                    error={!!lastNameError}
+                    style={styles.fieldSpacing}
+                  />
+                ) : null}
                 <HelperText type="error" visible={!!lastNameError}>
                   {lastNameError}
                 </HelperText>
