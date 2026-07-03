@@ -41,11 +41,7 @@ const fontFamily = Platform.select({
   default: 'System',
 }) ?? 'System';
 
-const displayFontFamily = Platform.select({
-  ios: 'Georgia',
-  android: 'serif',
-  default: 'Georgia',
-}) ?? 'Georgia';
+const displayFontFamily = fontFamily;
 
 const appFonts = configureFonts({
   config: {
