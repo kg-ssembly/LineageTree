@@ -317,7 +317,9 @@ export default function PersonFormDialog({
     existingPhotos,
     removedPhotos,
     newPhotoUris,
-    surnameVariantHints,
+    surnameVariantHints: !hasExistingSurnames && lastName.trim()
+      ? [...new Set([...surnameVariantHints, lastName.trim()])]
+      : surnameVariantHints,
     pendingRelationships: pendingRelationships.map(({ mode: relationshipMode, relatedPersonId, parentChildKind }) => ({
       mode: relationshipMode,
       relatedPersonId,
@@ -331,6 +333,7 @@ export default function PersonFormDialog({
     () => [...new Set(existingLastNames.map((value) => value.trim()).filter(Boolean))].sort((left, right) => left.localeCompare(right)),
     [existingLastNames],
   );
+  const hasExistingSurnames = uniqueLastNames.length > 0;
   const normalizedTreeSurnames = useMemo(
     () => new Set(uniqueLastNames.map(normaliseSurnameValue)),
     [uniqueLastNames],
@@ -603,7 +606,7 @@ export default function PersonFormDialog({
       return;
     }
 
-    if (mode === 'create' && uniqueLastNames.length > 0) {
+    if (mode === 'create' && hasExistingSurnames) {
       const trimmedLastName = lastName.trim();
       const normalizedLastName = normaliseSurnameValue(trimmedLastName);
       const isNewSurname = trimmedLastName.length > 0 && !normalizedTreeSurnames.has(normalizedLastName);
@@ -762,46 +765,66 @@ export default function PersonFormDialog({
 
               <View style={styles.sectionSpacing}>
                 <Text variant="titleSmall">{t(K.personForm.lastName)}</Text>
-                <Menu
-                  visible={surnameMenuVisible}
-                  onDismiss={() => setSurnameMenuVisible(false)}
-                  anchor={(
-                    <Button
-                      mode="outlined"
-                      icon="chevron-down"
-                      onPress={() => setSurnameMenuVisible(true)}
-                      style={styles.fieldSpacing}
-                      disabled={loading || uniqueLastNames.length === 0}
+                {hasExistingSurnames ? (
+                  <>
+                    <Menu
+                      visible={surnameMenuVisible}
+                      onDismiss={() => setSurnameMenuVisible(false)}
+                      anchor={(
+                        <Button
+                          mode="outlined"
+                          icon="chevron-down"
+                          onPress={() => setSurnameMenuVisible(true)}
+                          style={styles.fieldSpacing}
+                          disabled={loading}
+                        >
+                          {effectiveLastNameSelection || t(K.personForm.chooseExistingSurname)}
+                        </Button>
+                      )}
                     >
-                      {effectiveLastNameSelection || (uniqueLastNames.length > 0 ? t(K.personForm.chooseExistingSurname) : t(K.personForm.noExistingSurnames))}
-                    </Button>
-                  )}
-                >
-                  {uniqueLastNames.map((value) => (
-                    <Menu.Item
-                      key={value}
-                      title={value}
-                      onPress={() => {
-                        setLastName(value);
-                        setLastNameTouched(true);
-                        setShowCustomSurnameInput(false);
-                        setSurnameMenuVisible(false);
-                        if (lastNameError) {
-                          setLastNameError(null);
-                        }
-                      }}
-                    />
-                  ))}
-                  <Menu.Item
-                    title={t(K.personForm.addDifferentSurnameVariant)}
-                    onPress={() => {
-                      setShowCustomSurnameInput(true);
-                      setLastNameTouched(true);
-                      setSurnameMenuVisible(false);
-                    }}
-                  />
-                </Menu>
-                {showCustomSurnameInput ? (
+                      {uniqueLastNames.map((value) => (
+                        <Menu.Item
+                          key={value}
+                          title={value}
+                          onPress={() => {
+                            setLastName(value);
+                            setLastNameTouched(true);
+                            setShowCustomSurnameInput(false);
+                            setSurnameMenuVisible(false);
+                            if (lastNameError) {
+                              setLastNameError(null);
+                            }
+                          }}
+                        />
+                      ))}
+                      <Menu.Item
+                        title={t(K.personForm.addDifferentSurnameVariant)}
+                        onPress={() => {
+                          setShowCustomSurnameInput(true);
+                          setLastNameTouched(true);
+                          setSurnameMenuVisible(false);
+                        }}
+                      />
+                    </Menu>
+                    {showCustomSurnameInput ? (
+                      <TextInput
+                        mode="outlined"
+                        label={t(K.personForm.enterSurnameVariant)}
+                        value={lastName}
+                        onChangeText={(value) => {
+                          setLastName(value);
+                          setLastNameTouched(true);
+                          if (lastNameError) {
+                            setLastNameError(null);
+                          }
+                        }}
+                        disabled={loading}
+                        error={!!lastNameError}
+                        style={styles.fieldSpacing}
+                      />
+                    ) : null}
+                  </>
+                ) : (
                   <TextInput
                     mode="outlined"
                     label={t(K.personForm.enterSurnameVariant)}
@@ -817,11 +840,11 @@ export default function PersonFormDialog({
                     error={!!lastNameError}
                     style={styles.fieldSpacing}
                   />
-                ) : null}
+                )}
                 <HelperText type="error" visible={!!lastNameError}>
                   {lastNameError}
                 </HelperText>
-                {mode === 'create' && suggestedLastName ? (
+                {mode === 'create' && suggestedLastName && hasExistingSurnames ? (
                   <HelperText type="info" visible>
                     {t(K.personForm.suggestedSurnameFromRelationship, { name: suggestedLastName })}
                   </HelperText>
