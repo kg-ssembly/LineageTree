@@ -50,7 +50,7 @@ import {
   findConnectedTreeForSurname,
 } from '../tree-screen-helpers';
 import { TreeDetailMaidenViewer } from './tree-detail-maiden-viewer';
-import { TreeDetailNodeQuickActionsDialog } from './tree-detail-node-quick-actions-dialog';
+import { TreeDetailNodeQuickActionsDialog } from '../profile-shared';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'TreeDetail'>;
 

@@ -35,14 +35,18 @@ import { useAuthStore } from '../../../stores/auth-store';
 import { useTreeStore } from '../../../stores/tree-store';
 import { useShallow } from 'zustand/react/shallow';
 import { buildPeopleDirectory, getTreeById } from '../tree-tabs/shared';
-import { NotesDialog } from './dialogs/notes-dialog';
-import { PhotoViewerModal } from './dialogs/photo-viewer-modal';
 import { AppSettingsSection, type UserProfileTabProps } from './sections/app-settings-section';
-import { LineageSection } from './sections/lineage-section';
-import { MemoriesSection, type MemorySectionTabKey } from './sections/memories-section';
+import {
+  PersonLineageSection as LineageSection,
+  PersonMemoriesSection as MemoriesSection,
+  PersonNotesDialog as NotesDialog,
+  PersonPhotoViewerModal as PhotoViewerModal,
+  PersonRelationshipsSection as RelationshipsSection,
+  type PersonMemorySectionTabKey as MemorySectionTabKey,
+  type PersonRelationshipSectionTabKey as RelationshipSectionTabKey,
+} from '../profile-shared';
 import { ProfileOverviewSection } from './sections/profile-overview-section';
 import { ProfileHeroSection } from './sections/profile-hero-section';
-import { RelationshipsSection, type RelationshipSectionTabKey } from './sections/relationships-section';
 
 import { GlobalStyles } from '../../../constants/styles';
 
@@ -400,6 +404,7 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
               ? relationship.toPersonId
               : relationship.fromPersonId;
         const relatedPerson = peopleById.get(relatedPersonId) ?? null;
+        const title = formatPersonName(relatedPerson);
         const subtitle = relationship.type === 'spouse'
           ? t(K.personProfile.partnerConnection)
           : mode === 'parent-of'
@@ -410,6 +415,7 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
           relationship,
           mode,
           relatedPerson,
+          title,
           subtitle,
         };
       })
@@ -851,13 +857,17 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
 
         {shouldShowLinkedProfileTabs && activeTab === 'relationships' && linkedPerson ? (
           <RelationshipsSection
-            linkedPerson={linkedPerson}
+            person={linkedPerson}
             people={people}
             relationships={relationships}
             relationshipSectionTab={relationshipSectionTab}
             setRelationshipSectionTab={setRelationshipSectionTab}
-            relationshipEntries={relationshipEntries}
-            canEditLinkedProfile={canEditLinkedProfile}
+            paginatedRelationships={relationshipEntries}
+            relationshipPage={1}
+            totalRelationshipPages={1}
+            setRelationshipPage={() => undefined}
+            onOpenHelperDialog={() => undefined}
+            canEdit={canEditLinkedProfile}
             mutating={mutating}
             onAddRelationship={() => setRelationshipDialog({ visible: true, relationship: null })}
             onEditRelationship={(relationship) => setRelationshipDialog({ visible: true, relationship })}
@@ -866,12 +876,13 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
 
         {shouldShowLinkedProfileTabs && activeTab === 'memories' && linkedPerson ? (
           <MemoriesSection
-            linkedPerson={linkedPerson}
+            person={linkedPerson}
             preferredPhoto={preferredPhoto}
             memorySectionTab={memorySectionTab}
             setMemorySectionTab={setMemorySectionTab}
             memoryTimeline={memoryTimeline}
-            canEditLinkedProfile={canEditLinkedProfile}
+            onOpenHelperDialog={() => undefined}
+            canEdit={canEditLinkedProfile}
             mutating={mutating}
             selectedPhotoId={selectedPhotoId}
             setSelectedPhotoId={setSelectedPhotoId}
@@ -891,28 +902,30 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
         {shouldShowLinkedProfileTabs && activeTab === 'descendants' && linkedPerson ? (
           <LineageSection
             title={t(K.lineage.descendants)}
+            helperLabel={t(K.lineage.descendantsLabel)}
             count={descendantIds.length}
-            countSingular="descendant"
-            countPlural="descendants"
-            linkedPerson={linkedPerson}
+            person={linkedPerson}
             people={people}
             relationships={relationships}
+            currentAssignedPersonId={currentAssignedPersonId ?? undefined}
+            onOpenHelperDialog={() => undefined}
             onPressPerson={openFamilyMemberProfile}
-            mode="descendants"
+            mode="descendant"
           />
         ) : null}
 
         {shouldShowLinkedProfileTabs && activeTab === 'ascendants' && linkedPerson ? (
           <LineageSection
             title={t(K.lineage.ascendants)}
+            helperLabel={t(K.lineage.ascendants)}
             count={ascendantIds.length}
-            countSingular="ancestor"
-            countPlural="ancestors"
-            linkedPerson={linkedPerson}
+            person={linkedPerson}
             people={people}
             relationships={relationships}
+            currentAssignedPersonId={currentAssignedPersonId ?? undefined}
+            onOpenHelperDialog={() => undefined}
             onPressPerson={openFamilyMemberProfile}
-            mode="ascendants"
+            mode="ascendant"
           />
         ) : null}
 
@@ -1004,15 +1017,17 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
         onConfirm={handleConfirm}
       />
 
-      <PhotoViewerModal
-        linkedPerson={linkedPerson}
-        viewerIndex={viewerIndex}
-        setViewerIndex={setViewerIndex}
-        onEditPhoto={(photo) => {
-          setSelectedPhotoId(photo.id);
-          setViewerIndex(null);
-        }}
-      />
+      {linkedPerson ? (
+        <PhotoViewerModal
+          person={linkedPerson}
+          viewerIndex={viewerIndex}
+          setViewerIndex={setViewerIndex}
+          onEditPhoto={(photo) => {
+            setSelectedPhotoId(photo.id);
+            setViewerIndex(null);
+          }}
+        />
+      ) : null}
 
     </View>
   );

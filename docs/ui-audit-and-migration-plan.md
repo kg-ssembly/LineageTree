@@ -2,6 +2,8 @@
 
 ## Current State
 
+The duplicate profile components identified below have been merged into `app/screens/profile-shared`, and the redundant wrapper files were removed.
+
 This app already has a shared theme in [constants/theme.ts](/Users/kgmfubha/WebstormProjects/LineageTree/constants/theme.ts) and a shared style bucket in [constants/styles.ts](/Users/kgmfubha/WebstormProjects/LineageTree/constants/styles.ts), but the UI layer has drifted in three ways:
 
 1. True duplicate files exist for the same feature in `my-profile` and `person-profile`.
@@ -10,7 +12,7 @@ This app already has a shared theme in [constants/theme.ts](/Users/kgmfubha/Webs
 
 ## Confirmed Duplicate Components
 
-### File-level duplicates
+### File-level duplicates (merged)
 
 - `app/screens/my-profile/dialogs/photo-viewer-modal.tsx`
 - `app/screens/person-profile/dialogs/photo-viewer-modal.tsx`

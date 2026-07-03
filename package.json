@@ -14,6 +14,7 @@
     "typecheck": "tsc --noEmit",
     "test": "npm run test:relationships",
     "test:relationships": "tsc -p tsconfig.test.json && node --test .test-dist/tests/relationship-engine.test.js",
+    "migrate:profile-components": "node scripts/migrate-profile-component-duplicates.mjs",
     "verify:release": "npm run typecheck && npm test && npm run export:web",
     "export:web": "expo export --platform web",
     "deploy:web": "expo export --platform web && node -e \"require('fs').cpSync('web-public','dist',{recursive:true,force:true})\" && npx firebase-tools deploy --only hosting",

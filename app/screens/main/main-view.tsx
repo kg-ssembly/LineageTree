@@ -19,7 +19,7 @@ import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, GlobalStyles } from '../../../con
 import { I18N_KEYS as K } from '../../../i18n/keys';
 import type { useMainScreenController } from './main-controller';
 import { MainNoTreeGate } from './main-no-tree-gate';
-import { MainNodeQuickActionsDialog } from './main-node-quick-actions-dialog';
+import { TreeDetailNodeQuickActionsDialog } from '../profile-shared';
 import { MainTabNavigator } from './main-tab-navigator';
 
 const styles = GlobalStyles.treeDetail;
@@ -182,7 +182,23 @@ export function MainScreenView({ controller }: { controller: ReturnType<typeof u
         </Dialog>
       </Portal>
 
-      {!isSharedLoaderVisible ? <MainNodeQuickActionsDialog controller={controller} /> : null}
+      {!isSharedLoaderVisible ? (
+        <TreeDetailNodeQuickActionsDialog
+          visible={controller.nodeQuickActionState.visible}
+          person={controller.nodeQuickActionState.person}
+          theme={controller.theme}
+          t={controller.t}
+          canEdit={controller.canEdit}
+          mutating={controller.mutating}
+          closeNodeQuickActions={controller.closeNodeQuickActions}
+          openPersonProfile={controller.openPersonProfile}
+          openCreateRelativeDialog={controller.openCreateRelativeDialog}
+          crossSurnameChildIds={controller.crossSurnameChildIds}
+          canvasActiveFamilyRef={controller.sharedTabProps?.activeFamilyRef ?? { current: null }}
+          canvasFamilySwitchRef={controller.sharedTabProps?.familySwitchRef ?? { current: null }}
+          onOpenMaidenFamilyTree={controller.handleOpenMaidenFamilyTree}
+        />
+      ) : null}
 
       <ConfirmDialog
         visible={controller.confirmState.visible && !isSharedLoaderVisible}

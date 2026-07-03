@@ -38,12 +38,16 @@ import { useI18n } from '../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../i18n/keys';
 import { useShallow } from 'zustand/react/shallow';
 import { buildPeopleDirectory, buildTreeAssignmentContext, getTreeById } from '../tree-tabs/shared';
-import { PersonNotesDialog } from './dialogs/notes-dialog';
-import { PersonPhotoViewerModal } from './dialogs/photo-viewer-modal';
-import { PersonLineageSection } from './sections/lineage-section';
+import {
+  PersonLineageSection,
+  PersonMemoriesSection,
+  PersonNotesDialog,
+  PersonPhotoViewerModal,
+  PersonRelationshipsSection,
+  type PersonMemorySectionTabKey,
+  type PersonRelationshipSectionTabKey,
+} from '../profile-shared';
 import { MemberProfileSection } from './sections/member-profile-section';
-import { PersonMemoriesSection, type PersonMemorySectionTabKey } from './sections/memories-section';
-import { PersonRelationshipsSection, type PersonRelationshipSectionTabKey } from './sections/relationships-section';
 const dialogChrome = GlobalStyles.dialogChrome;
 const treeDetailStyles = GlobalStyles.treeDetail;
 
