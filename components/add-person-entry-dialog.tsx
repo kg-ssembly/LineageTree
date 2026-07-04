@@ -145,6 +145,40 @@ function getRelationshipActionText({
   );
 }
 
+function getRelationshipAttemptDescription({
+  mode,
+  perspective,
+  anchorName,
+  relatedPersonName,
+}: {
+  mode: PendingRelationshipMode;
+  perspective: 'new-person' | 'anchor-person';
+  anchorName?: string;
+  relatedPersonName: string;
+}) {
+  if (perspective === 'anchor-person' && anchorName?.trim()) {
+    if (mode === 'parent-of') {
+      return `You are adding ${relatedPersonName} as a parent of ${anchorName.trim()}.`;
+    }
+
+    if (mode === 'child-of') {
+      return `You are adding ${relatedPersonName} as a child of ${anchorName.trim()}.`;
+    }
+
+    return `You are adding ${relatedPersonName} as a spouse of ${anchorName.trim()}.`;
+  }
+
+  if (mode === 'parent-of') {
+    return `You are adding ${relatedPersonName} as a parent of the new person.`;
+  }
+
+  if (mode === 'child-of') {
+    return `You are adding ${relatedPersonName} as a child of the new person.`;
+  }
+
+  return `You are adding ${relatedPersonName} as a spouse of the new person.`;
+}
+
 export default function AddPersonEntryDialog({
   visible,
   hasExistingFamilyMembers,
@@ -174,37 +208,17 @@ export default function AddPersonEntryDialog({
   const [blockingState, setBlockingState] = useState<BlockingState>(null);
   const anchorPersonId = validationAnchorPerson?.id ?? fixedRelatedPerson?.id ?? '__new-person__';
   const anchorDisplayName = newPersonName?.trim() || (validationAnchorPerson ? formatPersonDisplayName(validationAnchorPerson) : '');
-  const validationPeople = useMemo<PersonRecord[]>(() => [
-    validationAnchorPerson ?? fixedRelatedPerson ?? {
-      id: '__new-person__',
-      treeId: '',
-      treeMembershipIds: [],
-      treeMemberships: [],
-      ownerId: '',
-      firstName: '',
-      middleNames: '',
-      lastName: '',
-      maidenName: '',
-      nicknames: [],
-      clanName: '',
-      familyBranch: '',
-      hometown: '',
-      birthPlace: '',
-      surnameVariantHints: [],
-      canonicalPersonId: '',
-      duplicatePersonIds: [],
-      birthDate: '',
-      deathDate: '',
-      gender: 'unspecified',
-      notes: '',
-      lifeEvents: [],
-      photos: [],
-      preferredPhotoId: '',
-      createdAt: '',
-      updatedAt: '',
-    },
-    ...relationshipCandidates,
-  ], [fixedRelatedPerson, relationshipCandidates, validationAnchorPerson]);
+  const canRunPersonAwareValidation = Boolean(validationAnchorPerson ?? fixedRelatedPerson);
+  const validationPeople = useMemo<PersonRecord[] | undefined>(() => {
+    if (!canRunPersonAwareValidation) {
+      return undefined;
+    }
+
+    return [
+      validationAnchorPerson ?? fixedRelatedPerson!,
+      ...relationshipCandidates,
+    ];
+  }, [canRunPersonAwareValidation, fixedRelatedPerson, relationshipCandidates, validationAnchorPerson]);
 
   useEffect(() => {
     if (!visible) {
@@ -281,14 +295,15 @@ export default function AddPersonEntryDialog({
   };
 
   const handleRelationshipSelection = async (mode: PendingRelationshipMode, relatedPerson: PersonRecord) => {
+    const submissionMode = resolveSubmissionMode(mode, perspective);
+
     if (onSelectRelationshipAttempt) {
-      const shouldContinue = await onSelectRelationshipAttempt(mode, relatedPerson);
+      const shouldContinue = await onSelectRelationshipAttempt(submissionMode, relatedPerson);
       if (!shouldContinue) {
         return;
       }
     }
 
-    const submissionMode = resolveSubmissionMode(mode, perspective);
     const pendingValidationRelationships: RelationshipRecord[] = existingPendingRelationships.map((relationship, index) => ({
       id: `__pending-relationship__-${index}`,
       treeId: '',
@@ -495,13 +510,21 @@ export default function AddPersonEntryDialog({
                   t,
                 })}
               </Text>
+              <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+                {getRelationshipAttemptDescription({
+                  mode: blockingState.mode,
+                  perspective,
+                  anchorName: anchorDisplayName,
+                  relatedPersonName: formatPersonDisplayName(blockingState.relatedPerson),
+                })}
+              </Text>
               <Text variant="bodyMedium">
                 {blockingState.message}
               </Text>
             </View>
           ) : null}
         </Dialog.Content>
-        <Dialog.Actions style={dialogChrome.dialogActions}>
+        <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
           <Button mode="contained" onPress={() => setBlockingState(null)}>
             {t(K.common.close)}
           </Button>
@@ -534,6 +557,14 @@ export default function AddPersonEntryDialog({
                   anchorName: anchorDisplayName,
                   relatedPersonName: formatPersonDisplayName(reviewState.relatedPerson),
                   t,
+                })}
+              </Text>
+              <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+                {getRelationshipAttemptDescription({
+                  mode: reviewState.mode,
+                  perspective,
+                  anchorName: anchorDisplayName,
+                  relatedPersonName: formatPersonDisplayName(reviewState.relatedPerson),
                 })}
               </Text>
               <Text variant="bodyMedium">

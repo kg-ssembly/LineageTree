@@ -784,6 +784,45 @@ export default function PersonFormDialog({
     });
   };
 
+  const handleNextStep = () => {
+    const firstError = personValidationFeedback.errors.find((message) => message === t(K.personForm.firstNameRequiredError));
+    if (firstError) {
+      setFirstNameError(firstError);
+      return;
+    }
+
+    if (!lastName.trim()) {
+      setLastNameError(t(K.personForm.lastNameRequired));
+      return;
+    }
+
+    const missingBirthDateError = personValidationFeedback.errors.find((message) => message === t(K.personForm.birthDateRequired));
+    if (missingBirthDateError) {
+      setBirthDateError(missingBirthDateError);
+      return;
+    }
+
+    const futureBirthDateError = personValidationFeedback.errors.find((message) => message === t(K.personForm.birthDateInFuture));
+    if (futureBirthDateError) {
+      setBirthDateError(futureBirthDateError);
+      return;
+    }
+
+    const futureDeathDateError = personValidationFeedback.errors.find((message) => message === t(K.personForm.deathDateInFuture));
+    if (futureDeathDateError) {
+      setDeathDateError(futureDeathDateError);
+      return;
+    }
+
+    const deathError = personValidationFeedback.errors.find((message) => message === t(K.personForm.deathDateBeforeBirth));
+    if (deathError) {
+      setDeathDateError(deathError);
+      return;
+    }
+
+    setCurrentStep(2);
+  };
+
   const getRelationshipPreviewLabel = (relationshipMode: PendingRelationshipMode) => {
     if (relationshipMode === 'spouse-of') {
       return t(K.relationship.spouseOf);
@@ -1380,7 +1419,7 @@ export default function PersonFormDialog({
               ) : null}
               <Button
                 mode="contained"
-                onPress={mode === 'create' && currentStep === 1 ? () => setCurrentStep(2) : handleSubmit}
+                onPress={mode === 'create' && currentStep === 1 ? handleNextStep : handleSubmit}
                 disabled={loading}
               >
                 {mode === 'create'
