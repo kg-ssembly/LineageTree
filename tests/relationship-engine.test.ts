@@ -130,7 +130,7 @@ test('blocks parent-child links for existing spouses', () => {
   assert.equal(message, 'A parent-child relationship cannot also be a spouse relationship.');
 });
 
-test('warns when adding a third biological parent', () => {
+test('blocks adding a third biological parent', () => {
   const people = [
     makePerson('parent-a', 'Alex', 'male'),
     makePerson('parent-b', 'Blair', 'female'),
@@ -151,7 +151,7 @@ test('warns when adding a third biological parent', () => {
     parentChildKind: 'biological',
   });
 
-  assert.ok(feedback.warnings.includes('This child would have more than two biological parents recorded. Please double-check the relationship type.'));
+  assert.ok(feedback.errors.includes('This child would have more than two biological parents recorded. Please double-check the relationship type.'));
 });
 
 test('warns when child birth is after recorded parent death', () => {

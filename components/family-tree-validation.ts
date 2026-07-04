@@ -601,7 +601,7 @@ export function getRelationshipValidationFeedback({
         : biologicalParentIds;
 
       if (isBiologicalParentChildKind(parentChildKind) && nextBiologicalParentIds.length > 2) {
-        warnings.push(translate(K.relationship.moreThanTwoBiologicalParents));
+        errors.push(translate(K.relationship.moreThanTwoBiologicalParents));
       }
 
       if (isBiologicalParentChildKind(parentChildKind) && (!parent.birthDate || !child.birthDate)) {

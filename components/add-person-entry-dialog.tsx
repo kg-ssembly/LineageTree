@@ -315,15 +315,16 @@ export default function AddPersonEntryDialog({
       relationshipStatus: relationship.mode === 'spouse-of' ? relationship.relationshipStatus ?? DEFAULT_SPOUSE_RELATIONSHIP_STATUS : undefined,
       createdAt: '',
     }));
-    const validationResolution = getRelationshipValidationResolution({
+    const validationInput = {
       people: validationPeople,
       relationships: [...relationships, ...pendingValidationRelationships],
-      type: submissionMode === 'spouse-of' ? 'spouse' : 'parent-child',
+      type: submissionMode === 'spouse-of' ? ('spouse' as const) : ('parent-child' as const),
       fromPersonId: submissionMode === 'child-of' ? relatedPerson.id : anchorPersonId,
       toPersonId: submissionMode === 'child-of' ? anchorPersonId : relatedPerson.id,
       parentChildKind: submissionMode === 'spouse-of' ? undefined : DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND,
       relationshipStatus: submissionMode === 'spouse-of' ? DEFAULT_SPOUSE_RELATIONSHIP_STATUS : undefined,
-    });
+    };
+    const validationResolution = getRelationshipValidationResolution(validationInput);
 
     const confirmSelection = () => {
       setReviewState(null);
@@ -332,6 +333,26 @@ export default function AddPersonEntryDialog({
     };
 
     if (validationResolution.blockingErrors.length > 0) {
+      if (submissionMode !== 'spouse-of') {
+        const nonBiologicalResolution = getRelationshipValidationResolution({
+          ...validationInput,
+          parentChildKind: 'non-biological',
+        });
+
+        if (nonBiologicalResolution.blockingErrors.length === 0) {
+          setReviewState({
+            mode,
+            relatedPerson,
+            warnings: [...new Set([
+              ...validationResolution.blockingErrors,
+              ...validationResolution.softWarnings,
+              ...nonBiologicalResolution.softWarnings,
+            ])],
+          });
+          return;
+        }
+      }
+
       setBlockingState({
         mode,
         relatedPerson,

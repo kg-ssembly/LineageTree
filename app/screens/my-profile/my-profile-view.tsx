@@ -11,6 +11,7 @@ import {
   ConfirmDialog,
   HorizontalTabStrip,
   LifeEventDialog,
+  MaidenTreeSuggestionDialog,
   PersonFormDialog,
   PersonRelationshipDialog,
   Reveal,
@@ -18,7 +19,7 @@ import {
   TabStripCard,
 } from '../../../components';
 import type { PersonRelationshipMode } from '../../../components/person-relationship-dialog';
-import type { PersonFormSubmission } from '../../../components/person-form-dialog';
+import type { PendingRelationshipMode, PersonFormSubmission } from '../../../components/person-form-dialog';
 import type { RootStackParamList } from '../../../components/dto/navigation';
 import type { NewPersonPhotoInput, PersonLifeEvent, PersonMutationPayload, PersonPhoto, PersonRecord } from '../../../components/dto/person';
 import {
@@ -35,6 +36,7 @@ import { I18N_KEYS as K } from '../../../i18n/keys';
 import { useAuthStore } from '../../../stores/auth-store';
 import { useTreeStore } from '../../../stores/tree-store';
 import { useShallow } from 'zustand/react/shallow';
+import { findMaidenTreeCandidates, getFirstPendingRelationshipValidationError, type MaidenTreeSuggestionCandidate } from '../tree-screen-helpers';
 import { buildPeopleDirectory, getTreeById } from '../tree-tabs/shared';
 import { AppSettingsSection, type UserProfileTabProps } from './sections/app-settings-section';
 import {
@@ -69,6 +71,12 @@ type RelationshipDialogState = {
 type LifeEventDialogState = {
   visible: boolean;
   event: PersonLifeEvent | null;
+};
+
+type MaidenTreeSuggestionState = {
+  visible: boolean;
+  person: PersonRecord | null;
+  relatedTreeCandidates: MaidenTreeSuggestionCandidate[];
 };
 
 type ProfileTabKey = 'biography' | 'relationships' | 'memories' | 'descendants' | 'ascendants' | 'app-settings';
@@ -194,6 +202,8 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
     addSpouseRelationship,
     editRelationship,
     removeRelationship,
+    requestTreeAccess,
+    searchDiscoverableTrees,
     selectTree,
   } = useTreeStore(useShallow((state) => ({
     trees: state.trees,
@@ -209,6 +219,8 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
     addSpouseRelationship: state.addSpouseRelationship,
     editRelationship: state.editRelationship,
     removeRelationship: state.removeRelationship,
+    requestTreeAccess: state.requestTreeAccess,
+    searchDiscoverableTrees: state.searchDiscoverableTrees,
     selectTree: state.selectTree,
   })));
 
@@ -230,6 +242,11 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
     message: '',
     confirmLabel: t(K.common.confirm),
     action: null,
+  });
+  const [maidenTreeSuggestion, setMaidenTreeSuggestion] = useState<MaidenTreeSuggestionState>({
+    visible: false,
+    person: null,
+    relatedTreeCandidates: [],
   });
 
   const profileTabs = useMemo(
@@ -543,6 +560,17 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
     }
 
     try {
+      const validationError = getFirstPendingRelationshipValidationError({
+        subjectPerson: linkedPerson,
+        pendingRelationships: payload.pendingRelationships,
+        people: people.filter((candidate) => candidate.id !== linkedPerson.id),
+        relationships,
+      });
+      if (validationError) {
+        Alert.alert(t(K.relationship.addRelationship), validationError);
+        return;
+      }
+
       for (const pendingRelationship of payload.pendingRelationships) {
         if (pendingRelationship.mode === 'spouse-of') {
           await addSpouseRelationship(user.id, selectedTree.id, linkedPerson.id, pendingRelationship.relatedPersonId, pendingRelationship.relationshipStatus);
@@ -561,6 +589,61 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
     } catch {
       // surfaced by store snackbar
     }
+  };
+
+  const closeMaidenTreeSuggestion = () => {
+    setMaidenTreeSuggestion({
+      visible: false,
+      person: null,
+      relatedTreeCandidates: [],
+    });
+  };
+
+  const openMaidenTreeCandidate = (treeId: string) => {
+    const targetTree = trees.find((tree) => tree.id === treeId);
+    if (!targetTree || !selectedTree) {
+      return;
+    }
+
+    closeMaidenTreeSuggestion();
+    navigation.navigate('TreeDetail', {
+      treeId: targetTree.id,
+      initialTab: 'VisualisationTab',
+      returnTreeId: selectedTree.id,
+    });
+  };
+
+  const requestMaidenTreeAccess = async (treeId: string) => {
+    if (!user?.id) {
+      return;
+    }
+
+    await requestTreeAccess(user.id, treeId);
+    closeMaidenTreeSuggestion();
+  };
+
+  const handleMaidenParentSelectionAttempt = async (mode: PendingRelationshipMode, relatedPerson: PersonRecord) => {
+    if (mode !== 'parent-of' || !relatedPerson.maidenName?.trim() || !user?.id || !selectedTree) {
+      return true;
+    }
+
+    const relatedTreeCandidates = await findMaidenTreeCandidates(
+      relatedPerson,
+      trees,
+      (searchTerm) => searchDiscoverableTrees(searchTerm, user.id),
+      selectedTree.id,
+    );
+
+    if (relatedTreeCandidates.length > 0) {
+      setMaidenTreeSuggestion({
+        visible: true,
+        person: relatedPerson,
+        relatedTreeCandidates,
+      });
+      return false;
+    }
+
+    return true;
   };
 
   const openNotesDialog = () => {
@@ -992,8 +1075,20 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
         existingLastNames={existingLastNames}
         relationshipCandidates={people.filter((candidate) => candidate.id !== linkedPerson?.id)}
         relationships={relationships}
+        onSelectRelationshipAttempt={handleMaidenParentSelectionAttempt}
         onDismiss={() => setRelationshipAddFlowVisible(false)}
         onSubmit={handleCreateRelatedPersonSubmit}
+      />
+
+      <MaidenTreeSuggestionDialog
+        visible={maidenTreeSuggestion.visible}
+        surname={maidenTreeSuggestion.person?.maidenName?.trim() ?? ''}
+        candidates={maidenTreeSuggestion.relatedTreeCandidates}
+        theme={theme}
+        t={t}
+        onDismiss={closeMaidenTreeSuggestion}
+        onOpenTree={openMaidenTreeCandidate}
+        onRequestAccess={requestMaidenTreeAccess}
       />
 
       <PersonRelationshipDialog

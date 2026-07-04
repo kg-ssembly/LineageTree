@@ -837,24 +837,16 @@ async function ensurePeopleBelongToTree(treeId: string, personIds: string[]) {
   });
 }
 
-async function getPeopleForValidation(treeId: string, personIds: string[]) {
-  const uniqueIds = [...new Set(personIds)];
-  const snapshots = await Promise.all(uniqueIds.map((personId) => getDoc(doc(db, PEOPLE_COLLECTION, personId))));
+async function getPeopleForValidation(treeId: string) {
+  const membershipSnapshot = await getDocs(
+    query(collection(db, PEOPLE_COLLECTION), where('treeMembershipIds', 'array-contains', treeId)),
+  );
+  const legacyPeople = await getLegacyPeopleNeedingBackfill(treeId);
 
-  return snapshots.map((snapshot) => {
-    if (!snapshot.exists()) {
-      throw new Error('One of the selected family members no longer exists.');
-    }
-
-    const membershipIds = Array.isArray(snapshot.data().treeMembershipIds)
-      ? snapshot.data().treeMembershipIds
-      : [snapshot.data().treeId].filter(Boolean);
-    if (!membershipIds.includes(treeId)) {
-      throw new Error('Family members must belong to the selected tree.');
-    }
-
-    return mapPerson(snapshot as QueryDocumentSnapshot);
-  });
+  return mergeUniqueById([
+    ...membershipSnapshot.docs.map(mapPerson),
+    ...legacyPeople,
+  ]);
 }
 
 async function deleteDocumentRefs(refs: Array<ReturnType<typeof doc>>) {
@@ -2183,7 +2175,7 @@ export async function submitCreateRelationshipApproval(
   const requesterLabel = getRequesterLabel(tree, actorUserId);
   await ensurePeopleBelongToTree(treeId, [fromPersonId, toPersonId]);
   const existingRelationships = await getRelationshipsForTree(treeId);
-  const validationPeople = await getPeopleForValidation(treeId, [fromPersonId, toPersonId]);
+  const validationPeople = await getPeopleForValidation(treeId);
   const validationMessage = validateProposedRelationship({
     people: validationPeople,
     relationships: existingRelationships,
@@ -2298,7 +2290,7 @@ export async function submitUpdateRelationshipApproval(
   };
   await ensurePeopleBelongToTree(relationship.treeId, [nextRelationship.fromPersonId, nextRelationship.toPersonId]);
   const existingRelationships = await getRelationshipsForTree(relationship.treeId);
-  const validationPeople = await getPeopleForValidation(relationship.treeId, [nextRelationship.fromPersonId, nextRelationship.toPersonId]);
+  const validationPeople = await getPeopleForValidation(relationship.treeId);
   const validationMessage = validateProposedRelationship({
     people: validationPeople,
     relationships: existingRelationships,

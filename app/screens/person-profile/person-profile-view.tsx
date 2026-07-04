@@ -15,9 +15,9 @@ import {
   Text,
   useTheme,
 } from 'react-native-paper';
-import { ConfirmDialog, FloatingSnackbar, HorizontalTabStrip, InfoDialog, LifeEventDialog, PersonFormDialog, PersonRelationshipDialog, Reveal, ScreenBackground, SharedLoader, TabStripCard } from '../../../components';
+import { ConfirmDialog, FloatingSnackbar, HorizontalTabStrip, InfoDialog, LifeEventDialog, MaidenTreeSuggestionDialog, PersonFormDialog, PersonRelationshipDialog, Reveal, ScreenBackground, SharedLoader, TabStripCard } from '../../../components';
 import type { PersonRelationshipMode } from '../../../components/person-relationship-dialog';
-import type { PersonFormSubmission } from '../../../components/person-form-dialog';
+import type { PendingRelationshipMode, PersonFormSubmission } from '../../../components/person-form-dialog';
 import { useAuthStore } from '../../../stores/auth-store';
 import { useTreeStore } from '../../../stores/tree-store';
 import type { NewPersonPhotoInput, PersonLifeEvent, PersonMutationPayload, PersonPhoto, PersonRecord } from '../../../components/dto/person';
@@ -38,6 +38,7 @@ import { getThemeChrome, GlobalStyles } from '../../../constants/styles';
 import { useI18n } from '../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../i18n/keys';
 import { useShallow } from 'zustand/react/shallow';
+import { findMaidenTreeCandidates, getFirstPendingRelationshipValidationError, type MaidenTreeSuggestionCandidate } from '../tree-screen-helpers';
 import { buildPeopleDirectory, buildTreeAssignmentContext, getTreeById } from '../tree-tabs/shared';
 import {
   PersonLineageSection,
@@ -89,6 +90,12 @@ type RelationshipDialogState = {
 type LifeEventDialogState = {
   visible: boolean;
   event: PersonLifeEvent | null;
+};
+
+type MaidenTreeSuggestionState = {
+  visible: boolean;
+  person: PersonRecord | null;
+  relatedTreeCandidates: MaidenTreeSuggestionCandidate[];
 };
 
 type HelperDialogKey = 'tabs' | 'relationships' | 'descendant-tree' | 'ascendant-tree' | 'memories-gallery';
@@ -271,6 +278,8 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
     addSpouseRelationship,
     editRelationship,
     removeRelationship,
+    requestTreeAccess,
+    searchDiscoverableTrees,
     clearError,
     clearNotice,
   } = useTreeStore(useShallow((state) => ({
@@ -292,6 +301,8 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
     addSpouseRelationship: state.addSpouseRelationship,
     editRelationship: state.editRelationship,
     removeRelationship: state.removeRelationship,
+    requestTreeAccess: state.requestTreeAccess,
+    searchDiscoverableTrees: state.searchDiscoverableTrees,
     clearError: state.clearError,
     clearNotice: state.clearNotice,
   })));
@@ -318,6 +329,11 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
   const [relationshipPage, setRelationshipPage] = useState(1);
   const [relationshipSectionTab, setRelationshipSectionTab] = useState<PersonRelationshipSectionTabKey>('insight');
   const [memorySectionTab, setMemorySectionTab] = useState<PersonMemorySectionTabKey>('events');
+  const [maidenTreeSuggestion, setMaidenTreeSuggestion] = useState<MaidenTreeSuggestionState>({
+    visible: false,
+    person: null,
+    relatedTreeCandidates: [],
+  });
   const [notesDialogVisible, setNotesDialogVisible] = useState(false);
   const [relationshipInsightVisible, setRelationshipInsightVisible] = useState(false);
   const [notesDraft, setNotesDraft] = useState('');
@@ -602,6 +618,17 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
     }
 
     try {
+      const validationError = getFirstPendingRelationshipValidationError({
+        subjectPerson: person,
+        pendingRelationships: payload.pendingRelationships,
+        people: people.filter((candidate) => candidate.id !== person.id),
+        relationships,
+      });
+      if (validationError) {
+        Alert.alert(t(K.relationship.addRelationship), validationError);
+        return;
+      }
+
       for (const pendingRelationship of payload.pendingRelationships) {
         if (pendingRelationship.mode === 'spouse-of') {
           await addSpouseRelationship(user.id, selectedTree.id, person.id, pendingRelationship.relatedPersonId, pendingRelationship.relationshipStatus);
@@ -620,6 +647,61 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
     } catch {
       // surfaced by store snackbar
     }
+  };
+
+  const closeMaidenTreeSuggestion = () => {
+    setMaidenTreeSuggestion({
+      visible: false,
+      person: null,
+      relatedTreeCandidates: [],
+    });
+  };
+
+  const openMaidenTreeCandidate = (treeId: string) => {
+    const targetTree = trees.find((tree) => tree.id === treeId);
+    if (!targetTree || !selectedTree) {
+      return;
+    }
+
+    closeMaidenTreeSuggestion();
+    navigation.navigate('TreeDetail', {
+      treeId: targetTree.id,
+      initialTab: 'VisualisationTab',
+      returnTreeId: selectedTree.id,
+    });
+  };
+
+  const requestMaidenTreeAccess = async (treeId: string) => {
+    if (!user?.id) {
+      return;
+    }
+
+    await requestTreeAccess(user.id, treeId);
+    closeMaidenTreeSuggestion();
+  };
+
+  const handleMaidenParentSelectionAttempt = async (mode: PendingRelationshipMode, relatedPerson: PersonRecord) => {
+    if (mode !== 'parent-of' || !relatedPerson.maidenName?.trim() || !user?.id || !selectedTree) {
+      return true;
+    }
+
+    const relatedTreeCandidates = await findMaidenTreeCandidates(
+      relatedPerson,
+      trees,
+      (searchTerm) => searchDiscoverableTrees(searchTerm, user.id),
+      selectedTree.id,
+    );
+
+    if (relatedTreeCandidates.length > 0) {
+      setMaidenTreeSuggestion({
+        visible: true,
+        person: relatedPerson,
+        relatedTreeCandidates,
+      });
+      return false;
+    }
+
+    return true;
   };
 
   const openNotesDialog = () => {
@@ -1221,8 +1303,20 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
         existingLastNames={existingLastNames}
         relationshipCandidates={people.filter((candidate) => candidate.id !== person?.id)}
         relationships={relationships}
+        onSelectRelationshipAttempt={handleMaidenParentSelectionAttempt}
         onDismiss={() => setRelationshipAddFlowVisible(false)}
         onSubmit={handleCreateRelatedPersonSubmit}
+      />
+
+      <MaidenTreeSuggestionDialog
+        visible={maidenTreeSuggestion.visible}
+        surname={maidenTreeSuggestion.person?.maidenName?.trim() ?? ''}
+        candidates={maidenTreeSuggestion.relatedTreeCandidates}
+        theme={theme}
+        t={t}
+        onDismiss={closeMaidenTreeSuggestion}
+        onOpenTree={openMaidenTreeCandidate}
+        onRequestAccess={requestMaidenTreeAccess}
       />
 
       <PersonRelationshipDialog

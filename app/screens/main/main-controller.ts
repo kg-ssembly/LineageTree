@@ -845,9 +845,11 @@ export function useMainScreenController({ navigation }: Props) {
     addParentChildRelationship,
     addSpouseRelationship,
     createPerson,
+    peopleForValidation: people,
+    relationshipsForValidation: relationships,
     selectedTree,
     userId: user?.id,
-  }, payload), [addParentChildRelationship, addSpouseRelationship, createPerson, selectedTree, user?.id]);
+  }, payload), [addParentChildRelationship, addSpouseRelationship, createPerson, people, relationships, selectedTree, user?.id]);
 
   const handlePersonSubmit = useCallback(async (payload: PersonFormSubmission) => {
     if (!user?.id || !selectedTree) {

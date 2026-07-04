@@ -1,4 +1,4 @@
-import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, ScrollView, View } from 'react-native';
 import {
   ActivityIndicator,
@@ -267,6 +267,18 @@ function createPendingRelationshipDraftFromSubmission(
   };
 }
 
+function getPendingRelationshipInitSignature(relationships: PendingRelationshipSubmission[]) {
+  return relationships
+    .map((relationship) => [
+      relationship.mode,
+      relationship.relatedPersonId,
+      relationship.parentChildKind ?? '',
+      relationship.relationshipStatus ?? '',
+    ].join(':'))
+    .sort()
+    .join('|');
+}
+
 function getRelationshipModeForPerson(personId: string, relationship: RelationshipRecord): PendingRelationshipMode {
   if (relationship.type === 'spouse') {
     return 'spouse-of';
@@ -330,6 +342,14 @@ export default function PersonFormDialog({
   const [proposedSurnameVariant, setProposedSurnameVariant] = useState<string | null>(null);
   const [surnameVariantHints, setSurnameVariantHints] = useState<string[]>([]);
   const [currentStep, setCurrentStep] = useState<1 | 2>(1);
+  const initialPendingRelationshipSignature = useMemo(
+    () => getPendingRelationshipInitSignature(initialPendingRelationships),
+    [initialPendingRelationships],
+  );
+  const requiresRelationshipConnection = mode === 'create' && (
+    isRelationshipOnlyFlow
+    || initialPendingRelationships.some((relationship) => relationship.relatedPersonId)
+  );
 
   // Track the last open-event key so we reinitialise only once per open, not
   // on every re-render, preventing the Portal infinite-update loop.
@@ -346,7 +366,15 @@ export default function PersonFormDialog({
     // different person) always re-initialises, but a re-render that keeps the
     // same open dialog does NOT re-run all the setState calls and trigger the
     // Portal infinite-update loop.
-    const initKey = `${mode}:${person?.id ?? 'new'}`;
+    const initKey = [
+      mode,
+      person?.id ?? 'new',
+      relationshipOnly ? 'relationship-only' : 'person-form',
+      `${initialStep}`,
+      initialAddConnectionMode ?? '',
+      autoOpenAddConnectionDialog ? 'auto-open' : 'manual-open',
+      initialPendingRelationshipSignature,
+    ].join('|');
     if (lastInitKeyRef.current === initKey) {
       return;
     }
@@ -394,7 +422,7 @@ export default function PersonFormDialog({
       isRelationshipOnlyFlow && (initialAddConnectionMode || autoOpenAddConnectionDialog),
     ));
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, mode, person?.id]);
+  }, [autoOpenAddConnectionDialog, initialAddConnectionMode, initialPendingRelationshipSignature, initialStep, mode, person?.id, relationshipOnly, visible]);
 
   useEffect(() => {
     if (!loading) {
@@ -472,47 +500,31 @@ export default function PersonFormDialog({
     () => buildRelationshipPreviewPeople(validationPersonRecord, pendingRelationships, relationshipCandidatesById),
     [pendingRelationships, relationshipCandidatesById, validationPersonRecord],
   );
-  const deferredValidationInput = useDeferredValue({
-    firstName,
-    middleNames,
-    lastName,
-    maidenName,
-    birthDate,
-    deathDate: isPresent ? '' : deathDate,
-    notes,
-    lifeEvents,
-    existingPhotos,
-    removedPhotos,
-    newPhotoUris,
-    pendingRelationships,
-    pendingValidationRelationships,
-    personId: person?.id,
-    requireIdentityContext: mode === 'create',
-    requireRelationshipContext: mode === 'create' && (isRelationshipOnlyFlow || pendingRelationships.some((relationship) => relationship.relatedPersonId)),
-  });
   const personValidationFeedback = useMemo(
-    () => getPersonValidationFeedback({
-      people: relationshipCandidates,
-      relationships: [...relationships, ...deferredValidationInput.pendingValidationRelationships],
-      person: {
-        firstName: deferredValidationInput.firstName,
-        middleNames: deferredValidationInput.middleNames,
-        lastName: deferredValidationInput.lastName,
-        maidenName: deferredValidationInput.maidenName,
-        birthDate: deferredValidationInput.birthDate,
-        deathDate: deferredValidationInput.deathDate,
-        notes: deferredValidationInput.notes,
-        lifeEvents: deferredValidationInput.lifeEvents,
-      },
-      pendingRelationships: deferredValidationInput.pendingRelationships,
-      existingPhotos: deferredValidationInput.existingPhotos,
-      removedPhotos: deferredValidationInput.removedPhotos,
-      newPhotoUris: deferredValidationInput.newPhotoUris,
-      requireIdentityContext: deferredValidationInput.requireIdentityContext,
-      requireRelationshipContext: deferredValidationInput.requireRelationshipContext,
-      ignorePersonId: deferredValidationInput.personId,
-    }),
-    [deferredValidationInput, relationshipCandidates, relationships],
+    () => (isRelationshipOnlyFlow
+      ? { errors: [], warnings: [] }
+      : getPersonValidationFeedback({
+        people: relationshipCandidates,
+        relationships: [...relationships, ...pendingValidationRelationships],
+        person: {
+          firstName,
+          middleNames,
+          lastName,
+          maidenName,
+          birthDate,
+          deathDate: isPresent ? '' : deathDate,
+          notes,
+          lifeEvents,
+        },
+        pendingRelationships,
+        existingPhotos,
+        removedPhotos,
+        newPhotoUris,
+        requireIdentityContext: mode === 'create',
+        requireRelationshipContext: requiresRelationshipConnection,
+        ignorePersonId: person?.id,
+      })),
+    [birthDate, deathDate, existingPhotos, firstName, isPresent, isRelationshipOnlyFlow, lastName, lifeEvents, maidenName, middleNames, mode, newPhotoUris, pendingRelationships, pendingValidationRelationships, person?.id, relationshipCandidates, relationships, removedPhotos, requiresRelationshipConnection, notes],
   );
   const validationPeople = useMemo(
     () => [validationPersonRecord, ...new Map(relationshipCandidates.map((candidate) => [candidate.id, candidate])).values()],
@@ -576,6 +588,8 @@ export default function PersonFormDialog({
     () => pendingRelationships.flatMap((draft) => pendingRelationshipFeedbackByKey.get(draft.key)?.warnings ?? []),
     [pendingRelationships, pendingRelationshipFeedbackByKey],
   );
+  const hasConnectedRelationshipRequirement = requiresRelationshipConnection;
+  const hasSelectedPendingRelationships = pendingRelationships.some((draft) => draft.relatedPersonId);
   const existingRelationshipEntries = useMemo(() => {
     if (!isRelationshipOnlyFlow || !person) {
       return [];
@@ -697,36 +711,43 @@ export default function PersonFormDialog({
     : t(K.personForm.addRelationship);
 
   const handleSubmit = async () => {
-    const firstError = personValidationFeedback.errors.find((message) => message === t(K.personForm.firstNameRequiredError));
-    if (firstError) {
-      setFirstNameError(firstError);
-      return;
-    }
+    if (!isRelationshipOnlyFlow) {
+      const firstError = personValidationFeedback.errors.find((message) => message === t(K.personForm.firstNameRequiredError));
+      if (firstError) {
+        setFirstNameError(firstError);
+        return;
+      }
 
-    // Check if last name is compulsory and not empty
-    if (!lastName.trim()) {
-      setLastNameError(t(K.personForm.lastNameRequired));
-      return;
-    }
+      if (!lastName.trim()) {
+        setLastNameError(t(K.personForm.lastNameRequired));
+        return;
+      }
 
-    const missingBirthDateError = personValidationFeedback.errors.find((message) => message === t(K.personForm.birthDateRequired));
-    if (missingBirthDateError) {
-      setBirthDateError(missingBirthDateError);
-      return;
-    }
+      const missingBirthDateError = personValidationFeedback.errors.find((message) => message === t(K.personForm.birthDateRequired));
+      if (missingBirthDateError) {
+        setBirthDateError(missingBirthDateError);
+        return;
+      }
 
-    const futureBirthDateError = personValidationFeedback.errors.find((message) => message === t(K.personForm.birthDateInFuture));
-    if (futureBirthDateError) {
-      setBirthDateError(futureBirthDateError);
-      return;
-    }
-    const futureDeathDateError = personValidationFeedback.errors.find((message) => message === t(K.personForm.deathDateInFuture));
-    if (futureDeathDateError) {
-      setDeathDateError(futureDeathDateError);
-      return;
+      const futureBirthDateError = personValidationFeedback.errors.find((message) => message === t(K.personForm.birthDateInFuture));
+      if (futureBirthDateError) {
+        setBirthDateError(futureBirthDateError);
+        return;
+      }
+
+      const futureDeathDateError = personValidationFeedback.errors.find((message) => message === t(K.personForm.deathDateInFuture));
+      if (futureDeathDateError) {
+        setDeathDateError(futureDeathDateError);
+        return;
+      }
     }
 
     if (mode === 'create') {
+      if (hasConnectedRelationshipRequirement && !hasSelectedPendingRelationships) {
+        setRelationshipError(t(K.personForm.addRelationshipToConnectMember));
+        return;
+      }
+
       const hasIncompleteRelationship = pendingRelationships.some((draft) => !draft.relatedPersonId);
       if (hasIncompleteRelationship) {
         setRelationshipError(t(K.personForm.chooseFamilyMemberForRelationship));
@@ -744,16 +765,21 @@ export default function PersonFormDialog({
       }
     }
 
-    const deathError = personValidationFeedback.errors.find((message) => message === t(K.personForm.deathDateBeforeBirth));
-    if (deathError) {
-      setDeathDateError(deathError);
-      return;
-    }
+    if (!isRelationshipOnlyFlow) {
+      const deathError = personValidationFeedback.errors.find((message) => message === t(K.personForm.deathDateBeforeBirth));
+      if (deathError) {
+        setDeathDateError(deathError);
+        return;
+      }
 
-    const duplicateError = personValidationFeedback.errors.find((message) => message !== t(K.personForm.firstNameRequiredError) && message !== t(K.personForm.deathDateBeforeBirth));
-    if (duplicateError) {
-      setRelationshipError(duplicateError);
-      return;
+      const duplicateError = personValidationFeedback.errors.find((message) => (
+        message !== t(K.personForm.firstNameRequiredError)
+        && message !== t(K.personForm.deathDateBeforeBirth)
+      ));
+      if (duplicateError) {
+        setRelationshipError(duplicateError);
+        return;
+      }
     }
 
     const pendingRelationshipError = pendingRelationships
@@ -780,7 +806,7 @@ export default function PersonFormDialog({
     setPreviewState({
       visible: true,
       payload: buildSubmissionPayload(),
-      warnings: [...personValidationFeedback.warnings, ...relationshipWarnings],
+      warnings: [...(isRelationshipOnlyFlow ? [] : personValidationFeedback.warnings), ...relationshipWarnings],
     });
   };
 
