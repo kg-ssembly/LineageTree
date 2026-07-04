@@ -126,7 +126,13 @@ export async function createPersonFromFormSubmission(
       continue;
     }
 
-    await addSpouseRelationship(userId, selectedTree.id, createdPerson.id, pendingRelationship.relatedPersonId);
+    await addSpouseRelationship(
+      userId,
+      selectedTree.id,
+      createdPerson.id,
+      pendingRelationship.relatedPersonId,
+      pendingRelationship.relationshipStatus,
+    );
   }
 
   return createdPerson;

@@ -960,8 +960,24 @@ export function useMainScreenController({ navigation }: Props) {
   const handleAddPersonEntrySelection = useCallback((mode: PendingRelationshipMode, relatedPerson: PersonRecord) => {
     setAddPersonChooserVisible(false);
     openCreatePersonDialog(
-      [{ mode, relatedPersonId: relatedPerson.id, parentChildKind: mode === 'spouse-of' ? undefined : DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND }],
+      [{
+        mode,
+        relatedPersonId: relatedPerson.id,
+        parentChildKind: mode === 'spouse-of' ? undefined : DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND,
+        relationshipStatus: mode === 'spouse-of' ? 'partner' : undefined,
+      }],
     );
+  }, [openCreatePersonDialog]);
+
+  const onOpenAddPersonForRelationship = useCallback((mode: PendingRelationshipMode, relatedPerson: PersonRecord) => {
+    openCreatePersonDialog([
+      {
+        mode,
+        relatedPersonId: relatedPerson.id,
+        parentChildKind: mode === 'spouse-of' ? undefined : DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND,
+        relationshipStatus: mode === 'spouse-of' ? 'partner' : undefined,
+      },
+    ]);
   }, [openCreatePersonDialog]);
 
   const handleAddFirstFamilyMember = useCallback(() => {
@@ -1345,6 +1361,7 @@ export function useMainScreenController({ navigation }: Props) {
       openConfirm,
       openPersonProfile,
       onOpenAddPerson,
+      onOpenAddPersonForRelationship,
       onOpenRelationshipDialog,
       onOpenPersonQuickActions,
       onOpenCollaboratorDialog,
@@ -1427,6 +1444,7 @@ export function useMainScreenController({ navigation }: Props) {
     onMarkNotificationOpened,
     onMarkNotificationSeen,
     onOpenAddPerson,
+    onOpenAddPersonForRelationship,
     onOpenAddSelf,
     onOpenCollaboratorDialog,
     onOpenPersonQuickActions,

@@ -2,6 +2,7 @@ import type { ApprovalRequest } from '../../../components/dto/approval';
 import type { MergeHistoryRecord, MergeRequestRecord } from '../../../components/dto/merge';
 import type { AppNotification, NotificationActivityState } from '../../../components/dto/notification';
 import type { PersonRecord } from '../../../components/dto/person';
+import type { PendingRelationshipMode } from '../../../components/person-form-dialog';
 import type { RelationshipRecord } from '../../../components/dto/relationship';
 import {
   type FamilyTree,
@@ -46,6 +47,7 @@ export interface SharedTabProps {
   openConfirm: (title: string, message: string, confirmLabel: string, action: () => Promise<void>) => void;
   openPersonProfile: (person: PersonRecord) => void;
   onOpenAddPerson: () => void;
+  onOpenAddPersonForRelationship: (mode: PendingRelationshipMode, relatedPerson: PersonRecord) => void;
   onOpenRelationshipDialog: () => void;
   onOpenPersonQuickActions: (person: PersonRecord) => void;
   onOpenCollaboratorDialog: () => void;

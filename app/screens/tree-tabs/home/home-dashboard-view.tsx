@@ -155,6 +155,7 @@ function buildDashboardTasks(
     relationships,
     canEdit,
     onOpenAddPerson,
+    onOpenAddPersonForRelationship,
     onOpenAddSelf,
     onEditPerson,
     openPersonProfile,
@@ -215,13 +216,23 @@ function buildDashboardTasks(
   const relationshipCount = relationships.filter((relationship) => (
     relationship.fromPersonId === currentAssignedPerson.id || relationship.toPersonId === currentAssignedPerson.id
   )).length;
+  const currentParentCount = relationships.filter((relationship) => (
+    relationship.type === 'parent-child' && relationship.toPersonId === currentAssignedPerson.id
+  )).length;
+  const currentChildCount = relationships.filter((relationship) => (
+    relationship.type === 'parent-child' && relationship.fromPersonId === currentAssignedPerson.id
+  )).length;
+  const currentSpouseCount = relationships.filter((relationship) => (
+    relationship.type === 'spouse' && (
+      relationship.fromPersonId === currentAssignedPerson.id || relationship.toPersonId === currentAssignedPerson.id
+    )
+  )).length;
 
   const hasPhoto = Boolean(getDisplayPersonPhoto(currentAssignedPerson));
   const hasBirthDetails = Boolean(currentAssignedPerson.birthDate?.trim());
   const hasStoryNote = Boolean(currentAssignedPerson.notes?.trim());
   const hasMemories = currentAssignedPerson.lifeEvents.length > 0;
   const hasRelationships = relationshipCount > 0;
-  const hasBranchIdentity = Boolean(currentAssignedPerson.familyBranch?.trim() || currentAssignedPerson.clanName?.trim());
   const hasProfilePhoto = hasPhoto;
   const hasCoreProfileFacts = hasBirthDetails && hasProfilePhoto && hasRelationships;
   const totalPeopleCount = people.length;
@@ -240,7 +251,7 @@ function buildDashboardTasks(
       ctaLabel: t(K.home.addPortrait),
       category: 'story',
       priority: 'easy-win',
-      score: needsMorePeopleBeforeDetailPrompts || needsRelationshipConnection ? 70 : hasBirthDetails ? 270 : 220,
+      score: needsMorePeopleBeforeDetailPrompts || needsRelationshipConnection ? 40 : hasBirthDetails ? 220 : 180,
       done: hasPhoto,
       action: editCurrentAssignedPerson,
     },
@@ -251,7 +262,7 @@ function buildDashboardTasks(
       ctaLabel: t(K.home.addBirthDetails),
       category: 'story',
       priority: 'urgent',
-      score: needsMorePeopleBeforeDetailPrompts || needsRelationshipConnection ? 80 : 420,
+      score: needsMorePeopleBeforeDetailPrompts || needsRelationshipConnection ? 120 : 700,
       done: hasBirthDetails,
       action: editCurrentAssignedPerson,
     },
@@ -262,20 +273,9 @@ function buildDashboardTasks(
       ctaLabel: t(K.home.addMemory),
       category: 'story',
       priority: 'recommended',
-      score: needsMorePeopleBeforeDetailPrompts || needsRelationshipConnection ? 60 : hasRelationships || hasProfilePhoto ? 280 : 210,
+      score: needsMorePeopleBeforeDetailPrompts || needsRelationshipConnection ? 30 : hasRelationships || hasProfilePhoto ? 160 : 120,
       done: hasMemories,
       action: profileAction,
-    },
-    {
-      id: 'branch',
-      title: t(K.home.addBranchOrClanDetail),
-      description: t(K.home.branchAndClanDetailsHelpRelativesRecogniseWhereThisProfileBelongs),
-      ctaLabel: t(K.home.addFamilyDetail),
-      category: 'story',
-      priority: 'easy-win',
-      score: needsMorePeopleBeforeDetailPrompts || needsRelationshipConnection ? 50 : hasRelationships ? 230 : 170,
-      done: hasBranchIdentity,
-      action: editCurrentAssignedPerson,
     },
     {
       id: 'review-matches',
@@ -284,24 +284,66 @@ function buildDashboardTasks(
       ctaLabel: currentSelfAssignmentSuggestions.length > 0 ? t(K.home.reviewMatches) : t(K.home.addMoreRelatives),
       category: 'tree',
       priority: currentSelfAssignmentSuggestions.length > 0 ? 'recommended' : 'easy-win',
-      score: currentSelfAssignmentSuggestions.length > 0 ? 280 : 150,
+      score: currentSelfAssignmentSuggestions.length > 0 ? 320 : 180,
       done: currentSelfAssignmentSuggestions.length === 0,
       action: currentSelfAssignmentSuggestions.length > 0 ? onOpenAddSelf : onOpenAddPerson,
     },
   ];
 
   if (totalPeopleCount >= 2) {
+    if (canEdit && currentParentCount === 0) {
+      taskList.push({
+        id: 'add-parent',
+        title: t(K.relationship.parentOfName, { name: formatPersonName(currentAssignedPerson) }),
+        description: t(K.relationship.createParentForName, { name: formatPersonName(currentAssignedPerson) }),
+        ctaLabel: t(K.home.addFamilyMember),
+        category: 'tree',
+        priority: 'urgent',
+        score: 1100,
+        done: false,
+        action: () => onOpenAddPersonForRelationship('parent-of', currentAssignedPerson),
+      });
+    }
+
+    if (canEdit && currentChildCount === 0) {
+      taskList.push({
+        id: 'add-child',
+        title: t(K.relationship.childOfName, { name: formatPersonName(currentAssignedPerson) }),
+        description: t(K.relationship.createChildForName, { name: formatPersonName(currentAssignedPerson) }),
+        ctaLabel: t(K.home.addFamilyMember),
+        category: 'tree',
+        priority: 'urgent',
+        score: 1080,
+        done: false,
+        action: () => onOpenAddPersonForRelationship('child-of', currentAssignedPerson),
+      });
+    }
+
+    if (canEdit && currentSpouseCount === 0) {
+      taskList.push({
+        id: 'add-spouse',
+        title: t(K.relationship.spouseOfName, { name: formatPersonName(currentAssignedPerson) }),
+        description: t(K.relationship.createSpouseForName, { name: formatPersonName(currentAssignedPerson) }),
+        ctaLabel: t(K.home.addFamilyMember),
+        category: 'tree',
+        priority: 'urgent',
+        score: 1060,
+        done: false,
+        action: () => onOpenAddPersonForRelationship('spouse-of', currentAssignedPerson),
+      });
+    }
+
     taskList.push({
       id: 'relationships',
       title: t(K.home.connectFamilyRelationships),
       description: t(K.home.parentsPartnersAndChildrenAreWhatTurnAProfileIntoABranch),
-      ctaLabel: canEdit ? t(K.home.connectFamily) : t(K.home.viewProfile),
-      category: 'tree',
-      priority: 'urgent',
-      score: needsRelationshipConnection ? 1000 : 390,
-      done: hasRelationships,
-      action: canEdit ? onOpenRelationshipDialog : profileAction,
-    });
+        ctaLabel: canEdit ? t(K.home.connectFamily) : t(K.home.viewProfile),
+        category: 'tree',
+        priority: 'urgent',
+        score: needsRelationshipConnection ? 1000 : 760,
+        done: hasRelationships,
+        action: canEdit ? onOpenRelationshipDialog : profileAction,
+      });
   }
 
   if (showFollowUpTreePrompts || otherPeopleCount === 0) {
@@ -314,7 +356,7 @@ function buildDashboardTasks(
         ctaLabel: t(K.home.addFamilyMember),
         category: 'tree',
         priority: 'urgent',
-        score: otherPeopleCount > 0 ? 240 : 1200,
+        score: otherPeopleCount > 0 ? 950 : 1200,
         done: otherPeopleCount > 0,
         action: onOpenAddPerson,
       });
@@ -328,7 +370,7 @@ function buildDashboardTasks(
       ctaLabel: t(K.home.writeNote),
       category: 'story',
       priority: 'recommended',
-      score: hasMemories ? 140 : 120,
+      score: hasMemories ? 90 : 70,
       done: hasStoryNote,
       action: profileAction,
     });
@@ -360,7 +402,6 @@ export function HomeDashboardView(props: SharedTabProps) {
     userId,
     loadingTreeData,
     currentAssignedPerson,
-    currentSelfAssignmentSuggestions,
     followUpTreePromptsPending,
     onOpenAddPerson,
     onOpenAddSelf,
@@ -394,6 +435,7 @@ export function HomeDashboardView(props: SharedTabProps) {
     props.canEdit,
     showFollowUpTreePrompts,
     props.onOpenAddPerson,
+    props.onOpenAddPersonForRelationship,
     props.onOpenAddSelf,
     props.onEditPerson,
     props.openPersonProfile,
@@ -409,8 +451,6 @@ export function HomeDashboardView(props: SharedTabProps) {
     const dismissedTaskIdSet = new Set(dismissedTaskIds);
     const visibleStoryTasks = storyTasks.filter((task) => !task.done && !dismissedTaskIdSet.has(task.id));
     const visibleTreeTasks = treeTasks.filter((task) => !task.done && !dismissedTaskIdSet.has(task.id));
-    const storyCompletedCount = storyTasks.filter((task) => task.done).length;
-    const treeCompletedCount = treeTasks.filter((task) => task.done).length;
 
     return {
       visibleStoryTasks,
@@ -419,22 +459,14 @@ export function HomeDashboardView(props: SharedTabProps) {
       bestTreeStep: visibleTreeTasks[0] ?? null,
       bestNextStep: [...visibleStoryTasks, ...visibleTreeTasks]
         .sort((left, right) => right.score - left.score || left.title.localeCompare(right.title))[0] ?? null,
-      storyCompletedCount,
-      treeCompletedCount,
-      storyProgress: storyTasks.length > 0 ? storyCompletedCount / storyTasks.length : 0,
-      treeProgress: treeTasks.length > 0 ? treeCompletedCount / treeTasks.length : 0,
     };
-  }, [dismissedTaskIds, storyTasks, tasks, treeTasks]);
+  }, [dismissedTaskIds, storyTasks, treeTasks]);
   const {
     visibleStoryTasks,
     visibleTreeTasks,
     bestStoryStep,
     bestTreeStep,
     bestNextStep,
-    storyCompletedCount,
-    treeCompletedCount,
-    storyProgress,
-    treeProgress,
   } = taskMetrics;
   const pendingBuildTaskCount = visibleStoryTasks.length + visibleTreeTasks.length;
   const setupSteps = useMemo<SetupStep[]>(() => {
@@ -478,9 +510,8 @@ export function HomeDashboardView(props: SharedTabProps) {
     }
 
     return steps;
-  }, [currentAssignedPerson, onOpenAddPerson, onOpenAddSelf, onOpenRelationshipDialog, openPersonProfile, people, props, relationships, showFollowUpTreePrompts, t]);
+  }, [currentAssignedPerson, onOpenAddSelf, onOpenRelationshipDialog, openPersonProfile, people, props, relationships, showFollowUpTreePrompts, t]);
   const setupCompletedCount = setupSteps.filter((step) => step.done).length;
-  const setupProgress = setupSteps.length > 0 ? setupCompletedCount / setupSteps.length : 0;
   const nextSetupStep = setupSteps.find((step) => !step.done) ?? null;
   const nextSetupStepIndex = setupSteps.findIndex((step) => !step.done);
   const isSetupMode = !currentAssignedPerson || (showFollowUpTreePrompts && (people.length <= 2 || relationships.length === 0 || setupCompletedCount < setupSteps.length));

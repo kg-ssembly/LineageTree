@@ -833,8 +833,23 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
   const handleAddPersonEntrySelection = useCallback((mode: PendingRelationshipMode, relatedPerson: PersonRecord) => {
     setAddPersonChooserVisible(false);
     openCreatePersonDialog(
-      [{ mode, relatedPersonId: relatedPerson.id, parentChildKind: mode === 'spouse-of' ? undefined : DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND }],
+      [{
+        mode,
+        relatedPersonId: relatedPerson.id,
+        parentChildKind: mode === 'spouse-of' ? undefined : DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND,
+        relationshipStatus: mode === 'spouse-of' ? 'partner' : undefined,
+      }],
     );
+  }, [openCreatePersonDialog]);
+  const onOpenAddPersonForRelationship = useCallback((mode: PendingRelationshipMode, relatedPerson: PersonRecord) => {
+    openCreatePersonDialog([
+      {
+        mode,
+        relatedPersonId: relatedPerson.id,
+        parentChildKind: mode === 'spouse-of' ? undefined : DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND,
+        relationshipStatus: mode === 'spouse-of' ? 'partner' : undefined,
+      },
+    ]);
   }, [openCreatePersonDialog]);
   const handleAddFirstFamilyMember = useCallback(() => {
     setAddPersonChooserVisible(false);
@@ -986,6 +1001,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
       openConfirm,
       openPersonProfile,
       onOpenAddPerson,
+      onOpenAddPersonForRelationship,
       onOpenRelationshipDialog,
       onOpenPersonQuickActions,
       onOpenCollaboratorDialog,
@@ -1027,7 +1043,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     selectedTree, people, relationships, approvalRequests, mergeRequests, mergeHistory, mergePreview, peopleById, canEdit, isOwner, role,
     user?.id, currentUserLabel, currentAssignedPerson, currentSelfAssignmentSuggestions,
     followUpTreePromptsPending, availableSelfLinkPeople, notifications, notificationActivityStates, assignedPersonByUserId, assignedUserIdByPersonId, mutating, loadingTreeData,
-    openConfirm, openPersonProfile, onOpenAddPerson, onOpenRelationshipDialog, onOpenPersonQuickActions,
+    openConfirm, openPersonProfile, onOpenAddPerson, onOpenAddPersonForRelationship, onOpenRelationshipDialog, onOpenPersonQuickActions,
     onOpenCollaboratorDialog, onOpenAddSelf, onEditPerson, onDeletePerson, onRemoveCollaborator,
     handleAssignPersonToUser, handleClearSelfAssignment, onApproveApprovalRequest, onRejectApprovalRequest,
     onSetTreeDiscoverability, onSetApprovalWindowHours, onSetSurnameVariantGroups, onCreateMergeRequest, onSendMergeInvite, onRespondToMergeInvite, onRequestTreeAccess, onRespondToTreeAccessRequest, onSearchDiscoverableTrees, onSearchDiscoverableTreesByUsername, onMarkNotificationSeen, onMarkNotificationOpened, onMarkNotificationActivityActioned, onLoadTreeMergePreview,

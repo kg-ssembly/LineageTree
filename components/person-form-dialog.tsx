@@ -18,8 +18,8 @@ import {
 import { DatePickerModal } from 'react-native-paper-dates';
 import type { PersonGender, PersonLifeEvent, PersonMutationPayload, PersonPhoto, PersonRecord } from './dto/person';
 import { formatPersonDate } from './dto/person';
-import type { ParentChildRelationshipKind, RelationshipRecord } from './dto/relationship';
-import { DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND } from './dto/relationship';
+import type { ParentChildRelationshipKind, RelationshipRecord, SpouseRelationshipStatus } from './dto/relationship';
+import { DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND, DEFAULT_SPOUSE_RELATIONSHIP_STATUS } from './dto/relationship';
 import { getPersonValidationFeedback, getRelationshipValidationFeedback } from './family-tree-validation';
 import { GlobalStyles } from '../constants/styles';
 import { useI18n } from '../hooks/use-i18n';
@@ -34,11 +34,11 @@ export interface PendingRelationshipSubmission {
   mode: PendingRelationshipMode;
   relatedPersonId: string;
   parentChildKind?: ParentChildRelationshipKind;
+  relationshipStatus?: SpouseRelationshipStatus;
 }
 
 interface PendingRelationshipDraft extends PendingRelationshipSubmission {
   key: string;
-  searchQuery: string;
 }
 
 export interface PersonFormSubmission extends PersonMutationPayload {
@@ -171,6 +171,7 @@ function createPendingValidationRelationships(
       fromPersonId: draft.mode === 'child-of' ? draft.relatedPersonId : '__new-person__',
       toPersonId: draft.mode === 'child-of' ? '__new-person__' : draft.relatedPersonId,
       parentChildKind: draft.mode === 'spouse-of' ? undefined : draft.parentChildKind,
+      relationshipStatus: draft.mode === 'spouse-of' ? draft.relationshipStatus : undefined,
       createdAt: '',
     }));
 }
@@ -183,7 +184,7 @@ function createPendingRelationshipDraftFromSubmission(
     mode: relationship.mode,
     relatedPersonId: relationship.relatedPersonId,
     parentChildKind: relationship.parentChildKind ?? DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND,
-    searchQuery: '',
+    relationshipStatus: relationship.relationshipStatus ?? DEFAULT_SPOUSE_RELATIONSHIP_STATUS,
   };
 }
 
@@ -235,6 +236,7 @@ export default function PersonFormDialog({
   const [surnameVariantConfirmDialogVisible, setSurnameVariantConfirmDialogVisible] = useState(false);
   const [proposedSurnameVariant, setProposedSurnameVariant] = useState<string | null>(null);
   const [surnameVariantHints, setSurnameVariantHints] = useState<string[]>([]);
+  const [currentStep, setCurrentStep] = useState<1 | 2>(1);
 
   // Track the last open-event key so we reinitialise only once per open, not
   // on every re-render, preventing the Portal infinite-update loop.
@@ -293,6 +295,7 @@ export default function PersonFormDialog({
     setSurnameVariantConfirmDialogVisible(false);
     setProposedSurnameVariant(null);
     setSurnameVariantHints([]);
+    setCurrentStep(1);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, mode, person?.id]);
 
@@ -320,10 +323,11 @@ export default function PersonFormDialog({
     surnameVariantHints: !hasExistingSurnames && lastName.trim()
       ? [...new Set([...surnameVariantHints, lastName.trim()])]
       : surnameVariantHints,
-    pendingRelationships: pendingRelationships.map(({ mode: relationshipMode, relatedPersonId, parentChildKind }) => ({
+    pendingRelationships: pendingRelationships.map(({ mode: relationshipMode, relatedPersonId, parentChildKind, relationshipStatus }) => ({
       mode: relationshipMode,
       relatedPersonId,
       parentChildKind: relationshipMode === 'spouse-of' ? undefined : parentChildKind,
+      relationshipStatus: relationshipMode === 'spouse-of' ? relationshipStatus ?? DEFAULT_SPOUSE_RELATIONSHIP_STATUS : undefined,
     })),
   } satisfies PersonFormSubmission);
 
@@ -450,6 +454,7 @@ export default function PersonFormDialog({
         fromPersonId,
         toPersonId,
         parentChildKind: draft.mode === 'spouse-of' ? undefined : draft.parentChildKind,
+        relationshipStatus: draft.mode === 'spouse-of' ? draft.relationshipStatus : undefined,
         ignoreRelationshipId,
       });
 
@@ -542,6 +547,9 @@ export default function PersonFormDialog({
   const addAnotherConnectionLabel = pendingRelationshipSectionName
     ? t(K.personForm.addAnotherConnectionForName, { name: pendingRelationshipSectionName })
     : t(K.personForm.addAnotherConnection);
+  const relationshipStepTitle = pendingRelationshipSectionName
+    ? t(K.personForm.addRelationshipForName, { name: pendingRelationshipSectionName })
+    : t(K.personForm.addRelationship);
 
   const handleSubmit = async () => {
     const firstError = personValidationFeedback.errors.find((message) => message === t(K.personForm.firstNameRequiredError));
@@ -656,6 +664,28 @@ export default function PersonFormDialog({
     )
   );
 
+  const getPendingRelationshipDetail = (relationshipDraft: PendingRelationshipDraft) => {
+    if (relationshipDraft.mode === 'spouse-of') {
+      return relationshipDraft.relationshipStatus === 'married'
+        ? t(K.relationship.marriedLabel)
+        : t(K.relationship.partnerLabel);
+    }
+
+    return relationshipDraft.parentChildKind === 'biological'
+      ? t(K.relationship.biologicalLabel)
+      : t(K.relationship.nonBiologicalLabel);
+  };
+
+  const getPendingRelationshipSwitchLabel = (relationshipDraft: PendingRelationshipDraft, relatedPersonName: string) => {
+    if (relationshipDraft.mode === 'spouse-of') {
+      return t(K.personForm.isMarriedToName, { name: relatedPersonName });
+    }
+
+    return relationshipDraft.mode === 'parent-of'
+      ? t(K.personForm.isBiologicalParent)
+      : t(K.personForm.isBiologicalChild);
+  };
+
   const openAddConnectionDialog = () => {
     setRelationshipError(null);
     setAddConnectionDialogVisible(true);
@@ -670,7 +700,7 @@ export default function PersonFormDialog({
         mode: relationshipMode,
         relatedPersonId: relatedPerson.id,
         parentChildKind: relationshipMode === 'spouse-of' ? undefined : DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND,
-        searchQuery: '',
+        relationshipStatus: relationshipMode === 'spouse-of' ? DEFAULT_SPOUSE_RELATIONSHIP_STATUS : undefined,
       },
     ]);
   };
@@ -735,7 +765,108 @@ export default function PersonFormDialog({
           <IconButton icon="close" onPress={onDismiss} disabled={loading} accessibilityLabel={t(K.common.cancel)} style={dialogChrome.closeButton} />
           <Dialog.ScrollArea style={[dialogChrome.scrollArea, styles.scrollArea]}>
             <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-              <TextInput
+              {mode === 'create' ? (
+                <Text variant="labelMedium" style={[styles.stepMeta, { color: theme.colors.onSurfaceVariant }]}>
+                  {t(K.personForm.stepOfTwo, { step: currentStep })}
+                </Text>
+              ) : null}
+
+              {mode === 'create' && currentStep === 2 ? (
+                <>
+                  <HelperText type="error" visible={!!relationshipError}>
+                    {relationshipError}
+                  </HelperText>
+                  <View style={[styles.sectionSpacing, styles.pendingRelationshipsSection, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outlineVariant }]}>
+                    <Text variant="labelMedium" style={{ color: theme.colors.onSecondaryContainer }}>
+                      {relationshipStepTitle}
+                    </Text>
+                    <Text variant="bodySmall" style={[styles.relationshipSectionHelper, { color: theme.colors.onSurfaceVariant }]}>
+                      {relationshipCandidates.length > 0
+                        ? t(K.personForm.queueRelationshipsAfterSave)
+                        : t(K.personForm.addMemberChooserEmptyHint)}
+                    </Text>
+                    {pendingRelationships.map((relationshipDraft) => {
+                      const relatedPerson = relationshipCandidatesById.get(relationshipDraft.relatedPersonId);
+                      const relatedPersonName = relatedPerson ? formatPersonName(relatedPerson) : relationshipDraft.relatedPersonId;
+                      const isSwitchOn = relationshipDraft.mode === 'spouse-of'
+                        ? relationshipDraft.relationshipStatus === 'married'
+                        : relationshipDraft.parentChildKind === 'biological';
+
+                      return (
+                        <View
+                          key={relationshipDraft.key}
+                          style={[styles.pendingRelationshipCard, { borderColor: theme.colors.outlineVariant, backgroundColor: theme.colors.surface }]}
+                        >
+                          <List.Item
+                            style={styles.pendingRelationshipItem}
+                            title={`${getRelationshipPreviewLabel(relationshipDraft.mode)} ${relatedPersonName}`}
+                            description={`${getRelationshipCreateDescription(relationshipDraft.mode, relatedPersonName)} · ${getPendingRelationshipDetail(relationshipDraft)}`}
+                            left={(props) => (
+                              <List.Icon
+                                {...props}
+                                icon={
+                                  relationshipDraft.mode === 'parent-of'
+                                    ? 'account-arrow-up-outline'
+                                    : relationshipDraft.mode === 'child-of'
+                                      ? 'account-arrow-down-outline'
+                                      : 'account-heart-outline'
+                                }
+                              />
+                            )}
+                            right={() => (
+                              <IconButton
+                                icon="close"
+                                onPress={() => removePendingRelationship(relationshipDraft.key)}
+                                accessibilityLabel={t(K.personForm.removePendingRelationship)}
+                              />
+                            )}
+                          />
+                          <View style={styles.pendingRelationshipToggleRow}>
+                            <Text variant="bodyMedium" style={{ flex: 1, color: theme.colors.onSurface }}>
+                              {getPendingRelationshipSwitchLabel(relationshipDraft, relatedPersonName)}
+                            </Text>
+                            <Switch
+                              value={isSwitchOn}
+                              onValueChange={(value) => {
+                                setPendingRelationships((current) => current.map((draft) => (
+                                  draft.key !== relationshipDraft.key
+                                    ? draft
+                                    : {
+                                      ...draft,
+                                      parentChildKind: draft.mode === 'spouse-of'
+                                        ? undefined
+                                        : value
+                                          ? 'biological'
+                                          : 'non-biological',
+                                      relationshipStatus: draft.mode === 'spouse-of'
+                                        ? value
+                                          ? 'married'
+                                          : 'partner'
+                                        : undefined,
+                                    }
+                                )));
+                                setRelationshipError(null);
+                              }}
+                              disabled={loading}
+                            />
+                          </View>
+                        </View>
+                      );
+                    })}
+                    <Button
+                      mode="text"
+                      icon="plus"
+                      onPress={openAddConnectionDialog}
+                      disabled={loading || relationshipCandidates.length === 0}
+                      style={styles.addConnectionButton}
+                    >
+                      {addAnotherConnectionLabel}
+                    </Button>
+                  </View>
+                </>
+              ) : (
+                <>
+                  <TextInput
                 mode="outlined"
                 label={t(K.personForm.firstNameRequired)}
                 value={firstName}
@@ -954,62 +1085,8 @@ export default function PersonFormDialog({
                   ))}
                 </View>
               </View>
-              <HelperText type="error" visible={!!relationshipError}>
-                {relationshipError}
-              </HelperText>
-              {mode === 'create' ? (
-                <View style={[styles.sectionSpacing, styles.pendingRelationshipsSection, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outlineVariant }]}>
-                  <Text variant="labelMedium" style={{ color: theme.colors.onSecondaryContainer }}>
-                    {t(K.personForm.relationshipsToAdd)}
-                  </Text>
-                  <Text variant="bodySmall" style={[styles.relationshipSectionHelper, { color: theme.colors.onSurfaceVariant }]}>
-                    {pendingRelationshipSectionName
-                      ? t(K.personForm.addAnotherConnectionForName, { name: pendingRelationshipSectionName })
-                      : t(K.personForm.addAnotherConnectionHelper)}
-                  </Text>
-                  {pendingRelationships.map((relationshipDraft) => {
-                    const relatedPerson = relationshipCandidatesById.get(relationshipDraft.relatedPersonId);
-                    const relatedPersonName = relatedPerson ? formatPersonName(relatedPerson) : relationshipDraft.relatedPersonId;
-
-                    return (
-                      <List.Item
-                        key={relationshipDraft.key}
-                        style={styles.pendingRelationshipItem}
-                        title={`${getRelationshipPreviewLabel(relationshipDraft.mode)} ${relatedPersonName}`}
-                        description={getRelationshipCreateDescription(relationshipDraft.mode, relatedPersonName)}
-                        left={(props) => (
-                          <List.Icon
-                            {...props}
-                            icon={
-                              relationshipDraft.mode === 'parent-of'
-                                ? 'account-arrow-up-outline'
-                                : relationshipDraft.mode === 'child-of'
-                                  ? 'account-arrow-down-outline'
-                                  : 'account-heart-outline'
-                            }
-                          />
-                        )}
-                        right={() => (
-                          <IconButton
-                            icon="close"
-                            onPress={() => removePendingRelationship(relationshipDraft.key)}
-                            accessibilityLabel={t(K.personForm.removePendingRelationship)}
-                          />
-                        )}
-                      />
-                    );
-                  })}
-                  <Button
-                    mode="text"
-                    icon="plus"
-                    onPress={openAddConnectionDialog}
-                    disabled={loading || relationshipCandidates.length === 0}
-                    style={styles.addConnectionButton}
-                  >
-                    {addAnotherConnectionLabel}
-                  </Button>
-                </View>
-              ) : null}
+                </>
+              )}
             </ScrollView>
           </Dialog.ScrollArea>
           <Dialog.Actions style={[dialogChrome.dialogActions, styles.dialogActions, { borderTopColor: theme.colors.outlineVariant, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
@@ -1034,8 +1111,21 @@ export default function PersonFormDialog({
               <View />
             )}
             <View style={{ flexDirection: 'row', gap: 8 }}>
-              <Button mode="contained" onPress={handleSubmit} disabled={loading}>
-                {mode === 'create' ? t(K.common.create) : t(K.common.save)}
+              {mode === 'create' && currentStep === 2 ? (
+                <Button onPress={() => setCurrentStep(1)} disabled={loading}>
+                  {t(K.common.back)}
+                </Button>
+              ) : null}
+              <Button
+                mode="contained"
+                onPress={mode === 'create' && currentStep === 1 ? () => setCurrentStep(2) : handleSubmit}
+                disabled={loading}
+              >
+                {mode === 'create'
+                  ? currentStep === 1
+                    ? t(K.common.next)
+                    : t(K.common.create)
+                  : t(K.common.save)}
               </Button>
             </View>
           </Dialog.Actions>
@@ -1148,10 +1238,11 @@ export default function PersonFormDialog({
         hasExistingFamilyMembers={relationshipCandidates.length > 0}
         relationshipCandidates={relationshipCandidates}
         relationships={relationships}
-        existingPendingRelationships={pendingRelationships.map(({ mode, relatedPersonId, parentChildKind }) => ({
+        existingPendingRelationships={pendingRelationships.map(({ mode, relatedPersonId, parentChildKind, relationshipStatus }) => ({
           mode,
           relatedPersonId,
           parentChildKind,
+          relationshipStatus: mode === 'spouse-of' ? relationshipStatus : undefined,
         }))}
         allowUnrelatedEntry={false}
         chooserTitleKey={K.personForm.addAnotherConnectionTitle}

@@ -8,7 +8,7 @@ import type { PendingRelationshipMode } from './person-form-dialog';
 import type { PersonRecord } from './dto/person';
 import type { PendingRelationshipSubmission } from './person-form-dialog';
 import type { RelationshipRecord } from './dto/relationship';
-import { DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND } from './dto/relationship';
+import { DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND, DEFAULT_SPOUSE_RELATIONSHIP_STATUS } from './dto/relationship';
 import { getRelationshipValidationFeedback } from './family-tree-validation';
 import { formatPersonName as formatPersonDisplayName } from './person-formatting';
 
@@ -58,6 +58,25 @@ function getChooserModeLabel(
       : mode === 'child-of'
         ? K.relationship.childOfName
         : K.relationship.spouseOfName,
+    { name },
+  );
+}
+
+function getSelectRelationshipTitle(
+  mode: PendingRelationshipMode,
+  name: string | undefined,
+  t: (key: string, values?: Record<string, string | number>) => string,
+) {
+  if (!name?.trim()) {
+    return t(K.relationship.selectRelatedFamilyMember);
+  }
+
+  return t(
+    mode === 'parent-of'
+      ? K.relationship.selectParentForName
+      : mode === 'child-of'
+        ? K.relationship.selectChildForName
+        : K.relationship.selectSpouseForName,
     { name },
   );
 }
@@ -186,6 +205,7 @@ export default function AddPersonEntryDialog({
       fromPersonId: relationship.mode === 'child-of' ? relationship.relatedPersonId : '__new-person__',
       toPersonId: relationship.mode === 'child-of' ? '__new-person__' : relationship.relatedPersonId,
       parentChildKind: relationship.mode === 'spouse-of' ? undefined : relationship.parentChildKind ?? DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND,
+      relationshipStatus: relationship.mode === 'spouse-of' ? relationship.relationshipStatus ?? DEFAULT_SPOUSE_RELATIONSHIP_STATUS : undefined,
       createdAt: '',
     }));
     const validationFeedback = getRelationshipValidationFeedback({
@@ -195,6 +215,7 @@ export default function AddPersonEntryDialog({
       fromPersonId: mode === 'child-of' ? relatedPerson.id : '__new-person__',
       toPersonId: mode === 'child-of' ? '__new-person__' : relatedPerson.id,
       parentChildKind: mode === 'spouse-of' ? undefined : DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND,
+      relationshipStatus: mode === 'spouse-of' ? DEFAULT_SPOUSE_RELATIONSHIP_STATUS : undefined,
     });
     const softWarnings = validationFeedback.warnings.filter((warning) => (
       warning === t(K.relationship.moreThanTwoBiologicalParents)
@@ -228,11 +249,9 @@ export default function AddPersonEntryDialog({
       >
         <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>
           {selectedMode
-           ? newPersonName
-             ? t(K.relationship.selectRelatedFamilyMemberFor, { name: newPersonName })
-             : t(K.relationship.selectRelatedFamilyMember)
+           ? getSelectRelationshipTitle(selectedMode, newPersonName, t)
            : chooserTitleKey === K.personForm.addAnotherConnectionTitle && newPersonName
-             ? t(K.personForm.addAnotherConnectionForName, { name: newPersonName })
+             ? t(K.personForm.addRelationshipForName, { name: newPersonName })
            : chooserTitleKey
              ? t(chooserTitleKey)
              : t(K.personForm.addMemberChooserTitle)}

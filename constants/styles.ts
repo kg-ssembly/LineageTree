@@ -1663,6 +1663,9 @@ export class GlobalStyles {
         sectionSpacing: {
             marginTop: 16,
         },
+        stepMeta: {
+            marginBottom: 8,
+        },
         birthDateActions: {
             flexDirection: 'row',
             flexWrap: 'wrap',
@@ -1708,6 +1711,12 @@ export class GlobalStyles {
         },
         relationshipSectionHelper: {
             marginTop: 6,
+        },
+        pendingRelationshipToggleRow: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 12,
+            marginTop: 8,
         },
         addConnectionButton: {
             alignSelf: 'flex-start',
