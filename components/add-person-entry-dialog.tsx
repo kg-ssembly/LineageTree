@@ -9,7 +9,7 @@ import type { PersonRecord } from './dto/person';
 import type { PendingRelationshipSubmission } from './person-form-dialog';
 import type { RelationshipRecord } from './dto/relationship';
 import { DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND, DEFAULT_SPOUSE_RELATIONSHIP_STATUS } from './dto/relationship';
-import { getRelationshipValidationFeedback } from './family-tree-validation';
+import { getRelationshipValidationResolution } from './family-tree-validation';
 import { formatPersonName as formatPersonDisplayName } from './person-formatting';
 
 const dialogChrome = GlobalStyles.dialogChrome;
@@ -21,12 +21,20 @@ type ReviewState = {
   warnings: string[];
 } | null;
 
+type BlockingState = {
+  mode: PendingRelationshipMode;
+  relatedPerson: PersonRecord;
+  message: string;
+} | null;
+
 type AddPersonEntryDialogProps = {
   visible: boolean;
   hasExistingFamilyMembers: boolean;
   relationshipCandidates: PersonRecord[];
   relationships?: RelationshipRecord[];
   existingPendingRelationships?: PendingRelationshipSubmission[];
+  initialMode?: PendingRelationshipMode | null;
+  perspective?: 'new-person' | 'anchor-person';
   allowUnrelatedEntry?: boolean;
   chooserTitleKey?: string;
   chooserHelperKey?: string;
@@ -36,6 +44,25 @@ type AddPersonEntryDialogProps = {
   onSelectRelationshipAttempt?: (mode: PendingRelationshipMode, relatedPerson: PersonRecord) => Promise<boolean> | boolean;
   onAddFirstFamilyMember?: () => void;
 };
+
+function resolveSubmissionMode(
+  mode: PendingRelationshipMode,
+  perspective: 'new-person' | 'anchor-person',
+): PendingRelationshipMode {
+  if (perspective === 'new-person') {
+    return mode;
+  }
+
+  if (mode === 'parent-of') {
+    return 'child-of';
+  }
+
+  if (mode === 'child-of') {
+    return 'parent-of';
+  }
+
+  return mode;
+}
 
 function getChooserModeLabel(
   mode: PendingRelationshipMode,
@@ -87,6 +114,8 @@ export default function AddPersonEntryDialog({
   relationshipCandidates,
   relationships = [],
   existingPendingRelationships = [],
+  initialMode = null,
+  perspective = 'new-person',
   allowUnrelatedEntry = true,
   chooserTitleKey,
   chooserHelperKey,
@@ -102,6 +131,7 @@ export default function AddPersonEntryDialog({
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(0);
   const [reviewState, setReviewState] = useState<ReviewState>(null);
+  const [blockingState, setBlockingState] = useState<BlockingState>(null);
   const validationPeople = useMemo<PersonRecord[]>(() => [
     {
       id: '__new-person__',
@@ -136,12 +166,21 @@ export default function AddPersonEntryDialog({
 
   useEffect(() => {
     if (!visible) {
-      setSelectedMode(null);
+      setSelectedMode(initialMode);
       setSearchQuery('');
       setPage(0);
       setReviewState(null);
+      setBlockingState(null);
     }
-  }, [visible]);
+  }, [initialMode, visible]);
+
+  useEffect(() => {
+    if (visible && initialMode) {
+      setSelectedMode(initialMode);
+      setSearchQuery('');
+      setPage(0);
+    }
+  }, [initialMode, visible]);
 
   const filteredCandidates = useMemo(() => {
     if (!selectedMode) {
@@ -164,7 +203,6 @@ export default function AddPersonEntryDialog({
     () => filteredCandidates.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE),
     [filteredCandidates, page],
   );
-
   useEffect(() => {
     setPage(0);
   }, [searchQuery, selectedMode]);
@@ -180,6 +218,7 @@ export default function AddPersonEntryDialog({
     setSearchQuery('');
     setPage(0);
     setReviewState(null);
+    setBlockingState(null);
     onDismiss();
   };
 
@@ -197,6 +236,7 @@ export default function AddPersonEntryDialog({
       }
     }
 
+    const submissionMode = resolveSubmissionMode(mode, perspective);
     const pendingValidationRelationships: RelationshipRecord[] = existingPendingRelationships.map((relationship, index) => ({
       id: `__pending-relationship__-${index}`,
       treeId: '',
@@ -208,27 +248,32 @@ export default function AddPersonEntryDialog({
       relationshipStatus: relationship.mode === 'spouse-of' ? relationship.relationshipStatus ?? DEFAULT_SPOUSE_RELATIONSHIP_STATUS : undefined,
       createdAt: '',
     }));
-    const validationFeedback = getRelationshipValidationFeedback({
+    const validationResolution = getRelationshipValidationResolution({
       people: validationPeople,
       relationships: [...relationships, ...pendingValidationRelationships],
-      type: mode === 'spouse-of' ? 'spouse' : 'parent-child',
-      fromPersonId: mode === 'child-of' ? relatedPerson.id : '__new-person__',
-      toPersonId: mode === 'child-of' ? '__new-person__' : relatedPerson.id,
-      parentChildKind: mode === 'spouse-of' ? undefined : DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND,
-      relationshipStatus: mode === 'spouse-of' ? DEFAULT_SPOUSE_RELATIONSHIP_STATUS : undefined,
+      type: submissionMode === 'spouse-of' ? 'spouse' : 'parent-child',
+      fromPersonId: submissionMode === 'child-of' ? relatedPerson.id : '__new-person__',
+      toPersonId: submissionMode === 'child-of' ? '__new-person__' : relatedPerson.id,
+      parentChildKind: submissionMode === 'spouse-of' ? undefined : DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND,
+      relationshipStatus: submissionMode === 'spouse-of' ? DEFAULT_SPOUSE_RELATIONSHIP_STATUS : undefined,
     });
-    const softWarnings = validationFeedback.warnings.filter((warning) => (
-      warning === t(K.relationship.moreThanTwoBiologicalParents)
-      || warning === t(K.relationship.anotherCurrentPartnerExists)
-    ));
 
     const confirmSelection = () => {
       setReviewState(null);
       resetAndDismiss();
-      onSelectRelationship(mode, relatedPerson);
+      onSelectRelationship(submissionMode, relatedPerson);
     };
 
-    if (softWarnings.length === 0) {
+    if (validationResolution.blockingErrors.length > 0) {
+      setBlockingState({
+        mode,
+        relatedPerson,
+        message: validationResolution.blockingErrors[0] ?? '',
+      });
+      return;
+    }
+
+    if (validationResolution.softWarnings.length === 0) {
       confirmSelection();
       return;
     }
@@ -236,7 +281,7 @@ export default function AddPersonEntryDialog({
     setReviewState({
       mode,
       relatedPerson,
-      warnings: softWarnings,
+      warnings: validationResolution.softWarnings,
     });
   };
 
@@ -372,13 +417,58 @@ export default function AddPersonEntryDialog({
         </Dialog.Content>
       </Dialog>
       <Dialog
+        visible={!!blockingState}
+        onDismiss={() => setBlockingState(null)}
+        style={[dialogChrome.dialog, { backgroundColor: theme.colors.surface }]}
+      >
+        <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>
+          {t(K.relationship.addRelationship)}
+        </Dialog.Title>
+        <IconButton
+          icon="close"
+          onPress={() => setBlockingState(null)}
+          accessibilityLabel={t(K.common.close)}
+          style={dialogChrome.closeButton}
+        />
+        <Dialog.Content style={dialogChrome.content}>
+          {blockingState ? (
+            <View style={{ gap: 12 }}>
+              <Text variant="titleSmall">
+                {t(
+                  blockingState.mode === 'parent-of'
+                    ? K.relationship.createParentForName
+                    : blockingState.mode === 'child-of'
+                      ? K.relationship.createChildForName
+                      : K.relationship.createSpouseForName,
+                  { name: formatPersonDisplayName(blockingState.relatedPerson) },
+                )}
+              </Text>
+              <Text variant="bodyMedium">
+                {blockingState.message}
+              </Text>
+            </View>
+          ) : null}
+        </Dialog.Content>
+        <Dialog.Actions style={dialogChrome.dialogActions}>
+          <Button mode="contained" onPress={() => setBlockingState(null)}>
+            {t(K.common.close)}
+          </Button>
+        </Dialog.Actions>
+      </Dialog>
+      <Dialog
         visible={!!reviewState}
         onDismiss={() => setReviewState(null)}
         style={[dialogChrome.dialog, { backgroundColor: theme.colors.surface }]}
       >
-        <Dialog.Title style={dialogChrome.dialogTitle}>
+        <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>
           {t(K.personForm.relationshipNeedsReviewTitle)}
         </Dialog.Title>
+        <IconButton
+          icon="close"
+          onPress={() => setReviewState(null)}
+          accessibilityLabel={t(K.common.close)}
+          style={dialogChrome.closeButton}
+        />
         <Dialog.Content style={dialogChrome.content}>
           {reviewState ? (
             <View style={{ gap: 12 }}>
@@ -417,7 +507,7 @@ export default function AddPersonEntryDialog({
               const { mode, relatedPerson } = reviewState;
               setReviewState(null);
               resetAndDismiss();
-              onSelectRelationship(mode, relatedPerson);
+              onSelectRelationship(resolveSubmissionMode(mode, perspective), relatedPerson);
             }}
           >
             {t(K.startup.continue)}

@@ -16,6 +16,7 @@ import {
   useTheme,
 } from 'react-native-paper';
 import { DatePickerModal } from 'react-native-paper-dates';
+import FamilyTreeCanvas from './family-tree-canvas';
 import type { PersonGender, PersonLifeEvent, PersonMutationPayload, PersonPhoto, PersonRecord } from './dto/person';
 import { formatPersonDate } from './dto/person';
 import type { ParentChildRelationshipKind, RelationshipRecord, SpouseRelationshipStatus } from './dto/relationship';
@@ -114,6 +115,73 @@ function normaliseSurnameValue(value: string) {
 
 function getPendingRelationshipSectionName(firstNameValue: string, lastNameValue: string) {
   return [firstNameValue, lastNameValue].join(' ').replace(/\s+/g, ' ').trim();
+}
+
+function getAnchorRelationshipSummary(
+  relationshipMode: PendingRelationshipMode,
+  relatedPersonName: string,
+  t: (key: string, values?: Record<string, string | number>) => string,
+) {
+  return t(
+    relationshipMode === 'spouse-of'
+      ? K.relationship.createSpouseForName
+      : relationshipMode === 'child-of'
+        ? K.relationship.createChildForName
+        : K.relationship.createParentForName,
+    { name: relatedPersonName },
+  );
+}
+
+function getRelationshipPreviewBuckets(
+  pendingRelationships: PendingRelationshipDraft[],
+  relationshipCandidatesById: Map<string, PersonRecord>,
+  excludedRelationshipKey?: string | null,
+) {
+  const parents: Array<{ key: string; name: string }> = [];
+  const children: Array<{ key: string; name: string }> = [];
+  const spouses: Array<{ key: string; name: string }> = [];
+
+  pendingRelationships.forEach((relationship) => {
+    if (excludedRelationshipKey && relationship.key === excludedRelationshipKey) {
+      return;
+    }
+
+    const relatedPerson = relationshipCandidatesById.get(relationship.relatedPersonId);
+    const name = relatedPerson ? formatPersonName(relatedPerson) : relationship.relatedPersonId;
+    const entry = { key: relationship.key, name };
+
+    if (relationship.mode === 'child-of') {
+      parents.push(entry);
+      return;
+    }
+
+    if (relationship.mode === 'parent-of') {
+      children.push(entry);
+      return;
+    }
+
+    spouses.push(entry);
+  });
+
+  return { parents, children, spouses };
+}
+
+function buildRelationshipPreviewPeople(
+  draftPerson: PersonRecord,
+  pendingRelationships: PendingRelationshipDraft[],
+  relationshipCandidatesById: Map<string, PersonRecord>,
+) {
+  const people = new Map<string, PersonRecord>();
+  people.set(draftPerson.id, draftPerson);
+
+  pendingRelationships.forEach((relationship) => {
+    const relatedPerson = relationshipCandidatesById.get(relationship.relatedPersonId);
+    if (relatedPerson) {
+      people.set(relatedPerson.id, relatedPerson);
+    }
+  });
+
+  return [...people.values()];
 }
 
 function createValidationPersonRecord(input: {
@@ -233,6 +301,7 @@ export default function PersonFormDialog({
   const [previewState, setPreviewState] = useState<SubmissionPreviewState>({ visible: false, payload: null, warnings: [] });
   const [submitPending, setSubmitPending] = useState(false);
   const [addConnectionDialogVisible, setAddConnectionDialogVisible] = useState(false);
+  const [addConnectionInitialMode, setAddConnectionInitialMode] = useState<PendingRelationshipMode | null>(null);
   const [surnameVariantConfirmDialogVisible, setSurnameVariantConfirmDialogVisible] = useState(false);
   const [proposedSurnameVariant, setProposedSurnameVariant] = useState<string | null>(null);
   const [surnameVariantHints, setSurnameVariantHints] = useState<string[]>([]);
@@ -366,6 +435,10 @@ export default function PersonFormDialog({
     [birthDate, deathDate, firstName, gender, isPresent, lastName, lifeEvents, maidenName, middleNames, notes, person],
   );
   const pendingValidationRelationships = useMemo(() => createPendingValidationRelationships(pendingRelationships), [pendingRelationships]);
+  const relationshipPreviewPeople = useMemo(
+    () => buildRelationshipPreviewPeople(validationPersonRecord, pendingRelationships, relationshipCandidatesById),
+    [pendingRelationships, relationshipCandidatesById, validationPersonRecord],
+  );
   const deferredValidationInput = useDeferredValue({
     firstName,
     middleNames,
@@ -470,7 +543,6 @@ export default function PersonFormDialog({
     () => pendingRelationships.flatMap((draft) => pendingRelationshipFeedbackByKey.get(draft.key)?.warnings ?? []),
     [pendingRelationships, pendingRelationshipFeedbackByKey],
   );
-
   const suggestedLastName = useMemo(() => {
     if (mode !== 'create') {
       return '';
@@ -529,6 +601,10 @@ export default function PersonFormDialog({
   const selectedRelationshipPerson = selectedRelationshipDraft
     ? relationshipCandidatesById.get(selectedRelationshipDraft.relatedPersonId) ?? null
     : null;
+  const relationshipPreviewBuckets = useMemo(
+    () => getRelationshipPreviewBuckets(pendingRelationships, relationshipCandidatesById, selectedRelationshipDraft?.key ?? null),
+    [pendingRelationships, relationshipCandidatesById, selectedRelationshipDraft?.key],
+  );
   const pendingRelationshipSectionName = getPendingRelationshipSectionName(firstName, lastName);
   const dialogTitle = mode === 'edit'
     ? t(K.personForm.editFamilyMember)
@@ -690,8 +766,9 @@ export default function PersonFormDialog({
       : t(K.personForm.isBiologicalChild);
   };
 
-  const openAddConnectionDialog = () => {
+  const openAddConnectionDialog = (initialMode: PendingRelationshipMode | null = null) => {
     setRelationshipError(null);
+    setAddConnectionInitialMode(initialMode);
     setAddConnectionDialogVisible(true);
   };
 
@@ -789,6 +866,25 @@ export default function PersonFormDialog({
                         ? t(K.personForm.queueRelationshipsAfterSave)
                         : t(K.personForm.addMemberChooserEmptyHint)}
                     </Text>
+                    {selectedRelationshipDraft && selectedRelationshipPerson ? (
+                      <View
+                        style={[
+                          styles.relationshipAnchorBanner,
+                          { backgroundColor: theme.colors.elevation.level1, borderColor: theme.colors.outlineVariant },
+                        ]}
+                      >
+                        <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+                          Starting connection
+                        </Text>
+                        <Text variant="titleSmall">
+                          {getAnchorRelationshipSummary(
+                            selectedRelationshipDraft.mode,
+                            formatPersonName(selectedRelationshipPerson),
+                            t,
+                          )}
+                        </Text>
+                      </View>
+                    ) : null}
                     {pendingRelationships.map((relationshipDraft) => {
                       const relatedPerson = relationshipCandidatesById.get(relationshipDraft.relatedPersonId);
                       const relatedPersonName = relatedPerson ? formatPersonName(relatedPerson) : relationshipDraft.relatedPersonId;
@@ -860,12 +956,80 @@ export default function PersonFormDialog({
                     <Button
                       mode="text"
                       icon="plus"
-                      onPress={openAddConnectionDialog}
+                      onPress={() => openAddConnectionDialog(null)}
                       disabled={loading || relationshipCandidates.length === 0}
                       style={styles.addConnectionButton}
                     >
                       {addAnotherConnectionLabel}
                     </Button>
+                  </View>
+                  <View
+                    style={[
+                      styles.sectionSpacing,
+                      styles.relationshipPreviewPanel,
+                      { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant },
+                    ]}
+                  >
+                    <Text variant="titleSmall">{t(K.common.summary)}</Text>
+                    <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                      Pan around this branch before saving. Use the actions below to add a parent, child, or spouse from the draft person.
+                    </Text>
+                    <FamilyTreeCanvas
+                      people={relationshipPreviewPeople}
+                      relationships={pendingValidationRelationships}
+                      currentTreeId={person?.treeId}
+                      onPressPerson={() => {}}
+                      highlightedPersonId="__new-person__"
+                      initialFocusPersonId="__new-person__"
+                      allowFullscreen={false}
+                      floatingControls={false}
+                      fillAvailableSpace={false}
+                      showControls={false}
+                      disableSurnameClustering
+                      inlineViewportHeight={260}
+                    />
+                    <View style={styles.relationshipPreviewActionRow}>
+                      <Button
+                        mode="outlined"
+                        icon="account-plus-outline"
+                        onPress={() => openAddConnectionDialog('parent-of')}
+                        disabled={loading || relationshipCandidates.length === 0}
+                        style={styles.relationshipPreviewAction}
+                      >
+                        {t(K.relationship.addParent)}
+                      </Button>
+                      <Button
+                        mode="outlined"
+                        icon="account-heart-outline"
+                        onPress={() => openAddConnectionDialog('spouse-of')}
+                        disabled={loading || relationshipCandidates.length === 0}
+                        style={styles.relationshipPreviewAction}
+                      >
+                        {t(K.relationship.addSpouse)}
+                      </Button>
+                      <Button
+                        mode="outlined"
+                        icon="account-child-outline"
+                        onPress={() => openAddConnectionDialog('child-of')}
+                        disabled={loading || relationshipCandidates.length === 0}
+                        style={styles.relationshipPreviewAction}
+                      >
+                        {t(K.relationship.addChild)}
+                      </Button>
+                    </View>
+                    {relationshipPreviewBuckets.parents.length + relationshipPreviewBuckets.spouses.length + relationshipPreviewBuckets.children.length > 0 ? (
+                      <View style={styles.relationshipPreviewLabels}>
+                        {relationshipPreviewBuckets.parents.map((entry) => (
+                          <Chip key={entry.key} compact style={styles.relationshipChip}>{entry.name}</Chip>
+                        ))}
+                        {relationshipPreviewBuckets.spouses.map((entry) => (
+                          <Chip key={entry.key} compact style={styles.relationshipChip}>{entry.name}</Chip>
+                        ))}
+                        {relationshipPreviewBuckets.children.map((entry) => (
+                          <Chip key={entry.key} compact style={styles.relationshipChip}>{entry.name}</Chip>
+                        ))}
+                      </View>
+                    ) : null}
                   </View>
                 </>
               ) : (
@@ -1248,11 +1412,16 @@ export default function PersonFormDialog({
           parentChildKind,
           relationshipStatus: mode === 'spouse-of' ? relationshipStatus : undefined,
         }))}
+        initialMode={addConnectionInitialMode}
+        perspective="anchor-person"
         allowUnrelatedEntry={false}
         chooserTitleKey={K.personForm.addAnotherConnectionTitle}
         chooserHelperKey={K.personForm.addAnotherConnectionHelper}
         newPersonName={firstName}
-        onDismiss={() => setAddConnectionDialogVisible(false)}
+        onDismiss={() => {
+          setAddConnectionDialogVisible(false);
+          setAddConnectionInitialMode(null);
+        }}
         onSelectRelationship={handleAddConnection}
         onSelectRelationshipAttempt={onSelectRelationshipAttempt}
       />

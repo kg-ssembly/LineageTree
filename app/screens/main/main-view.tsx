@@ -66,6 +66,7 @@ export function MainScreenView({ controller }: { controller: ReturnType<typeof u
         hasExistingFamilyMembers={controller.people.length > 0}
         relationshipCandidates={controller.people}
         relationships={controller.relationships}
+        perspective="new-person"
         onDismiss={controller.closeAddPersonChooser}
         onSelectRelationship={controller.handleAddPersonEntrySelection}
         onSelectRelationshipAttempt={controller.handleMaidenParentSelectionAttempt}

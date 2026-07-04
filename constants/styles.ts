@@ -1706,6 +1706,39 @@ export class GlobalStyles {
             borderRadius: 20,
             borderWidth: 1,
         },
+        relationshipPreviewPanel: {
+            marginTop: 12,
+            padding: 14,
+            borderRadius: 20,
+            borderWidth: 1,
+            gap: 12,
+        },
+        relationshipAnchorBanner: {
+            marginTop: 12,
+            padding: 12,
+            borderRadius: 18,
+            borderWidth: 1,
+            gap: 4,
+        },
+        relationshipPreviewTree: {
+            alignItems: 'center',
+            gap: 10,
+        },
+        relationshipPreviewActionRow: {
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            gap: 8,
+            justifyContent: 'center',
+        },
+        relationshipPreviewAction: {
+            alignSelf: 'center',
+        },
+        relationshipPreviewLabels: {
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            justifyContent: 'center',
+            gap: 8,
+        },
         pendingRelationshipItem: {
             paddingHorizontal: 0,
         },

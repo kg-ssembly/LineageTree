@@ -41,6 +41,11 @@ type ValidationFeedback = {
   warnings: string[];
 };
 
+export type RelationshipValidationResolution = {
+  blockingErrors: string[];
+  softWarnings: string[];
+};
+
 function normaliseNamePart(value?: string) {
   return value?.trim().toLowerCase().replace(/\s+/g, ' ') ?? '';
 }
@@ -770,4 +775,14 @@ export function getRelationshipValidationFeedback({
   }
 
   return { errors, warnings };
+}
+
+export function getRelationshipValidationResolution(
+  input: RelationshipValidationInput,
+): RelationshipValidationResolution {
+  const feedback = getRelationshipValidationFeedback(input);
+  return {
+    blockingErrors: feedback.errors,
+    softWarnings: feedback.warnings,
+  };
 }

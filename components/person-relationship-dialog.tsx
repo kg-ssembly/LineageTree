@@ -4,7 +4,7 @@ import { Button, Chip, Dialog, HelperText, IconButton, Portal, SegmentedButtons,
 import { getPersonLifeSpanLabel, type PersonRecord } from './dto/person';
 import type { ParentChildRelationshipKind, RelationshipRecord, SpouseRelationshipStatus } from './dto/relationship';
 import { DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND, DEFAULT_SPOUSE_RELATIONSHIP_STATUS } from './dto/relationship';
-import { getRelationshipValidationFeedback, validateProposedRelationship } from './family-tree-validation';
+import { getRelationshipValidationFeedback, getRelationshipValidationResolution } from './family-tree-validation';
 import { useI18n } from '../hooks/use-i18n';
 import { translate } from '../i18n';
 import { I18N_KEYS as K } from '../i18n/keys';
@@ -96,8 +96,8 @@ export default function PersonRelationshipDialog({
   const [parentChildKind, setParentChildKind] = useState<ParentChildRelationshipKind>(DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(0);
-  const [validationWarningDialogVisible, setValidationWarningDialogVisible] = useState(false);
-  const [pendingCandidateSelection, setPendingCandidateSelection] = useState<string | null>(null);
+  const [blockingValidationMessage, setBlockingValidationMessage] = useState<string | null>(null);
+  const [reviewWarnings, setReviewWarnings] = useState<string[]>([]);
 
   useEffect(() => {
     if (!visible || !person) return;
@@ -140,11 +140,7 @@ export default function PersonRelationshipDialog({
         .filter((r) => r.type === 'spouse' && (r.fromPersonId === person?.id || r.toPersonId === person?.id))
         .map((r) => r.fromPersonId === person?.id ? r.toPersonId : r.fromPersonId),
     );
-    
-    // For soft validation: already have 2 parents, or already have 1 spouse
-    const hasMaxParents = parentIds.size >= 2;
-    const hasMaxSpouses = spouseIds.size >= 1;
-    
+
     return people.filter((candidate) => {
       if (candidate.id === person?.id) return false;
       if (mode === 'parent-of') return !childIds.has(candidate.id);
@@ -153,20 +149,6 @@ export default function PersonRelationshipDialog({
       return true;
     });
   }, [people, person?.id, relationships, mode]);
-
-  const getExistingParentCount = useMemo(() => {
-   if (!person || mode !== 'child-of') return 0;
-   return relationships
-     .filter((r) => r.type === 'parent-child' && r.toPersonId === person.id)
-     .length;
-  }, [person, mode, relationships]);
-
-  const getExistingSpouseCount = useMemo(() => {
-   if (!person || mode !== 'spouse-of') return 0;
-   return relationships
-     .filter((r) => r.type === 'spouse' && (r.fromPersonId === person.id || r.toPersonId === person.id))
-     .length;
-  }, [person, mode, relationships]);
 
   const selectedPerson = useMemo(
    () => (relatedPersonId ? candidates.find((c) => c.id === relatedPersonId) ?? null : null),
@@ -186,12 +168,12 @@ export default function PersonRelationshipDialog({
    return allFilteredCandidates.slice(start, end);
   }, [allFilteredCandidates, currentPage]);
 
-  const validationMessage = useMemo(() => {
+  const validationResolution = useMemo(() => {
     if (!person || !relatedPersonId) {
-      return null;
+      return { blockingErrors: [], softWarnings: [] };
     }
 
-    return validateProposedRelationship({
+    return getRelationshipValidationResolution({
       people,
       relationships,
       type: mode === 'spouse-of' ? 'spouse' : 'parent-child',
@@ -202,6 +184,8 @@ export default function PersonRelationshipDialog({
       ignoreRelationshipId: editingRelationship?.id,
     });
   }, [editingRelationship?.id, mode, parentChildKind, people, person, relatedPersonId, relationshipStatus, relationships]);
+  const validationMessage = validationResolution.blockingErrors[0] ?? null;
+
   const validationWarnings = useMemo(() => {
     if (!person || !relatedPersonId) {
       return [];
@@ -219,54 +203,17 @@ export default function PersonRelationshipDialog({
     }).warnings;
   }, [editingRelationship?.id, mode, parentChildKind, people, person, relatedPersonId, relationshipStatus, relationships]);
 
-  const getSoftValidationWarnings = (candidateId: string): string[] => {
-    if (!person) return [];
-    
-    const warnings: string[] = [];
-    
-    if (mode === 'child-of' && getExistingParentCount >= 2) {
-      warnings.push(t(K.relationship.personAlreadyHasTwoParents ?? 'This person already has two parents'));
-    }
-    
-    if (mode === 'spouse-of' && getExistingSpouseCount >= 1) {
-      warnings.push(t(K.relationship.personAlreadyHasOneSpouse ?? 'This person already has a spouse'));
-    }
-    
-    return warnings;
-  };
-
-  const handleCandidateClick = (candidateId: string) => {
-    const warnings = getSoftValidationWarnings(candidateId);
-    
-    if (warnings.length > 0) {
-      setPendingCandidateSelection(candidateId);
-      setValidationWarningDialogVisible(true);
-    } else {
-      setRelatedPersonId(candidateId);
-      setSearchQuery('');
-      setError(null);
-    }
-  };
-
-  const handleValidationWarningConfirm = () => {
-    if (pendingCandidateSelection) {
-      setRelatedPersonId(pendingCandidateSelection);
-      setSearchQuery('');
-      setError(null);
-    }
-    setValidationWarningDialogVisible(false);
-    setPendingCandidateSelection(null);
-  };
-
-  const handleValidationWarningDismiss = () => {
-    setValidationWarningDialogVisible(false);
-    setPendingCandidateSelection(null);
-  };
-
   const handleSubmit = async () => {
     if (!person) { setError(t(K.relationship.familyMemberCouldNotBeLoaded)); return; }
     if (!relatedPersonId) { setError(t(K.relationship.chooseRelatedFamilyMemberFirst)); return; }
-    if (validationMessage) { setError(validationMessage); return; }
+    if (validationResolution.blockingErrors.length > 0) {
+      setBlockingValidationMessage(validationResolution.blockingErrors[0] ?? null);
+      return;
+    }
+    if (validationResolution.softWarnings.length > 0) {
+      setReviewWarnings(validationResolution.softWarnings);
+      return;
+    }
     await onSubmit({
       mode,
       relatedPersonId,
@@ -392,7 +339,11 @@ export default function PersonRelationshipDialog({
                       {filteredCandidates.map((candidate, index) => (
                         <Pressable
                           key={candidate.id}
-                          onPress={() => handleCandidateClick(candidate.id)}
+                          onPress={() => {
+                            setRelatedPersonId(candidate.id);
+                            setSearchQuery('');
+                            setError(null);
+                          }}
                           disabled={loading}
                           style={[
                             styles.resultRow,
@@ -455,34 +406,67 @@ export default function PersonRelationshipDialog({
           ) : (
             <View />
           )}
-          <Button mode="contained" onPress={handleSubmit} disabled={loading || !person || candidates.length === 0 || !!validationMessage}>{t(K.common.save)}</Button>
+          <Button mode="contained" onPress={handleSubmit} disabled={loading || !person || candidates.length === 0}>{t(K.common.save)}</Button>
         </Dialog.Actions>
       </Dialog>
       <Portal>
         <Dialog
-          visible={validationWarningDialogVisible}
-          onDismiss={handleValidationWarningDismiss}
+          visible={!!blockingValidationMessage}
+          onDismiss={() => setBlockingValidationMessage(null)}
           style={[dialogChrome.dialog, styles.dialog, { backgroundColor: theme.colors.surface }]}
         >
           <Dialog.Title style={dialogChrome.dialogTitle}>
-            {t(K.relationship.confirmSelection ?? 'Confirm Selection')}
+            {editingRelationship ? t(K.relationship.editRelationship) : t(K.relationship.addRelationship)}
           </Dialog.Title>
           <Dialog.Content>
             <Text variant="bodyMedium" style={styles.helperText}>
-              {pendingCandidateSelection 
-                ? getSoftValidationWarnings(pendingCandidateSelection)[0] 
-                : ''}
-            </Text>
-            <Text variant="bodyMedium" style={[styles.helperText, { marginTop: 12 }]}>
-              {t(K.relationship.confirmProceedAnyway ?? 'Do you want to proceed anyway?')}
+              {blockingValidationMessage ?? ''}
             </Text>
           </Dialog.Content>
           <Dialog.Actions style={dialogChrome.dialogActions}>
-            <Button onPress={handleValidationWarningDismiss} disabled={loading}>
+            <Button mode="contained" onPress={() => setBlockingValidationMessage(null)} disabled={loading}>
+              {t(K.common.close)}
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
+      <Portal>
+        <Dialog
+          visible={reviewWarnings.length > 0}
+          onDismiss={() => setReviewWarnings([])}
+          style={[dialogChrome.dialog, styles.dialog, { backgroundColor: theme.colors.surface }]}
+        >
+          <Dialog.Title style={dialogChrome.dialogTitle}>
+            {t(K.personForm.relationshipNeedsReviewTitle)}
+          </Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodyMedium" style={styles.helperText}>
+              {t(K.personForm.relationshipValidationCheck)}
+            </Text>
+            <Text variant="bodyMedium" style={[styles.helperText, { marginTop: 12 }]}>
+              {reviewWarnings.length === 1
+                ? reviewWarnings[0]
+                : reviewWarnings.map((warning, index) => `${index + 1}. ${warning}`).join('\n')}
+            </Text>
+          </Dialog.Content>
+          <Dialog.Actions style={dialogChrome.dialogActions}>
+            <Button onPress={() => setReviewWarnings([])} disabled={loading}>
               {t(K.common.cancel)}
             </Button>
-            <Button mode="contained" onPress={handleValidationWarningConfirm} disabled={loading}>
-              {t(K.common.proceed)}
+            <Button
+              mode="contained"
+              onPress={async () => {
+                setReviewWarnings([]);
+                await onSubmit({
+                  mode,
+                  relatedPersonId,
+                  relationshipStatus: mode === 'spouse-of' ? relationshipStatus : undefined,
+                  parentChildKind: mode === 'spouse-of' ? undefined : parentChildKind,
+                });
+              }}
+              disabled={loading}
+            >
+              {t(K.startup.continue)}
             </Button>
           </Dialog.Actions>
         </Dialog>

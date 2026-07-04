@@ -99,6 +99,9 @@ interface FamilyTreeCanvasProps {
   allowFullscreen?: boolean;
   floatingControls?: boolean;
   fillAvailableSpace?: boolean;
+  showControls?: boolean;
+  disableSurnameClustering?: boolean;
+  inlineViewportHeight?: number;
   /**
    * Optional ref that gets populated with the canvas's internal
    * navigateToSurname function, allowing a parent dialog to trigger
@@ -394,13 +397,16 @@ function FamilyTreeCanvas({
                             allowFullscreen = true,
                             floatingControls = false,
                             fillAvailableSpace = false,
+                            showControls = true,
+                            disableSurnameClustering = false,
+                            inlineViewportHeight: inlineViewportHeightOverride,
                             familySwitchRef,
                             activeFamilyRef,
 }: FamilyTreeCanvasProps) {
   const theme = useTheme();
   const { t } = useI18n();
   const { height: windowHeight } = useWindowDimensions();
-  const inlineViewportHeight = Math.max(420, windowHeight - 360);
+  const inlineViewportHeight = inlineViewportHeightOverride ?? Math.max(420, windowHeight - 360);
 
   const [scale, setScale] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -505,7 +511,7 @@ function FamilyTreeCanvas({
   }, [currentTreeId, sortedSurnames, seedFocusPersonId, renderedPeopleById, surnameClusters]);
 
   // Determine if clustering is active (more than 1 surname in the data → show one family at a time).
-  const clusteringActive = sortedSurnames.length >= 2;
+  const clusteringActive = !disableSurnameClustering && sortedSurnames.length >= 2;
 
   // Filter people/relationships to active surnames.
   const {
@@ -1056,7 +1062,7 @@ function FamilyTreeCanvas({
 
   return (
       <View style={[styles.container, fillAvailableSpace ? styles.containerFill : null]}>
-        {!floatingControls ? (
+        {!floatingControls && showControls ? (
             <View style={styles.controlsRow}>
               <Text variant="bodyMedium">{controlsLabel}</Text>
               <View style={styles.zoomButtonsRow}>

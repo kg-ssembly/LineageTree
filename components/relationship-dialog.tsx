@@ -4,7 +4,7 @@ import { Button, Chip, Dialog, HelperText, IconButton, Portal, SegmentedButtons,
 import { getPersonLifeSpanLabel, type PersonRecord } from './dto/person';
 import type { ParentChildRelationshipKind, RelationshipRecord, RelationshipType, SpouseRelationshipStatus } from './dto/relationship';
 import { DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND, DEFAULT_SPOUSE_RELATIONSHIP_STATUS } from './dto/relationship';
-import { getRelationshipValidationFeedback, validateProposedRelationship } from './family-tree-validation';
+import { getRelationshipValidationFeedback, getRelationshipValidationResolution } from './family-tree-validation';
 import { useI18n } from '../hooks/use-i18n';
 import { translate } from '../i18n';
 import { I18N_KEYS as K } from '../i18n/keys';
@@ -56,6 +56,8 @@ export default function RelationshipDialog({
   const [relationshipStatus, setRelationshipStatus] = useState<SpouseRelationshipStatus>(DEFAULT_SPOUSE_RELATIONSHIP_STATUS);
   const [parentChildKind, setParentChildKind] = useState<ParentChildRelationshipKind>(DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND);
   const [error, setError] = useState<string | null>(null);
+  const [blockingValidationMessage, setBlockingValidationMessage] = useState<string | null>(null);
+  const [reviewWarnings, setReviewWarnings] = useState<string[]>([]);
 
   useEffect(() => {
     if (!visible) {
@@ -72,8 +74,8 @@ export default function RelationshipDialog({
     setError(null);
   }, [visible]);
 
-  const validationMessage = useMemo(
-    () => validateProposedRelationship({
+  const validationResolution = useMemo(
+    () => getRelationshipValidationResolution({
       people,
       relationships,
       type,
@@ -84,6 +86,7 @@ export default function RelationshipDialog({
     }),
     [fromPersonId, parentChildKind, people, relationshipStatus, relationships, toPersonId, type],
   );
+  const validationMessage = validationResolution.blockingErrors[0] ?? null;
   const validationWarnings = useMemo(
     () => getRelationshipValidationFeedback({
       people,
@@ -146,8 +149,13 @@ export default function RelationshipDialog({
       return;
     }
 
-    if (validationMessage) {
-      setError(validationMessage);
+    if (validationResolution.blockingErrors.length > 0) {
+      setBlockingValidationMessage(validationResolution.blockingErrors[0] ?? null);
+      return;
+    }
+
+    if (validationResolution.softWarnings.length > 0) {
+      setReviewWarnings(validationResolution.softWarnings);
       return;
     }
 
@@ -376,7 +384,66 @@ export default function RelationshipDialog({
           </ScrollView>
         </Dialog.ScrollArea>
         <Dialog.Actions style={[dialogChrome.dialogActions, styles.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
-          <Button mode="contained" onPress={handleSubmit} disabled={loading || people.length < 2 || !!validationMessage}>{t(K.common.save)}</Button>
+          <Button mode="contained" onPress={handleSubmit} disabled={loading || people.length < 2}>{t(K.common.save)}</Button>
+        </Dialog.Actions>
+      </Dialog>
+      <Dialog
+        visible={!!blockingValidationMessage}
+        onDismiss={() => setBlockingValidationMessage(null)}
+        style={[dialogChrome.dialog, styles.dialog, { backgroundColor: theme.colors.surface }]}
+      >
+        <Dialog.Title style={dialogChrome.dialogTitle}>
+          {t(K.relationship.addRelationship)}
+        </Dialog.Title>
+        <Dialog.Content style={dialogChrome.content}>
+          <Text variant="bodyMedium">
+            {blockingValidationMessage ?? ''}
+          </Text>
+        </Dialog.Content>
+        <Dialog.Actions style={dialogChrome.dialogActions}>
+          <Button mode="contained" onPress={() => setBlockingValidationMessage(null)} disabled={loading}>
+            {t(K.common.close)}
+          </Button>
+        </Dialog.Actions>
+      </Dialog>
+      <Dialog
+        visible={reviewWarnings.length > 0}
+        onDismiss={() => setReviewWarnings([])}
+        style={[dialogChrome.dialog, styles.dialog, { backgroundColor: theme.colors.surface }]}
+      >
+        <Dialog.Title style={dialogChrome.dialogTitle}>
+          {t(K.personForm.relationshipNeedsReviewTitle)}
+        </Dialog.Title>
+        <Dialog.Content style={dialogChrome.content}>
+          <Text variant="bodyMedium" style={styles.helperCopy}>
+            {t(K.personForm.relationshipValidationCheck)}
+          </Text>
+          <Text variant="bodyMedium" style={{ marginTop: 12 }}>
+            {reviewWarnings.length === 1
+              ? reviewWarnings[0]
+              : reviewWarnings.map((warning, index) => `${index + 1}. ${warning}`).join('\n')}
+          </Text>
+        </Dialog.Content>
+        <Dialog.Actions style={dialogChrome.dialogActions}>
+          <Button onPress={() => setReviewWarnings([])} disabled={loading}>
+            {t(K.common.cancel)}
+          </Button>
+          <Button
+            mode="contained"
+            onPress={async () => {
+              setReviewWarnings([]);
+              await onSubmit({
+                type,
+                fromPersonId,
+                toPersonId,
+                relationshipStatus: type === 'spouse' ? relationshipStatus : undefined,
+                parentChildKind: type === 'parent-child' ? parentChildKind : undefined,
+              });
+            }}
+            disabled={loading}
+          >
+            {t(K.startup.continue)}
+          </Button>
         </Dialog.Actions>
       </Dialog>
     </Portal>

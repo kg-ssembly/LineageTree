@@ -1174,6 +1174,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
         hasExistingFamilyMembers={people.length > 0}
         relationshipCandidates={people}
         relationships={relationships}
+        perspective="new-person"
         onDismiss={closeAddPersonChooser}
         onSelectRelationship={handleAddPersonEntrySelection}
         onSelectRelationshipAttempt={handleMaidenParentSelectionAttempt}
