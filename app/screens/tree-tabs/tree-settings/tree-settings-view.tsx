@@ -71,8 +71,12 @@ function TreeSettingsContent({
   onSetTreeDiscoverability,
   onSetApprovalWindowHours,
   onSetSurnameVariantGroups,
+  onCreateMergeRequest,
   onSendMergeInvite,
   onRespondToMergeInvite,
+  onRequestTreeAccess,
+  onRequestTreeAccessByIdentifier,
+  onSearchDiscoverableTrees,
   onLoadMergePreview,
   onApproveMergeRequest,
   onRejectMergeRequest,
@@ -100,8 +104,6 @@ function TreeSettingsContent({
   const [ownerLinkTargetUserId, setOwnerLinkTargetUserId] = useState<string | null>(null);
   const [ownerLinkSearchQuery, setOwnerLinkSearchQuery] = useState('');
   const [ownerLinkPage, setOwnerLinkPage] = useState(1);
-  const [mergeInviteIdentifier, setMergeInviteIdentifier] = useState('');
-  const [mergeInviteSourceTreeId, setMergeInviteSourceTreeId] = useState(selectedTree.id);
   const [surnameVariantDraft, setSurnameVariantDraft] = useState('');
   const [surnameVariantDrafts, setSurnameVariantDrafts] = useState<string[]>([]);
   const [surnameVariantDialogVisible, setSurnameVariantDialogVisible] = useState(false);
@@ -283,14 +285,6 @@ function TreeSettingsContent({
       setMergePreviewVisible(true);
     }
   }, [mergePreview]);
-
-  useEffect(() => {
-    if (availableMergeSourceTrees.some((tree) => tree.id === mergeInviteSourceTreeId)) {
-      return;
-    }
-
-    setMergeInviteSourceTreeId(availableMergeSourceTrees[0]?.id ?? selectedTree.id);
-  }, [availableMergeSourceTrees, mergeInviteSourceTreeId, selectedTree.id]);
 
   useEffect(() => {
     setSurnameVariantDrafts(treeSurnameVariants);
@@ -539,6 +533,7 @@ function TreeSettingsContent({
             assignedPersonByUserId={assignedPersonByUserId}
             assignedUserIdByPersonId={assignedUserIdByPersonId}
             role={role}
+            canManageCollaborators={canEdit}
             isOwner={isOwner}
             userId={userId}
             mutating={mutating}
@@ -593,19 +588,20 @@ function TreeSettingsContent({
             pendingMergeRequests={pendingMergeRequests}
             highlightedMergeRequestId={highlightedMergeRequestId}
             mergeSelectionDrafts={mergeSelectionDrafts}
-            mergeInviteIdentifier={mergeInviteIdentifier}
-            mergeInviteSourceTreeId={mergeInviteSourceTreeId}
             availableMergeSourceTrees={availableMergeSourceTrees}
             canEdit={canEdit}
+            userId={userId}
             mutating={mutating}
             onOpenHelperDialog={openHelperDialog}
-            setMergeInviteIdentifier={setMergeInviteIdentifier}
-            setMergeInviteSourceTreeId={setMergeInviteSourceTreeId}
             setMergePreviewVisible={setMergePreviewVisible}
             setMergeHistoryVisible={setMergeHistoryVisible}
             toggleMergeSelection={toggleMergeSelection}
+            onCreateMergeRequest={onCreateMergeRequest}
             onSendMergeInvite={onSendMergeInvite}
             onRespondToMergeInvite={onRespondToMergeInvite}
+            onRequestTreeAccess={onRequestTreeAccess}
+            onRequestTreeAccessByIdentifier={onRequestTreeAccessByIdentifier}
+            onSearchDiscoverableTrees={onSearchDiscoverableTrees}
             onLoadMergePreview={onLoadMergePreview}
             onApproveMergeRequest={onApproveMergeRequest}
             onRequestMergeChanges={onRequestMergeChanges}

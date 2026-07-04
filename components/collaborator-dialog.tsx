@@ -87,7 +87,6 @@ export default function CollaboratorDialog({
             style={styles.roleButtons}
             buttons={[
               { value: 'viewer', label: t(K.treeSettings.viewer) },
-              { value: 'contributor', label: t(K.treeSettings.contributor) },
               { value: 'editor', label: t(K.treeSettings.editor) },
             ]}
           />

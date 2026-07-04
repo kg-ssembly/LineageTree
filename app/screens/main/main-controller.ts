@@ -829,17 +829,17 @@ export function useMainScreenController({ navigation }: Props) {
   }, [openConfirm, removeTree, setDefaultTreeId, t, user?.defaultTreeId]);
 
   const handleCollaboratorSubmit = useCallback(async ({ email, role: collaboratorRole }: { email: string; role: CollaboratorRole }) => {
-    if (!selectedTree) {
+    if (!selectedTree || !user?.id) {
       return;
     }
 
     try {
-      await addCollaborator(selectedTree.id, email, collaboratorRole);
+      await addCollaborator(user.id, selectedTree.id, email, collaboratorRole);
       setCollaboratorDialogVisible(false);
     } catch {
       // snackbar
     }
-  }, [addCollaborator, selectedTree]);
+  }, [addCollaborator, selectedTree, user?.id]);
 
   const createPersonFromPayload = useCallback(async (payload: PersonFormSubmission) => createPersonFromFormSubmission({
     addParentChildRelationship,
@@ -1014,12 +1014,12 @@ export function useMainScreenController({ navigation }: Props) {
   }, [removePerson, user?.id]);
 
   const onRemoveCollaborator = useCallback(async (userId: string) => {
-    if (!selectedTree) {
+    if (!selectedTree || !user?.id) {
       return;
     }
 
-    await removeCollaborator(selectedTree.id, userId);
-  }, [removeCollaborator, selectedTree]);
+    await removeCollaborator(user.id, selectedTree.id, userId);
+  }, [removeCollaborator, selectedTree, user?.id]);
 
   const onSetApprovalWindowHours = useCallback(async (hours: number) => {
     if (!selectedTree) {
@@ -1061,13 +1061,13 @@ export function useMainScreenController({ navigation }: Props) {
     await setTreeDiscoverability(selectedTree.id, discoverable);
   }, [selectedTree, setTreeDiscoverability]);
 
-  const onCreateMergeRequest = useCallback(async (targetTreeId: string) => {
-    if (!user?.id || !selectedTree) {
+  const onCreateMergeRequest = useCallback(async (sourceTreeId: string, targetTreeId: string) => {
+    if (!user?.id || !sourceTreeId || !targetTreeId) {
       return;
     }
 
-    await createMergeRequest(user.id, selectedTree.id, targetTreeId);
-  }, [createMergeRequest, selectedTree, user?.id]);
+    await createMergeRequest(user.id, sourceTreeId, targetTreeId);
+  }, [createMergeRequest, user?.id]);
 
   const onSendMergeInvite = useCallback(async (sourceTreeId: string, identifier: string) => {
     if (!user?.id || !sourceTreeId) {
@@ -1157,13 +1157,13 @@ export function useMainScreenController({ navigation }: Props) {
     await markNotificationActivityActioned(user.id, sourceKind, sourceId);
   }, [markNotificationActivityActioned, user?.id]);
 
-  const onLoadTreeMergePreview = useCallback(async (targetTreeId: string) => {
-    if (!selectedTree) {
+  const onLoadTreeMergePreview = useCallback(async (sourceTreeId: string, targetTreeId: string) => {
+    if (!sourceTreeId || !targetTreeId) {
       return;
     }
 
-    await loadMergePreview(selectedTree.id, targetTreeId);
-  }, [loadMergePreview, selectedTree]);
+    await loadMergePreview(sourceTreeId, targetTreeId);
+  }, [loadMergePreview]);
 
   const onApproveMergeRequest = useCallback(async (requestId: string, comment?: string, selectedMatchIds?: string[]) => {
     if (!user?.id) {
@@ -1381,6 +1381,7 @@ export function useMainScreenController({ navigation }: Props) {
       onSendMergeInvite,
       onRespondToMergeInvite,
       onRequestTreeAccess,
+      onRequestTreeAccessByIdentifier,
       onRespondToTreeAccessRequest,
       onSearchDiscoverableTrees,
       onSearchDiscoverableTreesByUsername,
@@ -1423,7 +1424,6 @@ export function useMainScreenController({ navigation }: Props) {
     handleSwitchTree,
     handleToggleDefaultTree,
     isOwner,
-    loadMergePreview,
     loadingTreeData,
     loadingTrees,
     mergeHistory,
@@ -1465,6 +1465,7 @@ export function useMainScreenController({ navigation }: Props) {
     onSetTreeDiscoverability,
     onSetSurnameVariantGroups,
     onUndoMerge,
+    openCreateTreeDialog,
     openConfirm,
     openPersonProfile,
     people,

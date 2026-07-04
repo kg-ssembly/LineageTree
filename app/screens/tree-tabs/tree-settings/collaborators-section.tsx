@@ -17,6 +17,7 @@ export function CollaboratorsSection({
   people,
   assignedPersonByUserId,
   assignedUserIdByPersonId,
+  canManageCollaborators,
   isOwner,
   userId,
   mutating,
@@ -60,7 +61,7 @@ export function CollaboratorsSection({
             />
           </View>
         </View>
-        {isOwner ? (
+        {canManageCollaborators ? (
           <Button mode="contained" icon="account-plus" onPress={onOpenCollaboratorDialog} disabled={mutating} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>
             {t(K.treeSettings.addCollaborator)}
           </Button>
@@ -88,7 +89,7 @@ export function CollaboratorsSection({
                       {linkedPerson ? <Chip compact icon="link-variant">{formatPersonName(linkedPerson)}</Chip> : null}
                     </View>
                   </View>
-                  {isOwner && collaborator.role !== 'owner' ? (
+                  {canManageCollaborators && collaborator.role !== 'owner' ? (
                     <IconButton
                       icon="account-remove"
                       iconColor="#C62828"

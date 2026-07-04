@@ -140,6 +140,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     createMergeRequest,
     sendMergeInvite,
     requestTreeAccess,
+    requestTreeAccessByIdentifier,
     respondToTreeAccessRequest,
     searchDiscoverableTrees,
     searchDiscoverableTreesByUsername,
@@ -190,6 +191,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     createMergeRequest: state.createMergeRequest,
     sendMergeInvite: state.sendMergeInvite,
     requestTreeAccess: state.requestTreeAccess,
+    requestTreeAccessByIdentifier: state.requestTreeAccessByIdentifier,
     respondToTreeAccessRequest: state.respondToTreeAccessRequest,
     searchDiscoverableTrees: state.searchDiscoverableTrees,
     searchDiscoverableTreesByUsername: state.searchDiscoverableTreesByUsername,
@@ -687,17 +689,17 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
   }, [canvasFamilySwitchRef, closeNodeQuickActions, createTreeFromSurname, navigation, openConfirm, selectedTree, t, trees, user]);
 
   const handleCollaboratorSubmit = useCallback(async ({ email, role: collaboratorRole }: { email: string; role: CollaboratorRole }) => {
-    if (!selectedTree) {
+    if (!selectedTree || !user?.id) {
       return;
     }
 
     try {
-      await addCollaborator(selectedTree.id, email, collaboratorRole);
+      await addCollaborator(user.id, selectedTree.id, email, collaboratorRole);
       setCollaboratorDialogVisible(false);
     } catch {
       // surfaced by store snackbar
     }
-  }, [addCollaborator, selectedTree]);
+  }, [addCollaborator, selectedTree, user?.id]);
 
   const createPersonFromPayload = useCallback(async (payload: PersonFormSubmission) => {
     return createPersonFromFormSubmission({
@@ -876,9 +878,9 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     await removePerson(user.id, person);
   }, [removePerson, user?.id]);
   const onRemoveCollaborator = useCallback(async (collaboratorUserId: string) => {
-    if (!selectedTree) return;
-    await removeCollaborator(selectedTree.id, collaboratorUserId);
-  }, [removeCollaborator, selectedTree]);
+    if (!selectedTree || !user?.id) return;
+    await removeCollaborator(user.id, selectedTree.id, collaboratorUserId);
+  }, [removeCollaborator, selectedTree, user?.id]);
   const onSetApprovalWindowHours = useCallback(async (hours: number) => {
     if (!selectedTree) return;
     await setApprovalWindowHours(selectedTree.id, hours);
@@ -899,10 +901,10 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     if (!selectedTree) return;
     await setSurnameVariantGroups(selectedTree.id, groups);
   }, [selectedTree, setSurnameVariantGroups]);
-  const onCreateMergeRequest = useCallback(async (targetTreeId: string) => {
-    if (!user?.id || !selectedTree) return;
-    await createMergeRequest(user.id, selectedTree.id, targetTreeId);
-  }, [createMergeRequest, selectedTree, user?.id]);
+  const onCreateMergeRequest = useCallback(async (sourceTreeId: string, targetTreeId: string) => {
+    if (!user?.id || !sourceTreeId || !targetTreeId) return;
+    await createMergeRequest(user.id, sourceTreeId, targetTreeId);
+  }, [createMergeRequest, user?.id]);
   const onSendMergeInvite = useCallback(async (sourceTreeId: string, identifier: string) => {
     if (!user?.id || !sourceTreeId) return;
     await sendMergeInvite(user.id, sourceTreeId, identifier);
@@ -915,6 +917,10 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     if (!user?.id) return;
     await requestTreeAccess(user.id, treeId);
   }, [requestTreeAccess, user?.id]);
+  const onRequestTreeAccessByIdentifier = useCallback(async (identifier: string) => {
+    if (!user?.id) return;
+    await requestTreeAccessByIdentifier(user.id, identifier);
+  }, [requestTreeAccessByIdentifier, user?.id]);
   const onRespondToTreeAccessRequest = useCallback(async (notificationId: string, status: 'accepted' | 'rejected') => {
     if (!user?.id) return;
     await respondToTreeAccessRequest(user.id, notificationId, status);
@@ -939,10 +945,10 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     if (!user?.id) return;
     await markNotificationActivityActioned(user.id, sourceKind, sourceId);
   }, [markNotificationActivityActioned, user?.id]);
-  const onLoadTreeMergePreview = useCallback(async (targetTreeId: string) => {
-    if (!selectedTree) return;
-    await loadMergePreview(selectedTree.id, targetTreeId);
-  }, [loadMergePreview, selectedTree]);
+  const onLoadTreeMergePreview = useCallback(async (sourceTreeId: string, targetTreeId: string) => {
+    if (!sourceTreeId || !targetTreeId) return;
+    await loadMergePreview(sourceTreeId, targetTreeId);
+  }, [loadMergePreview]);
   const onApproveMergeRequest = useCallback(async (requestId: string, comment?: string, selectedMatchIds?: string[]) => {
     if (!user?.id) return;
     await approveMergeRequest(user.id, requestId, comment, selectedMatchIds);
@@ -1021,6 +1027,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
       onSendMergeInvite,
       onRespondToMergeInvite,
       onRequestTreeAccess,
+      onRequestTreeAccessByIdentifier,
       onRespondToTreeAccessRequest,
       onSearchDiscoverableTrees,
       onSearchDiscoverableTreesByUsername,
@@ -1046,7 +1053,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     openConfirm, openPersonProfile, onOpenAddPerson, onOpenAddPersonForRelationship, onOpenRelationshipDialog, onOpenPersonQuickActions,
     onOpenCollaboratorDialog, onOpenAddSelf, onEditPerson, onDeletePerson, onRemoveCollaborator,
     handleAssignPersonToUser, handleClearSelfAssignment, onApproveApprovalRequest, onRejectApprovalRequest,
-    onSetTreeDiscoverability, onSetApprovalWindowHours, onSetSurnameVariantGroups, onCreateMergeRequest, onSendMergeInvite, onRespondToMergeInvite, onRequestTreeAccess, onRespondToTreeAccessRequest, onSearchDiscoverableTrees, onSearchDiscoverableTreesByUsername, onMarkNotificationSeen, onMarkNotificationOpened, onMarkNotificationActivityActioned, onLoadTreeMergePreview,
+    onSetTreeDiscoverability, onSetApprovalWindowHours, onSetSurnameVariantGroups, onCreateMergeRequest, onSendMergeInvite, onRespondToMergeInvite, onRequestTreeAccess, onRequestTreeAccessByIdentifier, onRespondToTreeAccessRequest, onSearchDiscoverableTrees, onSearchDiscoverableTreesByUsername, onMarkNotificationSeen, onMarkNotificationOpened, onMarkNotificationActivityActioned, onLoadTreeMergePreview,
     onApproveMergeRequest, onRejectMergeRequest, onRequestMergeChanges, onUndoMerge, onGrantMergeViewerAccess, onCreateSurnameTree, treeSettingsFocus, onOpenTreeSettingsTarget,
     canvasFamilySwitchRef, canvasActiveFamilyRef,
   ]);

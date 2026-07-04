@@ -529,8 +529,13 @@ export default function PersonFormDialog({
   const selectedRelationshipPerson = selectedRelationshipDraft
     ? relationshipCandidatesById.get(selectedRelationshipDraft.relatedPersonId) ?? null
     : null;
+  const pendingRelationshipSectionName = getPendingRelationshipSectionName(firstName, lastName);
   const dialogTitle = mode === 'edit'
     ? t(K.personForm.editFamilyMember)
+    : currentStep === 2
+      ? pendingRelationshipSectionName
+        ? t(K.personForm.addRelationshipsForName, { name: pendingRelationshipSectionName })
+        : t(K.personForm.addRelationships)
     : selectedRelationshipDraft && selectedRelationshipPerson
       ? t(K.personForm.addRelatedFamilyMemberTitle, {
           name: formatPersonName(selectedRelationshipPerson),
@@ -543,7 +548,6 @@ export default function PersonFormDialog({
           ),
         })
       : t(K.personForm.addFamilyMember);
-  const pendingRelationshipSectionName = getPendingRelationshipSectionName(firstName, lastName);
   const addAnotherConnectionLabel = pendingRelationshipSectionName
     ? t(K.personForm.addAnotherConnectionForName, { name: pendingRelationshipSectionName })
     : t(K.personForm.addAnotherConnection);

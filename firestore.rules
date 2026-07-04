@@ -86,6 +86,12 @@ service cloud.firestore {
           && request.resource.data.membershipHistory == resource.data.membershipHistory
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(treeMetadataKeys())
         ) || (
+          isExistingTreeEditor()
+          && request.resource.data.ownerId == resource.data.ownerId
+          && request.resource.data.ownerId in request.resource.data.memberIds
+          && request.resource.data.ownerId in request.resource.data.editorIds
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(treeMembershipKeys())
+        ) || (
           isExistingTreeOwner()
           && request.resource.data.ownerId == resource.data.ownerId
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
@@ -129,10 +135,8 @@ service cloud.firestore {
         || isTreeMemberById(resource.data.targetTreeId);
       allow create: if signedIn()
         && request.resource.data.suggestedByUserId == request.auth.uid
-        && (
-          isTreeEditorById(request.resource.data.sourceTreeId)
-          || isTreeEditorById(request.resource.data.targetTreeId)
-        );
+        && isTreeEditorById(request.resource.data.sourceTreeId)
+        && isTreeEditorById(request.resource.data.targetTreeId);
       allow update, delete: if isTreeEditorById(resource.data.sourceTreeId)
         || isTreeEditorById(resource.data.targetTreeId);
     }

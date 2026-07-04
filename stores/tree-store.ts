@@ -160,8 +160,8 @@ interface TreeState {
   setTreeDiscoverability: (treeId: string, discoverable: boolean) => Promise<void>;
   setApprovalWindowHours: (treeId: string, hours: number) => Promise<void>;
   setSurnameVariantGroups: (treeId: string, groups: SurnameVariantGroup[]) => Promise<void>;
-  addCollaborator: (treeId: string, email: string, role: CollaboratorRole) => Promise<void>;
-  removeCollaborator: (treeId: string, collaboratorUserId: string) => Promise<void>;
+  addCollaborator: (actorUserId: string, treeId: string, email: string, role: CollaboratorRole) => Promise<void>;
+  removeCollaborator: (actorUserId: string, treeId: string, collaboratorUserId: string) => Promise<void>;
   removeTree: (tree: FamilyTree) => Promise<void>;
   createPerson: (ownerId: string, treeId: string, input: PersonInput, newPhotos: NewPersonPhotoInput[]) => Promise<PersonRecord>;
   updatePerson: (ownerId: string, person: PersonRecord, input: PersonMutationPayload) => Promise<void>;
@@ -517,10 +517,10 @@ export const useTreeStore = create<TreeState>()(persist((set, get) => {
       }
     },
 
-    addCollaborator: async (treeId, email, role) => {
+    addCollaborator: async (actorUserId, treeId, email, role) => {
       set({ mutating: true, error: null });
       try {
-        await addCollaboratorToTree(treeId, email, role);
+        await addCollaboratorToTree(actorUserId, treeId, email, role);
         set({ mutating: false });
       } catch (error) {
         set({ mutating: false, error: normaliseError(error) });
@@ -528,10 +528,10 @@ export const useTreeStore = create<TreeState>()(persist((set, get) => {
       }
     },
 
-    removeCollaborator: async (treeId, collaboratorUserId) => {
+    removeCollaborator: async (actorUserId, treeId, collaboratorUserId) => {
       set({ mutating: true, error: null });
       try {
-        await removeCollaboratorFromTree(treeId, collaboratorUserId);
+        await removeCollaboratorFromTree(actorUserId, treeId, collaboratorUserId);
         set({ mutating: false });
       } catch (error) {
         set({ mutating: false, error: normaliseError(error) });

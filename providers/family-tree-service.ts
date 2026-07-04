@@ -158,6 +158,52 @@ function sortCollaborators(collaborators: TreeCollaborator[]) {
   });
 }
 
+function upsertCollaborator(
+  collaborators: TreeCollaborator[],
+  collaborator: TreeCollaborator,
+) {
+  return sortCollaborators([
+    ...collaborators.filter((entry) => entry.userId !== collaborator.userId),
+    collaborator,
+  ]);
+}
+
+function setCollaboratorRole(
+  collaborators: TreeCollaborator[],
+  userId: string,
+  role: TreeRole,
+) {
+  return sortCollaborators(
+    collaborators.map((collaborator) => (
+      collaborator.userId === userId
+        ? { ...collaborator, role }
+        : collaborator
+    )),
+  );
+}
+
+function appendUniqueId(values: string[], value: string) {
+  return values.includes(value) ? values : [...values, value];
+}
+
+function buildMembershipHistoryEntry(
+  treeId: string,
+  userId: string,
+  role: TreeRole,
+  action: TreeMembershipHistoryEntry['action'],
+  createdAt: string,
+  note?: string,
+): TreeMembershipHistoryEntry {
+  return {
+    id: `${treeId}-${userId}-${Date.now()}`,
+    userId,
+    role,
+    action,
+    note,
+    createdAt,
+  };
+}
+
 function mapCollaborator(rawCollaborator: any): TreeCollaborator | null {
   if (!rawCollaborator?.userId || !rawCollaborator?.email || !isTreeRole(rawCollaborator?.role)) {
     return null;
@@ -1346,7 +1392,7 @@ export async function updateTreeApprovalWindow(treeId: string, approvalWindowHou
   });
 }
 
-export async function addCollaboratorToTree(treeId: string, email: string, role: CollaboratorRole) {
+export async function addCollaboratorToTree(actorUserId: string, treeId: string, email: string, role: CollaboratorRole) {
   const collaboratorUser = await findUserByEmail(email);
   const treeRef = doc(db, TREES_COLLECTION, treeId);
 
@@ -1357,6 +1403,10 @@ export async function addCollaboratorToTree(treeId: string, email: string, role:
     }
 
     const tree = mapTreeData(treeSnapshot.id, treeSnapshot.data());
+    if (!tree.editorIds.includes(actorUserId)) {
+      throw new Error('Only an editor can manage collaborators for this tree.');
+    }
+
     if (collaboratorUser.id === tree.ownerId) {
       throw new Error('The owner already has access to this tree.');
     }
@@ -1365,37 +1415,28 @@ export async function addCollaboratorToTree(treeId: string, email: string, role:
       throw new Error('That collaborator already has access to this tree.');
     }
 
-    const collaborators = sortCollaborators([
-      ...tree.collaborators,
-      {
-        userId: collaboratorUser.id,
-        email: collaboratorUser.email,
-        displayName: collaboratorUser.displayName,
-        role,
-      },
-    ]);
+    const timestamp = nowIso();
+    const collaborators = upsertCollaborator(tree.collaborators, {
+      userId: collaboratorUser.id,
+      email: collaboratorUser.email,
+      displayName: collaboratorUser.displayName,
+      role,
+    });
 
     transaction.update(treeRef, {
       collaborators,
-      memberIds: [...tree.memberIds, collaboratorUser.id],
-      editorIds: role === 'editor' ? [...tree.editorIds, collaboratorUser.id] : tree.editorIds,
+      memberIds: appendUniqueId(tree.memberIds, collaboratorUser.id),
+      editorIds: role === 'editor' ? appendUniqueId(tree.editorIds, collaboratorUser.id) : tree.editorIds,
       membershipHistory: [
         ...tree.membershipHistory,
-        {
-          id: `${treeId}-${collaboratorUser.id}-${Date.now()}`,
-          userId: collaboratorUser.id,
-          role,
-          action: 'invited',
-          note: `Added as ${role}`,
-          createdAt: nowIso(),
-        },
+        buildMembershipHistoryEntry(treeId, collaboratorUser.id, role, 'invited', timestamp, `Added as ${role}`),
       ],
-      updatedAt: nowIso(),
+      updatedAt: timestamp,
     });
   });
 }
 
-export async function removeCollaboratorFromTree(treeId: string, collaboratorUserId: string) {
+export async function removeCollaboratorFromTree(actorUserId: string, treeId: string, collaboratorUserId: string) {
   const treeRef = doc(db, TREES_COLLECTION, treeId);
 
   await runTransaction(db, async (transaction) => {
@@ -1405,6 +1446,10 @@ export async function removeCollaboratorFromTree(treeId: string, collaboratorUse
     }
 
     const tree = mapTreeData(treeSnapshot.id, treeSnapshot.data());
+    if (!tree.editorIds.includes(actorUserId)) {
+      throw new Error('Only an editor can manage collaborators for this tree.');
+    }
+
     if (collaboratorUserId === tree.ownerId) {
       throw new Error('The owner cannot be removed from the tree.');
     }
@@ -1416,6 +1461,7 @@ export async function removeCollaboratorFromTree(treeId: string, collaboratorUse
     const nextPersonAssignments = Object.fromEntries(
       Object.entries(tree.personAssignments).filter(([userId]) => userId !== collaboratorUserId),
     );
+    const timestamp = nowIso();
 
     transaction.update(treeRef, {
       collaborators: tree.collaborators.filter((collaborator) => collaborator.userId !== collaboratorUserId),
@@ -1424,15 +1470,9 @@ export async function removeCollaboratorFromTree(treeId: string, collaboratorUse
       personAssignments: nextPersonAssignments,
       membershipHistory: [
         ...tree.membershipHistory,
-        {
-          id: `${treeId}-${collaboratorUserId}-${Date.now()}`,
-          userId: collaboratorUserId,
-          role: 'viewer',
-          action: 'left',
-          createdAt: nowIso(),
-        },
+        buildMembershipHistoryEntry(treeId, collaboratorUserId, 'viewer', 'left', timestamp),
       ],
-      updatedAt: nowIso(),
+      updatedAt: timestamp,
     });
   });
 }
@@ -1511,12 +1551,34 @@ export async function assignTreePersonToUser(actorUserId: string, treeId: string
     }
 
 
+    const timestamp = nowIso();
+    const nextCollaborators = userId === tree.ownerId
+      ? tree.collaborators
+      : setCollaboratorRole(tree.collaborators, userId, 'editor');
+    const nextEditorIds = userId === tree.ownerId
+      ? tree.editorIds
+      : appendUniqueId(tree.editorIds, userId);
+
     transaction.update(treeRef, {
+      collaborators: nextCollaborators,
+      memberIds: appendUniqueId(tree.memberIds, userId),
+      editorIds: nextEditorIds,
       personAssignments: {
         ...tree.personAssignments,
         [userId]: personId,
       },
-      updatedAt: nowIso(),
+      membershipHistory: [
+        ...tree.membershipHistory,
+        buildMembershipHistoryEntry(
+          treeId,
+          userId,
+          userId === tree.ownerId ? 'owner' : 'editor',
+          'linked-person',
+          timestamp,
+          'Linked to a family member profile and granted editor access.',
+        ),
+      ],
+      updatedAt: timestamp,
     });
   });
 }
@@ -1541,10 +1603,30 @@ export async function clearTreePersonAssignment(treeId: string, userId: string) 
 
     const nextAssignments = { ...tree.personAssignments };
     delete nextAssignments[userId];
+    const timestamp = nowIso();
+    const nextCollaborators = userId === tree.ownerId
+      ? tree.collaborators
+      : setCollaboratorRole(tree.collaborators, userId, 'viewer');
+    const nextEditorIds = userId === tree.ownerId
+      ? tree.editorIds
+      : tree.editorIds.filter((editorId) => editorId !== userId);
 
     transaction.update(treeRef, {
+      collaborators: nextCollaborators,
+      editorIds: nextEditorIds,
       personAssignments: nextAssignments,
-      updatedAt: nowIso(),
+      membershipHistory: [
+        ...tree.membershipHistory,
+        buildMembershipHistoryEntry(
+          treeId,
+          userId,
+          userId === tree.ownerId ? 'owner' : 'viewer',
+          'role-changed',
+          timestamp,
+          'Profile link removed. Access returned to viewer.',
+        ),
+      ],
+      updatedAt: timestamp,
     });
   });
 }
@@ -3241,7 +3323,15 @@ export async function createMergeRequest(
   sourceTreeId: string,
   targetTreeId: string,
 ) {
+  if (sourceTreeId === targetTreeId) {
+    throw new Error('Choose two different trees before starting a merge.');
+  }
+
   const [source, target] = await Promise.all([getTreeBundle(sourceTreeId), getTreeBundle(targetTreeId)]);
+  if (!canApproveMergeForTree(source.tree, actorUserId) || !canApproveMergeForTree(target.tree, actorUserId)) {
+    throw new Error('You need editor access to both trees before starting a merge.');
+  }
+
   const preview = buildMergePreview(source, target);
   if (preview.matches.length === 0) {
     throw new Error('No likely person matches were found between these trees yet.');

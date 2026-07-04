@@ -251,7 +251,7 @@ export default function AddPersonEntryDialog({
           {selectedMode
            ? getSelectRelationshipTitle(selectedMode, newPersonName, t)
            : chooserTitleKey === K.personForm.addAnotherConnectionTitle && newPersonName
-             ? t(K.personForm.addRelationshipForName, { name: newPersonName })
+             ? t(K.personForm.addRelationshipsForName, { name: newPersonName })
            : chooserTitleKey
              ? t(chooserTitleKey)
              : t(K.personForm.addMemberChooserTitle)}
