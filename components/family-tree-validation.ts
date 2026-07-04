@@ -254,6 +254,10 @@ export function getPersonValidationFeedback({
     errors.push(translate(K.personForm.lastNameRequired));
   }
 
+  if (!birthDate) {
+    errors.push(translate(K.personForm.birthDateRequired));
+  }
+
   if (requireIdentityContext && !lastName && !birthDate && pendingRelationships.filter((relationship) => relationship.relatedPersonId).length === 0) {
     errors.push(translate(K.personForm.identityDetailRequired));
   }
@@ -600,6 +604,10 @@ export function getRelationshipValidationFeedback({
         warnings.push(translate(K.relationship.moreThanTwoBiologicalParents));
       }
 
+      if (isBiologicalParentChildKind(parentChildKind) && (!parent.birthDate || !child.birthDate)) {
+        errors.push(translate(K.relationship.biologicalRelationshipBirthDatesRequired));
+      }
+
       if (parent.birthDate && child.birthDate) {
         const ageGap = getAgeDifferenceInYears(parent.birthDate, child.birthDate);
         if (typeof ageGap === 'number') {
@@ -620,7 +628,11 @@ export function getRelationshipValidationFeedback({
       }
 
       if (parent.deathDate && child.birthDate && parent.deathDate < child.birthDate) {
-        warnings.push(translate(K.relationship.childBornAfterParentDeath));
+        if (isBiologicalParentChildKind(parentChildKind)) {
+          errors.push(translate(K.relationship.childBornAfterParentDeath));
+        } else {
+          warnings.push(translate(K.relationship.childBornAfterParentDeath));
+        }
       }
 
       if (isBiologicalParentChildKind(parentChildKind) && child.lastName.trim()) {

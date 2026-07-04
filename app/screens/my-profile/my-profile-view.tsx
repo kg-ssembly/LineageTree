@@ -18,6 +18,7 @@ import {
   TabStripCard,
 } from '../../../components';
 import type { PersonRelationshipMode } from '../../../components/person-relationship-dialog';
+import type { PersonFormSubmission } from '../../../components/person-form-dialog';
 import type { RootStackParamList } from '../../../components/dto/navigation';
 import type { NewPersonPhotoInput, PersonLifeEvent, PersonMutationPayload, PersonPhoto, PersonRecord } from '../../../components/dto/person';
 import {
@@ -216,6 +217,7 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
   const [relationshipSectionTab, setRelationshipSectionTab] = useState<RelationshipSectionTabKey>('insight');
   const [editorVisible, setEditorVisible] = useState(false);
   const [relationshipDialog, setRelationshipDialog] = useState<RelationshipDialogState>({ visible: false, relationship: null });
+  const [relationshipAddFlowVisible, setRelationshipAddFlowVisible] = useState(false);
   const [lifeEventDialog, setLifeEventDialog] = useState<LifeEventDialogState>({ visible: false, event: null });
   const [notesDialogVisible, setNotesDialogVisible] = useState(false);
   const [notesDraft, setNotesDraft] = useState('');
@@ -530,6 +532,32 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
     try {
       await updatePerson(user.id, linkedPerson, payload);
       setEditorVisible(false);
+    } catch {
+      // surfaced by store snackbar
+    }
+  };
+
+  const handleCreateRelatedPersonSubmit = async (payload: PersonFormSubmission) => {
+    if (!user?.id || !selectedTree || !linkedPerson) {
+      return;
+    }
+
+    try {
+      for (const pendingRelationship of payload.pendingRelationships) {
+        if (pendingRelationship.mode === 'spouse-of') {
+          await addSpouseRelationship(user.id, selectedTree.id, linkedPerson.id, pendingRelationship.relatedPersonId, pendingRelationship.relationshipStatus);
+          continue;
+        }
+
+        if (pendingRelationship.mode === 'parent-of') {
+          await addParentChildRelationship(user.id, selectedTree.id, linkedPerson.id, pendingRelationship.relatedPersonId, pendingRelationship.parentChildKind);
+          continue;
+        }
+
+        await addParentChildRelationship(user.id, selectedTree.id, pendingRelationship.relatedPersonId, linkedPerson.id, pendingRelationship.parentChildKind);
+      }
+
+      setRelationshipAddFlowVisible(false);
     } catch {
       // surfaced by store snackbar
     }
@@ -869,7 +897,7 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
             onOpenHelperDialog={() => undefined}
             canEdit={canEditLinkedProfile}
             mutating={mutating}
-            onAddRelationship={() => setRelationshipDialog({ visible: true, relationship: null })}
+            onAddRelationship={() => setRelationshipAddFlowVisible(true)}
             onEditRelationship={(relationship) => setRelationshipDialog({ visible: true, relationship })}
           />
         ) : null}
@@ -951,6 +979,21 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
           await removePerson(user.id, linkedPerson);
           setEditorVisible(false);
         } : undefined}
+      />
+
+      <PersonFormDialog
+        visible={relationshipAddFlowVisible}
+        mode="create"
+        person={linkedPerson}
+        initialStep={2}
+        autoOpenAddConnectionDialog
+        relationshipOnly
+        loading={mutating}
+        existingLastNames={existingLastNames}
+        relationshipCandidates={people.filter((candidate) => candidate.id !== linkedPerson?.id)}
+        relationships={relationships}
+        onDismiss={() => setRelationshipAddFlowVisible(false)}
+        onSubmit={handleCreateRelatedPersonSubmit}
       />
 
       <PersonRelationshipDialog

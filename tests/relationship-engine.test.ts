@@ -167,7 +167,23 @@ test('warns when child birth is after recorded parent death', () => {
     parentChildKind: 'biological',
   });
 
-  assert.ok(feedback.warnings.includes('This child was recorded as born after the parent died. Please double-check the dates.'));
+  assert.ok(feedback.errors.includes('This child was recorded as born after the parent died. Please double-check the dates.'));
+});
+
+test('blocks biological parent-child relationships without birth dates for both people', () => {
+  const parent = makePerson('parent', 'Alex', 'male');
+  const child = { ...makePerson('child', 'Jordan', 'male'), birthDate: '2001-01-01' };
+
+  const feedback = getRelationshipValidationFeedback({
+    people: [parent, child],
+    relationships: [],
+    type: 'parent-child',
+    fromPersonId: 'parent',
+    toPersonId: 'child',
+    parentChildKind: 'biological',
+  });
+
+  assert.ok(feedback.errors.includes('Birth dates are required for both family members before adding a biological parent-child relationship.'));
 });
 
 test('warns when spouse shared-child timelines are implausible', () => {
@@ -227,6 +243,24 @@ test('blocks future birth dates', () => {
   });
 
   assert.ok(feedback.errors.includes('Birth date cannot be in the future.'));
+});
+
+test('requires a birth date when validating a person', () => {
+  const feedback = getPersonValidationFeedback({
+    people: [],
+    person: {
+      firstName: 'Jordan',
+      middleNames: '',
+      lastName: 'Example',
+      maidenName: '',
+      birthDate: '',
+      deathDate: '',
+      notes: '',
+      lifeEvents: [],
+    },
+  });
+
+  assert.ok(feedback.errors.includes('Birth date is required.'));
 });
 
 test('warns when child surname differs from both biological parents without context', () => {

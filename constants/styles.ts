@@ -1706,6 +1706,10 @@ export class GlobalStyles {
             borderRadius: 20,
             borderWidth: 1,
         },
+        pendingRelationshipList: {
+            marginTop: 12,
+            gap: 0,
+        },
         relationshipPreviewPanel: {
             marginTop: 12,
             padding: 14,

@@ -33,7 +33,10 @@ type AddPersonEntryDialogProps = {
   relationshipCandidates: PersonRecord[];
   relationships?: RelationshipRecord[];
   existingPendingRelationships?: PendingRelationshipSubmission[];
+  validationAnchorPerson?: PersonRecord | null;
   initialMode?: PendingRelationshipMode | null;
+  fixedRelatedPerson?: PersonRecord | null;
+  skipPersonSelectionWhenFixed?: boolean;
   perspective?: 'new-person' | 'anchor-person';
   allowUnrelatedEntry?: boolean;
   chooserTitleKey?: string;
@@ -108,13 +111,50 @@ function getSelectRelationshipTitle(
   );
 }
 
+function getRelationshipActionText({
+  mode,
+  perspective,
+  anchorName,
+  relatedPersonName,
+  t,
+}: {
+  mode: PendingRelationshipMode;
+  perspective: 'new-person' | 'anchor-person';
+  anchorName?: string;
+  relatedPersonName: string;
+  t: (key: string, values?: Record<string, string | number>) => string;
+}) {
+  if (perspective === 'anchor-person' && anchorName?.trim()) {
+    return t(
+      mode === 'parent-of'
+        ? K.relationship.parentOfName
+        : mode === 'child-of'
+          ? K.relationship.childOfName
+          : K.relationship.spouseOfName,
+      { name: anchorName.trim() },
+    );
+  }
+
+  return t(
+    mode === 'parent-of'
+      ? K.relationship.createParentForName
+      : mode === 'child-of'
+        ? K.relationship.createChildForName
+        : K.relationship.createSpouseForName,
+    { name: relatedPersonName },
+  );
+}
+
 export default function AddPersonEntryDialog({
   visible,
   hasExistingFamilyMembers,
   relationshipCandidates,
   relationships = [],
   existingPendingRelationships = [],
+  validationAnchorPerson = null,
   initialMode = null,
+  fixedRelatedPerson = null,
+  skipPersonSelectionWhenFixed = false,
   perspective = 'new-person',
   allowUnrelatedEntry = true,
   chooserTitleKey,
@@ -132,8 +172,10 @@ export default function AddPersonEntryDialog({
   const [page, setPage] = useState(0);
   const [reviewState, setReviewState] = useState<ReviewState>(null);
   const [blockingState, setBlockingState] = useState<BlockingState>(null);
+  const anchorPersonId = validationAnchorPerson?.id ?? fixedRelatedPerson?.id ?? '__new-person__';
+  const anchorDisplayName = newPersonName?.trim() || (validationAnchorPerson ? formatPersonDisplayName(validationAnchorPerson) : '');
   const validationPeople = useMemo<PersonRecord[]>(() => [
-    {
+    validationAnchorPerson ?? fixedRelatedPerson ?? {
       id: '__new-person__',
       treeId: '',
       treeMembershipIds: [],
@@ -162,7 +204,7 @@ export default function AddPersonEntryDialog({
       updatedAt: '',
     },
     ...relationshipCandidates,
-  ], [relationshipCandidates]);
+  ], [fixedRelatedPerson, relationshipCandidates, validationAnchorPerson]);
 
   useEffect(() => {
     if (!visible) {
@@ -187,6 +229,10 @@ export default function AddPersonEntryDialog({
       return [];
     }
 
+    if (fixedRelatedPerson) {
+      return [fixedRelatedPerson];
+    }
+
     const normalizedQuery = searchQuery.trim().toLowerCase();
     const excludedPersonIds = new Set(existingPendingRelationships.map((relationship) => relationship.relatedPersonId).filter(Boolean));
 
@@ -196,7 +242,7 @@ export default function AddPersonEntryDialog({
       !normalizedQuery || formatPersonDisplayName(candidate).toLowerCase().includes(normalizedQuery)
       )
     ));
-  }, [existingPendingRelationships, relationshipCandidates, searchQuery, selectedMode]);
+  }, [existingPendingRelationships, fixedRelatedPerson, relationshipCandidates, searchQuery, selectedMode]);
 
   const totalPages = Math.max(1, Math.ceil(filteredCandidates.length / PAGE_SIZE));
   const paginatedCandidates = useMemo(
@@ -223,6 +269,12 @@ export default function AddPersonEntryDialog({
   };
 
   const chooseMode = (mode: PendingRelationshipMode) => {
+    if (fixedRelatedPerson && skipPersonSelectionWhenFixed) {
+      resetAndDismiss();
+      onSelectRelationship(mode, fixedRelatedPerson);
+      return;
+    }
+
     setSelectedMode(mode);
     setSearchQuery('');
     setPage(0);
@@ -242,8 +294,8 @@ export default function AddPersonEntryDialog({
       treeId: '',
       ownerId: '',
       type: relationship.mode === 'spouse-of' ? 'spouse' : 'parent-child',
-      fromPersonId: relationship.mode === 'child-of' ? relationship.relatedPersonId : '__new-person__',
-      toPersonId: relationship.mode === 'child-of' ? '__new-person__' : relationship.relatedPersonId,
+      fromPersonId: relationship.mode === 'child-of' ? relationship.relatedPersonId : anchorPersonId,
+      toPersonId: relationship.mode === 'child-of' ? anchorPersonId : relationship.relatedPersonId,
       parentChildKind: relationship.mode === 'spouse-of' ? undefined : relationship.parentChildKind ?? DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND,
       relationshipStatus: relationship.mode === 'spouse-of' ? relationship.relationshipStatus ?? DEFAULT_SPOUSE_RELATIONSHIP_STATUS : undefined,
       createdAt: '',
@@ -252,8 +304,8 @@ export default function AddPersonEntryDialog({
       people: validationPeople,
       relationships: [...relationships, ...pendingValidationRelationships],
       type: submissionMode === 'spouse-of' ? 'spouse' : 'parent-child',
-      fromPersonId: submissionMode === 'child-of' ? relatedPerson.id : '__new-person__',
-      toPersonId: submissionMode === 'child-of' ? '__new-person__' : relatedPerson.id,
+      fromPersonId: submissionMode === 'child-of' ? relatedPerson.id : anchorPersonId,
+      toPersonId: submissionMode === 'child-of' ? anchorPersonId : relatedPerson.id,
       parentChildKind: submissionMode === 'spouse-of' ? undefined : DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND,
       relationshipStatus: submissionMode === 'spouse-of' ? DEFAULT_SPOUSE_RELATIONSHIP_STATUS : undefined,
     });
@@ -322,28 +374,29 @@ export default function AddPersonEntryDialog({
 
           {selectedMode ? (
             <View style={{ marginTop: 16 }}>
-              <TextInput
-                mode="outlined"
-                label={t(K.common.searchFamilyMembers)}
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                left={<TextInput.Icon icon="magnify" />}
-                style={{ marginBottom: 12 }}
-              />
+              {!fixedRelatedPerson ? (
+                <TextInput
+                  mode="outlined"
+                  label={t(K.common.searchFamilyMembers)}
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  left={<TextInput.Icon icon="magnify" />}
+                  style={{ marginBottom: 12 }}
+                />
+              ) : null}
               <ScrollView style={{ maxHeight: 320 }} keyboardShouldPersistTaps="handled">
                 <View>
                   {paginatedCandidates.map((candidate) => (
                     <List.Item
                       key={candidate.id}
                       title={formatPersonDisplayName(candidate)}
-                      description={t(
-                        selectedMode === 'parent-of'
-                          ? K.relationship.createParentForName
-                          : selectedMode === 'child-of'
-                            ? K.relationship.createChildForName
-                            : K.relationship.createSpouseForName,
-                        { name: formatPersonDisplayName(candidate) },
-                      )}
+                      description={getRelationshipActionText({
+                        mode: selectedMode,
+                        perspective,
+                        anchorName: anchorDisplayName,
+                        relatedPersonName: formatPersonDisplayName(candidate),
+                        t,
+                      })}
                       left={(props) => (
                         <List.Icon
                           {...props}
@@ -369,7 +422,7 @@ export default function AddPersonEntryDialog({
                   ) : null}
                 </View>
               </ScrollView>
-              {totalPages > 1 ? (
+              {!fixedRelatedPerson && totalPages > 1 ? (
                 <View style={{ marginTop: 12, gap: 8 }}>
                   <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, textAlign: 'center' }}>
                     {t(K.app.resultsPageCount, { current: page + 1, total: totalPages })}
@@ -434,14 +487,13 @@ export default function AddPersonEntryDialog({
           {blockingState ? (
             <View style={{ gap: 12 }}>
               <Text variant="titleSmall">
-                {t(
-                  blockingState.mode === 'parent-of'
-                    ? K.relationship.createParentForName
-                    : blockingState.mode === 'child-of'
-                      ? K.relationship.createChildForName
-                      : K.relationship.createSpouseForName,
-                  { name: formatPersonDisplayName(blockingState.relatedPerson) },
-                )}
+                {getRelationshipActionText({
+                  mode: blockingState.mode,
+                  perspective,
+                  anchorName: anchorDisplayName,
+                  relatedPersonName: formatPersonDisplayName(blockingState.relatedPerson),
+                  t,
+                })}
               </Text>
               <Text variant="bodyMedium">
                 {blockingState.message}
@@ -476,14 +528,13 @@ export default function AddPersonEntryDialog({
                 {t(K.personForm.relationshipValidationCheck)}
               </Text>
               <Text variant="titleSmall">
-                {t(
-                  reviewState.mode === 'parent-of'
-                    ? K.relationship.createParentForName
-                    : reviewState.mode === 'child-of'
-                      ? K.relationship.createChildForName
-                      : K.relationship.createSpouseForName,
-                  { name: formatPersonDisplayName(reviewState.relatedPerson) },
-                )}
+                {getRelationshipActionText({
+                  mode: reviewState.mode,
+                  perspective,
+                  anchorName: anchorDisplayName,
+                  relatedPersonName: formatPersonDisplayName(reviewState.relatedPerson),
+                  t,
+                })}
               </Text>
               <Text variant="bodyMedium">
                 {reviewState.warnings.length === 1
@@ -493,7 +544,7 @@ export default function AddPersonEntryDialog({
             </View>
           ) : null}
         </Dialog.Content>
-        <Dialog.Actions style={dialogChrome.dialogActions}>
+        <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
           <Button onPress={() => setReviewState(null)}>
             {t(K.personForm.chooseAnotherMember)}
           </Button>

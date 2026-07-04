@@ -52,6 +52,10 @@ interface PersonFormDialogProps {
   person?: PersonRecord | null;
   initialValues?: Partial<PersonMutationPayload>;
   initialPendingRelationships?: PendingRelationshipSubmission[];
+  initialStep?: 1 | 2;
+  initialAddConnectionMode?: PendingRelationshipMode | null;
+  autoOpenAddConnectionDialog?: boolean;
+  relationshipOnly?: boolean;
   loading?: boolean;
   existingLastNames?: string[];
   relationshipCandidates?: PersonRecord[];
@@ -114,6 +118,11 @@ function normaliseSurnameValue(value: string) {
 }
 
 function getPendingRelationshipSectionName(firstNameValue: string, lastNameValue: string) {
+  const firstName = firstNameValue.trim();
+  if (firstName) {
+    return firstName;
+  }
+
   return [firstNameValue, lastNameValue].join(' ').replace(/\s+/g, ' ').trim();
 }
 
@@ -185,6 +194,7 @@ function buildRelationshipPreviewPeople(
 }
 
 function createValidationPersonRecord(input: {
+  id?: string;
   firstName: string;
   middleNames: string;
   lastName: string;
@@ -197,7 +207,7 @@ function createValidationPersonRecord(input: {
   person?: PersonRecord | null;
 }): PersonRecord {
   return {
-    id: '__new-person__',
+    id: input.id ?? '__new-person__',
     treeId: input.person?.treeId ?? '',
     treeMembershipIds: [],
     treeMemberships: [],
@@ -228,6 +238,7 @@ function createValidationPersonRecord(input: {
 
 function createPendingValidationRelationships(
   pendingDrafts: PendingRelationshipDraft[],
+  subjectPersonId: string,
 ): RelationshipRecord[] {
   return pendingDrafts
     .filter((draft) => draft.relatedPersonId)
@@ -236,8 +247,8 @@ function createPendingValidationRelationships(
       treeId: '',
       ownerId: '',
       type: draft.mode === 'spouse-of' ? 'spouse' : 'parent-child',
-      fromPersonId: draft.mode === 'child-of' ? draft.relatedPersonId : '__new-person__',
-      toPersonId: draft.mode === 'child-of' ? '__new-person__' : draft.relatedPersonId,
+      fromPersonId: draft.mode === 'child-of' ? draft.relatedPersonId : subjectPersonId,
+      toPersonId: draft.mode === 'child-of' ? subjectPersonId : draft.relatedPersonId,
       parentChildKind: draft.mode === 'spouse-of' ? undefined : draft.parentChildKind,
       relationshipStatus: draft.mode === 'spouse-of' ? draft.relationshipStatus : undefined,
       createdAt: '',
@@ -256,12 +267,24 @@ function createPendingRelationshipDraftFromSubmission(
   };
 }
 
+function getRelationshipModeForPerson(personId: string, relationship: RelationshipRecord): PendingRelationshipMode {
+  if (relationship.type === 'spouse') {
+    return 'spouse-of';
+  }
+
+  return relationship.fromPersonId === personId ? 'parent-of' : 'child-of';
+}
+
 export default function PersonFormDialog({
   visible,
   mode,
   person,
   initialValues,
   initialPendingRelationships = [],
+  initialStep = 1,
+  initialAddConnectionMode = null,
+  autoOpenAddConnectionDialog = false,
+  relationshipOnly = false,
   loading = false,
   existingLastNames = [],
   relationshipCandidates = [],
@@ -273,6 +296,7 @@ export default function PersonFormDialog({
 }: PersonFormDialogProps) {
   const theme = useTheme();
   const { t } = useI18n();
+  const isRelationshipOnlyFlow = mode === 'create' && relationshipOnly;
   const [isPresent, setIsPresent] = useState(true);
   const [firstName, setFirstName] = useState('');
   const [middleNames, setMiddleNames] = useState('');
@@ -364,7 +388,11 @@ export default function PersonFormDialog({
     setSurnameVariantConfirmDialogVisible(false);
     setProposedSurnameVariant(null);
     setSurnameVariantHints([]);
-    setCurrentStep(1);
+    setCurrentStep(isRelationshipOnlyFlow ? 2 : initialStep);
+    setAddConnectionInitialMode(initialAddConnectionMode);
+    setAddConnectionDialogVisible(Boolean(
+      isRelationshipOnlyFlow && (initialAddConnectionMode || autoOpenAddConnectionDialog),
+    ));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, mode, person?.id]);
 
@@ -421,6 +449,7 @@ export default function PersonFormDialog({
   );
   const validationPersonRecord = useMemo(
     () => createValidationPersonRecord({
+      id: isRelationshipOnlyFlow ? person?.id : undefined,
       firstName,
       middleNames,
       lastName,
@@ -432,9 +461,13 @@ export default function PersonFormDialog({
       lifeEvents,
       person,
     }),
-    [birthDate, deathDate, firstName, gender, isPresent, lastName, lifeEvents, maidenName, middleNames, notes, person],
+    [birthDate, deathDate, firstName, gender, isPresent, isRelationshipOnlyFlow, lastName, lifeEvents, maidenName, middleNames, notes, person],
   );
-  const pendingValidationRelationships = useMemo(() => createPendingValidationRelationships(pendingRelationships), [pendingRelationships]);
+  const subjectPersonId = validationPersonRecord.id;
+  const pendingValidationRelationships = useMemo(
+    () => createPendingValidationRelationships(pendingRelationships, subjectPersonId),
+    [pendingRelationships, subjectPersonId],
+  );
   const relationshipPreviewPeople = useMemo(
     () => buildRelationshipPreviewPeople(validationPersonRecord, pendingRelationships, relationshipCandidatesById),
     [pendingRelationships, relationshipCandidatesById, validationPersonRecord],
@@ -455,7 +488,7 @@ export default function PersonFormDialog({
     pendingValidationRelationships,
     personId: person?.id,
     requireIdentityContext: mode === 'create',
-    requireRelationshipContext: mode === 'create' && pendingRelationships.some((relationship) => relationship.relatedPersonId),
+    requireRelationshipContext: mode === 'create' && (isRelationshipOnlyFlow || pendingRelationships.some((relationship) => relationship.relatedPersonId)),
   });
   const personValidationFeedback = useMemo(
     () => getPersonValidationFeedback({
@@ -514,8 +547,8 @@ export default function PersonFormDialog({
       }
 
       const relationshipType = draft.mode === 'spouse-of' ? 'spouse' : 'parent-child';
-      const fromPersonId = draft.mode === 'child-of' ? draft.relatedPersonId : '__new-person__';
-      const toPersonId = draft.mode === 'child-of' ? '__new-person__' : draft.relatedPersonId;
+      const fromPersonId = draft.mode === 'child-of' ? draft.relatedPersonId : subjectPersonId;
+      const toPersonId = draft.mode === 'child-of' ? subjectPersonId : draft.relatedPersonId;
       const ignoreRelationshipId = pendingValidationRelationshipIdByCompositeKey.get(
         `${relationshipType}:${fromPersonId}:${toPersonId}`,
       );
@@ -538,11 +571,43 @@ export default function PersonFormDialog({
     });
 
     return feedbackByKey;
-  }, [pendingRelationships, pendingValidationRelationshipIdByCompositeKey, pendingValidationRelationships, relationshipCandidatesById, relationships, validationPeople]);
+  }, [pendingRelationships, pendingValidationRelationshipIdByCompositeKey, pendingValidationRelationships, relationshipCandidatesById, relationships, subjectPersonId, validationPeople]);
   const relationshipWarnings = useMemo(
     () => pendingRelationships.flatMap((draft) => pendingRelationshipFeedbackByKey.get(draft.key)?.warnings ?? []),
     [pendingRelationships, pendingRelationshipFeedbackByKey],
   );
+  const existingRelationshipEntries = useMemo(() => {
+    if (!isRelationshipOnlyFlow || !person) {
+      return [];
+    }
+
+    return relationships
+      .filter((relationship) => relationship.fromPersonId === person.id || relationship.toPersonId === person.id)
+      .map((relationship) => {
+        const mode = getRelationshipModeForPerson(person.id, relationship);
+        const relatedPersonId = mode === 'spouse-of'
+          ? relationship.fromPersonId === person.id
+            ? relationship.toPersonId
+            : relationship.fromPersonId
+          : mode === 'parent-of'
+            ? relationship.toPersonId
+            : relationship.fromPersonId;
+        const relatedPerson = relationshipCandidatesById.get(relatedPersonId);
+
+        return {
+          id: relationship.id,
+          mode,
+          relatedPersonName: relatedPerson ? formatPersonName(relatedPerson) : relatedPersonId,
+          detail: mode === 'spouse-of'
+            ? relationship.relationshipStatus === 'married'
+              ? t(K.relationship.marriedLabel)
+              : t(K.relationship.partnerLabel)
+            : relationship.parentChildKind === 'biological' || !relationship.parentChildKind
+              ? t(K.relationship.biologicalLabel)
+              : t(K.relationship.nonBiologicalLabel),
+        };
+      });
+  }, [isRelationshipOnlyFlow, person, relationshipCandidatesById, relationships, t]);
   const suggestedLastName = useMemo(() => {
     if (mode !== 'create') {
       return '';
@@ -628,7 +693,7 @@ export default function PersonFormDialog({
     ? t(K.personForm.addAnotherConnectionForName, { name: pendingRelationshipSectionName })
     : t(K.personForm.addAnotherConnection);
   const relationshipStepTitle = pendingRelationshipSectionName
-    ? t(K.personForm.addRelationshipForName, { name: pendingRelationshipSectionName })
+    ? t(K.personForm.addRelationshipsForName, { name: pendingRelationshipSectionName })
     : t(K.personForm.addRelationship);
 
   const handleSubmit = async () => {
@@ -641,6 +706,12 @@ export default function PersonFormDialog({
     // Check if last name is compulsory and not empty
     if (!lastName.trim()) {
       setLastNameError(t(K.personForm.lastNameRequired));
+      return;
+    }
+
+    const missingBirthDateError = personValidationFeedback.errors.find((message) => message === t(K.personForm.birthDateRequired));
+    if (missingBirthDateError) {
+      setBirthDateError(missingBirthDateError);
       return;
     }
 
@@ -846,7 +917,7 @@ export default function PersonFormDialog({
           <IconButton icon="close" onPress={onDismiss} disabled={loading} accessibilityLabel={t(K.common.cancel)} style={dialogChrome.closeButton} />
           <Dialog.ScrollArea style={[dialogChrome.scrollArea, styles.scrollArea]}>
             <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-              {mode === 'create' ? (
+              {mode === 'create' && !isRelationshipOnlyFlow ? (
                 <Text variant="labelMedium" style={[styles.stepMeta, { color: theme.colors.onSurfaceVariant }]}>
                   {t(K.personForm.stepOfTwo, { step: currentStep })}
                 </Text>
@@ -877,12 +948,33 @@ export default function PersonFormDialog({
                           Starting connection
                         </Text>
                         <Text variant="titleSmall">
-                          {getAnchorRelationshipSummary(
-                            selectedRelationshipDraft.mode,
-                            formatPersonName(selectedRelationshipPerson),
-                            t,
-                          )}
+                          {isRelationshipOnlyFlow
+                            ? `${getRelationshipPreviewLabel(selectedRelationshipDraft.mode)} ${formatPersonName(selectedRelationshipPerson)}`
+                            : getAnchorRelationshipSummary(
+                              selectedRelationshipDraft.mode,
+                              formatPersonName(selectedRelationshipPerson),
+                              t,
+                            )}
                         </Text>
+                      </View>
+                    ) : null}
+                    {existingRelationshipEntries.length > 0 ? (
+                      <View style={styles.pendingRelationshipList}>
+                        <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+                          {t(K.personForm.existingRelationships)}
+                        </Text>
+                        {existingRelationshipEntries.map((relationshipEntry) => (
+                          <View
+                            key={relationshipEntry.id}
+                            style={[styles.pendingRelationshipCard, { borderColor: theme.colors.outlineVariant, backgroundColor: theme.colors.elevation.level1 }]}
+                          >
+                            <List.Item
+                              style={styles.pendingRelationshipItem}
+                              title={`${getRelationshipPreviewLabel(relationshipEntry.mode)} ${relationshipEntry.relatedPersonName}`}
+                              description={relationshipEntry.detail}
+                            />
+                          </View>
+                        ))}
                       </View>
                     ) : null}
                     {pendingRelationships.map((relationshipDraft) => {
@@ -900,7 +992,9 @@ export default function PersonFormDialog({
                           <List.Item
                             style={styles.pendingRelationshipItem}
                             title={`${getRelationshipPreviewLabel(relationshipDraft.mode)} ${relatedPersonName}`}
-                            description={`${getRelationshipCreateDescription(relationshipDraft.mode, relatedPersonName)} · ${getPendingRelationshipDetail(relationshipDraft)}`}
+                            description={isRelationshipOnlyFlow
+                              ? getPendingRelationshipDetail(relationshipDraft)
+                              : `${getRelationshipCreateDescription(relationshipDraft.mode, relatedPersonName)} · ${getPendingRelationshipDetail(relationshipDraft)}`}
                             left={(props) => (
                               <List.Icon
                                 {...props}
@@ -979,8 +1073,8 @@ export default function PersonFormDialog({
                       relationships={pendingValidationRelationships}
                       currentTreeId={person?.treeId}
                       onPressPerson={() => {}}
-                      highlightedPersonId="__new-person__"
-                      initialFocusPersonId="__new-person__"
+                      highlightedPersonId={subjectPersonId}
+                      initialFocusPersonId={subjectPersonId}
                       allowFullscreen={false}
                       floatingControls={false}
                       fillAvailableSpace={false}
@@ -1166,7 +1260,7 @@ export default function PersonFormDialog({
               </View>
 
               <View style={styles.sectionSpacing}>
-                <Text variant="titleSmall">{t(K.personForm.birthDate)}</Text>
+                <Text variant="titleSmall">{t(K.personForm.birthDate)} *</Text>
                 <View style={styles.birthDateActions}>
                   <Button
                     mode="outlined"
@@ -1279,7 +1373,7 @@ export default function PersonFormDialog({
               <View />
             )}
             <View style={{ flexDirection: 'row', gap: 8 }}>
-              {mode === 'create' && currentStep === 2 ? (
+              {mode === 'create' && currentStep === 2 && !isRelationshipOnlyFlow ? (
                 <Button onPress={() => setCurrentStep(1)} disabled={loading}>
                   {t(K.common.back)}
                 </Button>
@@ -1292,7 +1386,9 @@ export default function PersonFormDialog({
                 {mode === 'create'
                   ? currentStep === 1
                     ? t(K.common.next)
-                    : t(K.common.create)
+                    : isRelationshipOnlyFlow
+                      ? t(K.common.save)
+                      : t(K.common.create)
                   : t(K.common.save)}
               </Button>
             </View>
@@ -1355,7 +1451,7 @@ export default function PersonFormDialog({
                 <>
                   <Text variant="titleMedium">{formatPreviewName(previewState.payload)}</Text>
                   <Text variant="bodyMedium" style={styles.helperText}>
-                    {mode === 'create' ? t(K.personForm.readyToCreateFamilyMember) : t(K.personForm.readyToSaveFamilyMember)}
+                    {mode === 'create' && !isRelationshipOnlyFlow ? t(K.personForm.readyToCreateFamilyMember) : t(K.personForm.readyToSaveFamilyMember)}
                   </Text>
                   <Text variant="titleSmall" style={styles.sectionSpacing}>{t(K.common.summary)}</Text>
                   <Text variant="bodyMedium">{t(K.personForm.gender)}: {previewState.payload.gender}</Text>
@@ -1396,7 +1492,7 @@ export default function PersonFormDialog({
               }}
               disabled={loading || !previewState.payload}
             >
-              {mode === 'create' ? t(K.common.create) : t(K.common.save)}
+              {mode === 'create' && !isRelationshipOnlyFlow ? t(K.common.create) : t(K.common.save)}
             </Button>
           </Dialog.Actions>
         </Dialog>
@@ -1418,6 +1514,7 @@ export default function PersonFormDialog({
         chooserTitleKey={K.personForm.addAnotherConnectionTitle}
         chooserHelperKey={K.personForm.addAnotherConnectionHelper}
         newPersonName={firstName}
+        validationAnchorPerson={validationPersonRecord}
         onDismiss={() => {
           setAddConnectionDialogVisible(false);
           setAddConnectionInitialMode(null);
@@ -1432,10 +1529,10 @@ export default function PersonFormDialog({
           style={[dialogChrome.dialog, styles.dialog, { backgroundColor: theme.colors.surface }]}
         >
           <Dialog.Content style={{ alignItems: 'center', paddingVertical: 24 }}>
-            <ActivityIndicator color={theme.colors.primary} size="large" />
-            <Text variant="titleMedium" style={{ marginTop: 16 }}>
-              {mode === 'create' ? t(K.personForm.creatingFamilyMember) : t(K.personForm.savingFamilyMember)}
-            </Text>
+          <ActivityIndicator color={theme.colors.primary} size="large" />
+          <Text variant="titleMedium" style={{ marginTop: 16 }}>
+              {mode === 'create' && !isRelationshipOnlyFlow ? t(K.personForm.creatingFamilyMember) : t(K.personForm.savingFamilyMember)}
+          </Text>
             <Text variant="bodyMedium" style={[styles.helperText, { textAlign: 'center', marginTop: 8 }]}>
               {t(K.personForm.savingFamilyMemberHelper)}
             </Text>
