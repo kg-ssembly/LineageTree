@@ -10,6 +10,7 @@ export { default as PersonRelationshipDialog } from './person-relationship-dialo
 export { default as Reveal } from './reveal';
 export { default as RelationshipDialog } from './relationship-dialog';
 export { default as RelationshipInsightCard } from './relationship-insight-card';
+export { default as RelationshipSuggestionsDialog } from './relationship-suggestions-dialog';
 export { FloatingSnackbar } from './floating-snackbar';
 export { default as SharedLoader } from './shared-loader';
 export { default as StartupModal } from './startup-modal';

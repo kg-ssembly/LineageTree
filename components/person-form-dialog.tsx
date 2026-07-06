@@ -26,6 +26,8 @@ import { GlobalStyles } from '../constants/styles';
 import { useI18n } from '../hooks/use-i18n';
 import { I18N_KEYS as K } from '../i18n/keys';
 import AddPersonEntryDialog from './add-person-entry-dialog';
+import RelationshipSuggestionsDialog from './relationship-suggestions-dialog';
+import { buildRelationshipSuggestions } from './relationship-suggestions';
 
 const styles = GlobalStyles.personFormDialog;
 const dialogChrome = GlobalStyles.dialogChrome;
@@ -338,10 +340,12 @@ export default function PersonFormDialog({
   const [submitPending, setSubmitPending] = useState(false);
   const [addConnectionDialogVisible, setAddConnectionDialogVisible] = useState(false);
   const [addConnectionInitialMode, setAddConnectionInitialMode] = useState<PendingRelationshipMode | null>(null);
+  const [relationshipSuggestionsVisible, setRelationshipSuggestionsVisible] = useState(false);
   const [surnameVariantConfirmDialogVisible, setSurnameVariantConfirmDialogVisible] = useState(false);
   const [proposedSurnameVariant, setProposedSurnameVariant] = useState<string | null>(null);
   const [surnameVariantHints, setSurnameVariantHints] = useState<string[]>([]);
   const [currentStep, setCurrentStep] = useState<1 | 2>(1);
+  const shouldAutoOpenSuggestionsRef = useRef(false);
   const initialPendingRelationshipSignature = useMemo(
     () => getPendingRelationshipInitSignature(initialPendingRelationships),
     [initialPendingRelationships],
@@ -413,6 +417,7 @@ export default function PersonFormDialog({
     setPreviewState({ visible: false, payload: null, warnings: [] });
     setSubmitPending(false);
     setAddConnectionDialogVisible(false);
+    setRelationshipSuggestionsVisible(false);
     setSurnameVariantConfirmDialogVisible(false);
     setProposedSurnameVariant(null);
     setSurnameVariantHints([]);
@@ -421,6 +426,7 @@ export default function PersonFormDialog({
     setAddConnectionDialogVisible(Boolean(
       isRelationshipOnlyFlow && (initialAddConnectionMode || autoOpenAddConnectionDialog),
     ));
+    shouldAutoOpenSuggestionsRef.current = isRelationshipOnlyFlow || initialStep === 2;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoOpenAddConnectionDialog, initialAddConnectionMode, initialPendingRelationshipSignature, initialStep, mode, person?.id, relationshipOnly, visible]);
 
@@ -587,6 +593,22 @@ export default function PersonFormDialog({
   const relationshipWarnings = useMemo(
     () => pendingRelationships.flatMap((draft) => pendingRelationshipFeedbackByKey.get(draft.key)?.warnings ?? []),
     [pendingRelationships, pendingRelationshipFeedbackByKey],
+  );
+  const relationshipSuggestions = useMemo(
+    () => (mode !== 'create'
+      ? []
+      : buildRelationshipSuggestions({
+        people: validationPeople,
+        relationships,
+        subjectPersonId,
+        pendingRelationships: pendingRelationships.map((draft) => ({
+          mode: draft.mode,
+          relatedPersonId: draft.relatedPersonId,
+          parentChildKind: draft.parentChildKind,
+          relationshipStatus: draft.relationshipStatus,
+        })),
+      })),
+    [mode, pendingRelationships, relationships, subjectPersonId, validationPeople],
   );
   const hasConnectedRelationshipRequirement = requiresRelationshipConnection;
   const hasSelectedPendingRelationships = pendingRelationships.some((draft) => draft.relatedPersonId);
@@ -846,6 +868,7 @@ export default function PersonFormDialog({
       return;
     }
 
+    shouldAutoOpenSuggestionsRef.current = true;
     setCurrentStep(2);
   };
 
@@ -908,6 +931,17 @@ export default function PersonFormDialog({
     setAddConnectionDialogVisible(true);
   };
 
+  useEffect(() => {
+    if (!visible || mode !== 'create' || currentStep !== 2 || !shouldAutoOpenSuggestionsRef.current) {
+      return;
+    }
+
+    shouldAutoOpenSuggestionsRef.current = false;
+    if (relationshipSuggestions.length > 0) {
+      setRelationshipSuggestionsVisible(true);
+    }
+  }, [currentStep, mode, relationshipSuggestions.length, visible]);
+
   const handleAddConnection = (relationshipMode: PendingRelationshipMode, relatedPerson: PersonRecord) => {
     setRelationshipError(null);
     setPendingRelationships((current) => [
@@ -925,6 +959,28 @@ export default function PersonFormDialog({
   const removePendingRelationship = (relationshipKey: string) => {
     setRelationshipError(null);
     setPendingRelationships((current) => current.filter((relationship) => relationship.key !== relationshipKey));
+  };
+
+  const handleApplyRelationshipSuggestions = (selectedSuggestions: typeof relationshipSuggestions) => {
+    if (selectedSuggestions.length > 0) {
+      setPendingRelationships((current) => [
+        ...current,
+        ...selectedSuggestions.map((suggestion) => ({
+          key: `${Date.now()}-${Math.random()}`,
+          mode: suggestion.mode,
+          relatedPersonId: suggestion.relatedPersonId,
+          parentChildKind: suggestion.mode === 'spouse-of'
+            ? undefined
+            : suggestion.parentChildKind ?? DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND,
+          relationshipStatus: suggestion.mode === 'spouse-of'
+            ? suggestion.relationshipStatus ?? DEFAULT_SPOUSE_RELATIONSHIP_STATUS
+            : undefined,
+        })),
+      ]);
+    }
+
+    setRelationshipSuggestionsVisible(false);
+    setRelationshipError(null);
   };
 
   const handleSurnameVariantConfirm = () => {
@@ -1562,6 +1618,14 @@ export default function PersonFormDialog({
           </Dialog.Actions>
         </Dialog>
       </Portal>
+      <RelationshipSuggestionsDialog
+        visible={relationshipSuggestionsVisible}
+        suggestions={relationshipSuggestions}
+        peopleById={relationshipCandidatesById}
+        loading={loading}
+        onDismiss={() => setRelationshipSuggestionsVisible(false)}
+        onApply={handleApplyRelationshipSuggestions}
+      />
       <AddPersonEntryDialog
         visible={addConnectionDialogVisible}
         hasExistingFamilyMembers={relationshipCandidates.length > 0}

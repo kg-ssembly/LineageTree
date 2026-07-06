@@ -1710,6 +1710,16 @@ export class GlobalStyles {
             marginTop: 12,
             gap: 0,
         },
+        relationshipSuggestionsList: {
+            marginTop: 12,
+            gap: 12,
+        },
+        relationshipSuggestionCard: {
+            borderRadius: 20,
+            borderWidth: 1,
+            paddingHorizontal: 12,
+            paddingVertical: 4,
+        },
         relationshipPreviewPanel: {
             marginTop: 12,
             padding: 14,
