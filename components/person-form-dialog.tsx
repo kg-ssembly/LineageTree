@@ -16,7 +16,6 @@ import {
   useTheme,
 } from 'react-native-paper';
 import { DatePickerModal } from 'react-native-paper-dates';
-import FamilyTreeCanvas from './family-tree-canvas';
 import type { PersonGender, PersonLifeEvent, PersonMutationPayload, PersonPhoto, PersonRecord } from './dto/person';
 import { formatPersonDate } from './dto/person';
 import type { ParentChildRelationshipKind, RelationshipRecord, SpouseRelationshipStatus } from './dto/relationship';
@@ -27,6 +26,7 @@ import { useI18n } from '../hooks/use-i18n';
 import { I18N_KEYS as K } from '../i18n/keys';
 import AddPersonEntryDialog from './add-person-entry-dialog';
 import RelationshipSuggestionsDialog from './relationship-suggestions-dialog';
+import RelationshipVisualPreviewDialog from './relationship-visual-preview-dialog';
 import { buildRelationshipSuggestions } from './relationship-suggestions';
 
 const styles = GlobalStyles.personFormDialog;
@@ -83,7 +83,6 @@ const genderOptions: Array<{ label: string; value: PersonGender }> = [
   { label: K.common.other, value: 'other' },
 ];
 
-
 function formatIsoDate(date: Date) {
   const year = date.getFullYear();
   const month = `${date.getMonth() + 1}`.padStart(2, '0');
@@ -128,6 +127,24 @@ function getPendingRelationshipSectionName(firstNameValue: string, lastNameValue
   return [firstNameValue, lastNameValue].join(' ').replace(/\s+/g, ' ').trim();
 }
 
+function getResolvedLastNameValue(
+  lastNameValue: string,
+  mode: 'create' | 'edit',
+  lastNameTouchedValue: boolean,
+  suggestedLastNameValue: string,
+) {
+  const trimmedLastName = lastNameValue.trim();
+  if (trimmedLastName) {
+    return trimmedLastName;
+  }
+
+  if (mode === 'create' && !lastNameTouchedValue && suggestedLastNameValue.trim()) {
+    return suggestedLastNameValue.trim();
+  }
+
+  return '';
+}
+
 function getAnchorRelationshipSummary(
   relationshipMode: PendingRelationshipMode,
   relatedPersonName: string,
@@ -141,40 +158,6 @@ function getAnchorRelationshipSummary(
         : K.relationship.createParentForName,
     { name: relatedPersonName },
   );
-}
-
-function getRelationshipPreviewBuckets(
-  pendingRelationships: PendingRelationshipDraft[],
-  relationshipCandidatesById: Map<string, PersonRecord>,
-  excludedRelationshipKey?: string | null,
-) {
-  const parents: Array<{ key: string; name: string }> = [];
-  const children: Array<{ key: string; name: string }> = [];
-  const spouses: Array<{ key: string; name: string }> = [];
-
-  pendingRelationships.forEach((relationship) => {
-    if (excludedRelationshipKey && relationship.key === excludedRelationshipKey) {
-      return;
-    }
-
-    const relatedPerson = relationshipCandidatesById.get(relationship.relatedPersonId);
-    const name = relatedPerson ? formatPersonName(relatedPerson) : relationship.relatedPersonId;
-    const entry = { key: relationship.key, name };
-
-    if (relationship.mode === 'child-of') {
-      parents.push(entry);
-      return;
-    }
-
-    if (relationship.mode === 'parent-of') {
-      children.push(entry);
-      return;
-    }
-
-    spouses.push(entry);
-  });
-
-  return { parents, children, spouses };
 }
 
 function buildRelationshipPreviewPeople(
@@ -337,6 +320,7 @@ export default function PersonFormDialog({
   const [showCustomSurnameInput, setShowCustomSurnameInput] = useState(false);
   const [preferredPhotoRef, setPreferredPhotoRef] = useState('');
   const [previewState, setPreviewState] = useState<SubmissionPreviewState>({ visible: false, payload: null, warnings: [] });
+  const [visualPreviewVisible, setVisualPreviewVisible] = useState(false);
   const [submitPending, setSubmitPending] = useState(false);
   const [addConnectionDialogVisible, setAddConnectionDialogVisible] = useState(false);
   const [addConnectionInitialMode, setAddConnectionInitialMode] = useState<PendingRelationshipMode | null>(null);
@@ -355,8 +339,6 @@ export default function PersonFormDialog({
     || initialPendingRelationships.some((relationship) => relationship.relatedPersonId)
   );
 
-  // Track the last open-event key so we reinitialise only once per open, not
-  // on every re-render, preventing the Portal infinite-update loop.
   const lastInitKeyRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -365,11 +347,6 @@ export default function PersonFormDialog({
       return;
     }
 
-    // Build a stable key from the identity of this open event.
-    // Using person?.id + mode so switching from create→edit (or editing a
-    // different person) always re-initialises, but a re-render that keeps the
-    // same open dialog does NOT re-run all the setState calls and trigger the
-    // Portal infinite-update loop.
     const initKey = [
       mode,
       person?.id ?? 'new',
@@ -415,6 +392,7 @@ export default function PersonFormDialog({
     setShowCustomSurnameInput(false);
     setPreferredPhotoRef(person?.preferredPhotoId ?? initialValues?.preferredPhotoRef ?? '');
     setPreviewState({ visible: false, payload: null, warnings: [] });
+    setVisualPreviewVisible(false);
     setSubmitPending(false);
     setAddConnectionDialogVisible(false);
     setRelationshipSuggestionsVisible(false);
@@ -439,7 +417,7 @@ export default function PersonFormDialog({
   const buildSubmissionPayload = () => ({
     firstName,
     middleNames,
-    lastName,
+    lastName: getResolvedLastNameValue(lastName, mode, lastNameTouched, suggestedLastName),
     maidenName,
     birthDate,
     deathDate: isPresent ? '' : deathDate,
@@ -451,8 +429,8 @@ export default function PersonFormDialog({
     existingPhotos,
     removedPhotos,
     newPhotoUris,
-    surnameVariantHints: !hasExistingSurnames && lastName.trim()
-      ? [...new Set([...surnameVariantHints, lastName.trim()])]
+    surnameVariantHints: !hasExistingSurnames && getResolvedLastNameValue(lastName, mode, lastNameTouched, suggestedLastName)
+      ? [...new Set([...surnameVariantHints, getResolvedLastNameValue(lastName, mode, lastNameTouched, suggestedLastName)])]
       : surnameVariantHints,
     pendingRelationships: pendingRelationships.map(({ mode: relationshipMode, relatedPersonId, parentChildKind, relationshipStatus }) => ({
       mode: relationshipMode,
@@ -481,12 +459,34 @@ export default function PersonFormDialog({
     () => new Map(relationshipCandidates.map((candidate) => [candidate.id, candidate])),
     [relationshipCandidates],
   );
+  const suggestedLastName = useMemo(() => {
+    if (mode !== 'create') {
+      return '';
+    }
+
+    const byPriority: PendingRelationshipMode[] = ['spouse-of', 'child-of', 'parent-of'];
+
+    for (const relationshipMode of byPriority) {
+      const matchedDraft = pendingRelationships.find((draft) => draft.mode === relationshipMode && draft.relatedPersonId);
+      if (!matchedDraft) {
+        continue;
+      }
+
+      const relatedPerson = relationshipCandidatesById.get(matchedDraft.relatedPersonId);
+      const suggested = relatedPerson?.lastName?.trim() ?? '';
+      if (suggested) {
+        return suggested;
+      }
+    }
+
+    return '';
+  }, [mode, pendingRelationships, relationshipCandidatesById]);
   const validationPersonRecord = useMemo(
     () => createValidationPersonRecord({
       id: isRelationshipOnlyFlow ? person?.id : undefined,
       firstName,
       middleNames,
-      lastName,
+      lastName: getResolvedLastNameValue(lastName, mode, lastNameTouched, suggestedLastName),
       maidenName,
       birthDate,
       deathDate: isPresent ? '' : deathDate,
@@ -495,7 +495,7 @@ export default function PersonFormDialog({
       lifeEvents,
       person,
     }),
-    [birthDate, deathDate, firstName, gender, isPresent, isRelationshipOnlyFlow, lastName, lifeEvents, maidenName, middleNames, notes, person],
+    [birthDate, deathDate, firstName, gender, isPresent, isRelationshipOnlyFlow, lastName, lastNameTouched, lifeEvents, maidenName, middleNames, mode, notes, person, suggestedLastName],
   );
   const subjectPersonId = validationPersonRecord.id;
   const pendingValidationRelationships = useMemo(
@@ -515,7 +515,7 @@ export default function PersonFormDialog({
         person: {
           firstName,
           middleNames,
-          lastName,
+          lastName: getResolvedLastNameValue(lastName, mode, lastNameTouched, suggestedLastName),
           maidenName,
           birthDate,
           deathDate: isPresent ? '' : deathDate,
@@ -530,7 +530,7 @@ export default function PersonFormDialog({
         requireRelationshipContext: requiresRelationshipConnection,
         ignorePersonId: person?.id,
       })),
-    [birthDate, deathDate, existingPhotos, firstName, isPresent, isRelationshipOnlyFlow, lastName, lifeEvents, maidenName, middleNames, mode, newPhotoUris, pendingRelationships, pendingValidationRelationships, person?.id, relationshipCandidates, relationships, removedPhotos, requiresRelationshipConnection, notes],
+    [birthDate, deathDate, existingPhotos, firstName, isPresent, isRelationshipOnlyFlow, lastName, lastNameTouched, lifeEvents, maidenName, middleNames, mode, newPhotoUris, pendingRelationships, pendingValidationRelationships, person?.id, relationshipCandidates, relationships, removedPhotos, requiresRelationshipConnection, notes, suggestedLastName],
   );
   const validationPeople = useMemo(
     () => [validationPersonRecord, ...new Map(relationshipCandidates.map((candidate) => [candidate.id, candidate])).values()],
@@ -644,28 +644,6 @@ export default function PersonFormDialog({
         };
       });
   }, [isRelationshipOnlyFlow, person, relationshipCandidatesById, relationships, t]);
-  const suggestedLastName = useMemo(() => {
-    if (mode !== 'create') {
-      return '';
-    }
-
-    const byPriority: PendingRelationshipMode[] = ['spouse-of', 'child-of', 'parent-of'];
-
-    for (const relationshipMode of byPriority) {
-      const matchedDraft = pendingRelationships.find((draft) => draft.mode === relationshipMode && draft.relatedPersonId);
-      if (!matchedDraft) {
-        continue;
-      }
-
-      const relatedPerson = relationshipCandidatesById.get(matchedDraft.relatedPersonId);
-      const suggested = relatedPerson?.lastName?.trim() ?? '';
-      if (suggested) {
-        return suggested;
-      }
-    }
-
-    return '';
-  }, [mode, pendingRelationships, relationshipCandidatesById]);
   const effectiveLastNameSelection = useMemo(() => {
     if (lastName.trim()) {
       return lastName.trim();
@@ -677,7 +655,6 @@ export default function PersonFormDialog({
 
     return '';
   }, [lastName, lastNameTouched, mode, suggestedLastName]);
-
   useEffect(() => {
     if (mode !== 'create' || !suggestedLastName || lastNameTouched) {
       return;
@@ -702,10 +679,6 @@ export default function PersonFormDialog({
   const selectedRelationshipPerson = selectedRelationshipDraft
     ? relationshipCandidatesById.get(selectedRelationshipDraft.relatedPersonId) ?? null
     : null;
-  const relationshipPreviewBuckets = useMemo(
-    () => getRelationshipPreviewBuckets(pendingRelationships, relationshipCandidatesById, selectedRelationshipDraft?.key ?? null),
-    [pendingRelationships, relationshipCandidatesById, selectedRelationshipDraft?.key],
-  );
   const pendingRelationshipSectionName = getPendingRelationshipSectionName(firstName, lastName);
   const dialogTitle = mode === 'edit'
     ? t(K.personForm.editFamilyMember)
@@ -731,6 +704,15 @@ export default function PersonFormDialog({
   const relationshipStepTitle = pendingRelationshipSectionName
     ? t(K.personForm.addRelationshipsForName, { name: pendingRelationshipSectionName })
     : t(K.personForm.addRelationship);
+  const childOverlayVisible = (
+    addConnectionDialogVisible
+    || relationshipSuggestionsVisible
+    || visualPreviewVisible
+    || previewState.visible
+    || surnameVariantConfirmDialogVisible
+    || submitPending
+    || loading
+  );
 
   const handleSubmit = async () => {
     if (!isRelationshipOnlyFlow) {
@@ -740,7 +722,7 @@ export default function PersonFormDialog({
         return;
       }
 
-      if (!lastName.trim()) {
+      if (!getResolvedLastNameValue(lastName, mode, lastNameTouched, suggestedLastName)) {
         setLastNameError(t(K.personForm.lastNameRequired));
         return;
       }
@@ -814,7 +796,7 @@ export default function PersonFormDialog({
     }
 
     if (mode === 'create' && hasExistingSurnames) {
-      const trimmedLastName = lastName.trim();
+      const trimmedLastName = getResolvedLastNameValue(lastName, mode, lastNameTouched, suggestedLastName);
       const normalizedLastName = normaliseSurnameValue(trimmedLastName);
       const isNewSurname = trimmedLastName.length > 0 && !normalizedTreeSurnames.has(normalizedLastName);
 
@@ -839,7 +821,7 @@ export default function PersonFormDialog({
       return;
     }
 
-    if (!lastName.trim()) {
+    if (!getResolvedLastNameValue(lastName, mode, lastNameTouched, suggestedLastName)) {
       setLastNameError(t(K.personForm.lastNameRequired));
       return;
     }
@@ -1028,7 +1010,7 @@ export default function PersonFormDialog({
     <>
       <Portal>
         <Dialog
-          visible={visible}
+          visible={visible && !childOverlayVisible}
           onDismiss={loading ? undefined : onDismiss}
           style={[dialogChrome.dialog, styles.dialog, { backgroundColor: theme.colors.surface }]}
         >
@@ -1177,150 +1159,110 @@ export default function PersonFormDialog({
                     >
                       {addAnotherConnectionLabel}
                     </Button>
-                  </View>
-                  <View
-                    style={[
-                      styles.sectionSpacing,
-                      styles.relationshipPreviewPanel,
-                      { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant },
-                    ]}
-                  >
-                    <Text variant="titleSmall">{t(K.common.summary)}</Text>
-                    <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                      Pan around this branch before saving. Use the actions below to add a parent, child, or spouse from the draft person.
-                    </Text>
-                    <FamilyTreeCanvas
-                      people={relationshipPreviewPeople}
-                      relationships={pendingValidationRelationships}
-                      currentTreeId={person?.treeId}
-                      onPressPerson={() => {}}
-                      highlightedPersonId={subjectPersonId}
-                      initialFocusPersonId={subjectPersonId}
-                      allowFullscreen={false}
-                      floatingControls={false}
-                      fillAvailableSpace={false}
-                      showControls={false}
-                      disableSurnameClustering
-                      inlineViewportHeight={260}
-                    />
-                    <View style={styles.relationshipPreviewActionRow}>
+                    <View style={styles.relationshipPreviewButtonRow}>
                       <Button
                         mode="outlined"
-                        icon="account-plus-outline"
-                        onPress={() => openAddConnectionDialog('parent-of')}
-                        disabled={loading || relationshipCandidates.length === 0}
-                        style={styles.relationshipPreviewAction}
+                        icon="family-tree"
+                        onPress={() => setVisualPreviewVisible(true)}
+                        disabled={loading}
                       >
-                        {t(K.relationship.addParent)}
-                      </Button>
-                      <Button
-                        mode="outlined"
-                        icon="account-heart-outline"
-                        onPress={() => openAddConnectionDialog('spouse-of')}
-                        disabled={loading || relationshipCandidates.length === 0}
-                        style={styles.relationshipPreviewAction}
-                      >
-                        {t(K.relationship.addSpouse)}
-                      </Button>
-                      <Button
-                        mode="outlined"
-                        icon="account-child-outline"
-                        onPress={() => openAddConnectionDialog('child-of')}
-                        disabled={loading || relationshipCandidates.length === 0}
-                        style={styles.relationshipPreviewAction}
-                      >
-                        {t(K.relationship.addChild)}
+                        Visual Preview
                       </Button>
                     </View>
-                    {relationshipPreviewBuckets.parents.length + relationshipPreviewBuckets.spouses.length + relationshipPreviewBuckets.children.length > 0 ? (
-                      <View style={styles.relationshipPreviewLabels}>
-                        {relationshipPreviewBuckets.parents.map((entry) => (
-                          <Chip key={entry.key} compact style={styles.relationshipChip}>{entry.name}</Chip>
-                        ))}
-                        {relationshipPreviewBuckets.spouses.map((entry) => (
-                          <Chip key={entry.key} compact style={styles.relationshipChip}>{entry.name}</Chip>
-                        ))}
-                        {relationshipPreviewBuckets.children.map((entry) => (
-                          <Chip key={entry.key} compact style={styles.relationshipChip}>{entry.name}</Chip>
-                        ))}
-                      </View>
-                    ) : null}
                   </View>
                 </>
               ) : (
                 <>
                   <TextInput
-                mode="outlined"
-                label={t(K.personForm.firstNameRequired)}
-                value={firstName}
-                onChangeText={(value) => {
-                  setFirstName(value);
-                  if (firstNameError) {
-                    setFirstNameError(null);
-                  }
-                }}
-                disabled={loading}
-                error={!!firstNameError}
-              />
-              <HelperText type="error" visible={!!firstNameError}>
-                {firstNameError}
-              </HelperText>
-              <HelperText type="info" visible={personValidationFeedback.warnings.length > 0}>
-                {personValidationFeedback.warnings[0] ?? ''}
-              </HelperText>
+                    mode="outlined"
+                    label={t(K.personForm.firstNameRequired)}
+                    value={firstName}
+                    onChangeText={(value) => {
+                      setFirstName(value);
+                      if (firstNameError) {
+                        setFirstNameError(null);
+                      }
+                    }}
+                    disabled={loading}
+                    error={!!firstNameError}
+                  />
+                  <HelperText type="error" visible={!!firstNameError}>
+                    {firstNameError}
+                  </HelperText>
+                  <HelperText type="info" visible={personValidationFeedback.warnings.length > 0}>
+                    {personValidationFeedback.warnings[0] ?? ''}
+                  </HelperText>
 
-              <TextInput
-                mode="outlined"
-                label={t(K.personForm.secondMiddleNames)}
-                value={middleNames}
-                onChangeText={setMiddleNames}
-                disabled={loading}
-              />
+                  <TextInput
+                    mode="outlined"
+                    label={t(K.personForm.secondMiddleNames)}
+                    value={middleNames}
+                    onChangeText={setMiddleNames}
+                    disabled={loading}
+                  />
 
-              <View style={styles.sectionSpacing}>
-                <Text variant="titleSmall">{t(K.personForm.lastName)}</Text>
-                {hasExistingSurnames ? (
-                  <>
-                    <Menu
-                      visible={surnameMenuVisible}
-                      onDismiss={() => setSurnameMenuVisible(false)}
-                      anchor={(
-                        <Button
-                          mode="outlined"
-                          icon="chevron-down"
-                          onPress={() => setSurnameMenuVisible(true)}
-                          style={styles.fieldSpacing}
-                          disabled={loading}
+                  <View style={styles.sectionSpacing}>
+                    <Text variant="titleSmall">{t(K.personForm.lastName)}</Text>
+                    {hasExistingSurnames ? (
+                      <>
+                        <Menu
+                          visible={surnameMenuVisible}
+                          onDismiss={() => setSurnameMenuVisible(false)}
+                          anchor={(
+                            <Button
+                              mode="outlined"
+                              icon="chevron-down"
+                              onPress={() => setSurnameMenuVisible(true)}
+                              style={styles.fieldSpacing}
+                              disabled={loading}
+                            >
+                              {effectiveLastNameSelection || t(K.personForm.chooseExistingSurname)}
+                            </Button>
+                          )}
                         >
-                          {effectiveLastNameSelection || t(K.personForm.chooseExistingSurname)}
-                        </Button>
-                      )}
-                    >
-                      {uniqueLastNames.map((value) => (
-                        <Menu.Item
-                          key={value}
-                          title={value}
-                          onPress={() => {
-                            setLastName(value);
-                            setLastNameTouched(true);
-                            setShowCustomSurnameInput(false);
-                            setSurnameMenuVisible(false);
-                            if (lastNameError) {
-                              setLastNameError(null);
-                            }
-                          }}
-                        />
-                      ))}
-                      <Menu.Item
-                        title={t(K.personForm.addDifferentSurnameVariant)}
-                        onPress={() => {
-                          setShowCustomSurnameInput(true);
-                          setLastNameTouched(true);
-                          setSurnameMenuVisible(false);
-                        }}
-                      />
-                    </Menu>
-                    {showCustomSurnameInput ? (
+                          {uniqueLastNames.map((value) => (
+                            <Menu.Item
+                              key={value}
+                              title={value}
+                              onPress={() => {
+                                setLastName(value);
+                                setLastNameTouched(true);
+                                setShowCustomSurnameInput(false);
+                                setSurnameMenuVisible(false);
+                                if (lastNameError) {
+                                  setLastNameError(null);
+                                }
+                              }}
+                            />
+                          ))}
+                          <Menu.Item
+                            title={t(K.personForm.addDifferentSurnameVariant)}
+                            onPress={() => {
+                              setShowCustomSurnameInput(true);
+                              setLastNameTouched(true);
+                              setSurnameMenuVisible(false);
+                            }}
+                          />
+                        </Menu>
+                        {showCustomSurnameInput ? (
+                          <TextInput
+                            mode="outlined"
+                            label={t(K.personForm.enterSurnameVariant)}
+                            value={lastName}
+                            onChangeText={(value) => {
+                              setLastName(value);
+                              setLastNameTouched(true);
+                              if (lastNameError) {
+                                setLastNameError(null);
+                              }
+                            }}
+                            disabled={loading}
+                            error={!!lastNameError}
+                            style={styles.fieldSpacing}
+                          />
+                        ) : null}
+                      </>
+                    ) : (
                       <TextInput
                         mode="outlined"
                         label={t(K.personForm.enterSurnameVariant)}
@@ -1336,138 +1278,120 @@ export default function PersonFormDialog({
                         error={!!lastNameError}
                         style={styles.fieldSpacing}
                       />
+                    )}
+                    <HelperText type="error" visible={!!lastNameError}>
+                      {lastNameError}
+                    </HelperText>
+                    {mode === 'create' && suggestedLastName && hasExistingSurnames ? (
+                      <HelperText type="info" visible>
+                        {t(K.personForm.suggestedSurnameFromRelationship, { name: suggestedLastName })}
+                      </HelperText>
                     ) : null}
-                  </>
-                ) : (
-                  <TextInput
-                    mode="outlined"
-                    label={t(K.personForm.enterSurnameVariant)}
-                    value={lastName}
-                    onChangeText={(value) => {
-                      setLastName(value);
-                      setLastNameTouched(true);
-                      if (lastNameError) {
-                        setLastNameError(null);
-                      }
-                    }}
-                    disabled={loading}
-                    error={!!lastNameError}
-                    style={styles.fieldSpacing}
-                  />
-                )}
-                <HelperText type="error" visible={!!lastNameError}>
-                  {lastNameError}
-                </HelperText>
-                {mode === 'create' && suggestedLastName && hasExistingSurnames ? (
-                  <HelperText type="info" visible>
-                    {t(K.personForm.suggestedSurnameFromRelationship, { name: suggestedLastName })}
-                  </HelperText>
-                ) : null}
-              </View>
+                  </View>
 
-              <View style={styles.sectionSpacing}>
-                <Text variant="titleSmall">{t(K.personForm.maidenName)}</Text>
-                <TextInput
-                  mode="outlined"
-                  label={t(K.personForm.maidenBirthSurnameOptional)}
-                  value={maidenName}
-                  onChangeText={setMaidenName}
-                  disabled={loading}
-                  style={styles.fieldSpacing}
-                />
-                <HelperText type="info" visible>
-                  {t(K.personForm.surnameHelper)}
-                </HelperText>
-              </View>
+                  <View style={styles.sectionSpacing}>
+                    <Text variant="titleSmall">{t(K.personForm.maidenName)}</Text>
+                    <TextInput
+                      mode="outlined"
+                      label={t(K.personForm.maidenBirthSurnameOptional)}
+                      value={maidenName}
+                      onChangeText={setMaidenName}
+                      disabled={loading}
+                      style={styles.fieldSpacing}
+                    />
+                    <HelperText type="info" visible>
+                      {t(K.personForm.surnameHelper)}
+                    </HelperText>
+                  </View>
 
-              <View style={styles.sectionSpacing}>
-                <Text variant="titleSmall">{t(K.personForm.birthDate)} *</Text>
-                <View style={styles.birthDateActions}>
-                  <Button
-                    mode="outlined"
-                    icon="calendar"
-                    onPress={() => setBirthDatePickerVisible(true)}
-                    disabled={loading}
-                  >
-                    {formatDateButtonLabel(birthDate, t)}
-                  </Button>
-                  {birthDate ? (
-                    <Button onPress={() => {
-                      setBirthDate('');
-                      if (birthDateError) {
-                        setBirthDateError(null);
-                      }
-                    }} disabled={loading}>
-                      {t(K.common.clear)}
-                    </Button>
-                  ) : null}
-                </View>
-                <HelperText type="error" visible={!!birthDateError}>
-                  {birthDateError}
-                </HelperText>
-              </View>
-
-              <View style={styles.sectionSpacing}>
-                <View style={styles.presentRow}>
-                  <Text variant="titleSmall">{t(K.personForm.stillPresent)}</Text>
-                  <Switch
-                    value={isPresent}
-                    onValueChange={(value) => {
-                      setIsPresent(value);
-                      if (value) {
-                        setDeathDate('');
-                        setDeathDateError(null);
-                      }
-                    }}
-                    disabled={loading}
-                  />
-                </View>
-                {!isPresent ? (
-                  <>
+                  <View style={styles.sectionSpacing}>
+                    <Text variant="titleSmall">{t(K.personForm.birthDate)} *</Text>
                     <View style={styles.birthDateActions}>
                       <Button
                         mode="outlined"
-                        icon="calendar-heart"
-                        onPress={() => setDeathDatePickerVisible(true)}
+                        icon="calendar"
+                        onPress={() => setBirthDatePickerVisible(true)}
                         disabled={loading}
                       >
-                        {formatDateButtonLabel(deathDate, t)}
+                        {formatDateButtonLabel(birthDate, t)}
                       </Button>
-                      {deathDate ? (
-                        <Button
-                          onPress={() => {
-                            setDeathDate('');
-                            if (deathDateError) setDeathDateError(null);
-                          }}
-                          disabled={loading}
-                        >
+                      {birthDate ? (
+                        <Button onPress={() => {
+                          setBirthDate('');
+                          if (birthDateError) {
+                            setBirthDateError(null);
+                          }
+                        }} disabled={loading}>
                           {t(K.common.clear)}
                         </Button>
                       ) : null}
                     </View>
-                    <HelperText type="error" visible={!!deathDateError}>
-                      {deathDateError}
+                    <HelperText type="error" visible={!!birthDateError}>
+                      {birthDateError}
                     </HelperText>
-                  </>
-                ) : null}
-              </View>
+                  </View>
 
-              <View style={styles.sectionSpacing}>
-                <Text variant="titleSmall">{t(K.personForm.gender)}</Text>
-                <View style={styles.chipGroup}>
-                  {genderOptions.map((option) => (
-                    <Chip
-                      key={option.value}
-                      selected={gender === option.value}
-                      onPress={() => setGender(option.value)}
-                      disabled={loading}
-                      style={styles.chip}
-                    >
-                      {t(option.label)}
-                    </Chip>
-                  ))}
-                </View>
-              </View>
+                  <View style={styles.sectionSpacing}>
+                    <View style={styles.presentRow}>
+                      <Text variant="titleSmall">{t(K.personForm.stillPresent)}</Text>
+                      <Switch
+                        value={isPresent}
+                        onValueChange={(value) => {
+                          setIsPresent(value);
+                          if (value) {
+                            setDeathDate('');
+                            setDeathDateError(null);
+                          }
+                        }}
+                        disabled={loading}
+                      />
+                    </View>
+                    {!isPresent ? (
+                      <>
+                        <View style={styles.birthDateActions}>
+                          <Button
+                            mode="outlined"
+                            icon="calendar-heart"
+                            onPress={() => setDeathDatePickerVisible(true)}
+                            disabled={loading}
+                          >
+                            {formatDateButtonLabel(deathDate, t)}
+                          </Button>
+                          {deathDate ? (
+                            <Button
+                              onPress={() => {
+                                setDeathDate('');
+                                if (deathDateError) setDeathDateError(null);
+                              }}
+                              disabled={loading}
+                            >
+                              {t(K.common.clear)}
+                            </Button>
+                          ) : null}
+                        </View>
+                        <HelperText type="error" visible={!!deathDateError}>
+                          {deathDateError}
+                        </HelperText>
+                      </>
+                    ) : null}
+                  </View>
+
+                  <View style={styles.sectionSpacing}>
+                    <Text variant="titleSmall">{t(K.personForm.gender)}</Text>
+                    <View style={styles.chipGroup}>
+                      {genderOptions.map((option) => (
+                        <Chip
+                          key={option.value}
+                          selected={gender === option.value}
+                          onPress={() => setGender(option.value)}
+                          disabled={loading}
+                          style={styles.chip}
+                        >
+                          {t(option.label)}
+                        </Chip>
+                      ))}
+                    </View>
+                  </View>
                 </>
               )}
             </ScrollView>
@@ -1626,6 +1550,14 @@ export default function PersonFormDialog({
         onDismiss={() => setRelationshipSuggestionsVisible(false)}
         onApply={handleApplyRelationshipSuggestions}
       />
+      <RelationshipVisualPreviewDialog
+        visible={visualPreviewVisible}
+        people={relationshipPreviewPeople}
+        relationships={pendingValidationRelationships}
+        currentTreeId={person?.treeId}
+        highlightedPersonId={subjectPersonId}
+        onDismiss={() => setVisualPreviewVisible(false)}
+      />
       <AddPersonEntryDialog
         visible={addConnectionDialogVisible}
         hasExistingFamilyMembers={relationshipCandidates.length > 0}
@@ -1658,10 +1590,10 @@ export default function PersonFormDialog({
           style={[dialogChrome.dialog, styles.dialog, { backgroundColor: theme.colors.surface }]}
         >
           <Dialog.Content style={{ alignItems: 'center', paddingVertical: 24 }}>
-          <ActivityIndicator color={theme.colors.primary} size="large" />
-          <Text variant="titleMedium" style={{ marginTop: 16 }}>
+            <ActivityIndicator color={theme.colors.primary} size="large" />
+            <Text variant="titleMedium" style={{ marginTop: 16 }}>
               {mode === 'create' && !isRelationshipOnlyFlow ? t(K.personForm.creatingFamilyMember) : t(K.personForm.savingFamilyMember)}
-          </Text>
+            </Text>
             <Text variant="bodyMedium" style={[styles.helperText, { textAlign: 'center', marginTop: 8 }]}>
               {t(K.personForm.savingFamilyMemberHelper)}
             </Text>

@@ -1753,6 +1753,11 @@ export class GlobalStyles {
             justifyContent: 'center',
             gap: 8,
         },
+        relationshipPreviewButtonRow: {
+            marginTop: 16,
+            flexDirection: 'row',
+            justifyContent: 'flex-start',
+        },
         pendingRelationshipItem: {
             paddingHorizontal: 0,
         },
