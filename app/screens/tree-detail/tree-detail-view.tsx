@@ -628,19 +628,20 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     await requestTreeAccess(user.id, treeId);
     closeMaidenTreeSuggestion();
   }, [closeMaidenTreeSuggestion, requestTreeAccess, user?.id]);
+  const confirmAction = confirmState.action;
 
   const handleConfirm = useCallback(async () => {
-    if (!confirmState.action) {
+    if (!confirmAction) {
       return;
     }
 
     try {
-      await confirmState.action();
+      await confirmAction();
       closeConfirm();
     } catch {
       // surfaced by store snackbar
     }
-  }, [closeConfirm, confirmState.action]);
+  }, [closeConfirm, confirmAction]);
 
   const handleOpenMaidenFamilyTree = useCallback((person: PersonRecord, maidenSurname: string, maritalSurname: string, isViewingMaiden: boolean) => {
     if (!selectedTree) {

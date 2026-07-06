@@ -293,7 +293,16 @@ export function FamilyMembersView({
         </View>
       </Reveal>
     );
-  }, [currentAssignedPerson?.id, openPersonProfile, t, theme.colors.onSurfaceVariant, theme.colors.primary]);
+  }, [
+    currentAssignedPerson?.id,
+    openPersonProfile,
+    t,
+    theme.colors.onSurfaceVariant,
+    theme.colors.outlineVariant,
+    theme.colors.primary,
+    theme.colors.surface,
+    theme.colors.surfaceVariant,
+  ]);
 
   const memberListFooter = useMemo(() => {
     if (totalPages <= 1) {

@@ -445,19 +445,20 @@ export function useMainScreenController({ navigation }: Props) {
   const closeConfirm = useCallback(() => {
     setConfirmState({ visible: false, title: '', message: '', confirmLabel: t(K.common.confirm), action: null });
   }, [t]);
+  const confirmAction = confirmState.action;
 
   const handleConfirmAction = useCallback(async () => {
-    if (!confirmState.action) {
+    if (!confirmAction) {
       return;
     }
 
     try {
-      await confirmState.action();
+      await confirmAction();
       closeConfirm();
     } catch {
       // surfaced via snackbar
     }
-  }, [closeConfirm, confirmState.action]);
+  }, [closeConfirm, confirmAction]);
 
   const handleOpenMaidenFamilyTree = useCallback((person: PersonRecord, maidenSurname: string, maritalSurname: string, isViewingMaiden: boolean) => {
     if (!selectedTree) {

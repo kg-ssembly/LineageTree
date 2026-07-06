@@ -539,7 +539,7 @@ export default function PersonFormDialog({
         requireRelationshipContext: requiresRelationshipConnection,
         ignorePersonId: person?.id,
       })),
-    [birthDate, birthPlace, deathDate, existingPhotos, firstName, isPresent, isRelationshipOnlyFlow, lastName, lastNameTouched, lifeEvents, maidenName, middleNames, mode, newPhotoUris, pendingRelationships, pendingValidationRelationships, person?.id, relationshipCandidates, relationships, removedPhotos, requiresRelationshipConnection, notes, suggestedLastName],
+    [birthDate, deathDate, existingPhotos, firstName, isPresent, isRelationshipOnlyFlow, lastName, lastNameTouched, lifeEvents, maidenName, middleNames, mode, newPhotoUris, pendingRelationships, pendingValidationRelationships, person?.id, relationshipCandidates, relationships, removedPhotos, requiresRelationshipConnection, notes, suggestedLastName],
   );
   const validationPeople = useMemo(
     () => [validationPersonRecord, ...new Map(relationshipCandidates.map((candidate) => [candidate.id, candidate])).values()],

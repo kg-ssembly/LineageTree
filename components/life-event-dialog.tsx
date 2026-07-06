@@ -87,7 +87,7 @@ export default function LifeEventDialog({
     setTitleError(null);
     setDateError(null);
     setDatePickerVisible(false);
-  }, [event, visible]);
+  }, [event, t, visible]);
 
   const selectedDate = useMemo(() => parsePersonDate(date) ?? undefined, [date]);
 

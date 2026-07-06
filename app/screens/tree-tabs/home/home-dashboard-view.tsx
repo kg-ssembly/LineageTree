@@ -1,9 +1,9 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
 import { ActivityIndicator, Button, Chip, Dialog, IconButton, Portal, Text, useTheme } from 'react-native-paper';
-import { FloatingSnackbar, HorizontalTabStrip, InfoDialog, Reveal, ScreenBackground, SectionCard, SuggestionList, TabStripCard, type SuggestionActionTarget, type SuggestionItem } from '../../../../components';
+import { FloatingSnackbar, HorizontalTabStrip, InfoDialog, Reveal, ScreenBackground, SectionCard, SuggestionList, TabStripCard, type SuggestionActionTarget } from '../../../../components';
 import type { MainTabParamList } from '../../../../components/dto/navigation';
 import type { AppTheme } from '../../../../constants/theme';
 import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, GlobalStyles } from '../../../../constants/styles';
@@ -21,13 +21,6 @@ const profileStyles = GlobalStyles.personProfile;
 const dialogChrome = GlobalStyles.dialogChrome;
 const DASHBOARD_PROMPTS_STORAGE_KEY = 'lineagetree-dashboard-hidden-prompts';
 const DASHBOARD_LAST_VISIT_STORAGE_KEY = 'lineagetree-dashboard-last-visit';
-
-type DashboardTask = SuggestionItem & {
-  dashboardSection: 'story' | 'tree';
-  done: boolean;
-  score: number;
-  action: () => void;
-};
 
 type SetupStep = {
   id: string;
@@ -80,6 +73,11 @@ type MissingMemberDetail = {
   score: number;
   action: () => void;
 };
+
+type DashboardSuggestionActionContext = Pick<
+  SharedTabProps,
+  'people' | 'onEditPerson' | 'openPersonProfile' | 'onOpenAddPersonForRelationship' | 'onOpenAddPerson' | 'onOpenAddSelf' | 'onOpenRelationshipDialog'
+>;
 
 function getUrgencyTone(theme: AppTheme, level: 'urgent' | 'attention' | 'calm') {
   if (level === 'urgent') {
@@ -140,50 +138,51 @@ function DashboardMetricCard({ children, style, backgroundColor, borderColor }: 
 
 function resolveDashboardSuggestionAction(
   target: SuggestionActionTarget,
-  props: SharedTabProps,
+  context: DashboardSuggestionActionContext,
 ) {
   switch (target.kind) {
     case 'edit-profile': {
-      const person = props.people.find((entry) => entry.id === target.personId);
-      return person ? () => props.onEditPerson(person) : () => undefined;
+      const person = context.people.find((entry) => entry.id === target.personId);
+      return person ? () => context.onEditPerson(person) : () => undefined;
     }
     case 'open-profile': {
-      const person = props.people.find((entry) => entry.id === target.personId);
+      const person = context.people.find((entry) => entry.id === target.personId);
       return person
-        ? () => props.openPersonProfile(person, {
+        ? () => context.openPersonProfile(person, {
           initialTab: target.initialTab,
           initialMemorySectionTab: target.initialMemorySectionTab,
         })
         : () => undefined;
     }
     case 'add-relationship': {
-      const person = props.people.find((entry) => entry.id === target.personId);
-      return person ? () => props.openPersonProfile(person, { initialTab: 'relationships' }) : () => undefined;
+      const person = context.people.find((entry) => entry.id === target.personId);
+      return person ? () => context.openPersonProfile(person, { initialTab: 'relationships' }) : () => undefined;
     }
     case 'add-relative': {
-      const person = props.people.find((entry) => entry.id === target.personId);
-      return person ? () => props.onOpenAddPersonForRelationship(target.mode, person) : () => undefined;
+      const person = context.people.find((entry) => entry.id === target.personId);
+      return person ? () => context.onOpenAddPersonForRelationship(target.mode, person) : () => undefined;
     }
     case 'add-person':
-      return props.onOpenAddPerson;
+      return context.onOpenAddPerson;
     case 'add-self':
-      return props.onOpenAddSelf;
+      return context.onOpenAddSelf;
     default:
-      return props.onOpenRelationshipDialog;
+      return context.onOpenRelationshipDialog;
   }
 }
 
 function buildDashboardTasks(
-  props: SharedTabProps,
+  taskInputs: Pick<SharedTabProps, 'people' | 'currentAssignedPerson' | 'currentSelfAssignmentSuggestions' | 'relationships' | 'canEdit'>,
+  suggestionActionContext: DashboardSuggestionActionContext,
   showFollowUpTreePrompts: boolean,
   t: (key: string, params?: Record<string, string | number | null | undefined>) => string,
 ) {
   const { storySuggestions, treeSuggestions } = buildTreeSuggestions({
-    people: props.people,
-    currentAssignedPerson: props.currentAssignedPerson,
-    currentSelfAssignmentSuggestionsCount: props.currentSelfAssignmentSuggestions.length,
-    relationships: props.relationships,
-    canEdit: props.canEdit,
+    people: taskInputs.people,
+    currentAssignedPerson: taskInputs.currentAssignedPerson,
+    currentSelfAssignmentSuggestionsCount: taskInputs.currentSelfAssignmentSuggestions.length,
+    relationships: taskInputs.relationships,
+    canEdit: taskInputs.canEdit,
     showFollowUpTreePrompts,
   }, t);
 
@@ -193,14 +192,14 @@ function buildDashboardTasks(
       dashboardSection: 'story',
       done: suggestion.done ?? false,
       score: suggestion.score ?? 0,
-      action: resolveDashboardSuggestionAction(suggestion.actionTarget, props),
+      action: resolveDashboardSuggestionAction(suggestion.actionTarget, suggestionActionContext),
     })),
     treeTasks: treeSuggestions.map((suggestion) => ({
       ...suggestion,
       dashboardSection: 'tree',
       done: suggestion.done ?? false,
       score: suggestion.score ?? 0,
-      action: resolveDashboardSuggestionAction(suggestion.actionTarget, props),
+      action: resolveDashboardSuggestionAction(suggestion.actionTarget, suggestionActionContext),
     })),
   };
 }
@@ -225,14 +224,32 @@ export function HomeDashboardView(props: SharedTabProps) {
     currentAssignedPerson,
     followUpTreePromptsPending,
     onOpenAddPerson,
+    onOpenAddPersonForRelationship,
     onOpenAddSelf,
     onOpenRelationshipDialog,
+    onEditPerson,
     openPersonProfile,
     canEdit,
     onOpenTreeSettingsTarget,
     onConsumeFollowUpTreePrompts,
   } = props;
   const [showFollowUpTreePrompts, setShowFollowUpTreePrompts] = useState(false);
+  const suggestionActionContext = useMemo<DashboardSuggestionActionContext>(() => ({
+    people,
+    onEditPerson,
+    openPersonProfile,
+    onOpenAddPersonForRelationship,
+    onOpenAddPerson,
+    onOpenAddSelf,
+    onOpenRelationshipDialog,
+  }), [onEditPerson, onOpenAddPerson, onOpenAddPersonForRelationship, onOpenAddSelf, onOpenRelationshipDialog, openPersonProfile, people]);
+  const dashboardTaskInputs = useMemo(() => ({
+    people,
+    currentAssignedPerson,
+    currentSelfAssignmentSuggestions: props.currentSelfAssignmentSuggestions,
+    relationships,
+    canEdit,
+  }), [canEdit, currentAssignedPerson, people, props.currentSelfAssignmentSuggestions, relationships]);
 
   useEffect(() => {
     if (!isFocused) {
@@ -248,21 +265,10 @@ export function HomeDashboardView(props: SharedTabProps) {
     onConsumeFollowUpTreePrompts();
   }, [followUpTreePromptsPending, isFocused, onConsumeFollowUpTreePrompts]);
 
-  const { storyTasks, treeTasks } = useMemo(() => buildDashboardTasks(props, showFollowUpTreePrompts, t), [
-    props.people,
-    props.currentAssignedPerson,
-    props.currentSelfAssignmentSuggestions,
-    props.relationships,
-    props.canEdit,
-    showFollowUpTreePrompts,
-    props.onOpenAddPerson,
-    props.onOpenAddPersonForRelationship,
-    props.onOpenAddSelf,
-    props.onEditPerson,
-    props.openPersonProfile,
-    props.onOpenRelationshipDialog,
-    t,
-  ]);
+  const { storyTasks, treeTasks } = useMemo(
+    () => buildDashboardTasks(dashboardTaskInputs, suggestionActionContext, showFollowUpTreePrompts, t),
+    [dashboardTaskInputs, showFollowUpTreePrompts, suggestionActionContext, t],
+  );
   const tasks = useMemo(() => [...storyTasks, ...treeTasks], [storyTasks, treeTasks]);
   const [dismissedTaskIds, setDismissedTaskIds] = useState<string[]>([]);
   const [promptsHydrated, setPromptsHydrated] = useState(false);
@@ -325,13 +331,13 @@ export function HomeDashboardView(props: SharedTabProps) {
           title: t(K.home.fillInBirthDetails),
           description: t(K.home.datesAnchorTheStoryAndHelpPlaceEachGenerationCorrectly),
           done: false,
-          action: () => props.onEditPerson(firstMissingBirthdatePerson),
+          action: () => onEditPerson(firstMissingBirthdatePerson),
         });
       }
     }
 
     return steps;
-  }, [currentAssignedPerson, onOpenAddSelf, onOpenRelationshipDialog, openPersonProfile, people, props, relationships, showFollowUpTreePrompts, t]);
+  }, [currentAssignedPerson, onEditPerson, onOpenAddSelf, onOpenRelationshipDialog, openPersonProfile, people, relationships, showFollowUpTreePrompts, t]);
   const setupCompletedCount = setupSteps.filter((step) => step.done).length;
   const nextSetupStep = setupSteps.find((step) => !step.done) ?? null;
   const nextSetupStepIndex = setupSteps.findIndex((step) => !step.done);
@@ -409,7 +415,7 @@ export function HomeDashboardView(props: SharedTabProps) {
       needsAttentionCount: pendingApprovals + pendingInvites + activeMergeReviews,
       latestActivityAttentionItem: activityAttentionItems[0] ?? null,
     };
-  }, [approvalRequests, mergeRequests, notifications]);
+  }, [approvalRequests, mergeRequests, notifications, t]);
   const {
     pendingApprovals,
     pendingInvites,
@@ -606,28 +612,28 @@ export function HomeDashboardView(props: SharedTabProps) {
     setCelebrationMessage(t(K.home.taskCompleted, { title: newlyCompletedTask.title }));
   }, [promptsHydrated, showFollowUpTreePrompts, tasks, t]);
 
-  const dismissTask = (taskId: string) => {
+  const dismissTask = useCallback((taskId: string) => {
     setDismissedTaskIds((current) => (current.includes(taskId) ? current : [...current, taskId]));
-  };
+  }, []);
 
-  const restoreHiddenPrompts = () => {
+  const restoreHiddenPrompts = useCallback(() => {
     setDismissedTaskIds([]);
-  };
+  }, []);
 
-  const registerSectionOffset = (key: DashboardSectionKey) => (event: LayoutChangeEvent) => {
+  const registerSectionOffset = useCallback((key: DashboardSectionKey) => (event: LayoutChangeEvent) => {
     sectionOffsetsRef.current[key] = event.nativeEvent.layout.y;
-  };
+  }, []);
 
-  const scrollToSection = (key: DashboardSectionKey) => {
+  const scrollToSection = useCallback((key: DashboardSectionKey) => {
     requestAnimationFrame(() => {
       scrollRef.current?.scrollTo({
         y: Math.max(0, sectionOffsetsRef.current[key] - 12),
         animated: true,
       });
     });
-  };
+  }, []);
 
-  const focusSection = (key: DashboardSectionKey) => {
+  const focusSection = useCallback((key: DashboardSectionKey) => {
     if (key === 'since-last-visit') {
       setDashboardTab('activity');
     }
@@ -642,7 +648,7 @@ export function HomeDashboardView(props: SharedTabProps) {
     setTimeout(() => {
       scrollToSection(key);
     }, 120);
-  };
+  }, [scrollToSection]);
 
   const dashboardLens: DashboardLens = dashboardTab === 'activity'
     ? 'activity'
@@ -660,12 +666,12 @@ export function HomeDashboardView(props: SharedTabProps) {
     [activityNotificationCount, t],
   );
 
-  const openFamilyActivity = () => {
+  const openFamilyActivity = useCallback(() => {
     setDashboardTab('activity');
     setActivityModalVisible(true);
-  };
+  }, []);
 
-  const openApprovals = () => {
+  const openApprovals = useCallback(() => {
     if (firstPendingApproval && onOpenTreeSettingsTarget) {
       onOpenTreeSettingsTarget({ tab: 'approvals', itemId: firstPendingApproval.id, mode: 'approval' });
       navigation.navigate('treeSettings' satisfies keyof MainTabParamList);
@@ -673,9 +679,9 @@ export function HomeDashboardView(props: SharedTabProps) {
     }
 
     navigation.navigate('treeSettings' satisfies keyof MainTabParamList);
-  };
+  }, [firstPendingApproval, navigation, onOpenTreeSettingsTarget]);
 
-  const openMergeReviews = () => {
+  const openMergeReviews = useCallback(() => {
     if (firstPendingMergeReview && onOpenTreeSettingsTarget) {
       onOpenTreeSettingsTarget({ tab: 'merges', itemId: firstPendingMergeReview.id, mode: 'merge' });
       navigation.navigate('treeSettings' satisfies keyof MainTabParamList);
@@ -683,11 +689,11 @@ export function HomeDashboardView(props: SharedTabProps) {
     }
 
     navigation.navigate('treeSettings' satisfies keyof MainTabParamList);
-  };
+  }, [firstPendingMergeReview, navigation, onOpenTreeSettingsTarget]);
 
-  const openMergeInvites = () => {
+  const openMergeInvites = useCallback(() => {
     openFamilyActivity();
-  };
+  }, [openFamilyActivity]);
 
   const heroAction = useMemo<HeroAction>(() => {
     if (dashboardLens === 'activity') {
@@ -764,22 +770,23 @@ export function HomeDashboardView(props: SharedTabProps) {
       action: currentAssignedPerson ? () => openPersonProfile(currentAssignedPerson) : onOpenAddSelf,
     };
   }, [
-    activeMergeReviews,
     bestNextStep,
     bestStoryStep,
     bestTreeStep,
     canEdit,
     currentAssignedPerson,
     dashboardLens,
+    focusSection,
     isSetupMode,
-    navigation,
+    latestActivityAttentionItem,
     nextSetupStep,
     onOpenAddPerson,
     onOpenAddSelf,
+    openFamilyActivity,
+    openApprovals,
+    openMergeReviews,
     openPersonProfile,
-    pendingApprovals,
-    pendingInvites,
-    latestActivityAttentionItem,
+    t,
   ]);
 
   const lensSubtitle = isSetupMode
@@ -838,14 +845,6 @@ export function HomeDashboardView(props: SharedTabProps) {
     t,
   ]);
 
-  const heroSectionLabel = isSetupMode
-    ? t(K.home.setupWizard)
-    : dashboardLens === 'activity'
-      ? t(K.home.whatNeedsReview)
-      : dashboardLens === 'growth'
-        ? t(K.home.growTheTree)
-        : t(K.home.nextRecommendedAction);
-
   const heroTitle = isSetupMode
     ? nextSetupStep?.title ?? heroAction.label
     : dashboardLens === 'focus'
@@ -893,13 +892,13 @@ export function HomeDashboardView(props: SharedTabProps) {
           name: formatPersonName(person),
           summary: suggestion.description,
           score: suggestion.score ?? 0,
-          action: resolveDashboardSuggestionAction(suggestion.actionTarget, props),
+          action: resolveDashboardSuggestionAction(suggestion.actionTarget, suggestionActionContext),
         };
       })
       .filter((item): item is MissingMemberDetail => Boolean(item))
       .sort((left, right) => right.score - left.score || left.name.localeCompare(right.name))
       .slice(0, 3);
-  }, [people, props, relationships, t]);
+  }, [people, relationships, suggestionActionContext, t]);
 
   const sinceLastVisit = useMemo(() => {
     if (!lastVisitAt) {
@@ -926,7 +925,7 @@ export function HomeDashboardView(props: SharedTabProps) {
     }
 
     return items;
-  }, [approvalRequests, lastVisitAt, navigation, notifications, openApprovals, openMergeInvites, people, relationships]);
+  }, [approvalRequests, focusSection, lastVisitAt, navigation, notifications, openApprovals, openMergeInvites, people, relationships, t]);
 
   if (loadingTreeData) {
     return (

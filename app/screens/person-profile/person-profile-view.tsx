@@ -462,7 +462,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
         };
       })
       .sort((left, right) => right.relationship.createdAt.localeCompare(left.relationship.createdAt));
-  }, [peopleById, person, relationships]);
+  }, [peopleById, person, relationships, t]);
 
   const totalRelationshipPages = Math.ceil(relationshipEntries.length / relationshipPageSize);
   const paginatedRelationships = useMemo(() => {
@@ -515,7 +515,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
     }
 
     return items.sort((left, right) => left.date.localeCompare(right.date));
-  }, [person]);
+  }, [person, t]);
 
   const descendantIds = useMemo(
     () => (person ? getDescendantIds(person.id, relationships) : []),
