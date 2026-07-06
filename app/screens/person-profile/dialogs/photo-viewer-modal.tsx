@@ -1,12 +1,88 @@
 import React, { useMemo } from 'react';
-import { Dimensions, Image, Modal, ScrollView, View } from 'react-native';
+import { Dimensions, Image, Modal, ScrollView, StyleSheet, View } from 'react-native';
 import { IconButton, Text } from 'react-native-paper';
 import type { PersonPhoto, PersonRecord } from '../../../../components/dto/person';
-import { GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
 
-const styles = GlobalStyles.personProfile;
+const styles = StyleSheet.create({
+  viewerBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(12, 10, 14, 0.94)',
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 16,
+  },
+  viewerCloseButton: {
+    position: 'absolute',
+    top: 44,
+    right: 16,
+    zIndex: 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  viewerEditButton: {
+    position: 'absolute',
+    top: 44,
+    left: 16,
+    zIndex: 2,
+    margin: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  viewerNavButton: {
+    position: 'absolute',
+    top: '50%',
+    marginTop: -24,
+    zIndex: 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.14)',
+  },
+  viewerNavButtonLeft: {
+    left: 12,
+  },
+  viewerNavButtonRight: {
+    right: 12,
+  },
+  viewerCounter: {
+    position: 'absolute',
+    bottom: 28,
+    alignSelf: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255, 255, 255, 0.14)',
+  },
+  viewerInfoCard: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    bottom: 16,
+    zIndex: 2,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.10)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(255, 255, 255, 0.18)',
+  },
+  viewerInfoLabel: {
+    color: '#FFFFFF',
+    opacity: 0.82,
+  },
+  viewerInfoValue: {
+    marginTop: 2,
+    marginBottom: 4,
+    color: '#FFFFFF',
+  },
+  viewerSlide: {
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+  },
+  viewerImage: {
+    width: '100%',
+    height: '100%',
+  },
+});
 
 export function PersonPhotoViewerModal({
   person,

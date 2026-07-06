@@ -58,7 +58,13 @@ export function MainTabNavigator({
 }: {
   controller: ReturnType<typeof useMainScreenController>;
   noTreeGate: React.ReactNode;
-  styles: typeof import('../../../constants/styles').GlobalStyles.treeDetail;
+  styles: {
+    tabBar: {
+      height: number;
+    };
+    tabItem: object;
+    tabScene: object;
+  };
 }) {
   const insets = useSafeAreaInsets();
   const bottomInset = Platform.OS === 'android' && insets.bottom < 24 ? 0 : insets.bottom;

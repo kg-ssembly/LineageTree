@@ -1,5 +1,5 @@
 import React from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import {
   CollaboratorDialog,
   AddPersonEntryDialog,
@@ -16,15 +16,53 @@ import {
 } from '../../../components';
 import { Button, Dialog, Portal, Text } from 'react-native-paper';
 import { canManageTree } from '../../../components/dto/tree';
-import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, GlobalStyles } from '../../../constants/styles';
+import { BUTTON_CHROME, BUTTON_CONTENT_CHROME } from '../../../constants/styles';
 import { I18N_KEYS as K } from '../../../i18n/keys';
 import type { useMainScreenController } from './main-controller';
 import { MainNoTreeGate } from './main-no-tree-gate';
 import { TreeDetailNodeQuickActionsDialog } from '../profile-shared';
 import { MainTabNavigator } from './main-tab-navigator';
 
-const styles = GlobalStyles.treeDetail;
-const dialogChrome = GlobalStyles.dialogChrome;
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  tabScene: {
+    flex: 1,
+  },
+  tabBar: {
+    height: 72,
+    paddingTop: 8,
+    paddingBottom: 0,
+    borderTopWidth: 1,
+    elevation: 0,
+    shadowOpacity: 0,
+  },
+  tabItem: {
+    minHeight: 52,
+  },
+});
+
+const dialogChrome = StyleSheet.create({
+  dialog: {
+    marginHorizontal: 12,
+    borderRadius: 20,
+  },
+  dialogTitle: {
+    paddingBottom: 4,
+  },
+  dialogTitleWithClose: {
+    paddingRight: 44,
+  },
+  content: {
+    paddingBottom: 12,
+  },
+  dialogActions: {
+    paddingHorizontal: 8,
+    paddingTop: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+});
 
 export function MainScreenView({ controller }: { controller: ReturnType<typeof useMainScreenController> }) {
   const isWaitingForInitialTreeSelection = controller.loadingTrees

@@ -1,17 +1,83 @@
 import React from 'react';
-import { View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { Button, Chip, IconButton, Text, useTheme } from 'react-native-paper';
 import { Reveal, SectionCard, SuggestionList, type SuggestionItem } from '../../../components';
 import type { PersonPhoto, PersonRecord } from '../../../components/dto/person';
 import { formatPersonDate, getPersonPresenceLabel, getPersonTreeMembershipIds, isPersonDeceased } from '../../../components/dto/person';
 import type { RelationshipRecord } from '../../../components/dto/relationship';
 import { formatPersonGender } from '../../../components/person-formatting';
-import { getThemeChrome, GlobalStyles } from '../../../constants/styles';
+import { getThemeChrome } from '../../../constants/styles';
 import { useI18n } from '../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../i18n/keys';
 import { buildProfileSuggestions, getPersonRelationshipCounts, getProfileCompletionChecks } from './suggestions';
 
-const styles = GlobalStyles.personProfile;
+const styles = StyleSheet.create({
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  sectionHeaderText: {
+    flex: 1,
+    minWidth: 220,
+  },
+  titleWithHelperRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    gap: 8,
+  },
+  helperIconButton: {
+    margin: 0,
+    marginLeft: -4,
+  },
+  sectionSubtitle: {
+    marginTop: 6,
+  },
+  metadataRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 12,
+  },
+  biographyLead: {
+    marginTop: 14,
+    lineHeight: 24,
+  },
+  biographyBlock: {
+    marginTop: 16,
+    padding: 18,
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  biographyFactRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 12,
+  },
+  biographyFactCard: {
+    borderRadius: 18,
+    padding: 14,
+    minWidth: 140,
+    flexGrow: 1,
+    flexBasis: 140,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  detailLabel: {
+    marginBottom: 8,
+  },
+  notesBox: {
+    marginTop: 16,
+    padding: 18,
+    borderRadius: 20,
+  },
+  notesText: {
+    marginTop: 8,
+  },
+});
 
 type ProfileOverviewCardProps = {
   person: PersonRecord;

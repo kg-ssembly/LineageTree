@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, Platform, ScrollView, View } from 'react-native';
+import { Alert, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as ImagePicker from 'expo-image-picker';
@@ -51,9 +51,30 @@ import {
 import { ProfileOverviewSection } from './sections/profile-overview-section';
 import { ProfileHeroSection } from './sections/profile-hero-section';
 
-import { GlobalStyles } from '../../../constants/styles';
-
-const personProfileStyles = GlobalStyles.personProfile;
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  compactContent: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 40,
+  },
+  tabStripContent: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  tabStripItem: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginHorizontal: 2,
+  },
+});
 
 type ConfirmState = {
   visible: boolean;
@@ -928,16 +949,16 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
 
   if (loadingTrees || loadingTreeData || needsDefaultTreeSelection || needsAssignedPersonHydration) {
     return (
-      <View style={[personProfileStyles.loadingContainer, { backgroundColor: theme.colors.background }]}>
+      <View style={[styles.loadingContainer, { backgroundColor: theme.colors.background }]}>
         <ActivityIndicator color={theme.colors.primary} />
       </View>
     );
   }
 
   return (
-    <View style={[personProfileStyles.container, { backgroundColor: theme.colors.background }]}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <ScreenBackground />
-      <ScrollView contentContainerStyle={personProfileStyles.compactContent}>
+      <ScrollView contentContainerStyle={styles.compactContent}>
         <ProfileHeroSection
           shouldShowLinkedProfileTabs={shouldShowLinkedProfileTabs}
           linkedPerson={linkedPerson}
@@ -955,8 +976,8 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
               items={shouldShowLinkedProfileTabs ? profileTabs : profileTabs.filter((tab) => tab.key === 'app-settings')}
               activeKey={activeTab}
               onChange={setActiveTab}
-              contentContainerStyle={personProfileStyles.tabStripContent}
-              itemStyle={personProfileStyles.tabStripItem}
+              contentContainerStyle={styles.tabStripContent}
+              itemStyle={styles.tabStripItem}
             />
           </TabStripCard>
         </Reveal>

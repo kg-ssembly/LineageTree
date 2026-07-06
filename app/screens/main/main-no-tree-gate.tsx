@@ -3,16 +3,38 @@ import { ScrollView, StyleSheet, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ActivityIndicator, Button, Chip, Dialog, IconButton, Portal, Text, TextInput } from 'react-native-paper';
 import { HorizontalTabStrip, Reveal, SectionCard, TabStripCard } from '../../../components';
-import { GlobalStyles } from '../../../constants/styles';
 import { BUTTON_CHROME, BUTTON_CONTENT_CHROME } from '../../../constants/styles';
 import { I18N_KEYS as K } from '../../../i18n/keys';
 import type { useMainScreenController } from './main-controller';
 
-const dialogChrome = GlobalStyles.dialogChrome;
 const RESULTS_PER_PAGE = 5;
 type RequestAccessTabKey = 'search' | 'direct';
 
 const localStyles = StyleSheet.create({
+  dialog: {
+    marginHorizontal: 12,
+    borderRadius: 20,
+  },
+  dialogTitle: {
+    paddingBottom: 4,
+    paddingRight: 44,
+  },
+  dialogScrollArea: {
+    borderBottomWidth: 0,
+    borderTopWidth: 0,
+    paddingHorizontal: 16,
+  },
+  dialogActions: {
+    paddingHorizontal: 8,
+    paddingTop: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 12,
+    right: 8,
+    margin: 0,
+  },
   noTreeGate: {
     flex: 1,
     paddingHorizontal: 20,
@@ -308,16 +330,16 @@ export function MainNoTreeGate({
         <Dialog
           visible={pendingRequestDialogVisible}
           onDismiss={() => setPendingRequestDialogVisible(false)}
-          style={[dialogChrome.dialog, { backgroundColor: controller.theme.colors.surface }]}
+          style={[localStyles.dialog, { backgroundColor: controller.theme.colors.surface }]}
         >
-          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>
+          <Dialog.Title style={localStyles.dialogTitle}>
             {controller.t(K.app.requestedAccessDetails)}
           </Dialog.Title>
           <IconButton
             icon="close"
             onPress={() => setPendingRequestDialogVisible(false)}
             accessibilityLabel={controller.t(K.common.close)}
-            style={dialogChrome.closeButton}
+            style={localStyles.closeButton}
           />
           <Dialog.Content>
             {hasRenderablePendingRequest ? (
@@ -335,7 +357,7 @@ export function MainNoTreeGate({
               </View>
             ) : null}
           </Dialog.Content>
-          <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: controller.theme.colors.outlineVariant }]}>
+          <Dialog.Actions style={[localStyles.dialogActions, { borderTopColor: controller.theme.colors.outlineVariant }]}>
             <Button onPress={() => setPendingRequestDialogVisible(false)}>{controller.t(K.common.close)}</Button>
             {hasRenderablePendingRequest ? (
               <Button mode="outlined" onPress={() => { void handleCancelPendingRequest(); }} disabled={controller.mutating} buttonColor={controller.theme.colors.surface} textColor={controller.theme.colors.primary}>
@@ -347,18 +369,18 @@ export function MainNoTreeGate({
         <Dialog
           visible={requestDialogVisible}
           onDismiss={() => setRequestDialogVisible(false)}
-          style={[dialogChrome.dialog, { backgroundColor: controller.theme.colors.surface }]}
+          style={[localStyles.dialog, { backgroundColor: controller.theme.colors.surface }]}
         >
-          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>
+          <Dialog.Title style={localStyles.dialogTitle}>
             {controller.t(K.app.requestAccessToTree)}
           </Dialog.Title>
           <IconButton
             icon="close"
             onPress={() => setRequestDialogVisible(false)}
             accessibilityLabel={controller.t(K.common.close)}
-            style={dialogChrome.closeButton}
+            style={localStyles.closeButton}
           />
-          <Dialog.ScrollArea style={dialogChrome.scrollArea}>
+          <Dialog.ScrollArea style={localStyles.dialogScrollArea}>
             <ScrollView contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 8 }}>
               <TabStripCard style={{ backgroundColor: controller.theme.colors.surfaceVariant }}>
                 <HorizontalTabStrip
@@ -465,7 +487,7 @@ export function MainNoTreeGate({
               ) : null}
             </ScrollView>
           </Dialog.ScrollArea>
-          <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: controller.theme.colors.outlineVariant }]}>
+          <Dialog.Actions style={[localStyles.dialogActions, { borderTopColor: controller.theme.colors.outlineVariant }]}>
             <Button onPress={() => setRequestDialogVisible(false)}>{controller.t(K.common.close)}</Button>
           </Dialog.Actions>
         </Dialog>

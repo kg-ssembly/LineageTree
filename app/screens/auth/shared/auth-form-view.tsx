@@ -1,5 +1,5 @@
 import React from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import {
   ActivityIndicator,
   Button,
@@ -11,10 +11,38 @@ import {
   useTheme,
 } from 'react-native-paper';
 import { Reveal, ScreenBackground, SectionCard, SharedLoader } from '../../../../components';
-import { GlobalStyles } from '../../../../constants/styles';
+import { BUTTON_CHROME, BUTTON_CONTENT_CHROME } from '../../../../constants/styles';
 
-const loginStyles = GlobalStyles.login;
-const signUpStyles = GlobalStyles.signUp;
+const styles = StyleSheet.create({
+  flex: { flex: 1 },
+  scroll: { flexGrow: 1, justifyContent: 'center', padding: 24 },
+  heroWrap: {
+    marginBottom: 28,
+  },
+  heroTitle: {
+    marginTop: 14,
+    fontWeight: '800',
+  },
+  heroSubtitle: {
+    marginTop: 8,
+    lineHeight: 24,
+  },
+  card: {
+    borderRadius: 28,
+    padding: 24,
+    shadowColor: '#2A1C14',
+    shadowOpacity: 0.12,
+    shadowRadius: 26,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 5,
+  },
+  title: { marginBottom: 4, fontWeight: '700' },
+  subtitle: { marginBottom: 20 },
+  input: { marginTop: 6 },
+  button: { marginTop: 24, ...BUTTON_CHROME },
+  buttonContent: BUTTON_CONTENT_CHROME,
+  linkButton: { marginTop: 12, alignSelf: 'center' },
+});
 
 export type AuthFieldConfig = {
   key: string;
@@ -76,7 +104,6 @@ export function AuthFormView({
   dismissLabel,
 }: AuthFormViewProps) {
   const theme = useTheme();
-  const styles = variant === 'login' ? loginStyles : signUpStyles;
   const chipColor = variant === 'login'
     ? theme.colors.secondaryContainer
     : theme.colors.tertiaryContainer;
