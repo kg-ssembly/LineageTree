@@ -14,15 +14,16 @@ import { formatPersonName as formatPersonDisplayName } from './person-formatting
 
 const dialogChrome = GlobalStyles.dialogChrome;
 const PAGE_SIZE = 5;
+type RelationshipSelectionMode = PendingRelationshipMode | 'sibling-of';
 
 type ReviewState = {
-  mode: PendingRelationshipMode;
+  mode: RelationshipSelectionMode;
   relatedPerson: PersonRecord;
   warnings: string[];
 } | null;
 
 type BlockingState = {
-  mode: PendingRelationshipMode;
+  mode: RelationshipSelectionMode;
   relatedPerson: PersonRecord;
   message: string;
 } | null;
@@ -49,9 +50,13 @@ type AddPersonEntryDialogProps = {
 };
 
 function resolveSubmissionMode(
-  mode: PendingRelationshipMode,
+  mode: RelationshipSelectionMode,
   perspective: 'new-person' | 'anchor-person',
 ): PendingRelationshipMode {
+  if (mode === 'sibling-of') {
+    return 'child-of';
+  }
+
   if (perspective === 'new-person') {
     return mode;
   }
@@ -68,10 +73,16 @@ function resolveSubmissionMode(
 }
 
 function getChooserModeLabel(
-  mode: PendingRelationshipMode,
+  mode: RelationshipSelectionMode,
   name: string | undefined,
   t: (key: string, values?: Record<string, string | number>) => string,
 ) {
+  if (mode === 'sibling-of') {
+    return name?.trim()
+      ? t(K.relationship.addSiblingForName, { name })
+      : t(K.relationship.addSibling);
+  }
+
   if (!name?.trim()) {
     return t(
       mode === 'parent-of'
@@ -93,12 +104,24 @@ function getChooserModeLabel(
 }
 
 function getSelectRelationshipTitle(
-  mode: PendingRelationshipMode,
+  mode: RelationshipSelectionMode,
   name: string | undefined,
   t: (key: string, values?: Record<string, string | number>) => string,
 ) {
+  if (mode === 'sibling-of') {
+    return name?.trim()
+      ? t(K.relationship.selectSharedParentForSiblingName, { name })
+      : t(K.relationship.selectSharedParentForSibling);
+  }
+
   if (!name?.trim()) {
-    return t(K.relationship.selectRelatedFamilyMember);
+    return t(
+      mode === 'parent-of'
+        ? K.relationship.selectParent
+        : mode === 'child-of'
+          ? K.relationship.selectChild
+          : K.relationship.selectSpouse,
+    );
   }
 
   return t(
@@ -111,19 +134,41 @@ function getSelectRelationshipTitle(
   );
 }
 
-function getRelationshipActionText({
+function getSelectionHelperText({
   mode,
+  name,
+  t,
+}: {
+  mode: RelationshipSelectionMode;
+  name?: string;
+  t: (key: string, values?: Record<string, string | number>) => string;
+}) {
+  if (mode === 'sibling-of') {
+    return name?.trim()
+      ? t(K.relationship.selectSharedParentForSiblingHelperName, { name })
+      : t(K.relationship.selectSharedParentForSiblingHelper);
+  }
+
+  return name?.trim()
+    ? t(K.personForm.selectRelatedMemberForPerson, { name })
+    : t(K.personForm.addMemberChooserMemberListHelper);
+}
+
+function getRelationshipActionText({
+  mode: rawMode,
   perspective,
   anchorName,
   relatedPersonName,
   t,
 }: {
-  mode: PendingRelationshipMode;
+  mode: RelationshipSelectionMode;
   perspective: 'new-person' | 'anchor-person';
   anchorName?: string;
   relatedPersonName: string;
   t: (key: string, values?: Record<string, string | number>) => string;
 }) {
+  const mode = resolveSubmissionMode(rawMode, perspective);
+
   if (perspective === 'anchor-person' && anchorName?.trim()) {
     return t(
       mode === 'parent-of'
@@ -146,16 +191,18 @@ function getRelationshipActionText({
 }
 
 function getRelationshipAttemptDescription({
-  mode,
+  mode: rawMode,
   perspective,
   anchorName,
   relatedPersonName,
 }: {
-  mode: PendingRelationshipMode;
+  mode: RelationshipSelectionMode;
   perspective: 'new-person' | 'anchor-person';
   anchorName?: string;
   relatedPersonName: string;
 }) {
+  const mode = resolveSubmissionMode(rawMode, perspective);
+
   if (perspective === 'anchor-person' && anchorName?.trim()) {
     if (mode === 'parent-of') {
       return `You are adding ${relatedPersonName} as a parent of ${anchorName.trim()}.`;
@@ -201,13 +248,14 @@ export default function AddPersonEntryDialog({
 }: AddPersonEntryDialogProps) {
   const theme = useTheme();
   const { t } = useI18n();
-  const [selectedMode, setSelectedMode] = useState<PendingRelationshipMode | null>(null);
+  const [selectedMode, setSelectedMode] = useState<RelationshipSelectionMode | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(0);
   const [reviewState, setReviewState] = useState<ReviewState>(null);
   const [blockingState, setBlockingState] = useState<BlockingState>(null);
   const anchorPersonId = validationAnchorPerson?.id ?? fixedRelatedPerson?.id ?? '__new-person__';
   const anchorDisplayName = newPersonName?.trim() || (validationAnchorPerson ? formatPersonDisplayName(validationAnchorPerson) : '');
+  const showSiblingOption = !chooserTitleKey;
   const canRunPersonAwareValidation = Boolean(validationAnchorPerson ?? fixedRelatedPerson);
   const validationPeople = useMemo<PersonRecord[] | undefined>(() => {
     if (!canRunPersonAwareValidation) {
@@ -282,10 +330,10 @@ export default function AddPersonEntryDialog({
     onDismiss();
   };
 
-  const chooseMode = (mode: PendingRelationshipMode) => {
+  const chooseMode = (mode: RelationshipSelectionMode) => {
     if (fixedRelatedPerson && skipPersonSelectionWhenFixed) {
       resetAndDismiss();
-      onSelectRelationship(mode, fixedRelatedPerson);
+      onSelectRelationship(resolveSubmissionMode(mode, perspective), fixedRelatedPerson);
       return;
     }
 
@@ -294,7 +342,7 @@ export default function AddPersonEntryDialog({
     setPage(0);
   };
 
-  const handleRelationshipSelection = async (mode: PendingRelationshipMode, relatedPerson: PersonRecord) => {
+  const handleRelationshipSelection = async (mode: RelationshipSelectionMode, relatedPerson: PersonRecord) => {
     const submissionMode = resolveSubmissionMode(mode, perspective);
 
     if (onSelectRelationshipAttempt) {
@@ -398,9 +446,7 @@ export default function AddPersonEntryDialog({
         <Dialog.Content style={dialogChrome.content}>
           <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
             {selectedMode
-              ? newPersonName
-                ? t(K.personForm.selectRelatedMemberForPerson, { name: newPersonName })
-                : t(K.personForm.addMemberChooserMemberListHelper)
+              ? getSelectionHelperText({ mode: selectedMode, name: newPersonName, t })
               : chooserHelperKey
                 ? t(chooserHelperKey)
                 : hasExistingFamilyMembers
@@ -441,7 +487,9 @@ export default function AddPersonEntryDialog({
                               ? 'account-arrow-up-outline'
                               : selectedMode === 'child-of'
                                 ? 'account-arrow-down-outline'
-                                : 'account-heart-outline'
+                                : selectedMode === 'sibling-of'
+                                  ? 'account-multiple-outline'
+                                  : 'account-heart-outline'
                           }
                         />
                       )}
@@ -490,6 +538,11 @@ export default function AddPersonEntryDialog({
                   <Button mode="outlined" icon="account-heart-outline" onPress={() => chooseMode('spouse-of')}>
                     {getChooserModeLabel('spouse-of', newPersonName, t)}
                   </Button>
+                  {showSiblingOption ? (
+                    <Button mode="outlined" icon="account-multiple-outline" onPress={() => chooseMode('sibling-of')}>
+                      {getChooserModeLabel('sibling-of', newPersonName, t)}
+                    </Button>
+                  ) : null}
                   {allowUnrelatedEntry && onAddFirstFamilyMember ? (
                     <Button mode="text" icon="account-remove-outline" onPress={onAddFirstFamilyMember}>
                       {t(K.personForm.addWithoutRelationship)}
