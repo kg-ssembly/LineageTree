@@ -1031,7 +1031,7 @@ export default function PersonFormDialog({
                   <HelperText type="error" visible={!!relationshipError}>
                     {relationshipError}
                   </HelperText>
-                  <View style={[styles.sectionSpacing, styles.pendingRelationshipsSection, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outlineVariant }]}>
+                  <View style={styles.sectionSpacing}>
                     <Text variant="labelMedium" style={{ color: theme.colors.onSecondaryContainer }}>
                       {relationshipStepTitle}
                     </Text>
