@@ -3,8 +3,7 @@ import { ScrollView, View, type LayoutChangeEvent, type StyleProp, type ViewStyl
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
 import { ActivityIndicator, Button, Chip, Dialog, IconButton, Portal, Text, useTheme } from 'react-native-paper';
-import { FloatingSnackbar, HorizontalTabStrip, InfoDialog, Reveal, ScreenBackground, SectionCard, TabStripCard } from '../../../../components';
-import { getDisplayPersonPhoto } from '../../../../components/dto/person';
+import { FloatingSnackbar, HorizontalTabStrip, InfoDialog, Reveal, ScreenBackground, SectionCard, SuggestionList, TabStripCard, type SuggestionActionTarget, type SuggestionItem } from '../../../../components';
 import type { MainTabParamList } from '../../../../components/dto/navigation';
 import type { AppTheme } from '../../../../constants/theme';
 import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, GlobalStyles } from '../../../../constants/styles';
@@ -15,6 +14,7 @@ import { getActivityNotificationCount } from '../shared';
 import type { SharedTabProps } from '../shared';
 import { FamilyHighlightsPanel } from '../tree-settings/family-highlights-panel';
 import { NotificationsView } from '../notifications/notifications-view';
+import { buildMissingDetailSuggestionForPerson, buildTreeSuggestions } from '../../profile-shared/suggestions';
 
 const styles = GlobalStyles.treeDetail;
 const profileStyles = GlobalStyles.personProfile;
@@ -22,15 +22,10 @@ const dialogChrome = GlobalStyles.dialogChrome;
 const DASHBOARD_PROMPTS_STORAGE_KEY = 'lineagetree-dashboard-hidden-prompts';
 const DASHBOARD_LAST_VISIT_STORAGE_KEY = 'lineagetree-dashboard-last-visit';
 
-type DashboardTask = {
-  id: string;
-  title: string;
-  description: string;
-  ctaLabel: string;
-  category: 'story' | 'tree';
-  priority: 'urgent' | 'easy-win' | 'recommended';
-  score: number;
+type DashboardTask = SuggestionItem & {
+  dashboardSection: 'story' | 'tree';
   done: boolean;
+  score: number;
   action: () => void;
 };
 
@@ -143,244 +138,70 @@ function DashboardMetricCard({ children, style, backgroundColor, borderColor }: 
   );
 }
 
+function resolveDashboardSuggestionAction(
+  target: SuggestionActionTarget,
+  props: SharedTabProps,
+) {
+  switch (target.kind) {
+    case 'edit-profile': {
+      const person = props.people.find((entry) => entry.id === target.personId);
+      return person ? () => props.onEditPerson(person) : () => undefined;
+    }
+    case 'open-profile': {
+      const person = props.people.find((entry) => entry.id === target.personId);
+      return person
+        ? () => props.openPersonProfile(person, {
+          initialTab: target.initialTab,
+          initialMemorySectionTab: target.initialMemorySectionTab,
+        })
+        : () => undefined;
+    }
+    case 'add-relationship': {
+      const person = props.people.find((entry) => entry.id === target.personId);
+      return person ? () => props.openPersonProfile(person, { initialTab: 'relationships' }) : () => undefined;
+    }
+    case 'add-relative': {
+      const person = props.people.find((entry) => entry.id === target.personId);
+      return person ? () => props.onOpenAddPersonForRelationship(target.mode, person) : () => undefined;
+    }
+    case 'add-person':
+      return props.onOpenAddPerson;
+    case 'add-self':
+      return props.onOpenAddSelf;
+    default:
+      return props.onOpenRelationshipDialog;
+  }
+}
+
 function buildDashboardTasks(
   props: SharedTabProps,
   showFollowUpTreePrompts: boolean,
   t: (key: string, params?: Record<string, string | number | null | undefined>) => string,
 ) {
-  const {
-    people,
-    currentAssignedPerson,
-    currentSelfAssignmentSuggestions,
-    relationships,
-    canEdit,
-    onOpenAddPerson,
-    onOpenAddPersonForRelationship,
-    onOpenAddSelf,
-    onEditPerson,
-    openPersonProfile,
-    onOpenRelationshipDialog,
-  } = props;
-
-  if (!currentAssignedPerson) {
-    const initialTasks: DashboardTask[] = [];
-
-    if (people.length < 2) {
-      initialTasks.push({
-        id: 'add-first-member',
-        title: people.length === 0 ? t(K.home.addTheFirstFamilyMember) : t(K.home.addAnotherFamilyMember),
-        description: people.length === 0
-          ? t(K.home.startYourTreeWithTheFirstRelative)
-          : t(K.home.startBuildingOutwardFromYourOwnPageByAddingTheNextPersonInTheFamily),
-        ctaLabel: t(K.home.addFamilyMember),
-        category: 'tree',
-        priority: 'urgent',
-        score: people.length === 0 ? 1000 : 1200,
-        done: false,
-        action: onOpenAddPerson,
-      });
-    }
-
-    initialTasks.push({
-      id: 'link-self',
-      title: t(K.home.createYourFamilyProfile),
-      description: t(K.home.linkYourselfIntoTheTree),
-      ctaLabel: t(K.home.startMyProfile),
-      category: 'story',
-      priority: 'urgent',
-      score: people.length === 0 ? 1000 : 900,
-      done: false,
-      action: onOpenAddSelf,
-    });
-
-    if (showFollowUpTreePrompts && people.length >= 2 && relationships.length === 0) {
-      initialTasks.push({
-        id: 'relationships',
-        title: t(K.home.connectFamilyRelationships),
-        description: t(K.home.parentsPartnersAndChildrenAreWhatTurnAProfileIntoABranch),
-        ctaLabel: canEdit ? t(K.home.connectFamily) : t(K.home.viewProfile),
-        category: 'tree',
-        priority: 'urgent',
-        score: 850,
-        done: false,
-        action: canEdit ? onOpenRelationshipDialog : onOpenAddSelf,
-      });
-    }
-
-    return {
-      storyTasks: initialTasks.filter((task) => task.category === 'story'),
-      treeTasks: initialTasks.filter((task) => task.category === 'tree'),
-    };
-  }
-
-  const relationshipCount = relationships.filter((relationship) => (
-    relationship.fromPersonId === currentAssignedPerson.id || relationship.toPersonId === currentAssignedPerson.id
-  )).length;
-  const currentParentCount = relationships.filter((relationship) => (
-    relationship.type === 'parent-child' && relationship.toPersonId === currentAssignedPerson.id
-  )).length;
-  const currentChildCount = relationships.filter((relationship) => (
-    relationship.type === 'parent-child' && relationship.fromPersonId === currentAssignedPerson.id
-  )).length;
-  const currentSpouseCount = relationships.filter((relationship) => (
-    relationship.type === 'spouse' && (
-      relationship.fromPersonId === currentAssignedPerson.id || relationship.toPersonId === currentAssignedPerson.id
-    )
-  )).length;
-
-  const hasPhoto = Boolean(getDisplayPersonPhoto(currentAssignedPerson));
-  const hasBirthDetails = Boolean(currentAssignedPerson.birthDate?.trim());
-  const hasStoryNote = Boolean(currentAssignedPerson.notes?.trim());
-  const hasMemories = currentAssignedPerson.lifeEvents.length > 0;
-  const hasRelationships = relationshipCount > 0;
-  const hasProfilePhoto = hasPhoto;
-  const hasCoreProfileFacts = hasBirthDetails && hasProfilePhoto && hasRelationships;
-  const totalPeopleCount = people.length;
-  const needsMorePeopleBeforeDetailPrompts = totalPeopleCount < 2;
-  const needsRelationshipConnection = totalPeopleCount >= 2 && !hasRelationships;
-
-  const profileAction = () => openPersonProfile(currentAssignedPerson);
-  const editCurrentAssignedPerson = () => onEditPerson(currentAssignedPerson);
-
-  const otherPeopleCount = people.filter((person) => person.id !== currentAssignedPerson.id).length;
-  const taskList: DashboardTask[] = [
-    {
-      id: 'photo',
-      title: t(K.home.addAProfilePhoto),
-      description: t(K.home.aFaceMakesTheTreeFeelInstantlyMoreHumanAndRecognizable),
-      ctaLabel: t(K.home.addPortrait),
-      category: 'story',
-      priority: 'easy-win',
-      score: needsMorePeopleBeforeDetailPrompts || needsRelationshipConnection ? 40 : hasBirthDetails ? 220 : 180,
-      done: hasPhoto,
-      action: editCurrentAssignedPerson,
-    },
-    {
-      id: 'birth',
-      title: t(K.home.fillInBirthDetails),
-      description: t(K.home.datesAnchorTheStoryAndHelpPlaceEachGenerationCorrectly),
-      ctaLabel: t(K.home.addBirthDetails),
-      category: 'story',
-      priority: 'urgent',
-      score: needsMorePeopleBeforeDetailPrompts || needsRelationshipConnection ? 120 : 700,
-      done: hasBirthDetails,
-      action: editCurrentAssignedPerson,
-    },
-    {
-      id: 'memory',
-      title: t(K.home.recordAMilestone),
-      description: t(K.home.addOneLifeEventSoTheTimelineStartsFeelingLikeALivingScrapbook),
-      ctaLabel: t(K.home.addMemory),
-      category: 'story',
-      priority: 'recommended',
-      score: needsMorePeopleBeforeDetailPrompts || needsRelationshipConnection ? 30 : hasRelationships || hasProfilePhoto ? 160 : 120,
-      done: hasMemories,
-      action: profileAction,
-    },
-    {
-      id: 'review-matches',
-      title: t(K.home.reviewPossibleProfileMatches),
-      description: t(K.home.suggestedMatchesCanHelpYouQuicklyLinkTheRightPersonOrSpotLikelyOverlaps),
-      ctaLabel: currentSelfAssignmentSuggestions.length > 0 ? t(K.home.reviewMatches) : t(K.home.addMoreRelatives),
-      category: 'tree',
-      priority: currentSelfAssignmentSuggestions.length > 0 ? 'recommended' : 'easy-win',
-      score: currentSelfAssignmentSuggestions.length > 0 ? 320 : 180,
-      done: currentSelfAssignmentSuggestions.length === 0,
-      action: currentSelfAssignmentSuggestions.length > 0 ? onOpenAddSelf : onOpenAddPerson,
-    },
-  ];
-
-  if (totalPeopleCount >= 2) {
-    if (canEdit && currentParentCount === 0) {
-      taskList.push({
-        id: 'add-parent',
-        title: t(K.relationship.parentOfName, { name: formatPersonName(currentAssignedPerson) }),
-        description: t(K.relationship.createParentForName, { name: formatPersonName(currentAssignedPerson) }),
-        ctaLabel: t(K.home.addFamilyMember),
-        category: 'tree',
-        priority: 'urgent',
-        score: 1100,
-        done: false,
-        action: () => onOpenAddPersonForRelationship('parent-of', currentAssignedPerson),
-      });
-    }
-
-    if (canEdit && currentChildCount === 0) {
-      taskList.push({
-        id: 'add-child',
-        title: t(K.relationship.childOfName, { name: formatPersonName(currentAssignedPerson) }),
-        description: t(K.relationship.createChildForName, { name: formatPersonName(currentAssignedPerson) }),
-        ctaLabel: t(K.home.addFamilyMember),
-        category: 'tree',
-        priority: 'urgent',
-        score: 1080,
-        done: false,
-        action: () => onOpenAddPersonForRelationship('child-of', currentAssignedPerson),
-      });
-    }
-
-    if (canEdit && currentSpouseCount === 0) {
-      taskList.push({
-        id: 'add-spouse',
-        title: t(K.relationship.spouseOfName, { name: formatPersonName(currentAssignedPerson) }),
-        description: t(K.relationship.createSpouseForName, { name: formatPersonName(currentAssignedPerson) }),
-        ctaLabel: t(K.home.addFamilyMember),
-        category: 'tree',
-        priority: 'urgent',
-        score: 1060,
-        done: false,
-        action: () => onOpenAddPersonForRelationship('spouse-of', currentAssignedPerson),
-      });
-    }
-
-    taskList.push({
-      id: 'relationships',
-      title: t(K.home.connectFamilyRelationships),
-      description: t(K.home.parentsPartnersAndChildrenAreWhatTurnAProfileIntoABranch),
-        ctaLabel: canEdit ? t(K.home.connectFamily) : t(K.home.viewProfile),
-        category: 'tree',
-        priority: 'urgent',
-        score: needsRelationshipConnection ? 1000 : 760,
-        done: hasRelationships,
-        action: canEdit ? onOpenRelationshipDialog : profileAction,
-      });
-  }
-
-  if (showFollowUpTreePrompts || otherPeopleCount === 0) {
-    taskList.push({
-        id: 'add-family-member',
-        title: otherPeopleCount > 0 ? t(K.home.addAnotherFamilyMember) : t(K.home.addTheFirstFamilyMember),
-        description: otherPeopleCount > 0
-          ? t(K.home.eachNewRelativeGivesTheTreeMoreShapeAndMakesFamilyConnectionsEasierToDiscover)
-          : t(K.home.startBuildingOutwardFromYourOwnPageByAddingTheNextPersonInTheFamily),
-        ctaLabel: t(K.home.addFamilyMember),
-        category: 'tree',
-        priority: 'urgent',
-        score: otherPeopleCount > 0 ? 950 : 1200,
-        done: otherPeopleCount > 0,
-        action: onOpenAddPerson,
-      });
-  }
-
-  if (hasCoreProfileFacts) {
-    taskList.push({
-      id: 'story',
-      title: t(K.home.writeAStoryNote),
-      description: t(K.home.aSmallMemoryOrDescriptionBringsTheProfileToLife),
-      ctaLabel: t(K.home.writeNote),
-      category: 'story',
-      priority: 'recommended',
-      score: hasMemories ? 90 : 70,
-      done: hasStoryNote,
-      action: profileAction,
-    });
-  }
-
-  const sortedTasks = taskList.sort((left, right) => right.score - left.score || left.title.localeCompare(right.title));
+  const { storySuggestions, treeSuggestions } = buildTreeSuggestions({
+    people: props.people,
+    currentAssignedPerson: props.currentAssignedPerson,
+    currentSelfAssignmentSuggestionsCount: props.currentSelfAssignmentSuggestions.length,
+    relationships: props.relationships,
+    canEdit: props.canEdit,
+    showFollowUpTreePrompts,
+  }, t);
 
   return {
-    storyTasks: sortedTasks.filter((task) => task.category === 'story'),
-    treeTasks: sortedTasks.filter((task) => task.category === 'tree'),
+    storyTasks: storySuggestions.map((suggestion) => ({
+      ...suggestion,
+      dashboardSection: 'story',
+      done: suggestion.done ?? false,
+      score: suggestion.score ?? 0,
+      action: resolveDashboardSuggestionAction(suggestion.actionTarget, props),
+    })),
+    treeTasks: treeSuggestions.map((suggestion) => ({
+      ...suggestion,
+      dashboardSection: 'tree',
+      done: suggestion.done ?? false,
+      score: suggestion.score ?? 0,
+      action: resolveDashboardSuggestionAction(suggestion.actionTarget, props),
+    })),
   };
 }
 
@@ -458,7 +279,7 @@ export function HomeDashboardView(props: SharedTabProps) {
       bestStoryStep: visibleStoryTasks[0] ?? null,
       bestTreeStep: visibleTreeTasks[0] ?? null,
       bestNextStep: [...visibleStoryTasks, ...visibleTreeTasks]
-        .sort((left, right) => right.score - left.score || left.title.localeCompare(right.title))[0] ?? null,
+        .sort((left, right) => (right.score ?? 0) - (left.score ?? 0) || left.title.localeCompare(right.title))[0] ?? null,
     };
   }, [dismissedTaskIds, storyTasks, treeTasks]);
   const {
@@ -1062,39 +883,23 @@ export function HomeDashboardView(props: SharedTabProps) {
   const missingMemberDetails = useMemo<MissingMemberDetail[]>(() => {
     return people
       .map((person) => {
-        let score = 0;
-        const issues: string[] = [];
-        const relationshipCount = relationships.filter((relationship) => (
-          relationship.fromPersonId === person.id || relationship.toPersonId === person.id
-        )).length;
-
-        if (!person.birthDate?.trim()) {
-          score += 3;
-          issues.push(t(K.home.missingBirthDate));
-        }
-
-        if (!getDisplayPersonPhoto(person)) {
-          score += 2;
-          issues.push(t(K.home.missingProfilePhoto));
-        }
-
-        if (relationshipCount === 0) {
-          score += 3;
-          issues.push(t(K.home.missingFamilyConnections));
+        const suggestion = buildMissingDetailSuggestionForPerson(person, relationships, t);
+        if (!suggestion) {
+          return null;
         }
 
         return {
           personId: person.id,
           name: formatPersonName(person),
-          summary: issues.join(' · '),
-          score,
-          action: () => openPersonProfile(person),
+          summary: suggestion.description,
+          score: suggestion.score ?? 0,
+          action: resolveDashboardSuggestionAction(suggestion.actionTarget, props),
         };
       })
-      .filter((item) => item.score > 0)
+      .filter((item): item is MissingMemberDetail => Boolean(item))
       .sort((left, right) => right.score - left.score || left.name.localeCompare(right.name))
       .slice(0, 3);
-  }, [openPersonProfile, people, relationships, t]);
+  }, [people, props, relationships, t]);
 
   const sinceLastVisit = useMemo(() => {
     if (!lastVisitAt) {
@@ -1501,33 +1306,18 @@ export function HomeDashboardView(props: SharedTabProps) {
                       <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
                         {t(K.home.theseStepsShapeYourOwnPageIntoAFullerBiography)}
                       </Text>
-                      <View style={{ marginTop: 12 }}>
-                        {visibleStoryTasks.map((task, index) => (
-                          <Reveal key={task.id} delay={170 + index * 35}>
-                            <DashboardTaskCard
-                              backgroundColor={theme.colors.surface}
-                              borderColor={theme.colors.outlineVariant}
-                            >
-                                <View style={styles.sectionHeader}>
-                                  <View style={styles.titleWrap}>
-                                    <Text variant="titleMedium">{task.title}</Text>
-                                    <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
-                                      {task.description}
-                                    </Text>
-                                  </View>
-                                  <View style={{ alignItems: 'flex-end' }}>
-                                    <Button mode="outlined" onPress={task.action} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>
-                                      {task.ctaLabel}
-                                    </Button>
-                                    <Button mode="text" compact onPress={() => dismissTask(task.id)} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>
-                                      {t(K.home.hide)}
-                                    </Button>
-                                  </View>
-                                </View>
-                            </DashboardTaskCard>
-                          </Reveal>
-                        ))}
-                      </View>
+                      <SuggestionList
+                        suggestions={visibleStoryTasks}
+                        onPressSuggestion={(suggestion) => suggestion.action()}
+                        onDismissSuggestion={(suggestion) => dismissTask(suggestion.id)}
+                        dismissLabel={t(K.home.hide)}
+                        variant="dashboard"
+                        getCardColors={() => ({
+                          backgroundColor: theme.colors.surface,
+                          borderColor: theme.colors.outlineVariant,
+                        })}
+                        getActionMode={() => 'outlined'}
+                      />
                     </View>
                   ) : null}
 
@@ -1537,33 +1327,18 @@ export function HomeDashboardView(props: SharedTabProps) {
                       <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
                         {t(K.home.theseStepsGrowTheFamilyBeyondOnePersonAndStrengthenTheBranchStructure)}
                       </Text>
-                      <View style={{ marginTop: 12 }}>
-                        {visibleTreeTasks.map((task, index) => (
-                          <Reveal key={task.id} delay={220 + index * 35}>
-                            <DashboardTaskCard
-                              backgroundColor={theme.colors.surface}
-                              borderColor={theme.colors.outlineVariant}
-                            >
-                                <View style={styles.sectionHeader}>
-                                  <View style={styles.titleWrap}>
-                                    <Text variant="titleMedium">{task.title}</Text>
-                                    <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
-                                      {task.description}
-                                    </Text>
-                                  </View>
-                                  <View style={{ alignItems: 'flex-end' }}>
-                                    <Button mode="contained" onPress={task.action} style={BUTTON_CHROME} buttonColor={theme.colors.primary} textColor={theme.colors.onPrimary} contentStyle={BUTTON_CONTENT_CHROME}>
-                                      {task.ctaLabel}
-                                    </Button>
-                                    <Button mode="text" compact onPress={() => dismissTask(task.id)} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>
-                                      {t(K.home.hide)}
-                                    </Button>
-                                  </View>
-                                </View>
-                            </DashboardTaskCard>
-                          </Reveal>
-                        ))}
-                      </View>
+                      <SuggestionList
+                        suggestions={visibleTreeTasks}
+                        onPressSuggestion={(suggestion) => suggestion.action()}
+                        onDismissSuggestion={(suggestion) => dismissTask(suggestion.id)}
+                        dismissLabel={t(K.home.hide)}
+                        variant="dashboard"
+                        getCardColors={() => ({
+                          backgroundColor: theme.colors.surface,
+                          borderColor: theme.colors.outlineVariant,
+                        })}
+                        getActionMode={() => 'contained'}
+                      />
                     </View>
                   ) : null}
                 </View>

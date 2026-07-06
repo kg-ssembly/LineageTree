@@ -188,6 +188,7 @@ function createValidationPersonRecord(input: {
   middleNames: string;
   lastName: string;
   maidenName: string;
+  birthPlace: string;
   birthDate: string;
   deathDate: string;
   gender: PersonGender;
@@ -209,7 +210,7 @@ function createValidationPersonRecord(input: {
     clanName: '',
     familyBranch: '',
     hometown: '',
-    birthPlace: '',
+    birthPlace: input.birthPlace,
     surnameVariantHints: [],
     canonicalPersonId: '',
     duplicatePersonIds: [],
@@ -303,6 +304,7 @@ export default function PersonFormDialog({
   const [middleNames, setMiddleNames] = useState('');
   const [lastName, setLastName] = useState('');
   const [maidenName, setMaidenName] = useState('');
+  const [birthPlace, setBirthPlace] = useState('');
   const [birthDate, setBirthDate] = useState('');
   const [deathDate, setDeathDate] = useState('');
   const [gender, setGender] = useState<PersonGender>('unspecified');
@@ -371,6 +373,7 @@ export default function PersonFormDialog({
     setMiddleNames(person?.middleNames ?? initialValues?.middleNames ?? '');
     setLastName(person?.lastName ?? initialValues?.lastName ?? '');
     setMaidenName(person?.maidenName ?? '');
+    setBirthPlace(person?.birthPlace ?? initialValues?.birthPlace ?? '');
     setBirthDate(person?.birthDate ?? initialValues?.birthDate ?? '');
     setDeathDate(person?.deathDate ?? initialValues?.deathDate ?? '');
     setGender(person?.gender ?? initialValues?.gender ?? 'unspecified');
@@ -423,6 +426,7 @@ export default function PersonFormDialog({
     middleNames,
     lastName: getResolvedLastNameValue(lastName, mode, lastNameTouched, suggestedLastName),
     maidenName,
+    birthPlace,
     birthDate,
     deathDate: isPresent ? '' : deathDate,
     gender,
@@ -492,6 +496,7 @@ export default function PersonFormDialog({
       middleNames,
       lastName: getResolvedLastNameValue(lastName, mode, lastNameTouched, suggestedLastName),
       maidenName,
+      birthPlace,
       birthDate,
       deathDate: isPresent ? '' : deathDate,
       gender,
@@ -499,7 +504,7 @@ export default function PersonFormDialog({
       lifeEvents,
       person,
     }),
-    [birthDate, deathDate, firstName, gender, isPresent, isRelationshipOnlyFlow, lastName, lastNameTouched, lifeEvents, maidenName, middleNames, mode, notes, person, suggestedLastName],
+    [birthDate, birthPlace, deathDate, firstName, gender, isPresent, isRelationshipOnlyFlow, lastName, lastNameTouched, lifeEvents, maidenName, middleNames, mode, notes, person, suggestedLastName],
   );
   const subjectPersonId = validationPersonRecord.id;
   const pendingValidationRelationships = useMemo(
@@ -534,7 +539,7 @@ export default function PersonFormDialog({
         requireRelationshipContext: requiresRelationshipConnection,
         ignorePersonId: person?.id,
       })),
-    [birthDate, deathDate, existingPhotos, firstName, isPresent, isRelationshipOnlyFlow, lastName, lastNameTouched, lifeEvents, maidenName, middleNames, mode, newPhotoUris, pendingRelationships, pendingValidationRelationships, person?.id, relationshipCandidates, relationships, removedPhotos, requiresRelationshipConnection, notes, suggestedLastName],
+    [birthDate, birthPlace, deathDate, existingPhotos, firstName, isPresent, isRelationshipOnlyFlow, lastName, lastNameTouched, lifeEvents, maidenName, middleNames, mode, newPhotoUris, pendingRelationships, pendingValidationRelationships, person?.id, relationshipCandidates, relationships, removedPhotos, requiresRelationshipConnection, notes, suggestedLastName],
   );
   const validationPeople = useMemo(
     () => [validationPersonRecord, ...new Map(relationshipCandidates.map((candidate) => [candidate.id, candidate])).values()],
@@ -1388,6 +1393,18 @@ export default function PersonFormDialog({
                   </View>
 
                   <View style={styles.sectionSpacing}>
+                    <Text variant="titleSmall">{t(K.personProfile.birthPlace)}</Text>
+                    <TextInput
+                      mode="outlined"
+                      label={t(K.treeSettings.birthPlace)}
+                      value={birthPlace}
+                      onChangeText={setBirthPlace}
+                      disabled={loading}
+                      style={styles.fieldSpacing}
+                    />
+                  </View>
+
+                  <View style={styles.sectionSpacing}>
                     <Text variant="titleSmall">{t(K.personForm.birthDate)} *</Text>
                     <View style={styles.birthDateActions}>
                       <Button
@@ -1584,6 +1601,7 @@ export default function PersonFormDialog({
                   <Text variant="titleSmall" style={styles.sectionSpacing}>{t(K.common.summary)}</Text>
                   <Text variant="bodyMedium">{t(K.personForm.gender)}: {previewState.payload.gender}</Text>
                   {previewState.payload.birthDate ? <Text variant="bodyMedium">{t(K.personProfile.birth)}: {formatPersonDate(previewState.payload.birthDate)}</Text> : null}
+                  {previewState.payload.birthPlace ? <Text variant="bodyMedium">{t(K.personProfile.birthPlace)}: {previewState.payload.birthPlace}</Text> : null}
                   {previewState.payload.deathDate ? <Text variant="bodyMedium">{t(K.personProfile.inMemory)}: {formatPersonDate(previewState.payload.deathDate)}</Text> : null}
                   {previewState.payload.maidenName ? <Text variant="bodyMedium">{t(K.personForm.maidenName)}: {previewState.payload.maidenName}</Text> : null}
                   {previewState.payload.pendingRelationships.length > 0 ? (

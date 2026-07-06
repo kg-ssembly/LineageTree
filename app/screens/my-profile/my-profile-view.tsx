@@ -107,6 +107,8 @@ function buildPersonMutationPayload(
     middleNames: person.middleNames ?? '',
     lastName: person.lastName,
     maidenName: person.maidenName ?? '',
+    birthPlace: person.birthPlace ?? '',
+    hometown: person.hometown ?? '',
     birthDate: person.birthDate,
     deathDate: person.deathDate,
     gender: person.gender,
@@ -963,6 +965,22 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
           <ProfileOverviewSection
             linkedPerson={linkedPerson}
             preferredPhoto={preferredPhoto}
+            relationships={relationships}
+            canEdit={canEditLinkedProfile}
+            onEdit={() => setEditorVisible(true)}
+            onOpenPhotos={() => {
+              setActiveTab('memories');
+              setMemorySectionTab('photos');
+            }}
+            onOpenNotes={() => {
+              setActiveTab('memories');
+              setMemorySectionTab('notes');
+              setNotesDialogVisible(true);
+            }}
+            onAddRelationship={() => {
+              setActiveTab('relationships');
+              setRelationshipAddFlowVisible(true);
+            }}
           />
         ) : null}
 

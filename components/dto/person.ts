@@ -74,6 +74,8 @@ export interface PersonInput {
   lastName: string;
   /** Maiden name (birth surname before marriage). Optional. */
   maidenName?: string;
+  hometown?: string;
+  birthPlace?: string;
   surnameVariantHints?: string[];
   birthDate: string;
   deathDate: string;

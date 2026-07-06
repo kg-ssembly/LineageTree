@@ -1045,6 +1045,31 @@ export class GlobalStyles {
             minWidth: 140,
             flexGrow: 1,
             flexBasis: 140,
+            borderWidth: StyleSheet.hairlineWidth,
+            borderColor: F.outlineVariant,
+        },
+        suggestionList: {
+            marginTop: 12,
+            gap: 10,
+        },
+        suggestionCard: {
+            borderRadius: 18,
+            padding: 14,
+            borderWidth: StyleSheet.hairlineWidth,
+            borderColor: F.outlineVariant,
+        },
+        suggestionChip: {
+            alignSelf: 'flex-start',
+        },
+        suggestionBody: {
+            marginTop: 10,
+            lineHeight: 20,
+        },
+        inlineActionRow: {
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            gap: 10,
+            marginTop: 14,
         },
         notesText: {
             marginTop: 8,

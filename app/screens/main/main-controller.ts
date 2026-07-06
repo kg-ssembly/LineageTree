@@ -4,7 +4,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTheme } from 'react-native-paper';
 import type { PersonFormSubmission, PendingRelationshipMode, PendingRelationshipSubmission } from '../../../components/person-form-dialog';
 import type { PersonRecord } from '../../../components/dto/person';
-import type { RootStackParamList } from '../../../components/dto/navigation';
+import type { PersonProfileRouteMemorySection, PersonProfileRouteTab, RootStackParamList } from '../../../components/dto/navigation';
 import { DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND, type ParentChildRelationshipKind, type SpouseRelationshipStatus } from '../../../components/dto/relationship';
 import { getUserDisplayLabel } from '../../../components/dto/user';
 import { formatPersonName } from '../../../components/person-formatting';
@@ -111,6 +111,8 @@ export type MaidenTreeSuggestionState = {
 type MemberProfileParams = {
   treeId: string;
   personId: string;
+  initialTab?: PersonProfileRouteTab;
+  initialMemorySectionTab?: PersonProfileRouteMemorySection;
 };
 
 const MAIN_TAB_NAMES = ['home', 'tree', 'members', 'treeSettings', 'myProfile'] as const;
@@ -503,12 +505,23 @@ export function useMainScreenController({ navigation }: Props) {
     );
   }, [canvasFamilySwitchRef, createTreeFromSurname, navigation, openConfirm, selectedTree, t, trees, user]);
 
-  const openPersonProfile = useCallback((person: PersonRecord) => {
+  const openPersonProfile = useCallback((
+    person: PersonRecord,
+    options?: {
+      initialTab?: PersonProfileRouteTab;
+      initialMemorySectionTab?: PersonProfileRouteMemorySection;
+    },
+  ) => {
     if (!selectedTree) {
       return;
     }
 
-    setMemberProfileParams({ treeId: selectedTree.id, personId: person.id });
+    setMemberProfileParams({
+      treeId: selectedTree.id,
+      personId: person.id,
+      initialTab: options?.initialTab,
+      initialMemorySectionTab: options?.initialMemorySectionTab,
+    });
     navigation.navigate('Main', { screen: 'members' });
   }, [navigation, selectedTree]);
 
@@ -526,7 +539,12 @@ export function useMainScreenController({ navigation }: Props) {
       if (name === 'memberProfile' && params && typeof params === 'object') {
         const nextParams = params as Partial<MemberProfileParams>;
         if (nextParams.treeId && nextParams.personId) {
-          setMemberProfileParams({ treeId: nextParams.treeId, personId: nextParams.personId });
+          setMemberProfileParams({
+            treeId: nextParams.treeId,
+            personId: nextParams.personId,
+            initialTab: nextParams.initialTab,
+            initialMemorySectionTab: nextParams.initialMemorySectionTab,
+          });
         }
         return;
       }

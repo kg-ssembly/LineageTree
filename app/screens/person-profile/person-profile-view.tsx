@@ -28,7 +28,7 @@ import {
   isPersonDeceased,
 } from '../../../components/dto/person';
 import type { ParentChildRelationshipKind, RelationshipRecord, SpouseRelationshipStatus } from '../../../components/dto/relationship';
-import type { MainTabParamList } from '../../../components/dto/navigation';
+import type { MainTabParamList, PersonProfileRouteMemorySection, PersonProfileRouteTab } from '../../../components/dto/navigation';
 import { canEditTreeContent, getAssignedUserIdForPerson } from '../../../components/dto/tree';
 import { getPersonValidationFeedback } from '../../../components/family-tree-validation';
 import { MAX_PHOTOS_PER_PERSON, MAX_PHOTO_BYTES, preparePhotoForUpload } from '../../../components/photo-utils';
@@ -56,6 +56,8 @@ const treeDetailStyles = GlobalStyles.treeDetail;
 type PersonProfileRouteParams = {
   treeId: string;
   personId: string;
+  initialTab?: PersonProfileRouteTab;
+  initialMemorySectionTab?: PersonProfileRouteMemorySection;
 };
 
 type PersonProfileNavigation = {
@@ -102,6 +104,14 @@ type HelperDialogKey = 'tabs' | 'relationships' | 'descendant-tree' | 'ascendant
 
 type PersonProfileTabKey = 'biography' | 'relationships' | 'descendant-tree' | 'ascendant-tree' | 'memories-gallery';
 
+function resolveInitialProfileTab(initialTab?: PersonProfileRouteTab): PersonProfileTabKey {
+  return initialTab ?? 'biography';
+}
+
+function resolveInitialMemorySectionTab(initialTab?: PersonProfileRouteMemorySection): PersonMemorySectionTabKey {
+  return initialTab ?? 'events';
+}
+
 function getRelationshipModeForPerson(personId: string, relationship: RelationshipRecord): PersonRelationshipMode {
   if (relationship.type === 'spouse') {
     return 'spouse-of';
@@ -130,6 +140,8 @@ function buildPersonMutationPayload(
     middleNames: person.middleNames ?? '',
     lastName: person.lastName,
     maidenName: person.maidenName ?? '',
+    birthPlace: person.birthPlace ?? '',
+    hometown: person.hometown ?? '',
     birthDate: person.birthDate,
     deathDate: person.deathDate,
     gender: person.gender,
@@ -321,14 +333,14 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const [selectedPhotoId, setSelectedPhotoId] = useState<string | null>(null);
   const [snackVisible, setSnackVisible] = useState(false);
-  const [activeTab, setActiveTab] = useState<PersonProfileTabKey>('biography');
+  const [activeTab, setActiveTab] = useState<PersonProfileTabKey>(resolveInitialProfileTab(route.params.initialTab));
   const [helperDialog, setHelperDialog] = useState<{ visible: boolean; key: HelperDialogKey }>({
     visible: false,
     key: 'tabs',
   });
   const [relationshipPage, setRelationshipPage] = useState(1);
   const [relationshipSectionTab, setRelationshipSectionTab] = useState<PersonRelationshipSectionTabKey>('insight');
-  const [memorySectionTab, setMemorySectionTab] = useState<PersonMemorySectionTabKey>('events');
+  const [memorySectionTab, setMemorySectionTab] = useState<PersonMemorySectionTabKey>(resolveInitialMemorySectionTab(route.params.initialMemorySectionTab));
   const [maidenTreeSuggestion, setMaidenTreeSuggestion] = useState<MaidenTreeSuggestionState>({
     visible: false,
     person: null,
@@ -547,10 +559,11 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
   }, [navigation, person]);
 
   useEffect(() => {
-    setActiveTab('biography');
+    setActiveTab(resolveInitialProfileTab(route.params.initialTab));
+    setMemorySectionTab(resolveInitialMemorySectionTab(route.params.initialMemorySectionTab));
     setRelationshipPage(1);
     setRelationshipInsightVisible(false);
-  }, [route.params.personId]);
+  }, [route.params.initialMemorySectionTab, route.params.initialTab, route.params.personId]);
 
   useEffect(() => {
     if (!loadingTrees && !selectedTree) {
@@ -1151,11 +1164,25 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
           <MemberProfileSection
             person={person}
             preferredPhoto={preferredPhoto}
+            relationships={relationships}
             canEdit={canEdit}
             linkedCollaboratorLabel={linkedCollaborator?.displayName || linkedCollaborator?.email || null}
             isCurrentUsersPerson={isCurrentUsersPerson}
             onOpenHelperDialog={() => openHelperDialog('tabs')}
             onEdit={() => setEditorVisible(true)}
+            onOpenPhotos={() => {
+              setActiveTab('memories-gallery');
+              setMemorySectionTab('photos');
+            }}
+            onOpenNotes={() => {
+              setActiveTab('memories-gallery');
+              setMemorySectionTab('notes');
+              setNotesDialogVisible(true);
+            }}
+            onAddRelationship={() => {
+              setActiveTab('relationships');
+              setRelationshipAddFlowVisible(true);
+            }}
           />
         ) : null}
 

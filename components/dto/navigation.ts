@@ -8,6 +8,9 @@ export type MainTabParamList = {
   myProfile: undefined;
 };
 
+export type PersonProfileRouteTab = 'biography' | 'relationships' | 'memories-gallery';
+export type PersonProfileRouteMemorySection = 'notes' | 'photos' | 'events';
+
 // Legacy — used by tree-detail-screen.tsx (kept for compatibility)
 export type TreeDetailTabParamList = {
   PeopleRelationshipsTab: undefined;
@@ -24,5 +27,7 @@ export type RootStackParamList = {
   PersonProfile: {
     treeId: string;
     personId: string;
+    initialTab?: PersonProfileRouteTab;
+    initialMemorySectionTab?: PersonProfileRouteMemorySection;
   };
 };

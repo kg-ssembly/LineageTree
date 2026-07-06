@@ -2,6 +2,7 @@ import type { ApprovalRequest } from '../../../components/dto/approval';
 import type { MergeHistoryRecord, MergeRequestRecord } from '../../../components/dto/merge';
 import type { AppNotification, NotificationActivityState } from '../../../components/dto/notification';
 import type { PersonRecord } from '../../../components/dto/person';
+import type { PersonProfileRouteMemorySection, PersonProfileRouteTab } from '../../../components/dto/navigation';
 import type { PendingRelationshipMode } from '../../../components/person-form-dialog';
 import type { RelationshipRecord } from '../../../components/dto/relationship';
 import {
@@ -45,7 +46,13 @@ export interface SharedTabProps {
   mutating: boolean;
   loadingTreeData: boolean;
   openConfirm: (title: string, message: string, confirmLabel: string, action: () => Promise<void>) => void;
-  openPersonProfile: (person: PersonRecord) => void;
+  openPersonProfile: (
+    person: PersonRecord,
+    options?: {
+      initialTab?: PersonProfileRouteTab;
+      initialMemorySectionTab?: PersonProfileRouteMemorySection;
+    },
+  ) => void;
   onOpenAddPerson: () => void;
   onOpenAddPersonForRelationship: (mode: PendingRelationshipMode, relatedPerson: PersonRecord) => void;
   onOpenRelationshipDialog: () => void;

@@ -1878,6 +1878,8 @@ async function preparePersonUpdatePreview(
     middleNames: input.middleNames?.trim() ?? person.middleNames ?? '',
     lastName: input.lastName.trim(),
     maidenName: input.maidenName?.trim() ?? person.maidenName ?? '',
+    hometown: input.hometown?.trim() ?? '',
+    birthPlace: input.birthPlace?.trim() ?? '',
     birthDate: input.birthDate.trim(),
     deathDate: input.deathDate.trim(),
     gender: input.gender,
@@ -1914,6 +1916,8 @@ async function applyApprovedPersonUpdate(payload: ApprovalRequestPayload) {
     middleNames: nextPerson.middleNames ?? '',
     lastName: nextPerson.lastName,
     maidenName: nextPerson.maidenName ?? '',
+    hometown: nextPerson.hometown ?? '',
+    birthPlace: nextPerson.birthPlace ?? '',
     birthDate: nextPerson.birthDate,
     deathDate: nextPerson.deathDate,
     gender: nextPerson.gender,
@@ -3634,8 +3638,8 @@ export async function createPerson(
     nicknames: [],
     clanName: '',
     familyBranch: '',
-    hometown: '',
-    birthPlace: '',
+    hometown: input.hometown?.trim() ?? '',
+    birthPlace: input.birthPlace?.trim() ?? '',
     surnameVariantHints: Array.isArray(input.surnameVariantHints)
       ? [...new Set(input.surnameVariantHints.map((value) => value.trim()).filter(Boolean))]
       : [],
