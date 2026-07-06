@@ -31,7 +31,7 @@ import type { ParentChildRelationshipKind, RelationshipRecord, SpouseRelationshi
 import { DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND, DEFAULT_SPOUSE_RELATIONSHIP_STATUS } from '../components/dto/relationship';
 import type { CollaboratorRole, FamilyTree, SurnameVariantGroup, TreeCollaborator, TreeMembershipHistoryEntry, TreeRole } from '../components/dto/tree';
 import type { UserProfile } from '../components/dto/user';
-import { normalizeRelationshipEndpoints, validateProposedRelationship } from '../components/family-tree-validation';
+import { getPersonValidationFeedback, normalizeRelationshipEndpoints, validateProposedRelationship } from '../components/family-tree-validation';
 import { buildMergePreview } from './merge-intelligence';
 
 const TREES_COLLECTION = 'trees';
@@ -2663,31 +2663,214 @@ async function captureMergeSnapshot(sourceTreeId: string, targetTreeId: string, 
   };
 }
 
+function getMergeSelectedMatches(request: MergeRequestRecord) {
+  const selectedMatchIds = new Set(request.selectedMatchIds);
+  return request.preview.matches.filter((match) => selectedMatchIds.has(match.id));
+}
+
+function validateSelectedMergeMatches(request: MergeRequestRecord) {
+  const sourcePersonIds = new Set<string>();
+  const targetPersonIds = new Set<string>();
+
+  getMergeSelectedMatches(request).forEach((match) => {
+    if (sourcePersonIds.has(match.sourcePersonId)) {
+      throw new Error('Each source family member can only be matched once in a merge.');
+    }
+
+    if (targetPersonIds.has(match.targetPersonId)) {
+      throw new Error('Each target family member can only be matched once in a merge.');
+    }
+
+    sourcePersonIds.add(match.sourcePersonId);
+    targetPersonIds.add(match.targetPersonId);
+  });
+}
+
+async function ensureMergePreviewStillMatches(request: MergeRequestRecord) {
+  const [source, target] = await Promise.all([getTreeBundle(request.sourceTreeId), getTreeBundle(request.targetTreeId)]);
+  const currentPreview = buildMergePreview(source, target);
+  const currentMatchIds = new Set(currentPreview.matches.map((match) => match.id));
+  const missingMatch = request.selectedMatchIds.find((matchId) => !currentMatchIds.has(matchId));
+
+  if (missingMatch) {
+    throw new Error('This merge preview is out of date. Refresh the preview and review the matches again before applying.');
+  }
+}
+
+function asStringArray(value: unknown) {
+  return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === 'string') : [];
+}
+
+function mergeUniqueStrings(...values: Array<unknown>) {
+  return [...new Set(values.flatMap(asStringArray).map((value) => value.trim()).filter(Boolean))];
+}
+
+function mergeTextBlocks(targetValue: unknown, sourceValue: unknown) {
+  const targetText = typeof targetValue === 'string' ? targetValue.trim() : '';
+  const sourceText = typeof sourceValue === 'string' ? sourceValue.trim() : '';
+
+  if (!targetText) {
+    return sourceText;
+  }
+
+  if (!sourceText || targetText.includes(sourceText)) {
+    return targetText;
+  }
+
+  return `${targetText}\n\nMerged note:\n${sourceText}`;
+}
+
+function mergeLifeEvents(targetEvents: unknown, sourceEvents: unknown) {
+  const eventsByKey = new Map<string, PersonLifeEvent>();
+  const addEvent = (event: any, prefix = '') => {
+    if (!event) {
+      return;
+    }
+
+    const normalized = mapLifeEvent(event, eventsByKey.size);
+    const contentKey = [
+      normalized.type,
+      normalized.title.trim().toLowerCase(),
+      normalized.date,
+      normalized.description.trim().toLowerCase(),
+    ].join('|');
+
+    if (eventsByKey.has(contentKey)) {
+      return;
+    }
+
+    const idInUse = [...eventsByKey.values()].some((existing) => existing.id === normalized.id);
+    eventsByKey.set(contentKey, {
+      ...normalized,
+      id: idInUse ? `${prefix}${normalized.id}` : normalized.id,
+    });
+  };
+
+  (Array.isArray(targetEvents) ? targetEvents : []).forEach((event) => addEvent(event));
+  (Array.isArray(sourceEvents) ? sourceEvents : []).forEach((event) => addEvent(event, 'merged-'));
+
+  return normaliseLifeEvents([...eventsByKey.values()]);
+}
+
+function mergePhotos(targetPhotos: unknown, sourcePhotos: unknown, sourcePersonId: string) {
+  const photosByKey = new Map<string, PersonPhoto>();
+  const usedIds = new Set<string>();
+  const addPhoto = (photo: any, fromSource = false) => {
+    if (!photo) {
+      return;
+    }
+
+    const normalized = mapPhoto(photo, photosByKey.size);
+    const key = normalized.path || normalized.url || normalized.displayPath || normalized.displayUrl || normalized.id;
+    if (!key || photosByKey.has(key)) {
+      return;
+    }
+
+    const nextId = usedIds.has(normalized.id) && fromSource
+      ? `${sourcePersonId}-${normalized.id}`
+      : normalized.id;
+    usedIds.add(nextId);
+    photosByKey.set(key, {
+      ...normalized,
+      id: nextId,
+    });
+  };
+
+  (Array.isArray(targetPhotos) ? targetPhotos : []).forEach((photo) => addPhoto(photo));
+  (Array.isArray(sourcePhotos) ? sourcePhotos : []).forEach((photo) => addPhoto(photo, true));
+
+  return [...photosByKey.values()];
+}
+
+function resolveMergeConflictValue(
+  field: string,
+  request: MergeRequestRecord,
+  sourceSnapshot: Record<string, any>,
+  targetSnapshot: Record<string, any>,
+) {
+  const choice = request.conflictChoices.find((entry) => entry.field === field);
+  if (!choice) {
+    return undefined;
+  }
+
+  if (choice.resolvedValue !== undefined) {
+    return Array.isArray(choice.resolvedValue) ? choice.resolvedValue.join(', ') : choice.resolvedValue;
+  }
+
+  if (choice.keep === 'source') {
+    return field === 'surname' ? sourceSnapshot.lastName : sourceSnapshot[field];
+  }
+
+  if (choice.keep === 'target') {
+    return field === 'surname' ? targetSnapshot.lastName : targetSnapshot[field];
+  }
+
+  if (choice.keep === 'both') {
+    const sourceValue = field === 'surname' ? sourceSnapshot.lastName : sourceSnapshot[field];
+    const targetValue = field === 'surname' ? targetSnapshot.lastName : targetSnapshot[field];
+    return [targetValue, sourceValue].map((value) => String(value ?? '').trim()).filter(Boolean).join(' / ');
+  }
+
+  return undefined;
+}
+
+function buildMergedTargetPersonUpdate(
+  request: MergeRequestRecord,
+  match: MergePreview['matches'][number],
+  sourceSnapshot: Record<string, any>,
+  targetSnapshot: Record<string, any>,
+  timestamp: string,
+) {
+  const photos = mergePhotos(targetSnapshot.photos, sourceSnapshot.photos, match.sourcePersonId);
+  const sourcePreferredPhotoId = typeof sourceSnapshot.preferredPhotoId === 'string' ? sourceSnapshot.preferredPhotoId : '';
+  const copiedSourcePreferredPhoto = sourcePreferredPhotoId
+    ? photos.find((photo) => photo.id === sourcePreferredPhotoId || photo.id === `${match.sourcePersonId}-${sourcePreferredPhotoId}`)
+    : null;
+  const targetPreferredPhotoId = typeof targetSnapshot.preferredPhotoId === 'string' ? targetSnapshot.preferredPhotoId : '';
+
+  return {
+    firstName: targetSnapshot.firstName || sourceSnapshot.firstName || '',
+    middleNames: targetSnapshot.middleNames || sourceSnapshot.middleNames || '',
+    lastName: resolveMergeConflictValue('surname', request, sourceSnapshot, targetSnapshot) ?? targetSnapshot.lastName ?? sourceSnapshot.lastName ?? '',
+    maidenName: targetSnapshot.maidenName || sourceSnapshot.maidenName || '',
+    nicknames: mergeUniqueStrings(targetSnapshot.nicknames, sourceSnapshot.nicknames),
+    clanName: targetSnapshot.clanName || sourceSnapshot.clanName || '',
+    familyBranch: targetSnapshot.familyBranch || sourceSnapshot.familyBranch || '',
+    hometown: resolveMergeConflictValue('hometown', request, sourceSnapshot, targetSnapshot) ?? targetSnapshot.hometown ?? sourceSnapshot.hometown ?? '',
+    birthPlace: targetSnapshot.birthPlace || sourceSnapshot.birthPlace || '',
+    surnameVariantHints: mergeUniqueStrings(targetSnapshot.surnameVariantHints, sourceSnapshot.surnameVariantHints),
+    birthDate: resolveMergeConflictValue('birthDate', request, sourceSnapshot, targetSnapshot) ?? targetSnapshot.birthDate ?? sourceSnapshot.birthDate ?? '',
+    deathDate: targetSnapshot.deathDate || sourceSnapshot.deathDate || '',
+    gender: targetSnapshot.gender && targetSnapshot.gender !== 'unspecified' ? targetSnapshot.gender : sourceSnapshot.gender ?? targetSnapshot.gender ?? 'unspecified',
+    notes: mergeTextBlocks(targetSnapshot.notes, sourceSnapshot.notes),
+    lifeEvents: mergeLifeEvents(targetSnapshot.lifeEvents, sourceSnapshot.lifeEvents),
+    photos,
+    preferredPhotoId: photos.some((photo) => photo.id === targetPreferredPhotoId)
+      ? targetPreferredPhotoId
+      : copiedSourcePreferredPhoto?.id ?? '',
+    updatedAt: timestamp,
+  };
+}
+
+function getRelationshipCanonicalKey(relationship: Pick<RelationshipRecord, 'type' | 'fromPersonId' | 'toPersonId'>) {
+  const normalized = normalizeRelationshipEndpoints(relationship.type, relationship.fromPersonId, relationship.toPersonId);
+  return `${relationship.type}:${normalized.fromPersonId}:${normalized.toPersonId}`;
+}
+
 async function applyMergeRequest(mergeRequestId: string, request: MergeRequestRecord) {
   const timestamp = nowIso();
+  validateSelectedMergeMatches(request);
+  await ensureMergePreviewStillMatches(request);
   const snapshotBeforeMerge = await captureMergeSnapshot(request.sourceTreeId, request.targetTreeId, request.preview.matches);
   const batch = writeBatch(db);
   const changedPersonIds = new Set<string>();
   const sourceRelationships = await getRelationshipsByTreeId(request.sourceTreeId);
   const targetRelationships = await getRelationshipsByTreeId(request.targetTreeId);
-  const relationships = [...sourceRelationships, ...targetRelationships];
+  const selectedMatches = getMergeSelectedMatches(request);
+  const canonicalPersonIdBySourceId = new Map(selectedMatches.map((match) => [match.sourcePersonId, match.targetPersonId] as const));
   const snapshotPeopleById = new Map(snapshotBeforeMerge.people.map((entry) => [entry.id, entry.data] as const));
-  const relationshipsByPersonId = new Map<string, RelationshipRecord[]>();
 
-  relationships.forEach((relationship) => {
-    const fromRelationships = relationshipsByPersonId.get(relationship.fromPersonId) ?? [];
-    fromRelationships.push(relationship);
-    relationshipsByPersonId.set(relationship.fromPersonId, fromRelationships);
-
-    if (relationship.toPersonId !== relationship.fromPersonId) {
-      const toRelationships = relationshipsByPersonId.get(relationship.toPersonId) ?? [];
-      toRelationships.push(relationship);
-      relationshipsByPersonId.set(relationship.toPersonId, toRelationships);
-    }
-  });
-
-  request.preview.matches
-    .filter((match) => request.selectedMatchIds.includes(match.id))
+  selectedMatches
     .forEach((match) => {
       const sourcePersonRef = doc(db, PEOPLE_COLLECTION, match.sourcePersonId);
       const targetPersonRef = doc(db, PEOPLE_COLLECTION, match.targetPersonId);
@@ -2722,19 +2905,40 @@ async function applyMergeRequest(mergeRequestId: string, request: MergeRequestRe
         updatedAt: timestamp,
       });
       batch.update(targetPersonRef, {
+        ...buildMergedTargetPersonUpdate(request, match, sourceSnapshot, targetSnapshot, timestamp),
         treeMembershipIds: [...new Set([...sourceTreeMembershipIds, ...targetTreeMembershipIds, request.sourceTreeId, request.targetTreeId])],
         treeMemberships: [...mergedMembershipsByTreeId.values()],
         duplicatePersonIds: [...new Set([...targetDuplicatePersonIds, match.sourcePersonId])],
-        updatedAt: timestamp,
-      });
-
-      (relationshipsByPersonId.get(match.sourcePersonId) ?? []).forEach((relationship) => {
-        batch.update(doc(db, RELATIONSHIPS_COLLECTION, relationship.id), {
-          fromPersonId: relationship.fromPersonId === match.sourcePersonId ? match.targetPersonId : relationship.fromPersonId,
-          toPersonId: relationship.toPersonId === match.sourcePersonId ? match.targetPersonId : relationship.toPersonId,
-        });
       });
     });
+
+  const seenRelationshipIdsByKey = new Map<string, string>();
+  [...targetRelationships, ...sourceRelationships].forEach((relationship) => {
+    const fromPersonId = canonicalPersonIdBySourceId.get(relationship.fromPersonId) ?? relationship.fromPersonId;
+    const toPersonId = canonicalPersonIdBySourceId.get(relationship.toPersonId) ?? relationship.toPersonId;
+    const relationshipRef = doc(db, RELATIONSHIPS_COLLECTION, relationship.id);
+
+    if (fromPersonId === toPersonId) {
+      batch.delete(relationshipRef);
+      return;
+    }
+
+    const nextRelationship = { ...relationship, fromPersonId, toPersonId };
+    const canonicalKey = getRelationshipCanonicalKey(nextRelationship);
+    if (seenRelationshipIdsByKey.has(canonicalKey)) {
+      batch.delete(relationshipRef);
+      return;
+    }
+
+    seenRelationshipIdsByKey.set(canonicalKey, relationship.id);
+    if (fromPersonId !== relationship.fromPersonId || toPersonId !== relationship.toPersonId) {
+      const normalized = normalizeRelationshipEndpoints(relationship.type, fromPersonId, toPersonId);
+      batch.update(relationshipRef, {
+        fromPersonId: normalized.fromPersonId,
+        toPersonId: normalized.toPersonId,
+      });
+    }
+  });
 
   const sourceTreeSnapshot = snapshotBeforeMerge.trees.find((entry) => entry.id === request.sourceTreeId)?.data ?? {};
   const targetTreeSnapshot = snapshotBeforeMerge.trees.find((entry) => entry.id === request.targetTreeId)?.data ?? {};
@@ -3415,6 +3619,10 @@ export async function reviewMergeRequest(
   }
 
   const request = mapMergeRequest(requestSnapshot as QueryDocumentSnapshot);
+  if (request.status !== 'pending' && request.status !== 'changes-requested') {
+    throw new Error('Only pending merge requests can be reviewed.');
+  }
+
   const [sourceTree, targetTree] = await Promise.all([getTreeById(request.sourceTreeId), getTreeById(request.targetTreeId)]);
   const approvableTrees = [sourceTree, targetTree].filter((tree) => canApproveMergeForTree(tree, actorUserId));
   if (approvableTrees.length === 0) {
@@ -3450,6 +3658,11 @@ export async function reviewMergeRequest(
   if (decision === 'approve' && nextSelectedMatchIds.length === 0) {
     throw new Error('Select at least one person match before approving this merge.');
   }
+
+  validateSelectedMergeMatches({
+    ...request,
+    selectedMatchIds: nextSelectedMatchIds,
+  });
 
   let status: MergeRequestRecord['status'] = request.status;
   if (decision === 'reject') {
@@ -3617,47 +3830,83 @@ export async function createPerson(
 ): Promise<PersonRecord> {
   const personRef = doc(collection(db, PEOPLE_COLLECTION));
   const timestamp = nowIso();
-  const uploadedPhotos = await uploadPersonPhotos(actorUserId, treeId, personRef.id, newPhotos);
+  const validationPeople = await getPeopleForValidation(treeId);
   const newPhotoUris = newPhotos.map((photo) => photo.uri);
-  const preferredPhotoId = resolvePreferredPhotoId(input.preferredPhotoRef, [], newPhotoUris, uploadedPhotos);
-  const preferredPhotoSourceUri = resolvePreferredPhotoSourceUri(input.preferredPhotoRef, [], newPhotos);
-  const preferredDisplayPhoto = preferredPhotoId && preferredPhotoSourceUri && input.cropPreferredPhotoRef === input.preferredPhotoRef
-    ? await uploadPreferredPhotoDisplayVariant(actorUserId, treeId, personRef.id, preferredPhotoId, preferredPhotoSourceUri)
-    : null;
-  const nextPhotos = applyPreferredPhotoDisplayVariant(uploadedPhotos, preferredPhotoId, preferredDisplayPhoto);
+  const validationFeedback = getPersonValidationFeedback({
+    people: validationPeople,
+    person: {
+      firstName: input.firstName,
+      middleNames: input.middleNames ?? '',
+      lastName: input.lastName,
+      maidenName: input.maidenName ?? '',
+      birthDate: input.birthDate,
+      deathDate: input.deathDate,
+      notes: input.notes,
+      lifeEvents: input.lifeEvents,
+    },
+    newPhotoUris,
+    requireIdentityContext: true,
+  });
+  if (validationFeedback.errors.length > 0) {
+    throw new Error(validationFeedback.errors[0]);
+  }
 
-  const person: Omit<PersonRecord, 'id'> = {
-    treeId,
-    treeMembershipIds: [treeId],
-    treeMemberships: [{ treeId, role: 'subject', joinedAt: timestamp, addedByUserId: actorUserId, source: 'manual' }],
-    ownerId: actorUserId,
-    firstName: input.firstName.trim(),
-    middleNames: input.middleNames?.trim() ?? '',
-    lastName: input.lastName.trim(),
-    maidenName: input.maidenName?.trim() ?? '',
-    nicknames: [],
-    clanName: '',
-    familyBranch: '',
-    hometown: input.hometown?.trim() ?? '',
-    birthPlace: input.birthPlace?.trim() ?? '',
-    surnameVariantHints: Array.isArray(input.surnameVariantHints)
-      ? [...new Set(input.surnameVariantHints.map((value) => value.trim()).filter(Boolean))]
-      : [],
-    canonicalPersonId: '',
-    duplicatePersonIds: [],
-    birthDate: input.birthDate.trim(),
-    deathDate: input.deathDate.trim(),
-    gender: input.gender,
-    notes: input.notes.trim(),
-    lifeEvents: normaliseLifeEvents(input.lifeEvents),
-    photos: nextPhotos,
-    preferredPhotoId,
-    createdAt: timestamp,
-    updatedAt: timestamp,
-  };
+  let uploadedPhotos: PersonPhoto[] = [];
+  let preferredDisplayPhoto: { url: string; path: string } | null = null;
 
-  await setDoc(personRef, person);
-  return { id: personRef.id, ...person };
+  try {
+    uploadedPhotos = await uploadPersonPhotos(actorUserId, treeId, personRef.id, newPhotos);
+    const preferredPhotoId = resolvePreferredPhotoId(input.preferredPhotoRef, [], newPhotoUris, uploadedPhotos);
+    const preferredPhotoSourceUri = resolvePreferredPhotoSourceUri(input.preferredPhotoRef, [], newPhotos);
+    preferredDisplayPhoto = preferredPhotoId && preferredPhotoSourceUri && input.cropPreferredPhotoRef === input.preferredPhotoRef
+      ? await uploadPreferredPhotoDisplayVariant(actorUserId, treeId, personRef.id, preferredPhotoId, preferredPhotoSourceUri)
+      : null;
+    const nextPhotos = applyPreferredPhotoDisplayVariant(uploadedPhotos, preferredPhotoId, preferredDisplayPhoto);
+
+    const person: Omit<PersonRecord, 'id'> = {
+      treeId,
+      treeMembershipIds: [treeId],
+      treeMemberships: [{ treeId, role: 'subject', joinedAt: timestamp, addedByUserId: actorUserId, source: 'manual' }],
+      ownerId: actorUserId,
+      firstName: input.firstName.trim(),
+      middleNames: input.middleNames?.trim() ?? '',
+      lastName: input.lastName.trim(),
+      maidenName: input.maidenName?.trim() ?? '',
+      nicknames: [],
+      clanName: '',
+      familyBranch: '',
+      hometown: input.hometown?.trim() ?? '',
+      birthPlace: input.birthPlace?.trim() ?? '',
+      surnameVariantHints: Array.isArray(input.surnameVariantHints)
+        ? [...new Set(input.surnameVariantHints.map((value) => value.trim()).filter(Boolean))]
+        : [],
+      canonicalPersonId: '',
+      duplicatePersonIds: [],
+      birthDate: input.birthDate.trim(),
+      deathDate: input.deathDate.trim(),
+      gender: input.gender,
+      notes: input.notes.trim(),
+      lifeEvents: normaliseLifeEvents(input.lifeEvents),
+      photos: nextPhotos,
+      preferredPhotoId,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+
+    await setDoc(personRef, person);
+    return { id: personRef.id, ...person };
+  } catch (error) {
+    await deletePhotos([
+      ...uploadedPhotos,
+      ...(preferredDisplayPhoto ? [{
+        id: `${personRef.id}-preferred-cleanup`,
+        url: preferredDisplayPhoto.url,
+        path: preferredDisplayPhoto.path,
+        createdAt: timestamp,
+      } satisfies PersonPhoto] : []),
+    ]);
+    throw error;
+  }
 }
 
 export async function updatePerson(
