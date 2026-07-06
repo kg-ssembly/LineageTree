@@ -1392,6 +1392,16 @@ export class GlobalStyles {
             marginTop: 8,
             color: F.onSurfaceVariant,
         },
+        reviewCard: {
+            marginTop: 16,
+            borderRadius: 18,
+            borderWidth: 1,
+            padding: 12,
+            gap: 6,
+        },
+        reviewMessage: {
+            marginTop: 2,
+        },
         choiceWrap: {
             flexDirection: 'row',
             flexWrap: 'wrap',
@@ -1757,6 +1767,16 @@ export class GlobalStyles {
             marginTop: 16,
             flexDirection: 'row',
             justifyContent: 'flex-start',
+        },
+        reviewPanel: {
+            marginBottom: 16,
+            padding: 12,
+            borderRadius: 18,
+            borderWidth: 1,
+            gap: 6,
+        },
+        reviewPanelMessage: {
+            marginTop: 2,
         },
         pendingRelationshipItem: {
             paddingHorizontal: 0,

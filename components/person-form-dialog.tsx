@@ -145,6 +145,10 @@ function getResolvedLastNameValue(
   return '';
 }
 
+function getUniqueReviewMessages(messages: string[]) {
+  return [...new Set(messages.map((message) => message.trim()).filter(Boolean))];
+}
+
 function getAnchorRelationshipSummary(
   relationshipMode: PendingRelationshipMode,
   relatedPersonName: string,
@@ -655,6 +659,38 @@ export default function PersonFormDialog({
 
     return '';
   }, [lastName, lastNameTouched, mode, suggestedLastName]);
+  const resolvedLastName = effectiveLastNameSelection.trim();
+  const surnameNeedsReview = mode === 'create'
+    && Boolean(resolvedLastName)
+    && hasExistingSurnames
+    && !normalizedTreeSurnames.has(normaliseSurnameValue(resolvedLastName));
+  const stepOneHasContext = Boolean(firstName.trim() || resolvedLastName || birthDate || maidenName.trim());
+  const stepOneReviewMessages = useMemo(() => {
+    const messages: string[] = [];
+
+    if (firstName.trim() && !resolvedLastName) {
+      messages.push(t(K.personForm.lastNameRequired));
+    }
+
+    if ((firstName.trim() || resolvedLastName) && !birthDate) {
+      messages.push(t(K.personForm.birthDateRequired));
+    }
+
+    if (surnameNeedsReview) {
+      messages.push(t(K.personForm.surnameNotInTree));
+    }
+
+    messages.push(
+      ...personValidationFeedback.errors.filter((message) => ![
+        t(K.personForm.firstNameRequiredError),
+        t(K.personForm.lastNameRequired),
+        t(K.personForm.birthDateRequired),
+      ].includes(message)),
+      ...personValidationFeedback.warnings,
+    );
+
+    return getUniqueReviewMessages(messages).slice(0, 3);
+  }, [birthDate, firstName, personValidationFeedback.errors, personValidationFeedback.warnings, resolvedLastName, surnameNeedsReview, t]);
   useEffect(() => {
     if (mode !== 'create' || !suggestedLastName || lastNameTouched) {
       return;
@@ -704,6 +740,24 @@ export default function PersonFormDialog({
   const relationshipStepTitle = pendingRelationshipSectionName
     ? t(K.personForm.addRelationshipsForName, { name: pendingRelationshipSectionName })
     : t(K.personForm.addRelationship);
+  const stepTwoReviewMessages = useMemo(() => {
+    const messages: string[] = [];
+
+    if (hasConnectedRelationshipRequirement && !hasSelectedPendingRelationships) {
+      messages.push(t(K.personForm.addRelationshipToConnectMember));
+    }
+
+    if (pendingRelationships.some((draft) => !draft.relatedPersonId)) {
+      messages.push(t(K.personForm.chooseFamilyMemberForRelationship));
+    }
+
+    messages.push(
+      ...pendingRelationships.flatMap((draft) => pendingRelationshipFeedbackByKey.get(draft.key)?.errors ?? []),
+      ...relationshipWarnings,
+    );
+
+    return getUniqueReviewMessages(messages).slice(0, 3);
+  }, [hasConnectedRelationshipRequirement, hasSelectedPendingRelationships, pendingRelationshipFeedbackByKey, pendingRelationships, relationshipWarnings, t]);
   const childOverlayVisible = (
     addConnectionDialogVisible
     || relationshipSuggestionsVisible
@@ -1032,6 +1086,19 @@ export default function PersonFormDialog({
                     {relationshipError}
                   </HelperText>
                   <View style={styles.sectionSpacing}>
+                    {stepTwoReviewMessages.length > 0 ? (
+                      <View style={[styles.reviewPanel, { backgroundColor: theme.colors.elevation.level1, borderColor: theme.colors.outlineVariant }]}>
+                        <Text variant="titleSmall">{t(K.personForm.pleaseReviewBeforeSaving)}</Text>
+                        <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                          {stepTwoReviewMessages.length} relationship item{stepTwoReviewMessages.length === 1 ? '' : 's'} to review before creating.
+                        </Text>
+                        {stepTwoReviewMessages.map((message) => (
+                          <Text key={message} variant="bodyMedium" style={styles.reviewPanelMessage}>
+                            • {message}
+                          </Text>
+                        ))}
+                      </View>
+                    ) : null}
                     <Text variant="labelMedium" style={{ color: theme.colors.onSecondaryContainer }}>
                       {relationshipStepTitle}
                     </Text>
@@ -1173,6 +1240,19 @@ export default function PersonFormDialog({
                 </>
               ) : (
                 <>
+                  {stepOneHasContext && stepOneReviewMessages.length > 0 ? (
+                    <View style={[styles.reviewPanel, { backgroundColor: theme.colors.elevation.level1, borderColor: theme.colors.outlineVariant }]}>
+                      <Text variant="titleSmall">{t(K.personForm.pleaseReviewBeforeSaving)}</Text>
+                      <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                        {stepOneReviewMessages.length} profile item{stepOneReviewMessages.length === 1 ? '' : 's'} to review before you continue.
+                      </Text>
+                      {stepOneReviewMessages.map((message) => (
+                        <Text key={message} variant="bodyMedium" style={styles.reviewPanelMessage}>
+                          • {message}
+                        </Text>
+                      ))}
+                    </View>
+                  ) : null}
                   <TextInput
                     mode="outlined"
                     label={t(K.personForm.firstNameRequired)}
@@ -1287,6 +1367,9 @@ export default function PersonFormDialog({
                         {t(K.personForm.suggestedSurnameFromRelationship, { name: suggestedLastName })}
                       </HelperText>
                     ) : null}
+                    <HelperText type="info" visible={surnameNeedsReview}>
+                      {t(K.personForm.surnameNotInTree)}
+                    </HelperText>
                   </View>
 
                   <View style={styles.sectionSpacing}>

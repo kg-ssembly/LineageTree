@@ -99,6 +99,10 @@ export default function RelationshipDialog({
     }).warnings,
     [fromPersonId, parentChildKind, people, relationshipStatus, relationships, toPersonId, type],
   );
+  const liveReviewMessages = useMemo(
+    () => [...new Set([...(validationResolution.blockingErrors ?? []), ...validationWarnings].filter(Boolean))].slice(0, 3),
+    [validationResolution.blockingErrors, validationWarnings],
+  );
 
   const fromMatches = useMemo(
     () => people
@@ -247,6 +251,20 @@ export default function RelationshipDialog({
                 </HelperText>
               </View>
             )}
+
+            {(fromPersonId || toPersonId) && liveReviewMessages.length > 0 ? (
+              <View style={[styles.reviewCard, { borderColor: theme.colors.outlineVariant, backgroundColor: theme.colors.elevation.level1 }]}>
+                <Text variant="titleSmall">{t(K.personForm.pleaseReviewBeforeSaving)}</Text>
+                <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                  {liveReviewMessages.length} relationship item{liveReviewMessages.length === 1 ? '' : 's'} to review before saving.
+                </Text>
+                {liveReviewMessages.map((message) => (
+                  <Text key={message} variant="bodyMedium" style={styles.reviewMessage}>
+                    • {message}
+                  </Text>
+                ))}
+              </View>
+            ) : null}
 
             <View style={[styles.section, styles.sectionCard, { borderColor: theme.colors.outlineVariant }]}>
               <View style={styles.sectionHeaderRow}>
