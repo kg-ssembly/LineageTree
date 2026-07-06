@@ -56,7 +56,7 @@ import {
   updateTreeName,
 } from '../providers/family-tree-service';
 
-const { createJSONStorage, persist } = require('zustand/middleware.js') as {
+const { createJSONStorage, persist } = require('zustand/middleware') as {
   createJSONStorage: typeof createJSONStorageFn;
   persist: typeof persistFn;
 };
