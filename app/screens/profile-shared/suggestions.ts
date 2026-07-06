@@ -4,6 +4,7 @@ import type { SuggestionItem } from '../../../components';
 import { I18N_KEYS as K } from '../../../i18n/keys';
 
 type Translate = (key: string, params?: Record<string, string | number | null | undefined>) => string;
+const MIN_TREE_MEMBERS_FOR_PROFILE_SUGGESTIONS = 10;
 
 export function getPersonRelationshipCounts(personId: string, relationships: RelationshipRecord[]) {
   return relationships.reduce((acc, relationship) => {
@@ -162,6 +163,7 @@ export function buildTreeSuggestions(
     canEdit,
     showFollowUpTreePrompts,
   } = input;
+  const canSuggestProfileScope = people.length >= MIN_TREE_MEMBERS_FOR_PROFILE_SUGGESTIONS;
 
   if (!currentAssignedPerson) {
     const initialSuggestions: SuggestionItem[] = [];
@@ -182,17 +184,19 @@ export function buildTreeSuggestions(
       });
     }
 
-    initialSuggestions.push({
-      id: 'link-self',
-      title: t(K.home.createYourFamilyProfile),
-      description: t(K.home.linkYourselfIntoTheTree),
-      ctaLabel: t(K.home.startMyProfile),
-      actionTarget: { kind: 'add-self' },
-      scope: 'tree',
-      category: 'growth',
-      priority: 'urgent',
-      score: people.length === 0 ? 1000 : 900,
-    });
+    if (canSuggestProfileScope) {
+      initialSuggestions.push({
+        id: 'link-self',
+        title: t(K.home.createYourFamilyProfile),
+        description: t(K.home.linkYourselfIntoTheTree),
+        ctaLabel: t(K.home.startMyProfile),
+        actionTarget: { kind: 'add-self' },
+        scope: 'tree',
+        category: 'growth',
+        priority: 'urgent',
+        score: people.length === 0 ? 1000 : 900,
+      });
+    }
 
     if (showFollowUpTreePrompts && people.length >= 2 && relationships.length === 0) {
       initialSuggestions.push({
@@ -228,42 +232,6 @@ export function buildTreeSuggestions(
 
   const suggestions: SuggestionItem[] = [
     {
-      id: 'photo',
-      title: t(K.home.addAProfilePhoto),
-      description: t(K.home.aFaceMakesTheTreeFeelInstantlyMoreHumanAndRecognizable),
-      ctaLabel: t(K.home.addPortrait),
-      actionTarget: { kind: 'open-profile', personId: currentAssignedPerson.id, initialTab: 'memories-gallery', initialMemorySectionTab: 'photos' },
-      scope: 'tree',
-      category: 'memories',
-      priority: 'easy-win',
-      score: needsMorePeopleBeforeDetailPrompts || needsRelationshipConnection ? 40 : hasBirthDetails ? 220 : 180,
-      done: hasPhoto,
-    },
-    {
-      id: 'birth',
-      title: t(K.home.fillInBirthDetails),
-      description: t(K.home.datesAnchorTheStoryAndHelpPlaceEachGenerationCorrectly),
-      ctaLabel: t(K.home.addBirthDetails),
-      actionTarget: { kind: 'edit-profile', personId: currentAssignedPerson.id },
-      scope: 'tree',
-      category: 'identity',
-      priority: 'urgent',
-      score: needsMorePeopleBeforeDetailPrompts || needsRelationshipConnection ? 120 : 700,
-      done: hasBirthDetails,
-    },
-    {
-      id: 'memory',
-      title: t(K.home.recordAMilestone),
-      description: t(K.home.addOneLifeEventSoTheTimelineStartsFeelingLikeALivingScrapbook),
-      ctaLabel: t(K.home.addMemory),
-      actionTarget: { kind: 'open-profile', personId: currentAssignedPerson.id, initialTab: 'memories-gallery', initialMemorySectionTab: 'events' },
-      scope: 'tree',
-      category: 'memories',
-      priority: 'recommended',
-      score: needsMorePeopleBeforeDetailPrompts || needsRelationshipConnection ? 30 : hasRelationships || hasPhoto ? 160 : 120,
-      done: hasMemories,
-    },
-    {
       id: 'review-matches',
       title: t(K.home.reviewPossibleProfileMatches),
       description: t(K.home.suggestedMatchesCanHelpYouQuicklyLinkTheRightPersonOrSpotLikelyOverlaps),
@@ -276,6 +244,47 @@ export function buildTreeSuggestions(
       done: currentSelfAssignmentSuggestionsCount === 0,
     },
   ];
+
+  if (canSuggestProfileScope) {
+    suggestions.unshift(
+      {
+        id: 'photo',
+        title: t(K.home.addAProfilePhoto),
+        description: t(K.home.aFaceMakesTheTreeFeelInstantlyMoreHumanAndRecognizable),
+        ctaLabel: t(K.home.addPortrait),
+        actionTarget: { kind: 'open-profile', personId: currentAssignedPerson.id, initialTab: 'memories-gallery', initialMemorySectionTab: 'photos' },
+        scope: 'tree',
+        category: 'memories',
+        priority: 'easy-win',
+        score: needsMorePeopleBeforeDetailPrompts || needsRelationshipConnection ? 40 : hasBirthDetails ? 220 : 180,
+        done: hasPhoto,
+      },
+      {
+        id: 'birth',
+        title: t(K.home.fillInBirthDetails),
+        description: t(K.home.datesAnchorTheStoryAndHelpPlaceEachGenerationCorrectly),
+        ctaLabel: t(K.home.addBirthDetails),
+        actionTarget: { kind: 'edit-profile', personId: currentAssignedPerson.id },
+        scope: 'tree',
+        category: 'identity',
+        priority: 'urgent',
+        score: needsMorePeopleBeforeDetailPrompts || needsRelationshipConnection ? 120 : 700,
+        done: hasBirthDetails,
+      },
+      {
+        id: 'memory',
+        title: t(K.home.recordAMilestone),
+        description: t(K.home.addOneLifeEventSoTheTimelineStartsFeelingLikeALivingScrapbook),
+        ctaLabel: t(K.home.addMemory),
+        actionTarget: { kind: 'open-profile', personId: currentAssignedPerson.id, initialTab: 'memories-gallery', initialMemorySectionTab: 'events' },
+        scope: 'tree',
+        category: 'memories',
+        priority: 'recommended',
+        score: needsMorePeopleBeforeDetailPrompts || needsRelationshipConnection ? 30 : hasRelationships || hasPhoto ? 160 : 120,
+        done: hasMemories,
+      },
+    );
+  }
 
   if (totalPeopleCount >= 2) {
     if (canEdit && relationshipCounts.parents === 0) {
@@ -351,7 +360,7 @@ export function buildTreeSuggestions(
     });
   }
 
-  if (hasCoreProfileFacts) {
+  if (canSuggestProfileScope && hasCoreProfileFacts) {
     suggestions.push({
       id: 'story',
       title: t(K.home.writeAStoryNote),
