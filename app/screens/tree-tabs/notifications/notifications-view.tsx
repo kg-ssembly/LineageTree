@@ -329,7 +329,7 @@ export function NotificationsView({
   const renderCompactRow = (item: NotificationFeedItem) => {
     const categoryLabel = getItemCategoryLabel(item, t);
     const complete = isItemComplete(item);
-    const primaryActionLabel = item.kind === 'approval' ? t('Review') : t('Open');
+    const primaryActionLabel = item.kind === 'approval' ? t('Review') : t(K.common.open);
     const canOpenTarget = item.kind === 'approval' || item.kind === 'merge-request' || item.kind === 'merge-history';
 
     return (
@@ -370,7 +370,7 @@ export function NotificationsView({
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 2 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
                 <Chip compact style={{ height: 28 }}>
-                  {complete ? t('Done') : t('Needs action')}
+                  {complete ? t(K.common.done) : t('Needs action')}
                 </Chip>
                 <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }} numberOfLines={1}>
                   {categoryLabel}{item.treeName ? ` · ${item.treeName}` : ''}
@@ -574,17 +574,17 @@ export function NotificationsView({
                     ) : null}
                     {item.notificationId && !item.opened ? (
                       <Button compact mode="outlined" onPress={() => onMarkNotificationOpened(item.notificationId!)} disabled={mutating} style={BUTTON_CHROME} buttonColor={theme.colors.surface} textColor={theme.colors.primary} contentStyle={BUTTON_CONTENT_CHROME}>
-                        {t('Open')}
+                        {t(K.common.open)}
                       </Button>
                     ) : null}
                     {item.sourceKind && item.sourceId && !item.actioned ? (
                       <Button compact mode="outlined" onPress={() => { void handleMarkActioned(item); }} disabled={mutating} style={BUTTON_CHROME} buttonColor={theme.colors.surface} textColor={theme.colors.primary} contentStyle={BUTTON_CONTENT_CHROME}>
-                        {t('Done')}
+                        {t(K.common.done)}
                       </Button>
                     ) : null}
                     {(item.kind === 'approval' || item.kind === 'merge-request' || item.kind === 'merge-history') ? (
                       <Button compact mode="contained" onPress={() => { void handleOpenTarget(item); }} disabled={mutating} style={BUTTON_CHROME} buttonColor={theme.colors.primary} textColor={theme.colors.onPrimary} contentStyle={BUTTON_CONTENT_CHROME}>
-                        {item.kind === 'approval' ? t('Review') : t('Open')}
+                        {item.kind === 'approval' ? t('Review') : t(K.common.open)}
                       </Button>
                     ) : null}
                   </View>

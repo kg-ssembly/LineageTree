@@ -124,7 +124,7 @@ const de: TranslationMap = {
   [K.relationship.addParent]: "Elternteil hinzufügen",
   [K.relationship.addChild]: "Kind hinzufügen",
   [K.relationship.addSpouse]: "Ehepartner hinzufügen",
-  [K.relationship.partnerLabel]: "Partner",
+  [K.relationship.partnerLabel]: "Lebenspartner",
   [K.relationship.marriedLabel]: "Verheiratet",
   [K.relationship.separatedLabel]: "Getrennt",
   [K.relationship.divorcedLabel]: "Geschieden",

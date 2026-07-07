@@ -93,7 +93,7 @@ export function TreesSection({
         <View style={styles.emptyState}>
           <Text variant="titleMedium">{t(K.treeSettings.noTreesYet)}</Text>
           <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
-            Start your first family space here, then let it grow branch by branch and story by story.
+            {t('Start your first family space here, then let it grow branch by branch and story by story.')}
           </Text>
           {onCreateTree ? (
             <Button mode="contained" icon="plus" onPress={onCreateTree} disabled={mutating} style={[styles.emptyStateButton, BUTTON_CHROME]} contentStyle={BUTTON_CONTENT_CHROME}>

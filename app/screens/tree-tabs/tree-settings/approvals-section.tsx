@@ -135,7 +135,7 @@ export function ApprovalsSection({
           <View style={styles.emptyState}>
             <Text variant="titleMedium">{t(K.treeSettings.nothingWaitingOnYourEye)}</Text>
             <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
-              Fresh edits from collaborators will appear here whenever they need a quick review.
+              {t('Fresh edits from collaborators will appear here whenever they need a quick review.')}
             </Text>
           </View>
         )}

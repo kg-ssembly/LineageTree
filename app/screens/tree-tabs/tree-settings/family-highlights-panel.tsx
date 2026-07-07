@@ -46,12 +46,12 @@ function getDaysUntil(date: Date, now: Date) {
   return Math.round((end - start) / (1000 * 60 * 60 * 24));
 }
 
-function buildBranchGrowth(people: PersonRecord[]) {
+function buildBranchGrowth(people: PersonRecord[], unknownLabel: string) {
   const counts = new Map<string, { surname: string; total: number; fresh: number }>();
   const newestBoundary = Date.now() - (1000 * 60 * 60 * 24 * 45);
 
   people.forEach((person) => {
-    const surname = person.lastName.trim() || person.maidenName?.trim() || 'Unknown';
+    const surname = person.lastName.trim() || person.maidenName?.trim() || unknownLabel;
     const current = counts.get(surname) ?? { surname, total: 0, fresh: 0 };
     current.total += 1;
     const createdAt = Date.parse(person.createdAt);
@@ -142,7 +142,7 @@ export function FamilyHighlightsPanel({
       .map(({ daysUntil: _daysUntil, ...item }) => item);
   }, [people, t]);
 
-  const branchGrowth = useMemo(() => buildBranchGrowth(people), [people]);
+  const branchGrowth = useMemo(() => buildBranchGrowth(people, t(K.common.unknown)), [people, t]);
   const recentPageCount = Math.max(1, Math.ceil(recentAdditions.length / pageSize));
   const anniversaryPageCount = Math.max(1, Math.ceil(anniversaries.length / pageSize));
   const growthPageCount = Math.max(1, Math.ceil(branchGrowth.length / pageSize));
@@ -234,7 +234,7 @@ export function FamilyHighlightsPanel({
                 <View style={styles.titleWrap}>
                   <Text variant="titleMedium">{t(K.home.recentAdditions)}</Text>
                   <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                    The newest people added to this family story.
+                    {t('The newest people added to this family story.')}
                   </Text>
                 </View>
                 <IconButton
@@ -249,17 +249,17 @@ export function FamilyHighlightsPanel({
                 <SectionCard nested style={styles.highlightStoryCard}>
                   <Text variant="titleSmall">{formatPersonName(person)}</Text>
                   <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                    Added {formatPersonDate(person.createdAt.slice(0, 10))}
+                    {t('Added {date}', { date: formatPersonDate(person.createdAt.slice(0, 10)) })}
                   </Text>
                   <Button compact mode="text" onPress={() => openPersonProfile(person)} style={styles.highlightAction}>
-                    Discover their story
+                    {t('Discover their story')}
                   </Button>
                 </SectionCard>
               </Reveal>
             )) : (
               recentExpanded ? (
                 <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                  The next person you add will start this chapter.
+                  {t('The next person you add will start this chapter.')}
                 </Text>
               ) : null
             )}
@@ -273,7 +273,7 @@ export function FamilyHighlightsPanel({
                   mode="outlined"
                 />
                 <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 8 }}>
-                  Page {recentPage + 1} of {recentPageCount}
+                  {t(K.tree.familyMembers.pageOf, { current: recentPage + 1, total: recentPageCount })}
                 </Text>
                 <IconButton
                   icon="chevron-right"
@@ -292,7 +292,7 @@ export function FamilyHighlightsPanel({
                 <View style={styles.titleWrap}>
                   <Text variant="titleMedium">{t(K.home.comingUp)}</Text>
                   <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                    Birthdays and milestones that are approaching soon.
+                    {t('Birthdays and milestones that are approaching soon.')}
                   </Text>
                 </View>
                 <IconButton
@@ -317,7 +317,7 @@ export function FamilyHighlightsPanel({
             )) : (
               anniversaryExpanded ? (
                 <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                  As birthdays and milestones are added, they will appear here.
+                  {t('As birthdays and milestones are added, they will appear here.')}
                 </Text>
               ) : null
             )}
@@ -331,7 +331,7 @@ export function FamilyHighlightsPanel({
                   mode="outlined"
                 />
                 <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 8 }}>
-                  Page {anniversaryPage + 1} of {anniversaryPageCount}
+                  {t(K.tree.familyMembers.pageOf, { current: anniversaryPage + 1, total: anniversaryPageCount })}
                 </Text>
                 <IconButton
                   icon="chevron-right"
@@ -350,7 +350,7 @@ export function FamilyHighlightsPanel({
                 <View style={styles.titleWrap}>
                   <Text variant="titleMedium">{t(K.home.branchGrowth)}</Text>
                   <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                    A quick look at the family names and branches growing most recently.
+                    {t('A quick look at the family names and branches growing most recently.')}
                   </Text>
                 </View>
                 <IconButton
@@ -368,7 +368,7 @@ export function FamilyHighlightsPanel({
                     {t(K.treeSettings.familyMembersCount, { count: branch.total })}
                   </Text>
                   <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                    {branch.fresh > 0 ? `${branch.fresh} new this season` : 'Steady and well-rooted'}
+                    {branch.fresh > 0 ? t('{count} new this season', { count: branch.fresh }) : t('Steady and well-rooted')}
                   </Text>
                 </SectionCard>
               </Reveal>
@@ -383,7 +383,7 @@ export function FamilyHighlightsPanel({
                   mode="outlined"
                 />
                 <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 8 }}>
-                  Page {growthPage + 1} of {growthPageCount}
+                  {t(K.tree.familyMembers.pageOf, { current: growthPage + 1, total: growthPageCount })}
                 </Text>
                 <IconButton
                   icon="chevron-right"
@@ -398,7 +398,7 @@ export function FamilyHighlightsPanel({
               <SectionCard nested style={styles.highlightAside}>
                 <Text variant="labelLarge">{t(K.home.yourPlaceInTheStory)}</Text>
                 <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                  {formatPersonName(currentAssignedPerson)} is linked to your account, so you can jump back into your branch anytime.
+                  {t('{name} is linked to your account, so you can jump back into your branch anytime.', { name: formatPersonName(currentAssignedPerson) })}
                 </Text>
               </SectionCard>
             ) : null}

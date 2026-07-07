@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Text, useTheme } from 'react-native-paper';
+import { useI18n } from '../hooks/use-i18n';
 
 type TabItem<Key extends string> = {
   key: Key;
@@ -26,6 +27,7 @@ export default function HorizontalTabStrip<Key extends string>({
   itemStyle,
 }: HorizontalTabStripProps<Key>) {
   const theme = useTheme();
+  const { t } = useI18n();
   const [viewportWidth, setViewportWidth] = useState(0);
   const [contentWidth, setContentWidth] = useState(0);
   const [scrollOffset, setScrollOffset] = useState(0);
@@ -79,7 +81,7 @@ export default function HorizontalTabStrip<Key extends string>({
       {showRightHint ? (
         <View pointerEvents="none" style={[styles.hint, styles.rightHint, { backgroundColor: hintBackground, borderColor: theme.colors.outlineVariant }]}>
           <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
-            More
+            {t('More')}
           </Text>
           <MaterialCommunityIcons name="chevron-right" size={16} color={theme.colors.onSurfaceVariant} />
         </View>

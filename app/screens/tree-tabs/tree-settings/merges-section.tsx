@@ -467,7 +467,7 @@ export function MergesSection({
             <View style={styles.emptyState}>
               <Text variant="titleMedium">{t(K.treeSettings.noMergeStoriesWaiting)}</Text>
               <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
-                When another tree is ready to compare against this one, the suggested matches will gather here.
+                {t('When another tree is ready to compare against this one, the suggested matches will gather here.')}
               </Text>
             </View>
           )}
