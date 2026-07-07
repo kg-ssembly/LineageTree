@@ -41,15 +41,16 @@ type KinshipLabelSet = {
   stepParent: { male: string; female: string; neutral: string };
   stepSibling: { male: string; female: string; neutral: string };
   auntUncle?: {
-    maternal: {
+    generic: { male: string; female: string; neutral: string };
+    maternal?: {
+      generic?: { male: string; female: string; neutral: string };
       older?: { male: string; female: string; neutral: string };
       younger?: { male: string; female: string; neutral: string };
-      unknown?: { male: string; female: string; neutral: string };
     };
-    paternal: {
+    paternal?: {
+      generic?: { male: string; female: string; neutral: string };
       older?: { male: string; female: string; neutral: string };
       younger?: { male: string; female: string; neutral: string };
-      unknown?: { male: string; female: string; neutral: string };
     };
   };
   nieceNephew: { male: string; female: string; neutral: string };
@@ -169,15 +170,16 @@ const KINSHIP_LABELS: Record<KinshipLocale, KinshipLabelSet> = {
     stepParent: { male: 'ntate', female: 'mme', neutral: 'motswadi' },
     stepSibling: { male: 'kgaitsedi', female: 'kgaitsedi', neutral: 'kgaitsedi' },
     auntUncle: {
+      generic: { male: 'malome', female: 'rakgadi', neutral: 'motswala' },
       maternal: {
+        generic: { male: 'malome', female: 'mangwane', neutral: 'mangwane' },
         older: { male: 'malome', female: 'mangwane', neutral: 'mangwane' },
         younger: { male: 'malome', female: 'mangwane', neutral: 'mangwane' },
-        unknown: { male: 'malome', female: 'mangwane', neutral: 'mangwane' },
       },
       paternal: {
+        generic: { male: 'rangwane', female: 'rakgadi', neutral: 'rangwane' },
         older: { male: 'rangwane', female: 'kgadi', neutral: 'kgadi' },
         younger: { male: 'rangwane', female: 'rakgadi', neutral: 'rangwane' },
-        unknown: { male: 'rangwane', female: 'rakgadi', neutral: 'rangwane' },
       },
     },
     nieceNephew: { male: 'motjhana', female: 'motjhana', neutral: 'motjhana' },
@@ -197,15 +199,16 @@ const KINSHIP_LABELS: Record<KinshipLocale, KinshipLabelSet> = {
     stepParent: { male: 'usingababe', female: 'usingamake', neutral: 'usingamzali' },
     stepSibling: { male: 'bhuti', female: 'sisi', neutral: 'sihlobo' },
     auntUncle: {
+      generic: { male: 'malume', female: 'anti', neutral: 'malume' },
       maternal: {
+        generic: { male: 'malume', female: 'anti', neutral: 'malume' },
         older: { male: 'malume', female: 'anti', neutral: 'malume' },
         younger: { male: 'malume', female: 'anti', neutral: 'malume' },
-        unknown: { male: 'malume', female: 'anti', neutral: 'malume' },
       },
       paternal: {
+        generic: { male: 'malume', female: 'anti', neutral: 'malume' },
         older: { male: 'malume', female: 'anti', neutral: 'malume' },
         younger: { male: 'malume', female: 'anti', neutral: 'malume' },
-        unknown: { male: 'malume', female: 'anti', neutral: 'malume' },
       },
     },
     nieceNephew: { male: 'umshana', female: 'umshana', neutral: 'umshana' },
@@ -225,15 +228,16 @@ const KINSHIP_LABELS: Record<KinshipLocale, KinshipLabelSet> = {
     stepParent: { male: 'ntate', female: 'mme', neutral: 'motswadi' },
     stepSibling: { male: 'abuti', female: 'ausi', neutral: 'kgaitsedi' },
     auntUncle: {
+      generic: { male: 'malome', female: 'rakgadi', neutral: 'rakgadi' },
       maternal: {
-        older: { male: 'malome', female: 'rakgadi', neutral: 'mmane' },
-        younger: { male: 'malome', female: 'rakgadi', neutral: 'mmane' },
-        unknown: { male: 'malome', female: 'rakgadi', neutral: 'mmane' },
+        generic: { male: 'malome', female: 'rakgadi', neutral: 'rakgadi' },
+        older: { male: 'malome', female: 'mmakgolo', neutral: 'mmakgolo' },
+        younger: { male: 'malome', female: 'mamncane', neutral: 'mamncane' },
       },
       paternal: {
-        older: { male: 'rangwane', female: 'rakgadi', neutral: 'rakgadi' },
+        generic: { male: 'rangwane', female: 'rakgadi', neutral: 'rakgadi' },
+        older: { male: 'ramokgolo', female: 'rakgadi', neutral: 'ramokgolo' },
         younger: { male: 'rangwane', female: 'rakgadi', neutral: 'rakgadi' },
-        unknown: { male: 'rangwane', female: 'rakgadi', neutral: 'rakgadi' },
       },
     },
     nieceNephew: { male: 'motjhana', female: 'motjhana', neutral: 'motjhana' },
@@ -253,15 +257,16 @@ const KINSHIP_LABELS: Record<KinshipLocale, KinshipLabelSet> = {
     stepParent: { male: 'rre', female: 'mme', neutral: 'motsadi' },
     stepSibling: { male: 'abuti', female: 'ausi', neutral: 'kgaitsedi' },
     auntUncle: {
+      generic: { male: 'malome', female: 'rakgadi', neutral: 'rakgadi' },
       maternal: {
-        older: { male: 'malome', female: 'rakgadi', neutral: 'mmane' },
-        younger: { male: 'malome', female: 'rakgadi', neutral: 'mmane' },
-        unknown: { male: 'malome', female: 'rakgadi', neutral: 'mmane' },
+        generic: { male: 'malome', female: 'rakgadi', neutral: 'rakgadi' },
+        older: { male: 'malome', female: 'mmakgolo', neutral: 'mmakgolo' },
+        younger: { male: 'malome', female: 'mamncane', neutral: 'mamncane' },
       },
       paternal: {
-        older: { male: 'rangwane', female: 'rakgadi', neutral: 'rakgadi' },
+        generic: { male: 'rangwane', female: 'rakgadi', neutral: 'rakgadi' },
+        older: { male: 'ramokgolo', female: 'rakgadi', neutral: 'ramokgolo' },
         younger: { male: 'rangwane', female: 'rakgadi', neutral: 'rakgadi' },
-        unknown: { male: 'rangwane', female: 'rakgadi', neutral: 'rakgadi' },
       },
     },
     nieceNephew: { male: 'motjhana', female: 'motjhana', neutral: 'motjhana' },
@@ -281,15 +286,16 @@ const KINSHIP_LABELS: Record<KinshipLocale, KinshipLabelSet> = {
     stepParent: { male: 'tatana', female: 'mana', neutral: 'mutswari' },
     stepSibling: { male: 'makwerhu', female: 'makwerhu', neutral: 'makwerhu' },
     auntUncle: {
+      generic: { male: 'malume', female: 'makwerhu', neutral: 'makwerhu' },
       maternal: {
+        generic: { male: 'malume', female: 'makwerhu', neutral: 'makwerhu' },
         older: { male: 'malume', female: 'makwerhu', neutral: 'makwerhu' },
         younger: { male: 'malume', female: 'makwerhu', neutral: 'makwerhu' },
-        unknown: { male: 'malume', female: 'makwerhu', neutral: 'makwerhu' },
       },
       paternal: {
+        generic: { male: 'malume', female: 'makwerhu', neutral: 'makwerhu' },
         older: { male: 'malume', female: 'makwerhu', neutral: 'makwerhu' },
         younger: { male: 'malume', female: 'makwerhu', neutral: 'makwerhu' },
-        unknown: { male: 'malume', female: 'makwerhu', neutral: 'makwerhu' },
       },
     },
     nieceNephew: { male: 'ntukulu', female: 'ntukulu', neutral: 'ntukulu' },
@@ -309,15 +315,16 @@ const KINSHIP_LABELS: Record<KinshipLocale, KinshipLabelSet> = {
     stepParent: { male: 'khotsi', female: 'mme', neutral: 'mubebi' },
     stepSibling: { male: 'mukomana', female: 'murathu', neutral: 'mukomana' },
     auntUncle: {
+      generic: { male: 'malume', female: 'khadzi', neutral: 'khadzi' },
       maternal: {
+        generic: { male: 'malume', female: 'khadzi', neutral: 'khadzi' },
         older: { male: 'malume', female: 'khadzi', neutral: 'khadzi' },
         younger: { male: 'malume', female: 'khadzi', neutral: 'khadzi' },
-        unknown: { male: 'malume', female: 'khadzi', neutral: 'khadzi' },
       },
       paternal: {
+        generic: { male: 'makhulu', female: 'khadzi', neutral: 'khadzi' },
         older: { male: 'makhulu', female: 'khadzi', neutral: 'khadzi' },
         younger: { male: 'makhulu', female: 'khadzi', neutral: 'khadzi' },
-        unknown: { male: 'makhulu', female: 'khadzi', neutral: 'khadzi' },
       },
     },
     nieceNephew: { male: 'mwana', female: 'mwana', neutral: 'mwana' },
@@ -337,15 +344,16 @@ const KINSHIP_LABELS: Record<KinshipLocale, KinshipLabelSet> = {
     stepParent: { male: 'usingababa', female: 'usingamama', neutral: 'usingumzali' },
     stepSibling: { male: 'umfowethu', female: 'udadewethu', neutral: 'ingane yakwethu' },
     auntUncle: {
+      generic: { male: 'umalume', female: 'ubabekazi', neutral: 'ubabekazi' },
       maternal: {
+        generic: { male: 'umalume', female: 'ubabekazi', neutral: 'ubabekazi' },
         older: { male: 'umalume', female: 'ubabekazi', neutral: 'umalume' },
         younger: { male: 'umalume', female: 'ubabekazi', neutral: 'umalume' },
-        unknown: { male: 'umalume', female: 'ubabekazi', neutral: 'umalume' },
       },
       paternal: {
+        generic: { male: 'umalume', female: 'ubabekazi', neutral: 'ubabekazi' },
         older: { male: 'umalume', female: 'ubabekazi', neutral: 'ubabekazi' },
         younger: { male: 'umalume', female: 'ubabekazi', neutral: 'ubabekazi' },
-        unknown: { male: 'umalume', female: 'ubabekazi', neutral: 'ubabekazi' },
       },
     },
     nieceNephew: { male: 'umshana', female: 'umshana', neutral: 'umshana' },
@@ -430,14 +438,16 @@ function formatLocalizedLabel(
         return null;
       }
 
-      const side = descriptor.side === 'paternal' ? sideLabels.paternal : sideLabels.maternal;
-      const seniority = descriptor.seniority === 'older'
-        ? side.older
+      const side = descriptor.side === 'maternal'
+        ? sideLabels.maternal
+        : descriptor.side === 'paternal'
+          ? sideLabels.paternal
+          : undefined;
+      const chosen = descriptor.seniority === 'older'
+        ? side?.older ?? side?.generic ?? sideLabels.generic
         : descriptor.seniority === 'younger'
-          ? side.younger
-          : side.unknown;
-
-      const chosen = seniority ?? side.unknown;
+          ? side?.younger ?? side?.generic ?? sideLabels.generic
+          : side?.generic ?? sideLabels.generic;
       if (!chosen) {
         return null;
       }

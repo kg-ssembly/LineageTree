@@ -485,6 +485,32 @@ test('shows combined labels for other simple relationships such as siblings', ()
   assert.equal(insight?.relationship, 'Sister (kgaitsedi)');
 });
 
+test('uses a generic localized aunt label when seniority is unknown', () => {
+  setActiveLanguage('en');
+
+  const people = [
+    makePerson('grandparent', 'Alex', 'female'),
+    makePerson('aunt', 'Blair', 'female'),
+    makePerson('mother', 'Casey', 'female'),
+    makePerson('child', 'Jordan', 'male'),
+  ];
+  const relationships = [
+    makeRelationship('gp-aunt', 'parent-child', 'grandparent', 'aunt'),
+    makeRelationship('gp-mother', 'parent-child', 'grandparent', 'mother'),
+    makeRelationship('mother-child', 'parent-child', 'mother', 'child'),
+  ];
+
+  const insight = computeRelationshipInsight(people, relationships, 'child', 'aunt', {
+    kinshipSystem: 'st',
+  });
+
+  assert.equal(insight?.relationship, 'Aunt (rakgadi)');
+  assert.equal(insight?.descriptor.kind, 'aunt-uncle');
+  if (insight?.descriptor.kind === 'aunt-uncle') {
+    assert.equal(insight.descriptor.seniority, 'unknown');
+  }
+});
+
 test('returns cousin removed labels when generations are offset', () => {
   const people = [
     makePerson('grandparent', 'Alex', 'female'),
