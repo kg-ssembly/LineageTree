@@ -125,6 +125,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     addCollaborator,
     removeCollaborator,
     createPerson,
+    createPersonWithRelationships,
     createTreeFromSurname,
     assignPersonToUser,
     clearSelfAssignment,
@@ -176,6 +177,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     addCollaborator: state.addCollaborator,
     removeCollaborator: state.removeCollaborator,
     createPerson: state.createPerson,
+    createPersonWithRelationships: state.createPersonWithRelationships,
     createTreeFromSurname: state.createTreeFromSurname,
     assignPersonToUser: state.assignPersonToUser,
     clearSelfAssignment: state.clearSelfAssignment,
@@ -707,12 +709,29 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
       addParentChildRelationship,
       addSpouseRelationship,
       createPerson,
+      createPersonWithRelationships,
       peopleForValidation: people,
       relationshipsForValidation: relationships,
       selectedTree,
       userId: user?.id,
     }, payload);
-  }, [addParentChildRelationship, addSpouseRelationship, createPerson, people, relationships, selectedTree, user?.id]);
+  }, [addParentChildRelationship, addSpouseRelationship, createPerson, createPersonWithRelationships, people, relationships, selectedTree, user?.id]);
+
+  const createSelfPersonFromPayload = useCallback(async (payload: PersonFormSubmission) => {
+    return createPersonFromFormSubmission({
+      addParentChildRelationship,
+      addSpouseRelationship,
+      createPerson,
+      createPersonWithRelationships,
+      peopleForValidation: people,
+      relationshipsForValidation: relationships,
+      selectedTree,
+      options: {
+        forceImmediateApproval: true,
+      },
+      userId: user?.id,
+    }, payload);
+  }, [addParentChildRelationship, addSpouseRelationship, createPerson, createPersonWithRelationships, people, relationships, selectedTree, user?.id]);
 
   const handlePersonSubmit = useCallback(async (payload: PersonFormSubmission) => {
     if (!user?.id || !selectedTree) {
@@ -738,7 +757,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     }
 
     try {
-      const createdPerson = await createPersonFromPayload(payload);
+      const createdPerson = await createSelfPersonFromPayload(payload);
       if (createdPerson) {
         await assignPersonToUser(user.id, selectedTree.id, user.id, createdPerson.id);
         setFollowUpTreePromptsPending(true);
@@ -747,7 +766,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     } catch {
       // surfaced by store snackbar
     }
-  }, [assignPersonToUser, createPersonFromPayload, selectedTree, user?.id]);
+  }, [assignPersonToUser, createSelfPersonFromPayload, selectedTree, user?.id]);
 
   const selfPersonInitialValues = useMemo(
     () => buildSelfPersonInitialValues(user),

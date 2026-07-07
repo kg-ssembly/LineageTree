@@ -5,6 +5,7 @@ import type { ApprovalRequest } from '../components/dto/approval';
 import type { MergeConflictChoice, MergeHistoryRecord, MergeRequestRecord } from '../components/dto/merge';
 import type { AppNotification, NotificationActivityState } from '../components/dto/notification';
 import type { NewPersonPhotoInput, PersonInput, PersonMutationPayload, PersonRecord } from '../components/dto/person';
+import type { PendingRelationshipSubmission } from '../components/person-form-dialog';
 import type { ParentChildRelationshipKind, RelationshipRecord, SpouseRelationshipStatus } from '../components/dto/relationship';
 import type { CollaboratorRole, FamilyTree, SurnameVariantGroup } from '../components/dto/tree';
 import type { UserProfile } from '../components/dto/user';
@@ -17,6 +18,7 @@ import {
   createMergeRequest,
   createParentChildRelationship,
   createPerson,
+  createPersonWithRelationships,
   createSpouseRelationship,
   createTree,
   decideApprovalRequest,
@@ -164,6 +166,16 @@ interface TreeState {
   removeCollaborator: (actorUserId: string, treeId: string, collaboratorUserId: string) => Promise<void>;
   removeTree: (tree: FamilyTree) => Promise<void>;
   createPerson: (ownerId: string, treeId: string, input: PersonInput, newPhotos: NewPersonPhotoInput[]) => Promise<PersonRecord>;
+  createPersonWithRelationships: (
+    ownerId: string,
+    treeId: string,
+    input: PersonInput,
+    newPhotos: NewPersonPhotoInput[],
+    pendingRelationships: PendingRelationshipSubmission[],
+    options?: {
+      forceImmediateApproval?: boolean;
+    },
+  ) => Promise<PersonRecord | null>;
   updatePerson: (ownerId: string, person: PersonRecord, input: PersonMutationPayload) => Promise<void>;
   removePerson: (actorUserId: string, person: PersonRecord) => Promise<void>;
   addParentChildRelationship: (ownerId: string, treeId: string, parentId: string, childId: string, parentChildKind?: ParentChildRelationshipKind) => Promise<void>;
@@ -560,6 +572,18 @@ export const useTreeStore = create<TreeState>()(persist((set, get) => {
         const person = await createPerson(ownerId, treeId, input, newPhotos);
         set({ mutating: false });
         return person;
+      } catch (error) {
+        set({ mutating: false, error: normaliseError(error) });
+        throw error;
+      }
+    },
+
+    createPersonWithRelationships: async (ownerId, treeId, input, newPhotos, pendingRelationships, options) => {
+      set({ mutating: true, error: null });
+      try {
+        const result = await createPersonWithRelationships(ownerId, treeId, input, newPhotos, pendingRelationships, options);
+        set({ mutating: false, notice: result.message });
+        return result.person ?? null;
       } catch (error) {
         set({ mutating: false, error: normaliseError(error) });
         throw error;

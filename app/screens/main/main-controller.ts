@@ -157,6 +157,7 @@ export function useMainScreenController({ navigation }: Props) {
     addCollaborator,
     removeCollaborator,
     createPerson,
+    createPersonWithRelationships,
     createTree,
     createTreeFromSurname,
     renameTree,
@@ -212,6 +213,7 @@ export function useMainScreenController({ navigation }: Props) {
     addCollaborator: state.addCollaborator,
     removeCollaborator: state.removeCollaborator,
     createPerson: state.createPerson,
+    createPersonWithRelationships: state.createPersonWithRelationships,
     createTree: state.createTree,
     createTreeFromSurname: state.createTreeFromSurname,
     renameTree: state.renameTree,
@@ -864,11 +866,26 @@ export function useMainScreenController({ navigation }: Props) {
     addParentChildRelationship,
     addSpouseRelationship,
     createPerson,
+    createPersonWithRelationships,
     peopleForValidation: people,
     relationshipsForValidation: relationships,
     selectedTree,
     userId: user?.id,
-  }, payload), [addParentChildRelationship, addSpouseRelationship, createPerson, people, relationships, selectedTree, user?.id]);
+  }, payload), [addParentChildRelationship, addSpouseRelationship, createPerson, createPersonWithRelationships, people, relationships, selectedTree, user?.id]);
+
+  const createSelfPersonFromPayload = useCallback(async (payload: PersonFormSubmission) => createPersonFromFormSubmission({
+    addParentChildRelationship,
+    addSpouseRelationship,
+    createPerson,
+    createPersonWithRelationships,
+    peopleForValidation: people,
+    relationshipsForValidation: relationships,
+    selectedTree,
+    options: {
+      forceImmediateApproval: true,
+    },
+    userId: user?.id,
+  }, payload), [addParentChildRelationship, addSpouseRelationship, createPerson, createPersonWithRelationships, people, relationships, selectedTree, user?.id]);
 
   const handlePersonSubmit = useCallback(async (payload: PersonFormSubmission) => {
     if (!user?.id || !selectedTree) {
@@ -893,7 +910,7 @@ export function useMainScreenController({ navigation }: Props) {
     }
 
     try {
-      const created = await createPersonFromPayload(payload);
+      const created = await createSelfPersonFromPayload(payload);
       if (created) {
         await assignPersonToUser(user.id, selectedTree.id, user.id, created.id);
         setFollowUpTreePromptsPending(true);
@@ -902,7 +919,7 @@ export function useMainScreenController({ navigation }: Props) {
     } catch {
       // snackbar
     }
-  }, [assignPersonToUser, createPersonFromPayload, selectedTree, user?.id]);
+  }, [assignPersonToUser, createSelfPersonFromPayload, selectedTree, user?.id]);
 
   const handleAssignPersonToUser = useCallback(async (targetUserId: string, personId: string) => {
     if (!user?.id || !selectedTree) {

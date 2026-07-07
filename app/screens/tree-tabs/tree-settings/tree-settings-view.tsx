@@ -399,6 +399,9 @@ function TreeSettingsContent({
       previewApprovalRequest.payload.afterPerson ?? null,
     )
     : [];
+  const previewBundledRelationships = previewApprovalRequest?.entityType === 'person'
+    ? previewApprovalRequest.payload.relationships ?? []
+    : [];
   const previewRelationshipFields = previewApprovalRequest?.entityType === 'relationship'
     ? buildRelationshipApprovalPreviewFields(
       previewApprovalRequest.operation === 'create-relationship' ? null : previewRelationshipBefore,
@@ -704,6 +707,24 @@ function TreeSettingsContent({
                           {field.after !== undefined && field.after !== null ? <Text variant="bodySmall" style={{ marginTop: 2 }}>{t(K.treeSettings.afterValue, { value: field.after })}</Text> : null}
                         </View>
                       )) : <Text variant="bodyMedium">{t(K.treeSettings.noFieldLevelPreview)}</Text>}
+                      {previewBundledRelationships.length > 0 ? (
+                        <View style={{ gap: 12 }}>
+                          <Text variant="titleSmall">{t(K.treeSettings.includedRelationships)}</Text>
+                          {previewBundledRelationships.map((relationship) => {
+                            const fields = buildRelationshipApprovalPreviewFields(null, relationship, peopleById);
+                            return (
+                              <View key={`${previewApprovalRequest.id}-${relationship.id}`} style={{ gap: 8 }}>
+                                {fields.map((field) => (
+                                  <View key={`${previewApprovalRequest.id}-${relationship.id}-${field.label}`}>
+                                    <Text variant="labelLarge">{field.label}</Text>
+                                    {field.after !== undefined && field.after !== null ? <Text variant="bodySmall" style={{ marginTop: 2 }}>{t(K.treeSettings.afterValue, { value: field.after })}</Text> : null}
+                                  </View>
+                                ))}
+                              </View>
+                            );
+                          })}
+                        </View>
+                      ) : null}
                     </View>
                   ) : (
                     <View style={{ marginTop: 16, gap: 12 }}>

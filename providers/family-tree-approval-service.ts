@@ -7,10 +7,11 @@ import {
   query,
   setDoc,
   updateDoc,
+  writeBatch,
   where,
 } from 'firebase/firestore';
 import type { ApprovalRequest, ApprovalRequestPayload, ApprovalSubmissionResult } from '../components/dto/approval';
-import type { PersonMutationPayload, PersonRecord } from '../components/dto/person';
+import type { NewPersonPhotoInput, PersonInput, PersonMutationPayload, PersonPhoto, PersonRecord } from '../components/dto/person';
 import type { ParentChildRelationshipKind, RelationshipRecord, SpouseRelationshipStatus } from '../components/dto/relationship';
 import { DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND, DEFAULT_SPOUSE_RELATIONSHIP_STATUS } from '../components/dto/relationship';
 import type { FamilyTree } from '../components/dto/tree';
@@ -51,6 +52,17 @@ import {
   uploadPreferredPhotoDisplayVariant,
 } from './family-tree-photo-service';
 import { nowIso } from './family-tree-shared';
+
+type PendingCreateRelationshipInput = {
+  mode: 'parent-of' | 'child-of' | 'spouse-of';
+  relatedPersonId: string;
+  parentChildKind?: ParentChildRelationshipKind;
+  relationshipStatus?: SpouseRelationshipStatus;
+};
+
+export type CreatePersonApprovalResult = ApprovalSubmissionResult & {
+  person?: PersonRecord | null;
+};
 
 function getRequesterLabel(tree: FamilyTree, userId: string) {
   const collaborator = tree.collaborators.find((entry) => entry.userId === userId);
@@ -130,6 +142,17 @@ function getApprovalScopeSurnames(
       peopleToInspect.push(toPerson);
     }
   }
+
+  (payload.relationships ?? []).forEach((relationship) => {
+    const fromPerson = peopleById.get(relationship.fromPersonId);
+    const toPerson = peopleById.get(relationship.toPersonId);
+    if (fromPerson) {
+      peopleToInspect.push(fromPerson);
+    }
+    if (toPerson) {
+      peopleToInspect.push(toPerson);
+    }
+  });
 
   peopleToInspect.forEach((person) => {
     getCanonicalSurnameKeysForPerson(person, surnameLookup).forEach((surname) => scope.add(surname));
@@ -249,6 +272,173 @@ async function preparePersonUpdatePreview(
         path: '',
       })),
   };
+}
+
+function buildPendingCreateRelationships(
+  actorUserId: string,
+  treeId: string,
+  personId: string,
+  pendingRelationships: PendingCreateRelationshipInput[],
+) {
+  return pendingRelationships
+    .filter((relationship) => relationship.relatedPersonId.trim())
+    .map<RelationshipRecord>((relationship) => {
+      const relationshipType = relationship.mode === 'spouse-of' ? 'spouse' : 'parent-child';
+      const rawFromPersonId = relationship.mode === 'child-of' ? relationship.relatedPersonId : personId;
+      const rawToPersonId = relationship.mode === 'child-of' ? personId : relationship.relatedPersonId;
+      const normalized = normalizeRelationshipEndpoints(relationshipType, rawFromPersonId, rawToPersonId);
+      const relationshipId = relationshipType === 'spouse'
+        ? buildSpouseRelationshipId(normalized.fromPersonId, normalized.toPersonId)
+        : buildParentChildRelationshipId(normalized.fromPersonId, normalized.toPersonId);
+
+      return {
+        id: relationshipId,
+        treeId,
+        ownerId: actorUserId,
+        type: relationshipType,
+        fromPersonId: normalized.fromPersonId,
+        toPersonId: normalized.toPersonId,
+        relationshipStatus: relationshipType === 'spouse'
+          ? relationship.relationshipStatus ?? DEFAULT_SPOUSE_RELATIONSHIP_STATUS
+          : undefined,
+        parentChildKind: relationshipType === 'parent-child'
+          ? relationship.parentChildKind ?? DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND
+          : undefined,
+        createdAt: nowIso(),
+      };
+    });
+}
+
+async function validatePendingCreateRelationships(
+  treeId: string,
+  person: PersonRecord,
+  pendingRelationships: RelationshipRecord[],
+) {
+  if (pendingRelationships.length === 0) {
+    return;
+  }
+
+  await ensurePeopleBelongToTree(treeId, pendingRelationships.flatMap((relationship) => {
+    const relatedPersonId = relationship.fromPersonId === person.id
+      ? relationship.toPersonId
+      : relationship.fromPersonId;
+    return [relatedPersonId];
+  }));
+
+  const validationPeople = [
+    person,
+    ...await getPeopleForValidation(treeId),
+  ];
+  const existingRelationships = await getRelationshipsForTree(treeId);
+  const allRelationships = [...existingRelationships, ...pendingRelationships];
+
+  for (const relationship of pendingRelationships) {
+    const validationMessage = validateProposedRelationship({
+      people: validationPeople,
+      relationships: allRelationships,
+      type: relationship.type,
+      fromPersonId: relationship.fromPersonId,
+      toPersonId: relationship.toPersonId,
+      parentChildKind: relationship.parentChildKind,
+      relationshipStatus: relationship.relationshipStatus,
+      ignoreRelationshipId: relationship.id,
+    });
+
+    if (validationMessage) {
+      throw new Error(validationMessage);
+    }
+
+    const relationshipSnapshot = await getDoc(doc(db, RELATIONSHIPS_COLLECTION, relationship.id));
+    if (relationshipSnapshot.exists()) {
+      throw new Error(relationship.type === 'spouse'
+        ? 'That spouse relationship already exists.'
+        : 'That parent-child relationship already exists.');
+    }
+  }
+}
+
+async function applyApprovedCreatePerson(payload: ApprovalRequestPayload) {
+  const person = payload.afterPerson;
+  if (!person) {
+    throw new Error('The approved family member creation is missing its target data.');
+  }
+
+  const bundledRelationships = payload.relationships ?? [];
+  await validatePersonCreation(person.treeId, {
+    firstName: person.firstName,
+    middleNames: person.middleNames ?? '',
+    lastName: person.lastName,
+    maidenName: person.maidenName ?? '',
+    birthDate: person.birthDate,
+    deathDate: person.deathDate,
+    notes: person.notes,
+    lifeEvents: person.lifeEvents,
+  }, []);
+  await validatePendingCreateRelationships(person.treeId, person, bundledRelationships);
+
+  const batch = writeBatch(db);
+  batch.set(doc(db, PEOPLE_COLLECTION, person.id), {
+    treeId: person.treeId,
+    treeMembershipIds: person.treeMembershipIds,
+    treeMemberships: person.treeMemberships,
+    ownerId: person.ownerId,
+    firstName: person.firstName,
+    middleNames: person.middleNames ?? '',
+    lastName: person.lastName,
+    maidenName: person.maidenName ?? '',
+    nicknames: person.nicknames ?? [],
+    clanName: person.clanName ?? '',
+    familyBranch: person.familyBranch ?? '',
+    hometown: person.hometown ?? '',
+    birthPlace: person.birthPlace ?? '',
+    surnameVariantHints: person.surnameVariantHints ?? [],
+    canonicalPersonId: person.canonicalPersonId ?? '',
+    duplicatePersonIds: person.duplicatePersonIds ?? [],
+    birthDate: person.birthDate,
+    deathDate: person.deathDate,
+    gender: person.gender,
+    notes: person.notes,
+    lifeEvents: normaliseLifeEvents(person.lifeEvents),
+    photos: person.photos,
+    preferredPhotoId: person.preferredPhotoId,
+    createdAt: person.createdAt,
+    updatedAt: nowIso(),
+  });
+
+  bundledRelationships.forEach((relationship) => {
+    batch.set(doc(db, RELATIONSHIPS_COLLECTION, relationship.id), {
+      treeId: relationship.treeId,
+      ownerId: relationship.ownerId,
+      type: relationship.type,
+      fromPersonId: relationship.fromPersonId,
+      toPersonId: relationship.toPersonId,
+      relationshipStatus: relationship.type === 'spouse'
+        ? relationship.relationshipStatus ?? DEFAULT_SPOUSE_RELATIONSHIP_STATUS
+        : '',
+      parentChildKind: relationship.type === 'parent-child'
+        ? relationship.parentChildKind ?? DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND
+        : '',
+      createdAt: relationship.createdAt,
+    });
+  });
+
+  await batch.commit();
+
+  const parentIds = bundledRelationships
+    .filter((relationship) => relationship.type === 'parent-child' && relationship.toPersonId === person.id)
+    .map((relationship) => relationship.fromPersonId);
+  await updateParentLifeEventsForChild(parentIds, {
+    id: person.id,
+    treeId: person.treeId,
+    firstName: person.firstName,
+    lastName: person.lastName,
+    birthDate: person.birthDate,
+  });
+}
+
+async function rejectApprovedCreatePerson(payload: ApprovalRequestPayload) {
+  await deletePhotos(payload.uploadedPhotos ?? []);
+  await deletePhotos(payload.cleanupPhotos ?? []);
 }
 
 async function applyApprovedPersonUpdate(payload: ApprovalRequestPayload) {
@@ -416,6 +606,9 @@ async function applyApprovedDeleteRelationship(payload: ApprovalRequestPayload) 
 
 async function applyApprovedRequest(request: ApprovalRequest) {
   switch (request.operation) {
+    case 'create-person':
+      await applyApprovedCreatePerson(request.payload);
+      return;
     case 'update-person':
       await applyApprovedPersonUpdate(request.payload);
       return;
@@ -437,6 +630,11 @@ async function applyApprovedRequest(request: ApprovalRequest) {
 }
 
 async function handleRejectedRequest(request: ApprovalRequest) {
+  if (request.operation === 'create-person') {
+    await rejectApprovedCreatePerson(request.payload);
+    return;
+  }
+
   if (request.operation === 'update-person') {
     await rejectApprovedPersonUpdate(request.payload);
   }
@@ -459,6 +657,173 @@ function buildImmediateApprovalReason(
     return 'no other collaborator could review it';
   }
   return 'approvals are turned off for this tree';
+}
+
+export async function submitCreatePersonApproval(
+  actorUserId: string,
+  treeId: string,
+  input: PersonInput,
+  newPhotos: NewPersonPhotoInput[],
+  pendingRelationships: PendingCreateRelationshipInput[] = [],
+  options?: {
+    forceImmediateApproval?: boolean;
+  },
+): Promise<CreatePersonApprovalResult> {
+  const personRef = doc(collection(db, PEOPLE_COLLECTION));
+  const timestamp = nowIso();
+  const normalizedNewPhotos = normaliseNewPhotoInputs(
+    newPhotos.map((photo) => photo.uri),
+    newPhotos,
+  );
+  const newPhotoUris = normalizedNewPhotos.map((photo) => photo.uri);
+
+  await validatePersonCreation(treeId, {
+    firstName: input.firstName,
+    middleNames: input.middleNames ?? '',
+    lastName: input.lastName,
+    maidenName: input.maidenName ?? '',
+    birthDate: input.birthDate,
+    deathDate: input.deathDate,
+    notes: input.notes,
+    lifeEvents: input.lifeEvents,
+  }, newPhotoUris);
+
+  let uploadedPhotos: PersonPhoto[] = [];
+  let preferredDisplayPhoto: { url: string; path: string } | null = null;
+
+  try {
+    uploadedPhotos = await uploadPersonPhotos(actorUserId, treeId, personRef.id, normalizedNewPhotos);
+    const preferredPhotoId = resolvePreferredPhotoId(input.preferredPhotoRef, [], newPhotoUris, uploadedPhotos);
+    const preferredPhotoSourceUri = resolvePreferredPhotoSourceUri(input.preferredPhotoRef, [], normalizedNewPhotos);
+    preferredDisplayPhoto = preferredPhotoId && preferredPhotoSourceUri && input.cropPreferredPhotoRef === input.preferredPhotoRef
+      ? await uploadPreferredPhotoDisplayVariant(actorUserId, treeId, personRef.id, preferredPhotoId, preferredPhotoSourceUri)
+      : null;
+    const nextPhotos = applyPreferredPhotoDisplayVariant(uploadedPhotos, preferredPhotoId, preferredDisplayPhoto);
+    const person: PersonRecord = {
+      id: personRef.id,
+      treeId,
+      treeMembershipIds: [treeId],
+      treeMemberships: [{ treeId, role: 'subject', joinedAt: timestamp, addedByUserId: actorUserId, source: 'manual' }],
+      ownerId: actorUserId,
+      firstName: input.firstName.trim(),
+      middleNames: input.middleNames?.trim() ?? '',
+      lastName: input.lastName.trim(),
+      maidenName: input.maidenName?.trim() ?? '',
+      nicknames: [],
+      clanName: '',
+      familyBranch: '',
+      hometown: input.hometown?.trim() ?? '',
+      birthPlace: input.birthPlace?.trim() ?? '',
+      surnameVariantHints: Array.isArray(input.surnameVariantHints)
+        ? [...new Set(input.surnameVariantHints.map((value) => value.trim()).filter(Boolean))]
+        : [],
+      canonicalPersonId: '',
+      duplicatePersonIds: [],
+      birthDate: input.birthDate.trim(),
+      deathDate: input.deathDate.trim(),
+      gender: input.gender,
+      notes: input.notes.trim(),
+      lifeEvents: normaliseLifeEvents(input.lifeEvents),
+      photos: nextPhotos,
+      preferredPhotoId,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+    const bundledRelationships = buildPendingCreateRelationships(actorUserId, treeId, person.id, pendingRelationships);
+
+    await validatePendingCreateRelationships(treeId, person, bundledRelationships);
+
+    const tree = await getTreeById(treeId);
+    const requesterLabel = getRequesterLabel(tree, actorUserId);
+    const cleanupPhotos = preferredDisplayPhoto ? [{
+      id: `${person.id}-preferred-cleanup`,
+      url: preferredDisplayPhoto.url,
+      path: preferredDisplayPhoto.path,
+      createdAt: timestamp,
+    } satisfies PersonPhoto] : [];
+    const payload: ApprovalRequestPayload = {
+      afterPerson: person,
+      relationships: bundledRelationships,
+      uploadedPhotos: nextPhotos,
+      cleanupPhotos,
+    };
+    const { eligibleApproverIds, autoApproveBecauseNoSameSurnameContributor } = await getEligibleApproverIds(tree, actorUserId, payload);
+
+    if (options?.forceImmediateApproval || eligibleApproverIds.length === 0 || areApprovalsDisabled(tree) || autoApproveBecauseNoSameSurnameContributor) {
+      await applyApprovedCreatePerson(payload);
+      const appliedAt = nowIso();
+      await createApprovalRequest({
+        treeId: tree.id,
+        entityType: 'person',
+        operation: 'create-person',
+        targetId: person.id,
+        title: `Create ${formatPersonName(person)}`,
+        description: `${requesterLabel} added this family member package and it was applied immediately because ${options?.forceImmediateApproval ? 'they were creating their own profile' : buildImmediateApprovalReason(autoApproveBecauseNoSameSurnameContributor, eligibleApproverIds)}.`,
+        status: 'applied',
+        decisionMode: 'immediate',
+        requestedByUserId: actorUserId,
+        requestedByLabel: requesterLabel,
+        eligibleApproverIds: [],
+        payload,
+        expiresAt: appliedAt,
+        expiresAtMillis: Date.now(),
+        createdAt: timestamp,
+        updatedAt: appliedAt,
+        decidedAt: appliedAt,
+        decidedByUserId: actorUserId,
+        decidedByLabel: requesterLabel,
+        appliedAt,
+      });
+
+      return {
+        status: 'applied',
+        person,
+        message: bundledRelationships.length > 0
+          ? 'The family member and relationships were added immediately.'
+          : 'The family member was added immediately.',
+      };
+    }
+
+    const expiry = buildApprovalExpiry(tree);
+    const requestId = await createApprovalRequest({
+      treeId: tree.id,
+      entityType: 'person',
+      operation: 'create-person',
+      targetId: person.id,
+      title: `Create ${formatPersonName(person)}`,
+      description: `${requesterLabel} requested a new family member package${bundledRelationships.length > 0 ? ` with ${bundledRelationships.length} relationship${bundledRelationships.length === 1 ? '' : 's'}` : ''}.`,
+      status: 'pending',
+      decisionMode: 'manual',
+      requestedByUserId: actorUserId,
+      requestedByLabel: requesterLabel,
+      eligibleApproverIds,
+      payload,
+      expiresAt: expiry.expiresAt,
+      expiresAtMillis: expiry.expiresAtMillis,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    });
+
+    return {
+      status: 'queued',
+      requestId,
+      person: null,
+      message: bundledRelationships.length > 0
+        ? 'The family member and relationships were submitted for approval together.'
+        : 'The family member was submitted for approval.',
+    };
+  } catch (error) {
+    await deletePhotos([
+      ...uploadedPhotos,
+      ...(preferredDisplayPhoto ? [{
+        id: `${personRef.id}-preferred-cleanup`,
+        url: preferredDisplayPhoto.url,
+        path: preferredDisplayPhoto.path,
+        createdAt: timestamp,
+      } satisfies PersonPhoto] : []),
+    ]);
+    throw error;
+  }
 }
 
 export async function submitPersonUpdateApproval(

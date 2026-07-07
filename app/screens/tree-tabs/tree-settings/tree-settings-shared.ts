@@ -229,6 +229,8 @@ export function buildRelationshipApprovalPreviewFields(
 
 export function getApprovalOperationLabel(operation: ApprovalRequest['operation']) {
   switch (operation) {
+    case 'create-person':
+      return translate(K.treeSettings.createProfileOperation);
     case 'update-person':
       return translate(K.treeSettings.updateProfileOperation);
     case 'delete-person':

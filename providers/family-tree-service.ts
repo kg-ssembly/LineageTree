@@ -67,8 +67,10 @@ import {
   deleteDocumentRefs,
 } from './family-tree-data';
 import {
+  type CreatePersonApprovalResult,
   decideApprovalRequest,
   processExpiredApprovalRequests,
+  submitCreatePersonApproval,
   submitCreateRelationshipApproval,
   submitDeletePersonApproval,
   submitDeleteRelationshipApproval,
@@ -109,6 +111,7 @@ export {
   removeCollaboratorFromTree,
   decideApprovalRequest,
   processExpiredApprovalRequests,
+  submitCreatePersonApproval,
   submitCreateRelationshipApproval,
   submitDeletePersonApproval,
   submitDeleteRelationshipApproval,
@@ -914,6 +917,24 @@ export async function createPerson(
     ]);
     throw error;
   }
+}
+
+export async function createPersonWithRelationships(
+  actorUserId: string,
+  treeId: string,
+  input: PersonInput,
+  newPhotos: NewPersonPhotoInput[],
+  pendingRelationships: Array<{
+    mode: 'parent-of' | 'child-of' | 'spouse-of';
+    relatedPersonId: string;
+    parentChildKind?: ParentChildRelationshipKind;
+    relationshipStatus?: SpouseRelationshipStatus;
+  }> = [],
+  options?: {
+    forceImmediateApproval?: boolean;
+  },
+): Promise<CreatePersonApprovalResult> {
+  return submitCreatePersonApproval(actorUserId, treeId, input, newPhotos, pendingRelationships, options);
 }
 
 export async function updatePerson(

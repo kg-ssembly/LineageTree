@@ -70,9 +70,22 @@ type CreatePersonFromFormSubmissionParams = {
     input: PersonInput,
     newPhotos: NewPersonPhotoInput[],
   ) => Promise<PersonRecord>;
+  createPersonWithRelationships: (
+    ownerId: string,
+    treeId: string,
+    input: PersonInput,
+    newPhotos: NewPersonPhotoInput[],
+    pendingRelationships: PendingRelationshipSubmission[],
+    options?: {
+      forceImmediateApproval?: boolean;
+    },
+  ) => Promise<PersonRecord | null>;
   peopleForValidation?: PersonRecord[];
   relationshipsForValidation?: RelationshipRecord[];
   selectedTree: Pick<FamilyTree, 'id'> | null;
+  options?: {
+    forceImmediateApproval?: boolean;
+  };
   userId?: string | null;
 };
 
@@ -162,9 +175,11 @@ export async function createPersonFromFormSubmission(
     addParentChildRelationship,
     addSpouseRelationship,
     createPerson,
+    createPersonWithRelationships,
     peopleForValidation = [],
     relationshipsForValidation = [],
     selectedTree,
+    options,
     userId,
   }: CreatePersonFromFormSubmissionParams,
   payload: PersonFormSubmission,
@@ -211,6 +226,32 @@ export async function createPersonFromFormSubmission(
     if (validationError) {
       throw new Error(validationError);
     }
+  }
+
+  if (payload.pendingRelationships.length > 0) {
+    return createPersonWithRelationships(
+      userId,
+      selectedTree.id,
+      {
+        firstName: payload.firstName,
+        middleNames: payload.middleNames,
+        lastName: payload.lastName,
+        maidenName: payload.maidenName,
+        hometown: payload.hometown,
+        birthPlace: payload.birthPlace,
+        surnameVariantHints: payload.surnameVariantHints,
+        birthDate: payload.birthDate,
+        deathDate: payload.deathDate,
+        gender: payload.gender,
+        notes: payload.notes,
+        lifeEvents: payload.lifeEvents,
+        preferredPhotoRef: payload.preferredPhotoRef,
+        cropPreferredPhotoRef: payload.cropPreferredPhotoRef,
+      },
+      (payload.newPhotos ?? payload.newPhotoUris.map((uri) => ({ uri }))),
+      payload.pendingRelationships,
+      options,
+    );
   }
 
   const createdPerson = await createPerson(
