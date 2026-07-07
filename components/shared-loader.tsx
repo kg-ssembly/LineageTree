@@ -21,6 +21,9 @@ const styles = StyleSheet.create({
   content: {
     alignItems: 'center',
     gap: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 18,
+    borderRadius: 20,
   },
 });
 
@@ -41,10 +44,19 @@ export default function SharedLoader({
         <View
           style={[
             styles.backdrop,
-            { backgroundColor: theme.colors.backdrop, opacity: 0.35 },
+            { backgroundColor: theme.colors.backdrop, opacity: 0.5 },
           ]}
         />
-        <View style={styles.content}>
+        <View
+          style={[
+            styles.content,
+            {
+              backgroundColor: theme.colors.elevation.level2,
+              borderWidth: 1,
+              borderColor: theme.colors.outlineVariant,
+            },
+          ]}
+        >
           <ActivityIndicator size="large" color={theme.colors.primary} />
           {label ? (
             <Text variant="titleMedium" style={{ textAlign: 'center', color: theme.colors.onSurface }}>

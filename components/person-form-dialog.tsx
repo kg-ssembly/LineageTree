@@ -763,14 +763,14 @@ export default function PersonFormDialog({
 
     return getUniqueReviewMessages(messages).slice(0, 3);
   }, [hasConnectedRelationshipRequirement, hasSelectedPendingRelationships, pendingRelationshipFeedbackByKey, pendingRelationships, relationshipWarnings, t]);
+  const isBusy = loading || submitPending;
   const childOverlayVisible = (
     addConnectionDialogVisible
     || relationshipSuggestionsVisible
     || visualPreviewVisible
     || previewState.visible
     || surnameVariantConfirmDialogVisible
-    || submitPending
-    || loading
+    || isBusy
   );
 
   const handleSubmit = async () => {
@@ -1070,13 +1070,13 @@ export default function PersonFormDialog({
       <Portal>
         <Dialog
           visible={visible && !childOverlayVisible}
-          onDismiss={loading ? undefined : onDismiss}
+          onDismiss={isBusy ? undefined : onDismiss}
           style={[dialogChrome.dialog, styles.dialog, { backgroundColor: theme.colors.surface }]}
         >
           <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose, styles.dialogTitle]}>
             {dialogTitle}
           </Dialog.Title>
-          <IconButton icon="close" onPress={onDismiss} disabled={loading} accessibilityLabel={t(K.common.cancel)} style={dialogChrome.closeButton} />
+          <IconButton icon="close" onPress={onDismiss} disabled={isBusy} accessibilityLabel={t(K.common.cancel)} style={dialogChrome.closeButton} />
           <Dialog.ScrollArea style={[dialogChrome.scrollArea, styles.scrollArea]}>
             <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
               {mode === 'create' && !isRelationshipOnlyFlow ? (
@@ -1203,7 +1203,7 @@ export default function PersonFormDialog({
                                 )));
                                 setRelationshipError(null);
                               }}
-                              disabled={loading}
+                              disabled={isBusy}
                             />
                           </View>
                         </View>
@@ -1213,7 +1213,7 @@ export default function PersonFormDialog({
                       mode="text"
                       icon="plus"
                       onPress={() => openAddConnectionDialog(null)}
-                      disabled={loading || relationshipCandidates.length === 0}
+                      disabled={isBusy || relationshipCandidates.length === 0}
                       style={styles.addConnectionButton}
                     >
                       {addAnotherConnectionLabel}
@@ -1223,7 +1223,7 @@ export default function PersonFormDialog({
                         mode="outlined"
                         icon="family-tree"
                         onPress={() => setVisualPreviewVisible(true)}
-                        disabled={loading}
+                        disabled={isBusy}
                       >
                         Visual Preview
                       </Button>
@@ -1242,7 +1242,7 @@ export default function PersonFormDialog({
                         setFirstNameError(null);
                       }
                     }}
-                    disabled={loading}
+                    disabled={isBusy}
                     error={!!firstNameError}
                   />
                   <HelperText type="error" visible={!!firstNameError}>
@@ -1257,7 +1257,7 @@ export default function PersonFormDialog({
                     label={t(K.personForm.secondMiddleNames)}
                     value={middleNames}
                     onChangeText={setMiddleNames}
-                    disabled={loading}
+                    disabled={isBusy}
                   />
 
                   <View style={styles.sectionSpacing}>
@@ -1273,7 +1273,7 @@ export default function PersonFormDialog({
                               icon="chevron-down"
                               onPress={() => setSurnameMenuVisible(true)}
                               style={styles.fieldSpacing}
-                              disabled={loading}
+                              disabled={isBusy}
                             >
                               {effectiveLastNameSelection || t(K.personForm.chooseExistingSurname)}
                             </Button>
@@ -1315,7 +1315,7 @@ export default function PersonFormDialog({
                                 setLastNameError(null);
                               }
                             }}
-                            disabled={loading}
+                            disabled={isBusy}
                             error={!!lastNameError}
                             style={styles.fieldSpacing}
                           />
@@ -1333,7 +1333,7 @@ export default function PersonFormDialog({
                             setLastNameError(null);
                           }
                         }}
-                        disabled={loading}
+                        disabled={isBusy}
                         error={!!lastNameError}
                         style={styles.fieldSpacing}
                       />
@@ -1362,7 +1362,7 @@ export default function PersonFormDialog({
                       label={t(K.personForm.maidenBirthSurnameOptional)}
                       value={maidenName}
                       onChangeText={setMaidenName}
-                      disabled={loading}
+                      disabled={isBusy}
                       style={styles.fieldSpacing}
                     />
                     <HelperText type="info" visible>
@@ -1377,7 +1377,7 @@ export default function PersonFormDialog({
                       label={t(K.treeSettings.birthPlace)}
                       value={birthPlace}
                       onChangeText={setBirthPlace}
-                      disabled={loading}
+                      disabled={isBusy}
                       style={styles.fieldSpacing}
                     />
                   </View>
@@ -1389,7 +1389,7 @@ export default function PersonFormDialog({
                         mode="outlined"
                         icon="calendar"
                         onPress={() => setBirthDatePickerVisible(true)}
-                        disabled={loading}
+                        disabled={isBusy}
                       >
                         {formatDateButtonLabel(birthDate, t)}
                       </Button>
@@ -1399,7 +1399,7 @@ export default function PersonFormDialog({
                           if (birthDateError) {
                             setBirthDateError(null);
                           }
-                        }} disabled={loading}>
+                        }} disabled={isBusy}>
                           {t(K.common.clear)}
                         </Button>
                       ) : null}
@@ -1421,7 +1421,7 @@ export default function PersonFormDialog({
                             setDeathDateError(null);
                           }
                         }}
-                        disabled={loading}
+                        disabled={isBusy}
                       />
                     </View>
                     {!isPresent ? (
@@ -1431,7 +1431,7 @@ export default function PersonFormDialog({
                             mode="outlined"
                             icon="calendar-heart"
                             onPress={() => setDeathDatePickerVisible(true)}
-                            disabled={loading}
+                            disabled={isBusy}
                           >
                             {formatDateButtonLabel(deathDate, t)}
                           </Button>
@@ -1441,7 +1441,7 @@ export default function PersonFormDialog({
                                 setDeathDate('');
                                 if (deathDateError) setDeathDateError(null);
                               }}
-                              disabled={loading}
+                              disabled={isBusy}
                             >
                               {t(K.common.clear)}
                             </Button>
@@ -1462,7 +1462,7 @@ export default function PersonFormDialog({
                           key={option.value}
                           selected={gender === option.value}
                           onPress={() => setGender(option.value)}
-                          disabled={loading}
+                          disabled={isBusy}
                           style={styles.chip}
                         >
                           {t(option.label)}
@@ -1479,7 +1479,7 @@ export default function PersonFormDialog({
               <IconButton
                 icon="trash-can-outline"
                 iconColor={theme.colors.error}
-                disabled={loading}
+                disabled={isBusy}
                 onPress={() => {
                   Alert.alert(
                     t(K.personForm.deleteFamilyMember),
@@ -1497,14 +1497,14 @@ export default function PersonFormDialog({
             )}
             <View style={{ flexDirection: 'row', gap: 8 }}>
               {mode === 'create' && currentStep === 2 && !isRelationshipOnlyFlow ? (
-                <Button onPress={() => setCurrentStep(1)} disabled={loading}>
+                <Button onPress={() => setCurrentStep(1)} disabled={isBusy}>
                   {t(K.common.back)}
                 </Button>
               ) : null}
               <Button
                 mode="contained"
                 onPress={mode === 'create' && currentStep === 1 ? handleNextStep : handleSubmit}
-                disabled={loading}
+                disabled={isBusy}
               >
                 {mode === 'create'
                   ? currentStep === 1
@@ -1561,13 +1561,13 @@ export default function PersonFormDialog({
       <Portal>
         <Dialog
           visible={previewState.visible}
-          onDismiss={loading ? undefined : () => setPreviewState({ visible: false, payload: null, warnings: [] })}
+          onDismiss={isBusy ? undefined : () => setPreviewState({ visible: false, payload: null, warnings: [] })}
           style={[dialogChrome.dialog, styles.dialog, { backgroundColor: theme.colors.surface }]}
         >
           <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose, styles.dialogTitle]}>
             {t(K.personForm.previewChanges)}
           </Dialog.Title>
-          <IconButton icon="close" onPress={() => setPreviewState({ visible: false, payload: null, warnings: [] })} disabled={loading} accessibilityLabel={t(K.common.cancel)} style={dialogChrome.closeButton} />
+          <IconButton icon="close" onPress={() => setPreviewState({ visible: false, payload: null, warnings: [] })} disabled={isBusy} accessibilityLabel={t(K.common.cancel)} style={dialogChrome.closeButton} />
           <Dialog.ScrollArea style={[dialogChrome.scrollArea, styles.scrollArea]}>
             <ScrollView contentContainerStyle={styles.content}>
               {previewState.payload ? (
@@ -1600,13 +1600,13 @@ export default function PersonFormDialog({
             </ScrollView>
           </Dialog.ScrollArea>
           <Dialog.Actions style={[dialogChrome.dialogActions, styles.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
-            <Button onPress={() => setPreviewState({ visible: false, payload: null, warnings: [] })} disabled={loading}>{t(K.common.back)}</Button>
+            <Button onPress={() => setPreviewState({ visible: false, payload: null, warnings: [] })} disabled={isBusy}>{t(K.common.back)}</Button>
             <Button
               mode="contained"
               onPress={() => {
                 void handlePreviewConfirm();
               }}
-              disabled={loading || !previewState.payload}
+              disabled={isBusy || !previewState.payload}
             >
               {mode === 'create' && !isRelationshipOnlyFlow ? t(K.common.create) : t(K.common.save)}
             </Button>
@@ -1656,7 +1656,7 @@ export default function PersonFormDialog({
       />
       <Portal>
         <Dialog
-          visible={submitPending || loading}
+          visible={submitPending && !loading}
           dismissable={false}
           style={[dialogChrome.dialog, styles.dialog, { backgroundColor: theme.colors.surface }]}
         >
@@ -1694,10 +1694,10 @@ export default function PersonFormDialog({
             )}
           </Dialog.Content>
           <Dialog.Actions style={dialogChrome.dialogActions}>
-            <Button onPress={handleSurnameVariantDismiss} disabled={loading}>
+            <Button onPress={handleSurnameVariantDismiss} disabled={isBusy}>
               {t(K.common.cancel)}
             </Button>
-            <Button mode="contained" onPress={handleSurnameVariantConfirm} disabled={loading}>
+            <Button mode="contained" onPress={handleSurnameVariantConfirm} disabled={isBusy}>
               {t(K.common.confirm ?? 'Confirm')}
             </Button>
           </Dialog.Actions>
