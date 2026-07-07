@@ -9,11 +9,13 @@ import { GlobalStyles } from '../../../../constants/styles';
 import { BUTTON_CHROME, BUTTON_CONTENT_CHROME } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
+import { LANGUAGE_OPTIONS } from '../../../../i18n';
 import type { OverviewSectionProps } from './tree-settings-shared';
 import { formatRole } from './tree-settings-shared';
 
 const styles = GlobalStyles.treeDetail;
 const LINK_PAGE_SIZE = 5;
+const KINSHIP_LANGUAGE_OPTIONS = ['nso', 'ss', 'st', 'tn', 'ts', 've', 'zu'] as const;
 
 export function OverviewSection({
   selectedTree,
@@ -62,6 +64,17 @@ export function OverviewSection({
     const startIndex = (linkPeoplePage - 1) * LINK_PAGE_SIZE;
     return filteredLinkPeople.slice(startIndex, startIndex + LINK_PAGE_SIZE);
   }, [filteredLinkPeople, linkPeoplePage]);
+
+  const kinshipLanguageButtons = useMemo(
+    () => KINSHIP_LANGUAGE_OPTIONS.map((code) => {
+      const language = LANGUAGE_OPTIONS.find((option) => option.code === code);
+      return {
+        code,
+        label: language?.nativeName ?? code,
+      };
+    }),
+    [],
+  );
 
   useEffect(() => {
     setLinkPeoplePage(1);
@@ -149,15 +162,18 @@ export function OverviewSection({
               >
                 {t(K.treeSettings.kinshipTermsGeneric)}
               </Button>
-              <Button
-                mode={getTreeKinshipSystem(selectedTree) === 'northern-sotho' ? 'contained' : 'outlined'}
-                onPress={() => { void onSetTreeKinshipSystem('northern-sotho'); }}
-                disabled={mutating}
-                style={BUTTON_CHROME}
-                contentStyle={BUTTON_CONTENT_CHROME}
-              >
-                {t(K.treeSettings.kinshipTermsNorthernSotho)}
-              </Button>
+              {kinshipLanguageButtons.map(({ code, label }) => (
+                <Button
+                  key={`kinship-${code}`}
+                  mode={getTreeKinshipSystem(selectedTree) === code ? 'contained' : 'outlined'}
+                  onPress={() => { void onSetTreeKinshipSystem(code); }}
+                  disabled={mutating}
+                  style={BUTTON_CHROME}
+                  contentStyle={BUTTON_CONTENT_CHROME}
+                >
+                  {label}
+                </Button>
+              ))}
             </View>
           ) : null}
         </SectionCard>

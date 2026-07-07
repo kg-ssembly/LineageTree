@@ -332,7 +332,7 @@ test('returns Sepedi-specific maternal aunt labels when age context is available
 
   const insight = computeRelationshipInsight(people, relationships, 'child', 'older-aunt');
 
-  assert.equal(insight?.relationship, 'mmamoholo');
+  assert.equal(insight?.relationship, 'mangwane');
   assert.equal(insight?.descriptor.kind, 'aunt-uncle');
   if (insight?.descriptor.kind === 'aunt-uncle') {
     assert.equal(insight.descriptor.side, 'maternal');
@@ -369,7 +369,7 @@ test('falls back to another Sepedi-specific maternal aunt label when the aunt is
 
   const insight = computeRelationshipInsight(people, relationships, 'child', 'younger-aunt');
 
-  assert.equal(insight?.relationship, 'mmane');
+  assert.equal(insight?.relationship, 'mangwane');
   assert.equal(insight?.descriptor.kind, 'aunt-uncle');
   if (insight?.descriptor.kind === 'aunt-uncle') {
     assert.equal(insight.descriptor.side, 'maternal');
@@ -408,7 +408,7 @@ test('allows a tree kinship system override to apply Northern Sotho terms outsid
     kinshipSystem: 'northern-sotho',
   });
 
-  assert.equal(insight?.relationship, 'Aunt (mmamoholo)');
+  assert.equal(insight?.relationship, 'Aunt (mangwane)');
 });
 
 test('shows only the kinship term when the app language already matches the selected kinship system', () => {
@@ -440,7 +440,27 @@ test('shows only the kinship term when the app language already matches the sele
     kinshipSystem: 'northern-sotho',
   });
 
-  assert.equal(insight?.relationship, 'mmamoholo');
+  assert.equal(insight?.relationship, 'mangwane');
+
+  setActiveLanguage('en');
+});
+
+test('localizes simple kinship labels in isiZulu when the app language is isiZulu', () => {
+  setActiveLanguage('zu');
+
+  const people = [
+    makePerson('parent', 'Morgan', 'other'),
+    makePerson('older-sister', 'Taylor', 'female'),
+    makePerson('younger-brother', 'Casey', 'male'),
+  ];
+  const relationships = [
+    makeRelationship('p-sis', 'parent-child', 'parent', 'older-sister'),
+    makeRelationship('p-bro', 'parent-child', 'parent', 'younger-brother'),
+  ];
+
+  const insight = computeRelationshipInsight(people, relationships, 'younger-brother', 'older-sister');
+
+  assert.equal(insight?.relationship, 'udadewethu');
 
   setActiveLanguage('en');
 });
@@ -462,7 +482,7 @@ test('shows combined labels for other simple relationships such as siblings', ()
     kinshipSystem: 'northern-sotho',
   });
 
-  assert.equal(insight?.relationship, 'Sister (ausi)');
+  assert.equal(insight?.relationship, 'Sister (kgaitsedi)');
 });
 
 test('returns cousin removed labels when generations are offset', () => {

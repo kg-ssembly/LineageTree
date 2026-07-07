@@ -27,7 +27,20 @@ function isTreeRole(value: unknown): value is TreeRole {
 }
 
 function isKinshipSystem(value: unknown): value is KinshipSystem {
-  return value === 'auto' || value === 'generic' || value === 'northern-sotho';
+  return value === 'auto'
+    || value === 'generic'
+    || value === 'northern-sotho'
+    || value === 'nso'
+    || value === 'ss'
+    || value === 'st'
+    || value === 'tn'
+    || value === 'ts'
+    || value === 've'
+    || value === 'zu';
+}
+
+function normalizeKinshipSystem(value: KinshipSystem): KinshipSystem {
+  return value === 'northern-sotho' ? 'nso' : value;
 }
 
 export function buildOwnerCollaborator(user: Pick<UserProfile, 'id' | 'email' | 'displayName'>): TreeCollaborator {
@@ -166,7 +179,7 @@ export function mapTreeData(id: string, data: DocumentData): FamilyTree {
     id,
     ownerId: data.ownerId,
     name: data.name,
-    kinshipSystem: isKinshipSystem(data.kinshipSystem) ? data.kinshipSystem : 'auto',
+    kinshipSystem: isKinshipSystem(data.kinshipSystem) ? normalizeKinshipSystem(data.kinshipSystem) : 'auto',
     discoverable: typeof data.discoverable === 'boolean' ? data.discoverable : undefined,
     searchKeywords: Array.isArray(data.searchKeywords) ? data.searchKeywords.filter((value) => typeof value === 'string') : [],
     memberIds,

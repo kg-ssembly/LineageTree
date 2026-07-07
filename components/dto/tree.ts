@@ -1,6 +1,7 @@
 export type TreeRole = 'owner' | 'editor' | 'contributor' | 'viewer';
 export type CollaboratorRole = Exclude<TreeRole, 'owner'>;
-export type KinshipSystem = 'auto' | 'generic' | 'northern-sotho';
+export type KinshipLanguage = 'nso' | 'ss' | 'st' | 'tn' | 'ts' | 've' | 'zu';
+export type KinshipSystem = 'auto' | 'generic' | KinshipLanguage | 'northern-sotho';
 
 export interface TreeMembershipHistoryEntry {
   id: string;
@@ -51,7 +52,8 @@ export interface FamilyTreeInput {
 }
 
 export function getTreeKinshipSystem(tree?: Pick<FamilyTree, 'kinshipSystem'> | null): KinshipSystem {
-  return tree?.kinshipSystem ?? 'auto';
+  const system = tree?.kinshipSystem ?? 'auto';
+  return system === 'northern-sotho' ? 'nso' : system;
 }
 
 export function getTreeRole(tree: FamilyTree, userId?: string | null): TreeRole | null {
