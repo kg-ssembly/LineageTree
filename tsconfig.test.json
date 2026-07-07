@@ -10,9 +10,13 @@
   },
   "include": [
     "tests/**/*.ts",
+    "providers/maiden-tree-search.ts",
+    "providers/merge-intelligence.ts",
     "providers/relationship-intelligence.ts",
     "components/family-tree-validation.ts",
+    "components/dto/merge.ts",
     "components/dto/person.ts",
-    "components/dto/relationship.ts"
+    "components/dto/relationship.ts",
+    "components/dto/tree.ts"
   ]
 }
