@@ -1091,19 +1091,6 @@ export default function PersonFormDialog({
                     {relationshipError}
                   </HelperText>
                   <View style={styles.sectionSpacing}>
-                    {stepTwoReviewMessages.length > 0 ? (
-                      <View style={[styles.reviewPanel, { backgroundColor: theme.colors.elevation.level1, borderColor: theme.colors.outlineVariant }]}>
-                        <Text variant="titleSmall">{t(K.personForm.pleaseReviewBeforeSaving)}</Text>
-                        <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                          {stepTwoReviewMessages.length} relationship item{stepTwoReviewMessages.length === 1 ? '' : 's'} to review before creating.
-                        </Text>
-                        {stepTwoReviewMessages.map((message) => (
-                          <Text key={message} variant="bodyMedium" style={styles.reviewPanelMessage}>
-                            • {message}
-                          </Text>
-                        ))}
-                      </View>
-                    ) : null}
                     <Text variant="labelMedium" style={{ color: theme.colors.onSecondaryContainer }}>
                       {relationshipStepTitle}
                     </Text>
@@ -1245,19 +1232,6 @@ export default function PersonFormDialog({
                 </>
               ) : (
                 <>
-                  {stepOneHasContext && stepOneReviewMessages.length > 0 ? (
-                    <View style={[styles.reviewPanel, { backgroundColor: theme.colors.elevation.level1, borderColor: theme.colors.outlineVariant }]}>
-                      <Text variant="titleSmall">{t(K.personForm.pleaseReviewBeforeSaving)}</Text>
-                      <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                        {stepOneReviewMessages.length} profile item{stepOneReviewMessages.length === 1 ? '' : 's'} to review before you continue.
-                      </Text>
-                      {stepOneReviewMessages.map((message) => (
-                        <Text key={message} variant="bodyMedium" style={styles.reviewPanelMessage}>
-                          • {message}
-                        </Text>
-                      ))}
-                    </View>
-                  ) : null}
                   <TextInput
                     mode="outlined"
                     label={t(K.personForm.firstNameRequired)}
@@ -1364,17 +1338,21 @@ export default function PersonFormDialog({
                         style={styles.fieldSpacing}
                       />
                     )}
-                    <HelperText type="error" visible={!!lastNameError}>
-                      {lastNameError}
-                    </HelperText>
+                    {lastNameError ? (
+                      <HelperText type="error" visible>
+                        {lastNameError}
+                      </HelperText>
+                    ) : null}
                     {mode === 'create' && suggestedLastName && hasExistingSurnames ? (
                       <HelperText type="info" visible>
                         {t(K.personForm.suggestedSurnameFromRelationship, { name: suggestedLastName })}
                       </HelperText>
                     ) : null}
-                    <HelperText type="info" visible={surnameNeedsReview}>
-                      {t(K.personForm.surnameNotInTree)}
-                    </HelperText>
+                    {surnameNeedsReview ? (
+                      <HelperText type="info" visible>
+                        {t(K.personForm.surnameNotInTree)}
+                      </HelperText>
+                    ) : null}
                   </View>
 
                   <View style={styles.sectionSpacing}>
@@ -1615,14 +1593,6 @@ export default function PersonFormDialog({
                           </Text>
                         );
                       })}
-                    </View>
-                  ) : null}
-                  {previewState.warnings.length > 0 ? (
-                    <View style={styles.sectionSpacing}>
-                      <Text variant="titleSmall">{t(K.personForm.pleaseReviewBeforeSaving)}</Text>
-                      {previewState.warnings.map((warning) => (
-                        <Text key={warning} variant="bodyMedium" style={styles.helperText}>{warning}</Text>
-                      ))}
                     </View>
                   ) : null}
                 </>

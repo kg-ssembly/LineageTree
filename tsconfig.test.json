@@ -14,6 +14,7 @@
     "providers/merge-intelligence.ts",
     "providers/relationship-intelligence.ts",
     "components/family-tree-validation.ts",
+    "components/person-formatting.ts",
     "components/dto/merge.ts",
     "components/dto/person.ts",
     "components/dto/relationship.ts",

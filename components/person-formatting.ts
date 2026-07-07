@@ -9,16 +9,22 @@ function joinPersonNameParts(parts: Array<string | undefined>) {
     .join(' ');
 }
 
+function appendMaidenName(baseName: string, maidenName?: string) {
+  const trimmedMaidenName = maidenName?.trim();
+  if (!trimmedMaidenName) {
+    return baseName;
+  }
+
+  return baseName ? `${baseName} (${trimmedMaidenName})` : `(${trimmedMaidenName})`;
+}
+
 export function formatPersonName(person?: PersonRecord | null) {
   if (!person) {
     return translate(K.relationship.unknownFamilyMember);
   }
 
   const name = joinPersonNameParts([person.firstName, person.middleNames, person.lastName]);
-  if (person.maidenName?.trim()) {
-    return `${name} (${person.maidenName.trim()})`;
-  }
-  return name;
+  return appendMaidenName(name, person.maidenName);
 }
 
 export function formatPersonNameShort(person?: PersonRecord | null) {

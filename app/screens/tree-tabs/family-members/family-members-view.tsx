@@ -1,5 +1,5 @@
 import React, { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
-import { FlatList, Image, ScrollView, View } from 'react-native';
+import { FlatList, Image, Pressable, ScrollView, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   ActivityIndicator,
@@ -241,12 +241,14 @@ export function FamilyMembersView({
 
     return (
       <Reveal delay={90 + index * 35}>
-        <View
-          style={[
+        <Pressable
+          onPress={() => openPersonProfile(person)}
+          accessibilityRole="button"
+          style={({ pressed }) => [
             styles.memberListRow,
             {
               borderColor: theme.colors.outlineVariant,
-              backgroundColor: theme.colors.surface,
+              backgroundColor: pressed ? theme.colors.elevation.level1 : theme.colors.surface,
             },
           ]}
         >
@@ -288,9 +290,9 @@ export function FamilyMembersView({
             </Text>
           </View>
           <View style={styles.memberListTrailing}>
-            <IconButton icon="chevron-right" onPress={() => openPersonProfile(person)} />
+            <IconButton icon="chevron-right" disabled />
           </View>
-        </View>
+        </Pressable>
       </Reveal>
     );
   }, [

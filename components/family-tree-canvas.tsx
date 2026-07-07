@@ -126,7 +126,7 @@ function formatPersonNodeTitle(person: PersonRecord, showMaidenFamilyInNodeTitle
     return name;
   }
 
-  return `${name} (${person.maidenName.trim()})`;
+  return name ? `${name} (${person.maidenName.trim()})` : `(${person.maidenName.trim()})`;
 }
 
 type PositionedPerson = {
