@@ -404,10 +404,10 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
       currentAssignedPerson
       && person
       && currentAssignedPerson.id !== person.id
-        ? computeRelationshipInsight(people, relationships, currentAssignedPerson.id, person.id)
+        ? computeRelationshipInsight(people, relationships, currentAssignedPerson.id, person.id, { kinshipSystem: selectedTree?.kinshipSystem })
         : null
     ),
-    [currentAssignedPerson, people, person, relationships],
+    [currentAssignedPerson, people, person, relationships, selectedTree?.kinshipSystem],
   );
   const automaticRelationshipPathLabel = useMemo(
     () => automaticRelationshipInsight
@@ -1101,7 +1101,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
                 {showAutomaticRelationshipChip ? (
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
                     <Chip compact icon="account-switch" onPress={() => setRelationshipInsightVisible(true)}>
-                      {automaticRelationshipInsight ? `Your ${automaticRelationshipInsight.relationship.toLowerCase()}` : t(K.relationshipInsight.howYouRelate)}
+                      {automaticRelationshipInsight ? automaticRelationshipInsight.relationship : t(K.relationshipInsight.howYouRelate)}
                     </Chip>
                   </View>
                 ) : null}
@@ -1202,6 +1202,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
             onOpenHelperDialog={() => openHelperDialog('relationships')}
             onAddRelationship={() => setRelationshipAddFlowVisible(true)}
             onEditRelationship={(relationship) => setRelationshipDialog({ visible: true, relationship })}
+            kinshipSystem={selectedTree?.kinshipSystem}
           />
         ) : null}
 

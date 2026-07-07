@@ -7,7 +7,7 @@ import type { AppNotification, NotificationActivityState } from '../components/d
 import type { NewPersonPhotoInput, PersonInput, PersonMutationPayload, PersonRecord } from '../components/dto/person';
 import type { PendingRelationshipSubmission } from '../components/person-form-dialog';
 import type { ParentChildRelationshipKind, RelationshipRecord, SpouseRelationshipStatus } from '../components/dto/relationship';
-import type { CollaboratorRole, FamilyTree, SurnameVariantGroup } from '../components/dto/tree';
+import type { CollaboratorRole, FamilyTree, KinshipSystem, SurnameVariantGroup } from '../components/dto/tree';
 import type { UserProfile } from '../components/dto/user';
 import {
   addCollaboratorToTree,
@@ -55,6 +55,7 @@ import {
   updateSurnameVariantGroups,
   updateTreeApprovalWindow,
   updateTreeDiscoverability,
+  updateTreeKinshipSystem,
   updateTreeName,
 } from '../providers/family-tree-service';
 
@@ -74,7 +75,7 @@ let unsubscribeNotificationActivity: (() => void) | null = null;
 let subscribedTreeId: string | null = null;
 const expiryProcessingTreeIds = new Set<string>();
 const TREE_STORE_STORAGE_KEY = 'lineagetree-tree-store';
-const TREE_STORE_CACHE_VERSION = 2;
+const TREE_STORE_CACHE_VERSION = 3;
 
 function normaliseError(error: unknown) {
   if (error instanceof Error && error.message) {
@@ -161,6 +162,7 @@ interface TreeState {
   renameTree: (treeId: string, name: string) => Promise<void>;
   setTreeDiscoverability: (treeId: string, discoverable: boolean) => Promise<void>;
   setApprovalWindowHours: (treeId: string, hours: number) => Promise<void>;
+  setTreeKinshipSystem: (treeId: string, kinshipSystem: KinshipSystem) => Promise<void>;
   setSurnameVariantGroups: (treeId: string, groups: SurnameVariantGroup[]) => Promise<void>;
   addCollaborator: (actorUserId: string, treeId: string, email: string, role: CollaboratorRole) => Promise<void>;
   removeCollaborator: (actorUserId: string, treeId: string, collaboratorUserId: string) => Promise<void>;
@@ -512,6 +514,17 @@ export const useTreeStore = create<TreeState>()(persist((set, get) => {
       try {
         await updateTreeApprovalWindow(treeId, hours);
         set({ mutating: false, notice: 'Approval window updated.' });
+      } catch (error) {
+        set({ mutating: false, error: normaliseError(error) });
+        throw error;
+      }
+    },
+
+    setTreeKinshipSystem: async (treeId, kinshipSystem) => {
+      set({ mutating: true, error: null });
+      try {
+        await updateTreeKinshipSystem(treeId, kinshipSystem);
+        set({ mutating: false, notice: 'Kinship terms updated.' });
       } catch (error) {
         set({ mutating: false, error: normaliseError(error) });
         throw error;

@@ -264,6 +264,7 @@ export type OverviewSectionProps = {
   onOpenHelperDialog: (key: TreeHelperDialogKey) => void;
   onOpenSurnameVariantDialog: () => void;
   onSetTreeDiscoverability: SharedTabProps['onSetTreeDiscoverability'];
+  onSetTreeKinshipSystem: SharedTabProps['onSetTreeKinshipSystem'];
   onOpenAddSelf: SharedTabProps['onOpenAddSelf'];
   openPersonProfile: SharedTabProps['openPersonProfile'];
   onAssignPersonToUser: SharedTabProps['onAssignPersonToUser'];

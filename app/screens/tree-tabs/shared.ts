@@ -7,6 +7,7 @@ import type { PendingRelationshipMode } from '../../../components/person-form-di
 import type { RelationshipRecord } from '../../../components/dto/relationship';
 import {
   type FamilyTree,
+  type KinshipSystem,
   getAssignedPersonId,
   type SurnameVariantGroup,
 } from '../../../components/dto/tree';
@@ -69,6 +70,7 @@ export interface SharedTabProps {
   onRejectApprovalRequest: (requestId: string) => Promise<void>;
   onSetTreeDiscoverability: (discoverable: boolean) => Promise<void>;
   onSetApprovalWindowHours: (hours: number) => Promise<void>;
+  onSetTreeKinshipSystem: (kinshipSystem: KinshipSystem) => Promise<void>;
   onSetSurnameVariantGroups: (groups: SurnameVariantGroup[]) => Promise<void>;
   onCreateMergeRequest: (sourceTreeId: string, targetTreeId: string) => Promise<void>;
   onSendMergeInvite: (sourceTreeId: string, identifier: string) => Promise<void>;

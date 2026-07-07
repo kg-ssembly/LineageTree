@@ -3,7 +3,7 @@ import { View } from 'react-native';
 import { Button, Chip, IconButton, Text, TextInput, useTheme } from 'react-native-paper';
 import { Reveal, SectionCard } from '../../../../components';
 import { isPersonDeceased } from '../../../../components/dto/person';
-import { isTreeDiscoverable, treeNeedsDiscoverabilityChoice } from '../../../../components/dto/tree';
+import { getTreeKinshipSystem, isTreeDiscoverable, treeNeedsDiscoverabilityChoice } from '../../../../components/dto/tree';
 import { formatPersonName } from '../../../../components/person-formatting';
 import { GlobalStyles } from '../../../../constants/styles';
 import { BUTTON_CHROME, BUTTON_CONTENT_CHROME } from '../../../../constants/styles';
@@ -33,6 +33,7 @@ export function OverviewSection({
   onOpenHelperDialog,
   onOpenSurnameVariantDialog,
   onSetTreeDiscoverability,
+  onSetTreeKinshipSystem,
   onOpenAddSelf,
   openPersonProfile,
   onAssignPersonToUser,
@@ -115,6 +116,50 @@ export function OverviewSection({
                 </Button>
               </View>
             ) : null}
+        </SectionCard>
+      </Reveal>
+
+      <Reveal delay={85}>
+        <SectionCard style={[styles.selfAssignmentCard, { marginBottom: 12 }]}>
+          <View style={styles.sectionHeader}>
+            <View style={styles.titleWrap}>
+              <Text variant="titleLarge">{t(K.treeSettings.kinshipTerms)}</Text>
+            </View>
+          </View>
+          <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>
+            {t(K.treeSettings.kinshipTermsSummary)}
+          </Text>
+          {isOwner ? (
+            <View style={[styles.collaboratorChipRow, { marginTop: 12 }]}>
+              <Button
+                mode={getTreeKinshipSystem(selectedTree) === 'auto' ? 'contained' : 'outlined'}
+                onPress={() => { void onSetTreeKinshipSystem('auto'); }}
+                disabled={mutating}
+                style={BUTTON_CHROME}
+                contentStyle={BUTTON_CONTENT_CHROME}
+              >
+                {t(K.treeSettings.kinshipTermsAuto)}
+              </Button>
+              <Button
+                mode={getTreeKinshipSystem(selectedTree) === 'generic' ? 'contained' : 'outlined'}
+                onPress={() => { void onSetTreeKinshipSystem('generic'); }}
+                disabled={mutating}
+                style={BUTTON_CHROME}
+                contentStyle={BUTTON_CONTENT_CHROME}
+              >
+                {t(K.treeSettings.kinshipTermsGeneric)}
+              </Button>
+              <Button
+                mode={getTreeKinshipSystem(selectedTree) === 'northern-sotho' ? 'contained' : 'outlined'}
+                onPress={() => { void onSetTreeKinshipSystem('northern-sotho'); }}
+                disabled={mutating}
+                style={BUTTON_CHROME}
+                contentStyle={BUTTON_CONTENT_CHROME}
+              >
+                {t(K.treeSettings.kinshipTermsNorthernSotho)}
+              </Button>
+            </View>
+          ) : null}
         </SectionCard>
       </Reveal>
 

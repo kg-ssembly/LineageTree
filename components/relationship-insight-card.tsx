@@ -8,6 +8,7 @@ import { translate } from '../i18n';
 import { I18N_KEYS as K } from '../i18n/keys';
 import { computeRelationshipInsight } from '../providers';
 import { GlobalStyles } from '../constants/styles';
+import type { KinshipSystem } from './dto/tree';
 
 const styles = GlobalStyles.relationshipInsightCard;
 const dialogChrome = GlobalStyles.dialogChrome;
@@ -19,6 +20,7 @@ interface RelationshipInsightCardProps {
   lockedFromPersonId?: string;
   title?: string;
   subtitle?: string;
+  kinshipSystem?: KinshipSystem;
 }
 
 function formatPersonName(person?: PersonRecord | null) {
@@ -51,6 +53,7 @@ export default function RelationshipInsightCard({
   lockedFromPersonId,
   title = translate(K.relationshipInsight.title),
   subtitle,
+  kinshipSystem,
 }: RelationshipInsightCardProps) {
   const theme = useTheme();
   const { t } = useI18n();
@@ -127,8 +130,8 @@ export default function RelationshipInsightCard({
       return null;
     }
 
-    return computeRelationshipInsight(people, relationships, fromPersonId, toPersonId);
-  }, [fromPersonId, people, relationships, toPersonId]);
+    return computeRelationshipInsight(people, relationships, fromPersonId, toPersonId, { kinshipSystem });
+  }, [fromPersonId, kinshipSystem, people, relationships, toPersonId]);
 
   const pathLabel = insight
     ? insight.pathPersonIds

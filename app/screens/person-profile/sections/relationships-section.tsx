@@ -5,6 +5,7 @@ import { HorizontalTabStrip, RelationshipInsightCard, Reveal, SectionCard, TabSt
 import type { PersonRelationshipMode } from '../../../../components/person-relationship-dialog';
 import type { PersonRecord } from '../../../../components/dto/person';
 import type { RelationshipRecord } from '../../../../components/dto/relationship';
+import type { KinshipSystem } from '../../../../components/dto/tree';
 import { formatPersonName } from '../../../../components/person-formatting';
 import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
@@ -29,6 +30,7 @@ export function PersonRelationshipsSection({
   onOpenHelperDialog,
   onAddRelationship,
   onEditRelationship,
+  kinshipSystem,
 }: {
   person: PersonRecord;
   people: PersonRecord[];
@@ -50,6 +52,7 @@ export function PersonRelationshipsSection({
   onOpenHelperDialog: () => void;
   onAddRelationship: () => void;
   onEditRelationship: (relationship: RelationshipRecord) => void;
+  kinshipSystem?: KinshipSystem;
 }) {
   const theme = useTheme();
   const { t } = useI18n();
@@ -96,6 +99,7 @@ export function PersonRelationshipsSection({
           relationships={relationships}
           lockedFromPersonId={person.id}
           title={t(K.personProfile.howDoesPersonRelate, { name: formatPersonName(person) })}
+          kinshipSystem={kinshipSystem}
         />
       ) : paginatedRelationships.length > 0 ? (
         <>

@@ -5,7 +5,7 @@ import type { AppNotification, NotificationActivityState } from '../components/d
 import type { PersonLifeEvent, PersonPhoto, PersonRecord } from '../components/dto/person';
 import type { RelationshipRecord } from '../components/dto/relationship';
 import { DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND, DEFAULT_SPOUSE_RELATIONSHIP_STATUS } from '../components/dto/relationship';
-import type { FamilyTree, SurnameVariantGroup, TreeCollaborator, TreeMembershipHistoryEntry, TreeRole } from '../components/dto/tree';
+import type { FamilyTree, KinshipSystem, SurnameVariantGroup, TreeCollaborator, TreeMembershipHistoryEntry, TreeRole } from '../components/dto/tree';
 import type { UserProfile } from '../components/dto/user';
 import { nowIso } from './family-tree-shared';
 
@@ -24,6 +24,10 @@ export function clampApprovalWindowHours(value: unknown) {
 
 function isTreeRole(value: unknown): value is TreeRole {
   return value === 'owner' || value === 'editor' || value === 'contributor' || value === 'viewer';
+}
+
+function isKinshipSystem(value: unknown): value is KinshipSystem {
+  return value === 'auto' || value === 'generic' || value === 'northern-sotho';
 }
 
 export function buildOwnerCollaborator(user: Pick<UserProfile, 'id' | 'email' | 'displayName'>): TreeCollaborator {
@@ -162,6 +166,7 @@ export function mapTreeData(id: string, data: DocumentData): FamilyTree {
     id,
     ownerId: data.ownerId,
     name: data.name,
+    kinshipSystem: isKinshipSystem(data.kinshipSystem) ? data.kinshipSystem : 'auto',
     discoverable: typeof data.discoverable === 'boolean' ? data.discoverable : undefined,
     searchKeywords: Array.isArray(data.searchKeywords) ? data.searchKeywords.filter((value) => typeof value === 'string') : [],
     memberIds,

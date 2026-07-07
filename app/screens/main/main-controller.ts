@@ -172,6 +172,7 @@ export function useMainScreenController({ navigation }: Props) {
     approveApprovalRequest,
     rejectApprovalRequest,
     setApprovalWindowHours,
+    setTreeKinshipSystem,
     setSurnameVariantGroups,
     createMergeRequest,
     sendMergeInvite,
@@ -228,6 +229,7 @@ export function useMainScreenController({ navigation }: Props) {
     approveApprovalRequest: state.approveApprovalRequest,
     rejectApprovalRequest: state.rejectApprovalRequest,
     setApprovalWindowHours: state.setApprovalWindowHours,
+    setTreeKinshipSystem: state.setTreeKinshipSystem,
     setSurnameVariantGroups: state.setSurnameVariantGroups,
     createMergeRequest: state.createMergeRequest,
     sendMergeInvite: state.sendMergeInvite,
@@ -1091,6 +1093,14 @@ export function useMainScreenController({ navigation }: Props) {
     await setSurnameVariantGroups(selectedTree.id, groups);
   }, [selectedTree, setSurnameVariantGroups]);
 
+  const onSetTreeKinshipSystem = useCallback(async (kinshipSystem: SharedTabProps['selectedTree']['kinshipSystem']) => {
+    if (!selectedTree || !kinshipSystem) {
+      return;
+    }
+
+    await setTreeKinshipSystem(selectedTree.id, kinshipSystem);
+  }, [selectedTree, setTreeKinshipSystem]);
+
   const onSetTreeDiscoverability = useCallback(async (discoverable: boolean) => {
     if (!selectedTree) {
       return;
@@ -1414,6 +1424,7 @@ export function useMainScreenController({ navigation }: Props) {
       onRejectApprovalRequest,
       onSetTreeDiscoverability,
       onSetApprovalWindowHours,
+      onSetTreeKinshipSystem,
       onSetSurnameVariantGroups,
       onCreateMergeRequest,
       onSendMergeInvite,
@@ -1500,6 +1511,7 @@ export function useMainScreenController({ navigation }: Props) {
     onSearchDiscoverableTreesByUsername,
     onSendMergeInvite,
     onSetApprovalWindowHours,
+    onSetTreeKinshipSystem,
     onSetTreeDiscoverability,
     onSetSurnameVariantGroups,
     onUndoMerge,

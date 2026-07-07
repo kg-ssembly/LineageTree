@@ -19,7 +19,7 @@ import type { AppNotification, NotificationActivityState } from '../components/d
 import type { NewPersonPhotoInput, PersonInput, PersonMutationPayload, PersonPhoto, PersonRecord } from '../components/dto/person';
 import type { ParentChildRelationshipKind, RelationshipRecord, SpouseRelationshipStatus } from '../components/dto/relationship';
 import { DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND, DEFAULT_SPOUSE_RELATIONSHIP_STATUS } from '../components/dto/relationship';
-import type { FamilyTree, SurnameVariantGroup } from '../components/dto/tree';
+import type { FamilyTree, KinshipSystem, SurnameVariantGroup } from '../components/dto/tree';
 import type { UserProfile } from '../components/dto/user';
 import {
   buildOwnerCollaborator,
@@ -339,6 +339,7 @@ export async function createTree(
     ownerEmail,
     ownerDisplayName,
     name: trimmedName,
+    kinshipSystem: 'auto',
     discoverable: true,
     searchKeywords: buildTreeSearchKeywords(trimmedName, []),
     memberIds: [owner.id],
@@ -509,6 +510,7 @@ export async function createSuggestedSurnameTree(
     editorIds: copiedEditorIds,
     personAssignments: copiedAssignments,
     approvalWindowHours: sourceTree.approvalWindowHours,
+    kinshipSystem: sourceTree.kinshipSystem ?? 'auto',
     surnameVariantGroups: [{
       id: `${createdTree.id}-surname-variants`,
       primarySurname: trimmedSurname,
@@ -596,6 +598,7 @@ export async function createSuggestedSurnameTree(
     editorIds: copiedEditorIds,
     personAssignments: copiedAssignments,
     approvalWindowHours: sourceTree.approvalWindowHours,
+    kinshipSystem: sourceTree.kinshipSystem ?? 'auto',
     surnameVariantGroups: [{
       id: `${createdTree.id}-surname-variants`,
       primarySurname: trimmedSurname,
@@ -612,6 +615,13 @@ export async function createSuggestedSurnameTree(
 export async function updateTreeApprovalWindow(treeId: string, approvalWindowHours: number) {
   await updateDoc(doc(db, TREES_COLLECTION, treeId), {
     approvalWindowHours: clampApprovalWindowHours(approvalWindowHours),
+    updatedAt: nowIso(),
+  });
+}
+
+export async function updateTreeKinshipSystem(treeId: string, kinshipSystem: KinshipSystem) {
+  await updateDoc(doc(db, TREES_COLLECTION, treeId), {
+    kinshipSystem,
     updatedAt: nowIso(),
   });
 }

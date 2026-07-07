@@ -137,6 +137,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     rejectApprovalRequest,
     setTreeDiscoverability,
     setApprovalWindowHours,
+    setTreeKinshipSystem,
     setSurnameVariantGroups,
     createMergeRequest,
     sendMergeInvite,
@@ -189,6 +190,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     rejectApprovalRequest: state.rejectApprovalRequest,
     setTreeDiscoverability: state.setTreeDiscoverability,
     setApprovalWindowHours: state.setApprovalWindowHours,
+    setTreeKinshipSystem: state.setTreeKinshipSystem,
     setSurnameVariantGroups: state.setSurnameVariantGroups,
     createMergeRequest: state.createMergeRequest,
     sendMergeInvite: state.sendMergeInvite,
@@ -320,9 +322,11 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
   );
   const viewerRelationshipInsight = useMemo(
     () => (returnTreeAssignedPerson && viewerPerson
-      ? computeRelationshipInsight(combinedRelationshipPeople, combinedRelationshipRecords, returnTreeAssignedPerson.id, viewerPerson.id)
+      ? computeRelationshipInsight(combinedRelationshipPeople, combinedRelationshipRecords, returnTreeAssignedPerson.id, viewerPerson.id, {
+        kinshipSystem: returnTreeBundle?.tree?.kinshipSystem,
+      })
       : null),
-    [combinedRelationshipPeople, combinedRelationshipRecords, returnTreeAssignedPerson, viewerPerson],
+    [combinedRelationshipPeople, combinedRelationshipRecords, returnTreeAssignedPerson, returnTreeBundle?.tree?.kinshipSystem, viewerPerson],
   );
   const viewerTimeline = useMemo(() => {
     if (!viewerPerson) {
@@ -919,6 +923,10 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     if (!selectedTree) return;
     await setTreeDiscoverability(selectedTree.id, discoverable);
   }, [selectedTree, setTreeDiscoverability]);
+  const onSetTreeKinshipSystem = useCallback(async (kinshipSystem: SharedTabProps['selectedTree']['kinshipSystem']) => {
+    if (!selectedTree || !kinshipSystem) return;
+    await setTreeKinshipSystem(selectedTree.id, kinshipSystem);
+  }, [selectedTree, setTreeKinshipSystem]);
   const onSetSurnameVariantGroups = useCallback(async (groups: SharedTabProps['selectedTree']['surnameVariantGroups']) => {
     if (!selectedTree) return;
     await setSurnameVariantGroups(selectedTree.id, groups);
@@ -1044,6 +1052,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
       onRejectApprovalRequest,
       onSetTreeDiscoverability,
       onSetApprovalWindowHours,
+      onSetTreeKinshipSystem,
       onSetSurnameVariantGroups,
       onCreateMergeRequest,
       onSendMergeInvite,
@@ -1075,7 +1084,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     openConfirm, openPersonProfile, onOpenAddPerson, onOpenAddPersonForRelationship, onOpenRelationshipDialog, onOpenPersonQuickActions,
     onOpenCollaboratorDialog, onOpenAddSelf, onEditPerson, onDeletePerson, onRemoveCollaborator,
     handleAssignPersonToUser, handleClearSelfAssignment, onApproveApprovalRequest, onRejectApprovalRequest,
-    onSetTreeDiscoverability, onSetApprovalWindowHours, onSetSurnameVariantGroups, onCreateMergeRequest, onSendMergeInvite, onRespondToMergeInvite, onRequestTreeAccess, onRequestTreeAccessByIdentifier, onRespondToTreeAccessRequest, onSearchDiscoverableTrees, onSearchDiscoverableTreesByUsername, onMarkNotificationSeen, onMarkNotificationOpened, onMarkNotificationActivityActioned, onLoadTreeMergePreview,
+    onSetTreeDiscoverability, onSetApprovalWindowHours, onSetTreeKinshipSystem, onSetSurnameVariantGroups, onCreateMergeRequest, onSendMergeInvite, onRespondToMergeInvite, onRequestTreeAccess, onRequestTreeAccessByIdentifier, onRespondToTreeAccessRequest, onSearchDiscoverableTrees, onSearchDiscoverableTreesByUsername, onMarkNotificationSeen, onMarkNotificationOpened, onMarkNotificationActivityActioned, onLoadTreeMergePreview,
     onApproveMergeRequest, onRejectMergeRequest, onRequestMergeChanges, onUndoMerge, onGrantMergeViewerAccess, onCreateSurnameTree, treeSettingsFocus, onOpenTreeSettingsTarget,
     canvasFamilySwitchRef, canvasActiveFamilyRef,
   ]);

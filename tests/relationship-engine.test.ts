@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import type { PersonRecord } from '../components/dto/person';
 import type { RelationshipRecord } from '../components/dto/relationship';
+import { setActiveLanguage } from '../i18n';
 import { computeRelationshipInsight } from '../providers/relationship-intelligence';
 import { getPersonValidationFeedback, getRelationshipValidationFeedback, validateProposedRelationship } from '../components/family-tree-validation';
 
@@ -70,7 +71,8 @@ test('returns sibling labels using the compared person gender', () => {
   ];
 
   const insight = computeRelationshipInsight(people, relationships, 'a', 'b');
-  assert.equal(insight?.relationship, 'sister');
+  assert.equal(insight?.relationship, 'Sister');
+  assert.equal(insight?.descriptor.kind, 'sibling');
 });
 
 test('returns in-law labels from the selected source person perspective', () => {
@@ -242,7 +244,7 @@ test('returns half-sibling labels when only one parent is shared', () => {
 
   const insight = computeRelationshipInsight(people, relationships, 'child-a', 'child-b');
 
-  assert.equal(insight?.relationship, 'Half-sister');
+  assert.equal(insight?.relationship, 'Half-Sister');
 });
 
 test('returns grandparent labels for direct ancestors two generations away', () => {
@@ -297,6 +299,170 @@ test('returns aunt and nephew labels across generations of lateral relatives', (
 
   assert.equal(auntToChild?.relationship, 'Nephew');
   assert.equal(childToAunt?.relationship, 'Aunt');
+  assert.equal(childToAunt?.descriptor.kind, 'aunt-uncle');
+  if (childToAunt?.descriptor.kind === 'aunt-uncle') {
+    assert.equal(childToAunt.descriptor.side, 'paternal');
+  }
+});
+
+test('returns Sepedi-specific maternal aunt labels when age context is available', () => {
+  setActiveLanguage('nso');
+
+  const people = [
+    makePerson('grandparent', 'Alex', 'female'),
+    makePerson('older-aunt', 'Blair', 'female'),
+    makePerson('mother', 'Casey', 'female'),
+    makePerson('child', 'Jordan', 'male'),
+  ].map((person) => {
+    if (person.id === 'older-aunt') {
+      return { ...person, birthDate: '1970-01-01' };
+    }
+
+    if (person.id === 'mother') {
+      return { ...person, birthDate: '1978-01-01' };
+    }
+
+    return person;
+  });
+  const relationships = [
+    makeRelationship('gp-aunt', 'parent-child', 'grandparent', 'older-aunt'),
+    makeRelationship('gp-mother', 'parent-child', 'grandparent', 'mother'),
+    makeRelationship('mother-child', 'parent-child', 'mother', 'child'),
+  ];
+
+  const insight = computeRelationshipInsight(people, relationships, 'child', 'older-aunt');
+
+  assert.equal(insight?.relationship, 'mmamoholo');
+  assert.equal(insight?.descriptor.kind, 'aunt-uncle');
+  if (insight?.descriptor.kind === 'aunt-uncle') {
+    assert.equal(insight.descriptor.side, 'maternal');
+    assert.equal(insight.descriptor.seniority, 'older');
+  }
+
+  setActiveLanguage('en');
+});
+
+test('falls back to another Sepedi-specific maternal aunt label when the aunt is younger', () => {
+  setActiveLanguage('nso');
+
+  const people = [
+    makePerson('grandparent', 'Alex', 'female'),
+    makePerson('younger-aunt', 'Blair', 'female'),
+    makePerson('mother', 'Casey', 'female'),
+    makePerson('child', 'Jordan', 'male'),
+  ].map((person) => {
+    if (person.id === 'younger-aunt') {
+      return { ...person, birthDate: '1982-01-01' };
+    }
+
+    if (person.id === 'mother') {
+      return { ...person, birthDate: '1978-01-01' };
+    }
+
+    return person;
+  });
+  const relationships = [
+    makeRelationship('gp-aunt', 'parent-child', 'grandparent', 'younger-aunt'),
+    makeRelationship('gp-mother', 'parent-child', 'grandparent', 'mother'),
+    makeRelationship('mother-child', 'parent-child', 'mother', 'child'),
+  ];
+
+  const insight = computeRelationshipInsight(people, relationships, 'child', 'younger-aunt');
+
+  assert.equal(insight?.relationship, 'mmane');
+  assert.equal(insight?.descriptor.kind, 'aunt-uncle');
+  if (insight?.descriptor.kind === 'aunt-uncle') {
+    assert.equal(insight.descriptor.side, 'maternal');
+    assert.equal(insight.descriptor.seniority, 'younger');
+  }
+
+  setActiveLanguage('en');
+});
+
+test('allows a tree kinship system override to apply Northern Sotho terms outside the app language', () => {
+  setActiveLanguage('en');
+
+  const people = [
+    makePerson('grandparent', 'Alex', 'female'),
+    makePerson('older-aunt', 'Blair', 'female'),
+    makePerson('mother', 'Casey', 'female'),
+    makePerson('child', 'Jordan', 'male'),
+  ].map((person) => {
+    if (person.id === 'older-aunt') {
+      return { ...person, birthDate: '1970-01-01' };
+    }
+
+    if (person.id === 'mother') {
+      return { ...person, birthDate: '1978-01-01' };
+    }
+
+    return person;
+  });
+  const relationships = [
+    makeRelationship('gp-aunt', 'parent-child', 'grandparent', 'older-aunt'),
+    makeRelationship('gp-mother', 'parent-child', 'grandparent', 'mother'),
+    makeRelationship('mother-child', 'parent-child', 'mother', 'child'),
+  ];
+
+  const insight = computeRelationshipInsight(people, relationships, 'child', 'older-aunt', {
+    kinshipSystem: 'northern-sotho',
+  });
+
+  assert.equal(insight?.relationship, 'Aunt (mmamoholo)');
+});
+
+test('shows only the kinship term when the app language already matches the selected kinship system', () => {
+  setActiveLanguage('nso');
+
+  const people = [
+    makePerson('grandparent', 'Alex', 'female'),
+    makePerson('older-aunt', 'Blair', 'female'),
+    makePerson('mother', 'Casey', 'female'),
+    makePerson('child', 'Jordan', 'male'),
+  ].map((person) => {
+    if (person.id === 'older-aunt') {
+      return { ...person, birthDate: '1970-01-01' };
+    }
+
+    if (person.id === 'mother') {
+      return { ...person, birthDate: '1978-01-01' };
+    }
+
+    return person;
+  });
+  const relationships = [
+    makeRelationship('gp-aunt', 'parent-child', 'grandparent', 'older-aunt'),
+    makeRelationship('gp-mother', 'parent-child', 'grandparent', 'mother'),
+    makeRelationship('mother-child', 'parent-child', 'mother', 'child'),
+  ];
+
+  const insight = computeRelationshipInsight(people, relationships, 'child', 'older-aunt', {
+    kinshipSystem: 'northern-sotho',
+  });
+
+  assert.equal(insight?.relationship, 'mmamoholo');
+
+  setActiveLanguage('en');
+});
+
+test('shows combined labels for other simple relationships such as siblings', () => {
+  setActiveLanguage('en');
+
+  const people = [
+    makePerson('parent', 'Morgan', 'other'),
+    makePerson('older-sister', 'Taylor', 'female'),
+    makePerson('younger-brother', 'Casey', 'male'),
+  ];
+  const relationships = [
+    makeRelationship('p-sis', 'parent-child', 'parent', 'older-sister'),
+    makeRelationship('p-bro', 'parent-child', 'parent', 'younger-brother'),
+  ];
+
+  const insight = computeRelationshipInsight(people, relationships, 'younger-brother', 'older-sister', {
+    kinshipSystem: 'northern-sotho',
+  });
+
+  assert.equal(insight?.relationship, 'Sister (ausi)');
 });
 
 test('returns cousin removed labels when generations are offset', () => {
