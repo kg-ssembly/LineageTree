@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
-import { Button, Chip, IconButton, Text, TextInput, useTheme } from 'react-native-paper';
+import { Button, Chip, IconButton, Menu, Text, TextInput, useTheme } from 'react-native-paper';
 import { Reveal, SectionCard } from '../../../../components';
 import { isPersonDeceased } from '../../../../components/dto/person';
 import { getTreeKinshipSystem, isTreeDiscoverable, treeNeedsDiscoverabilityChoice } from '../../../../components/dto/tree';
@@ -46,6 +46,7 @@ export function OverviewSection({
   const theme = useTheme();
   const { t } = useI18n();
   const [linkPeoplePage, setLinkPeoplePage] = useState(1);
+  const [kinshipMenuVisible, setKinshipMenuVisible] = useState(false);
 
   const handleSelfLink = async (personId: string) => {
     if (!userId || currentAssignedPerson) {
@@ -65,16 +66,29 @@ export function OverviewSection({
     return filteredLinkPeople.slice(startIndex, startIndex + LINK_PAGE_SIZE);
   }, [filteredLinkPeople, linkPeoplePage]);
 
-  const kinshipLanguageButtons = useMemo(
-    () => KINSHIP_LANGUAGE_OPTIONS.map((code) => {
+  const kinshipOptions = useMemo(
+    () => [
+      {
+        code: 'auto' as const,
+        label: t(K.treeSettings.kinshipTermsAuto),
+      },
+      {
+        code: 'generic' as const,
+        label: t(K.treeSettings.kinshipTermsGeneric),
+      },
+      ...KINSHIP_LANGUAGE_OPTIONS.map((code) => {
       const language = LANGUAGE_OPTIONS.find((option) => option.code === code);
       return {
         code,
         label: language?.nativeName ?? code,
       };
-    }),
-    [],
+      }),
+    ],
+    [t],
   );
+
+  const selectedKinshipSystem = getTreeKinshipSystem(selectedTree);
+  const selectedKinshipOption = kinshipOptions.find((option) => option.code === selectedKinshipSystem);
 
   useEffect(() => {
     setLinkPeoplePage(1);
@@ -83,6 +97,12 @@ export function OverviewSection({
   useEffect(() => {
     setLinkPeoplePage((page) => Math.min(page, linkPeopleTotalPages));
   }, [linkPeopleTotalPages]);
+
+  useEffect(() => {
+    if (mutating) {
+      setKinshipMenuVisible(false);
+    }
+  }, [mutating]);
 
   return (
     <>
@@ -142,40 +162,41 @@ export function OverviewSection({
           <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>
             {t(K.treeSettings.kinshipTermsSummary)}
           </Text>
-          {isOwner ? (
-            <View style={[styles.collaboratorChipRow, { marginTop: 12 }]}>
-              <Button
-                mode={getTreeKinshipSystem(selectedTree) === 'auto' ? 'contained' : 'outlined'}
-                onPress={() => { void onSetTreeKinshipSystem('auto'); }}
-                disabled={mutating}
-                style={BUTTON_CHROME}
-                contentStyle={BUTTON_CONTENT_CHROME}
+          <View style={[styles.collaboratorChipRow, { marginTop: 12 }]}>
+            <Chip compact icon="account-switch">
+              {selectedKinshipOption?.label ?? selectedKinshipSystem}
+            </Chip>
+            {isOwner ? (
+              <Menu
+                visible={kinshipMenuVisible}
+                onDismiss={() => setKinshipMenuVisible(false)}
+                anchor={(
+                  <Button
+                    mode="outlined"
+                    icon="chevron-down"
+                    onPress={() => setKinshipMenuVisible(true)}
+                    disabled={mutating}
+                    style={BUTTON_CHROME}
+                    contentStyle={BUTTON_CONTENT_CHROME}
+                  >
+                    {t(K.common.edit)}
+                  </Button>
+                )}
               >
-                {t(K.treeSettings.kinshipTermsAuto)}
-              </Button>
-              <Button
-                mode={getTreeKinshipSystem(selectedTree) === 'generic' ? 'contained' : 'outlined'}
-                onPress={() => { void onSetTreeKinshipSystem('generic'); }}
-                disabled={mutating}
-                style={BUTTON_CHROME}
-                contentStyle={BUTTON_CONTENT_CHROME}
-              >
-                {t(K.treeSettings.kinshipTermsGeneric)}
-              </Button>
-              {kinshipLanguageButtons.map(({ code, label }) => (
-                <Button
-                  key={`kinship-${code}`}
-                  mode={getTreeKinshipSystem(selectedTree) === code ? 'contained' : 'outlined'}
-                  onPress={() => { void onSetTreeKinshipSystem(code); }}
-                  disabled={mutating}
-                  style={BUTTON_CHROME}
-                  contentStyle={BUTTON_CONTENT_CHROME}
-                >
-                  {label}
-                </Button>
-              ))}
-            </View>
-          ) : null}
+                {kinshipOptions.map(({ code, label }) => (
+                  <Menu.Item
+                    key={`kinship-option-${code}`}
+                    leadingIcon={selectedKinshipSystem === code ? 'check' : undefined}
+                    onPress={() => {
+                      setKinshipMenuVisible(false);
+                      void onSetTreeKinshipSystem(code);
+                    }}
+                    title={label}
+                  />
+                ))}
+              </Menu>
+            ) : null}
+          </View>
         </SectionCard>
       </Reveal>
 
