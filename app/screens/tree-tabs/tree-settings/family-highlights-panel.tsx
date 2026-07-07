@@ -112,8 +112,8 @@ export function FamilyHighlightsPanel({
         candidates.push({
           id: `birth-${person.id}`,
           date: date.toISOString(),
-          title: `${formatPersonName(person)}'s birthday`,
-          subtitle: person.birthDate ? `Born ${formatPersonDate(person.birthDate)}` : 'Birthday remembered in the tree',
+          title: t(K.home.birthdayTitle, { name: formatPersonName(person) }),
+          subtitle: person.birthDate ? t(K.home.bornOnDate, { date: formatPersonDate(person.birthDate) }) : t(K.home.birthdayRememberedInTheTree),
         });
       }
 
@@ -129,7 +129,7 @@ export function FamilyHighlightsPanel({
         candidates.push({
           id: `${person.id}-${event.id}`,
           date: date.toISOString(),
-          title: event.title || `${formatPersonName(person)} memory`,
+          title: event.title || t(K.home.memoryLabel, { name: formatPersonName(person) }),
           subtitle: `${formatPersonName(person)} • ${event.description || t(K.memories.rememberedFamilyMoment)}`,
         });
       });

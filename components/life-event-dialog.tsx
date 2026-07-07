@@ -65,7 +65,7 @@ export default function LifeEventDialog({
   onSubmit,
 }: LifeEventDialogProps) {
   const theme = useTheme();
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const [type, setType] = useState<PersonLifeEventType>('married');
   const [title, setTitle] = useState('');
   const [date, setDate] = useState('');
@@ -210,7 +210,7 @@ export default function LifeEventDialog({
       </Portal>
 
       <DatePickerModal
-        locale="en"
+        locale={language}
         mode="single"
         visible={datePickerVisible}
         date={selectedDate}

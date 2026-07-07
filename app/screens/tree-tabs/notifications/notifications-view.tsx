@@ -14,6 +14,7 @@ import type { NotificationActivityState } from '../../../../components/dto/notif
 import type { MainTabParamList } from '../../../../components/dto/navigation';
 import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
+import { translate } from '../../../../i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
 import type { SharedTabProps } from '../shared';
 
@@ -52,7 +53,7 @@ function formatCompactTimestamp(value: string) {
   const diffMinutes = Math.max(0, Math.floor(diffMs / 60000));
 
   if (diffMinutes < 1) {
-    return 'Now';
+    return translate('Now');
   }
   if (diffMinutes < 60) {
     return `${diffMinutes}m`;
@@ -328,7 +329,7 @@ export function NotificationsView({
   const renderCompactRow = (item: NotificationFeedItem) => {
     const categoryLabel = getItemCategoryLabel(item, t);
     const complete = isItemComplete(item);
-    const primaryActionLabel = item.kind === 'approval' ? 'Review' : 'Open';
+    const primaryActionLabel = item.kind === 'approval' ? t('Review') : t('Open');
     const canOpenTarget = item.kind === 'approval' || item.kind === 'merge-request' || item.kind === 'merge-history';
 
     return (
@@ -369,7 +370,7 @@ export function NotificationsView({
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 2 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
                 <Chip compact style={{ height: 28 }}>
-                  {complete ? 'Done' : 'Needs action'}
+                  {complete ? t('Done') : t('Needs action')}
                 </Chip>
                 <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }} numberOfLines={1}>
                   {categoryLabel}{item.treeName ? ` · ${item.treeName}` : ''}
@@ -468,7 +469,7 @@ export function NotificationsView({
                 )}
                 {feedMetrics.attentionItems.length > feedMetrics.embeddedAttentionItems.length ? (
                   <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                    Showing the latest {feedMetrics.embeddedAttentionItems.length} items first.
+                    {t('Showing the latest {count} items first.', { count: feedMetrics.embeddedAttentionItems.length })}
                   </Text>
                 ) : null}
               </View>
@@ -482,7 +483,7 @@ export function NotificationsView({
                   {feedMetrics.embeddedCompletedItems.map(renderCompactRow)}
                   {feedMetrics.completedItems.length > feedMetrics.embeddedCompletedItems.length ? (
                     <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                      {feedMetrics.completedItems.length - feedMetrics.embeddedCompletedItems.length} more completed items are still in your full activity view.
+                      {t('{count} more completed items are still in your full activity view.', { count: feedMetrics.completedItems.length - feedMetrics.embeddedCompletedItems.length })}
                     </Text>
                   ) : null}
                 </View>
@@ -492,7 +493,7 @@ export function NotificationsView({
             <View style={styles.emptyState}>
               <Text variant="titleMedium">{t(K.notifications.yourFamilyActivityFeedIsQuiet)}</Text>
               <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
-                Invites, edits, and merge moments will appear here as more people join in and your story grows.
+                {t('Invites, edits, and merge moments will appear here as more people join in and your story grows.')}
               </Text>
             </View>
           )
@@ -512,13 +513,13 @@ export function NotificationsView({
               </View>
               <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
                 <Button mode="outlined" onPress={() => { void handleMarkAllSeen(); }} disabled={mutating || feedMetrics.unseenDirectIds.length === 0} style={BUTTON_CHROME} buttonColor={theme.colors.surface} textColor={theme.colors.primary} contentStyle={BUTTON_CONTENT_CHROME}>
-                  Quiet new alerts
+                  {t('Quiet new alerts')}
                 </Button>
                 <Button mode="outlined" onPress={() => { void handleMarkAllOpened(); }} disabled={mutating || feedMetrics.unopenedDirectIds.length === 0} style={BUTTON_CHROME} buttonColor={theme.colors.surface} textColor={theme.colors.primary} contentStyle={BUTTON_CONTENT_CHROME}>
-                  Open everything
+                  {t('Open everything')}
                 </Button>
                 <Button mode="outlined" onPress={() => { void handleMarkAllActioned(); }} disabled={mutating || feedMetrics.unactionedDerivedItems.length === 0} style={BUTTON_CHROME} buttonColor={theme.colors.surface} textColor={theme.colors.primary} contentStyle={BUTTON_CONTENT_CHROME}>
-                  Mark follow-up done
+                  {t('Mark follow-up done')}
                 </Button>
               </View>
           </SectionCard>
@@ -568,22 +569,22 @@ export function NotificationsView({
                   <View style={{ flexDirection: 'row', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
                     {item.notificationId && !item.seen && !item.opened ? (
                       <Button compact mode="outlined" onPress={() => onMarkNotificationSeen(item.notificationId!)} disabled={mutating} style={BUTTON_CHROME} buttonColor={theme.colors.surface} textColor={theme.colors.primary} contentStyle={BUTTON_CONTENT_CHROME}>
-                        Notice
+                        {t(K.notifications.markSeen)}
                       </Button>
                     ) : null}
                     {item.notificationId && !item.opened ? (
                       <Button compact mode="outlined" onPress={() => onMarkNotificationOpened(item.notificationId!)} disabled={mutating} style={BUTTON_CHROME} buttonColor={theme.colors.surface} textColor={theme.colors.primary} contentStyle={BUTTON_CONTENT_CHROME}>
-                        Open
+                        {t('Open')}
                       </Button>
                     ) : null}
                     {item.sourceKind && item.sourceId && !item.actioned ? (
                       <Button compact mode="outlined" onPress={() => { void handleMarkActioned(item); }} disabled={mutating} style={BUTTON_CHROME} buttonColor={theme.colors.surface} textColor={theme.colors.primary} contentStyle={BUTTON_CONTENT_CHROME}>
-                        Done
+                        {t('Done')}
                       </Button>
                     ) : null}
                     {(item.kind === 'approval' || item.kind === 'merge-request' || item.kind === 'merge-history') ? (
                       <Button compact mode="contained" onPress={() => { void handleOpenTarget(item); }} disabled={mutating} style={BUTTON_CHROME} buttonColor={theme.colors.primary} textColor={theme.colors.onPrimary} contentStyle={BUTTON_CONTENT_CHROME}>
-                        {item.kind === 'approval' ? 'Review' : 'Open'}
+                        {item.kind === 'approval' ? t('Review') : t('Open')}
                       </Button>
                     ) : null}
                   </View>
@@ -603,7 +604,7 @@ export function NotificationsView({
                   iconColor={theme.colors.primary}
                 />
                 <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                  Page {currentPage} of {totalPages}
+                  {t(K.app.resultsPageCount, { current: currentPage, total: totalPages })}
                 </Text>
                 <IconButton
                   icon="chevron-right"
@@ -622,7 +623,7 @@ export function NotificationsView({
           <View style={styles.emptyState}>
             <Text variant="titleMedium">{t(K.notifications.yourFamilyActivityFeedIsQuiet)}</Text>
             <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
-              Invites, edits, and merge moments will appear here as more people join in and your story grows.
+              {t('Invites, edits, and merge moments will appear here as more people join in and your story grows.')}
             </Text>
           </View>
         ) : null}

@@ -372,17 +372,20 @@ export default function PersonRelationshipDialog({
                         onPress={() => setCurrentPage((prev) => Math.max(0, prev - 1))}
                         disabled={currentPage === 0 || loading}
                       >
-                        {t(K.common.previous ?? 'Previous')}
+                        {t(K.common.previous)}
                       </Button>
                       <Text style={{ alignSelf: 'center', paddingHorizontal: 8 }} variant="bodySmall">
-                        {`${currentPage + 1} / ${Math.ceil(totalCandidateMatches / ITEMS_PER_PAGE)}`}
+                        {t(K.tree.familyMembers.pageOf, {
+                          current: currentPage + 1,
+                          total: Math.ceil(totalCandidateMatches / ITEMS_PER_PAGE),
+                        })}
                       </Text>
                       <Button
                         mode="outlined"
                         onPress={() => setCurrentPage((prev) => prev + 1)}
                         disabled={currentPage >= Math.ceil(totalCandidateMatches / ITEMS_PER_PAGE) - 1 || loading}
                       >
-                        {t(K.common.next ?? 'Next')}
+                        {t(K.common.next)}
                       </Button>
                     </View>
                   ) : null}

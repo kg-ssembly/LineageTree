@@ -39,7 +39,7 @@ export default function RelationshipVisualPreviewDialog({
         style={[dialogChrome.dialog, styles.dialog, { backgroundColor: theme.colors.surface }]}
       >
         <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose, styles.dialogTitle]}>
-          Visual Preview
+          {t(K.relationship.visualPreview)}
         </Dialog.Title>
         <IconButton
           icon="close"

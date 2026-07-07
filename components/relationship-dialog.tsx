@@ -256,7 +256,7 @@ export default function RelationshipDialog({
               <View style={[styles.reviewCard, { borderColor: theme.colors.outlineVariant, backgroundColor: theme.colors.elevation.level1 }]}>
                 <Text variant="titleSmall">{t(K.personForm.pleaseReviewBeforeSaving)}</Text>
                 <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                  {liveReviewMessages.length} relationship item{liveReviewMessages.length === 1 ? '' : 's'} to review before saving.
+                  {t(K.personForm.relationshipReviewSummaryBeforeSaving, { count: liveReviewMessages.length })}
                 </Text>
                 {liveReviewMessages.map((message) => (
                   <Text key={message} variant="bodyMedium" style={styles.reviewMessage}>

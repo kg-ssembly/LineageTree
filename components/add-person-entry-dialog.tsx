@@ -205,25 +205,25 @@ function getRelationshipAttemptDescription({
 
   if (perspective === 'anchor-person' && anchorName?.trim()) {
     if (mode === 'parent-of') {
-      return `You are adding ${relatedPersonName} as a parent of ${anchorName.trim()}.`;
+      return t('You are adding {relatedPersonName} as a parent of {anchorName}.', { relatedPersonName, anchorName: anchorName.trim() });
     }
 
     if (mode === 'child-of') {
-      return `You are adding ${relatedPersonName} as a child of ${anchorName.trim()}.`;
+      return t('You are adding {relatedPersonName} as a child of {anchorName}.', { relatedPersonName, anchorName: anchorName.trim() });
     }
 
-    return `You are adding ${relatedPersonName} as a spouse of ${anchorName.trim()}.`;
+    return t('You are adding {relatedPersonName} as a spouse of {anchorName}.', { relatedPersonName, anchorName: anchorName.trim() });
   }
 
   if (mode === 'parent-of') {
-    return `You are adding ${relatedPersonName} as a parent of the new person.`;
+    return t('You are adding {relatedPersonName} as a parent of the new person.', { relatedPersonName });
   }
 
   if (mode === 'child-of') {
-    return `You are adding ${relatedPersonName} as a child of the new person.`;
+    return t('You are adding {relatedPersonName} as a child of the new person.', { relatedPersonName });
   }
 
-  return `You are adding ${relatedPersonName} as a spouse of the new person.`;
+  return t('You are adding {relatedPersonName} as a spouse of the new person.', { relatedPersonName });
 }
 
 export default function AddPersonEntryDialog({

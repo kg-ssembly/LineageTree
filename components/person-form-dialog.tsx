@@ -297,7 +297,7 @@ export default function PersonFormDialog({
   onDelete,
 }: PersonFormDialogProps) {
   const theme = useTheme();
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const isRelationshipOnlyFlow = mode === 'create' && relationshipOnly;
   const [isPresent, setIsPresent] = useState(true);
   const [firstName, setFirstName] = useState('');
@@ -1107,7 +1107,7 @@ export default function PersonFormDialog({
                         ]}
                       >
                         <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-                          Starting connection
+                          {t(K.personForm.startingConnection)}
                         </Text>
                         <Text variant="titleSmall">
                           {isRelationshipOnlyFlow
@@ -1225,7 +1225,7 @@ export default function PersonFormDialog({
                         onPress={() => setVisualPreviewVisible(true)}
                         disabled={isBusy}
                       >
-                        Visual Preview
+                        {t(K.relationship.visualPreview)}
                       </Button>
                     </View>
                   </View>
@@ -1520,7 +1520,7 @@ export default function PersonFormDialog({
       </Portal>
 
       <DatePickerModal
-        locale="en"
+        locale={language}
         mode="single"
         visible={birthDatePickerVisible}
         date={selectedBirthDate}
@@ -1540,7 +1540,7 @@ export default function PersonFormDialog({
       />
 
       <DatePickerModal
-        locale="en"
+        locale={language}
         mode="single"
         visible={deathDatePickerVisible}
         date={selectedDeathDate}
@@ -1678,7 +1678,7 @@ export default function PersonFormDialog({
           style={[dialogChrome.dialog, styles.dialog, { backgroundColor: theme.colors.surface }]}
         >
           <Dialog.Title style={dialogChrome.dialogTitle}>
-            {t(K.personForm.confirmNewSurname ?? 'Confirm New Surname')}
+            {t(K.personForm.confirmNewSurname)}
           </Dialog.Title>
           <Dialog.Content>
             <Text variant="bodyMedium" style={styles.helperText}>
@@ -1698,7 +1698,7 @@ export default function PersonFormDialog({
               {t(K.common.cancel)}
             </Button>
             <Button mode="contained" onPress={handleSurnameVariantConfirm} disabled={isBusy}>
-              {t(K.common.confirm ?? 'Confirm')}
+              {t(K.common.confirm)}
             </Button>
           </Dialog.Actions>
         </Dialog>

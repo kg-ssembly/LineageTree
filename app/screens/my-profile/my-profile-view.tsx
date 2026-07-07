@@ -400,7 +400,7 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
         summary: t(
           defaultTree
             ? K.profileState.linkOrClaimFamilyProfileSummary
-            : 'You have a tree ready, but your account is not linked to a family member profile yet.',
+            : K.profileState.linkOrClaimFamilyProfileSummaryNoTree,
           { treeName: defaultTree?.name ?? '' },
         ),
         detail: t(K.profileState.linkOrClaimFamilyProfileDetail),
@@ -413,7 +413,7 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
         summary: t(
           profileTree
             ? K.profileState.loadingFamilyProfileSummary
-            : 'Your account is linked, and we are still loading that family member profile.',
+            : K.profileState.loadingFamilyProfileSummaryNoTree,
           { treeName: profileTree?.name ?? '' },
         ),
         detail: t(K.profileState.loadingFamilyProfileDetail),

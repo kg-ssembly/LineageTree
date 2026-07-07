@@ -117,7 +117,7 @@ export function FamilyMembersView({
   onOpenAddPerson,
 }: SharedTabProps) {
   const theme = useTheme();
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const [helperVisible, setHelperVisible] = useState(false);
   const [filterModalVisible, setFilterModalVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -516,7 +516,7 @@ export function FamilyMembersView({
       </Portal>
 
       <DatePickerModal
-        locale="en"
+        locale={language}
         mode="single"
         visible={birthDateFromPickerVisible}
         date={selectedBirthDateFrom}
@@ -532,7 +532,7 @@ export function FamilyMembersView({
       />
 
       <DatePickerModal
-        locale="en"
+        locale={language}
         mode="single"
         visible={birthDateToPickerVisible}
         date={selectedBirthDateTo}

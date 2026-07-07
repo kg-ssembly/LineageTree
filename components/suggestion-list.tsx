@@ -4,6 +4,8 @@ import { Button, Chip, Text, useTheme } from 'react-native-paper';
 import type { PersonProfileRouteMemorySection, PersonProfileRouteTab } from './dto/navigation';
 import type { PendingRelationshipMode } from './person-form-dialog';
 import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, GlobalStyles } from '../constants/styles';
+import { useI18n } from '../hooks/use-i18n';
+import { I18N_KEYS as K } from '../i18n/keys';
 import { SectionCard } from './ui';
 
 const styles = GlobalStyles.personProfile;
@@ -58,6 +60,7 @@ export function SuggestionList<TSuggestion extends SuggestionItem = SuggestionIt
   getActionMode,
 }: SuggestionListProps<TSuggestion>) {
   const theme = useTheme();
+  const { t } = useI18n();
 
   return (
     <View style={styles.suggestionList}>
@@ -77,7 +80,7 @@ export function SuggestionList<TSuggestion extends SuggestionItem = SuggestionIt
                 <View style={{ flex: 1 }}>
                   {showDoneState && suggestion.done ? (
                     <Chip compact icon="check-circle-outline" style={{ alignSelf: 'flex-start' }}>
-                      Done
+                      {t(K.common.done)}
                     </Chip>
                   ) : null}
                   {variant === 'profile' && suggestion.icon ? (

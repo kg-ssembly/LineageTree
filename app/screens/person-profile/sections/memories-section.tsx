@@ -171,7 +171,7 @@ export function PersonMemoriesSection({
                       ) : null}
                       {draft.linkedLifeEventId ? (
                         <Chip compact icon="link-variant">
-                          {linkedEventLabel(draft.linkedLifeEventId) || 'Linked memory'}
+                          {linkedEventLabel(draft.linkedLifeEventId) || t(K.memories.linkedMemory)}
                         </Chip>
                       ) : null}
                     </View>

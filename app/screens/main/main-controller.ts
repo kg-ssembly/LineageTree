@@ -759,7 +759,10 @@ export function useMainScreenController({ navigation }: Props) {
     if (nextDefaultTreeId && linkedTree) {
       openConfirm(
         t(K.treeSettings.unlinkYourProfile),
-        `You are still linked in "${linkedTree.name}". Unlink your profile there before making "${tree.name}" your default tree.`,
+        t('You are still linked in "{linkedTree.name}". Unlink your profile there before making "{tree.name}" your default tree.', {
+          'linkedTree.name': linkedTree.name,
+          'tree.name': tree.name,
+        }),
         t(K.common.unlink),
         async () => {
           await clearSelfAssignment(linkedTree.id, user.id);
@@ -789,7 +792,10 @@ export function useMainScreenController({ navigation }: Props) {
     if (linkedTree) {
       openConfirm(
         t(K.treeSettings.unlinkYourProfile),
-        `You are still linked in "${linkedTree.name}". Unlink your profile there before switching to "${tree.name}".`,
+        t('You are still linked in "{linkedTree.name}". Unlink your profile there before switching to "{tree.name}".', {
+          'linkedTree.name': linkedTree.name,
+          'tree.name': tree.name,
+        }),
         t(K.common.unlink),
         async () => {
           await clearSelfAssignment(linkedTree.id, user.id);
@@ -807,9 +813,9 @@ export function useMainScreenController({ navigation }: Props) {
       try {
         const impact = await getTreeDeletionImpact(tree.id);
         const details = [
-          `Delete "${tree.name}" permanently?`,
+          t('Delete "{tree.name}" permanently?', { 'tree.name': tree.name }),
           '',
-          'This will also remove or disconnect:',
+          t('This will also remove or disconnect:'),
           `${impact.peopleDeleted} family member profile(s) that only exist in this tree`,
           `${impact.peopleDetached} shared family member profile(s) that will be removed from this tree but kept in other tree(s)`,
           `${impact.photosDeleted} photo(s) attached to profiles being permanently deleted`,
@@ -821,7 +827,7 @@ export function useMainScreenController({ navigation }: Props) {
           `${impact.mergeHistoryAffected} merge history record(s) involving this tree`,
           `${impact.connectedTreesDetached} connected tree link(s) to other family trees`,
           '',
-          'This cannot be undone.',
+          t('This cannot be undone.'),
         ].join('\n');
 
         openConfirm(
