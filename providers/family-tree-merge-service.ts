@@ -28,6 +28,7 @@ import {
   getRelationshipCanonicalKey,
   validateSelectedMergeMatches,
 } from './family-tree-merge-application';
+import { buildMergeReviewUpdate } from './family-tree-merge-review-workflow';
 import { mapMergeRequest } from './family-tree-mappers';
 import { nowIso } from './family-tree-shared';
 import { buildMergePreview } from './merge-intelligence';
@@ -320,14 +321,6 @@ export async function reviewMergeRequest(
   const nextSelectedMatchIds = selectedMatchIds
     ? [...new Set(selectedMatchIds.filter((matchId) => request.preview.matches.some((match) => match.id === matchId)))]
     : request.selectedMatchIds;
-  if (decision === 'approve' && nextSelectedMatchIds.length === 0) {
-    throw new Error('Select at least one person match before approving this merge.');
-  }
-
-  validateSelectedMergeMatches({
-    ...request,
-    selectedMatchIds: nextSelectedMatchIds,
-  });
 
   const transactionResult = await runTransaction(db, async (transaction) => {
     const latestSnapshot = await transaction.get(requestRef);
@@ -340,45 +333,36 @@ export async function reviewMergeRequest(
       throw new Error('Only pending merge requests can be reviewed.');
     }
 
-    const approvals = [
-      ...latestRequest.approvals.filter((entry) => !nextApprovals.some((approval) => approval.treeId === entry.treeId && approval.editorUserId === entry.editorUserId)),
-      ...nextApprovals,
-    ];
-    const reviewerComments = comment.trim() ? [...latestRequest.reviewerComments, comment.trim()] : latestRequest.reviewerComments;
-
-    let status: MergeRequestRecord['status'] = latestRequest.status;
-    if (decision === 'reject') {
-      status = 'rejected';
-    } else if (decision === 'request-changes') {
-      status = 'changes-requested';
-    } else {
-      const approvedTreeIds = new Set(approvals.filter((entry) => entry.decision === 'approve').map((entry) => entry.treeId));
-      status = approvedTreeIds.has(sourceTree.id) && approvedTreeIds.has(targetTree.id) ? 'approved' : 'pending';
-    }
-
-    transaction.update(requestRef, {
-      approvals,
-      reviewerComments,
+    const update = buildMergeReviewUpdate({
+      currentRequest: latestRequest,
+      decision,
+      nextApprovals,
+      comment,
       conflictChoices,
       selectedMatchIds: nextSelectedMatchIds,
-      status,
+      sourceTreeId: sourceTree.id,
+      targetTreeId: targetTree.id,
+    });
+
+    transaction.update(requestRef, {
+      approvals: update.approvals,
+      reviewerComments: update.reviewerComments,
+      conflictChoices: update.conflictChoices,
+      selectedMatchIds: update.selectedMatchIds,
+      status: update.status,
       updatedAt: nowIso(),
     });
 
-    return {
-      approvals,
-      reviewerComments,
-      status,
-    };
+    return update;
   });
 
-  if (transactionResult.status === 'approved') {
+  if (transactionResult.shouldApply) {
     await applyMergeRequest(requestId, {
       ...request,
       approvals: transactionResult.approvals,
       reviewerComments: transactionResult.reviewerComments,
-      conflictChoices,
-      selectedMatchIds: nextSelectedMatchIds,
+      conflictChoices: transactionResult.conflictChoices,
+      selectedMatchIds: transactionResult.selectedMatchIds,
       status: transactionResult.status,
     });
   }
