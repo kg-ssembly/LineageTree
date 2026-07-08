@@ -2,6 +2,7 @@ import {
   collection,
   doc,
   getDoc,
+  runTransaction,
   setDoc,
   updateDoc,
   writeBatch,
@@ -91,6 +92,19 @@ async function ensureMergePreviewStillMatches(request: MergeRequestRecord) {
 }
 
 async function applyMergeRequest(mergeRequestId: string, request: MergeRequestRecord) {
+  const latestRequestSnapshot = await getDoc(doc(db, MERGE_REQUESTS_COLLECTION, mergeRequestId));
+  if (!latestRequestSnapshot.exists()) {
+    throw new Error('That merge request no longer exists.');
+  }
+
+  const latestRequest = mapMergeRequest(latestRequestSnapshot as QueryDocumentSnapshot);
+  if (latestRequest.status === 'applied') {
+    return;
+  }
+  if (latestRequest.status !== 'approved') {
+    throw new Error('Only approved merge requests can be applied.');
+  }
+
   const timestamp = nowIso();
   validateSelectedMergeMatches(request);
   await ensureMergePreviewStillMatches(request);
@@ -194,7 +208,7 @@ async function applyMergeRequest(mergeRequestId: string, request: MergeRequestRe
     updatedAt: timestamp,
   });
 
-  const historyRef = doc(collection(db, MERGE_HISTORY_COLLECTION));
+  const historyRef = doc(db, MERGE_HISTORY_COLLECTION, mergeRequestId);
   batch.set(historyRef, {
     mergeRequestId,
     involvedTreeIds: request.involvedTreeIds,
@@ -303,11 +317,6 @@ export async function reviewMergeRequest(
       decidedAt: nowIso(),
     } satisfies MergeApproval];
 
-  const approvals = [
-    ...request.approvals.filter((entry) => !nextApprovals.some((approval) => approval.treeId === entry.treeId && approval.editorUserId === entry.editorUserId)),
-    ...nextApprovals,
-  ];
-  const reviewerComments = comment.trim() ? [...request.reviewerComments, comment.trim()] : request.reviewerComments;
   const nextSelectedMatchIds = selectedMatchIds
     ? [...new Set(selectedMatchIds.filter((matchId) => request.preview.matches.some((match) => match.id === matchId)))]
     : request.selectedMatchIds;
@@ -320,33 +329,57 @@ export async function reviewMergeRequest(
     selectedMatchIds: nextSelectedMatchIds,
   });
 
-  let status: MergeRequestRecord['status'] = request.status;
-  if (decision === 'reject') {
-    status = 'rejected';
-  } else if (decision === 'request-changes') {
-    status = 'changes-requested';
-  } else {
-    const approvedTreeIds = new Set(approvals.filter((entry) => entry.decision === 'approve').map((entry) => entry.treeId));
-    status = approvedTreeIds.has(sourceTree.id) && approvedTreeIds.has(targetTree.id) ? 'approved' : 'pending';
-  }
+  const transactionResult = await runTransaction(db, async (transaction) => {
+    const latestSnapshot = await transaction.get(requestRef);
+    if (!latestSnapshot.exists()) {
+      throw new Error('That merge request no longer exists.');
+    }
 
-  await updateDoc(requestRef, {
-    approvals,
-    reviewerComments,
-    conflictChoices,
-    selectedMatchIds: nextSelectedMatchIds,
-    status,
-    updatedAt: nowIso(),
-  });
+    const latestRequest = mapMergeRequest(latestSnapshot as QueryDocumentSnapshot);
+    if (latestRequest.status !== 'pending' && latestRequest.status !== 'changes-requested') {
+      throw new Error('Only pending merge requests can be reviewed.');
+    }
 
-  if (status === 'approved') {
-    await applyMergeRequest(requestId, {
-      ...request,
+    const approvals = [
+      ...latestRequest.approvals.filter((entry) => !nextApprovals.some((approval) => approval.treeId === entry.treeId && approval.editorUserId === entry.editorUserId)),
+      ...nextApprovals,
+    ];
+    const reviewerComments = comment.trim() ? [...latestRequest.reviewerComments, comment.trim()] : latestRequest.reviewerComments;
+
+    let status: MergeRequestRecord['status'] = latestRequest.status;
+    if (decision === 'reject') {
+      status = 'rejected';
+    } else if (decision === 'request-changes') {
+      status = 'changes-requested';
+    } else {
+      const approvedTreeIds = new Set(approvals.filter((entry) => entry.decision === 'approve').map((entry) => entry.treeId));
+      status = approvedTreeIds.has(sourceTree.id) && approvedTreeIds.has(targetTree.id) ? 'approved' : 'pending';
+    }
+
+    transaction.update(requestRef, {
       approvals,
       reviewerComments,
       conflictChoices,
       selectedMatchIds: nextSelectedMatchIds,
       status,
+      updatedAt: nowIso(),
+    });
+
+    return {
+      approvals,
+      reviewerComments,
+      status,
+    };
+  });
+
+  if (transactionResult.status === 'approved') {
+    await applyMergeRequest(requestId, {
+      ...request,
+      approvals: transactionResult.approvals,
+      reviewerComments: transactionResult.reviewerComments,
+      conflictChoices,
+      selectedMatchIds: nextSelectedMatchIds,
+      status: transactionResult.status,
     });
   }
 }

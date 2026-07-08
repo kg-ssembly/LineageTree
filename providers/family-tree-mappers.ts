@@ -330,7 +330,15 @@ function mapMergePreview(data: any): MergePreview {
     duplicateCount: Number(data?.duplicateCount ?? 0),
     connectedRelationshipCount: Number(data?.connectedRelationshipCount ?? 0),
     newBranchCount: Number(data?.newBranchCount ?? 0),
-    conflicts: Array.isArray(data?.conflicts) ? data.conflicts : [],
+    conflicts: Array.isArray(data?.conflicts)
+      ? data.conflicts.filter((conflict: any) => (
+        conflict
+        && typeof conflict.matchId === 'string'
+        && typeof conflict.field === 'string'
+        && typeof conflict.sourceValue === 'string'
+        && typeof conflict.targetValue === 'string'
+      ))
+      : [],
     combinedAssetCount: Number(data?.combinedAssetCount ?? 0),
   };
 }
@@ -362,6 +370,34 @@ function mapMergeSnapshot(rawSnapshot: any): MergeRequestSnapshot | undefined {
   };
 }
 
+function mapMergeConflictChoice(rawChoice: any): MergeConflictChoice | null {
+  if (!rawChoice || typeof rawChoice !== 'object') {
+    return null;
+  }
+
+  const keep = rawChoice.keep;
+  if (
+    typeof rawChoice.matchId !== 'string'
+    || typeof rawChoice.field !== 'string'
+    || (keep !== 'source' && keep !== 'target' && keep !== 'both' && keep !== 'later')
+  ) {
+    return null;
+  }
+
+  const resolvedValue = Array.isArray(rawChoice.resolvedValue)
+    ? rawChoice.resolvedValue.filter((value: unknown): value is string => typeof value === 'string')
+    : typeof rawChoice.resolvedValue === 'string'
+      ? rawChoice.resolvedValue
+      : undefined;
+
+  return {
+    matchId: rawChoice.matchId,
+    field: rawChoice.field,
+    keep,
+    resolvedValue,
+  };
+}
+
 export function mapMergeRequest(snapshot: QueryDocumentSnapshot): MergeRequestRecord {
   const data = snapshot.data();
   return {
@@ -376,7 +412,9 @@ export function mapMergeRequest(snapshot: QueryDocumentSnapshot): MergeRequestRe
     selectedMatchIds: Array.isArray(data.selectedMatchIds) ? data.selectedMatchIds.filter((value) => typeof value === 'string') : [],
     approvals: Array.isArray(data.approvals) ? data.approvals.map(mapMergeApproval).filter(Boolean) as MergeApproval[] : [],
     reviewerComments: Array.isArray(data.reviewerComments) ? data.reviewerComments.filter((value) => typeof value === 'string') : [],
-    conflictChoices: Array.isArray(data.conflictChoices) ? data.conflictChoices as MergeConflictChoice[] : [],
+    conflictChoices: Array.isArray(data.conflictChoices)
+      ? data.conflictChoices.map(mapMergeConflictChoice).filter(Boolean) as MergeConflictChoice[]
+      : [],
     snapshotBeforeMerge: mapMergeSnapshot(data.snapshotBeforeMerge),
     appliedAt: data.appliedAt ?? undefined,
     undoneAt: data.undoneAt ?? undefined,

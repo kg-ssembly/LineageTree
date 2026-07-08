@@ -146,12 +146,13 @@ function mergePhotos(targetPhotos: unknown, sourcePhotos: unknown, sourcePersonI
 }
 
 function resolveMergeConflictValue(
+  matchId: string,
   field: string,
   request: MergeRequestRecord,
   sourceSnapshot: Record<string, any>,
   targetSnapshot: Record<string, any>,
 ) {
-  const choice = request.conflictChoices.find((entry) => entry.field === field);
+  const choice = request.conflictChoices.find((entry) => entry.matchId === matchId && entry.field === field);
   if (!choice) {
     return undefined;
   }
@@ -194,15 +195,15 @@ export function buildMergedTargetPersonUpdate(
   return {
     firstName: targetSnapshot.firstName || sourceSnapshot.firstName || '',
     middleNames: targetSnapshot.middleNames || sourceSnapshot.middleNames || '',
-    lastName: resolveMergeConflictValue('surname', request, sourceSnapshot, targetSnapshot) ?? targetSnapshot.lastName ?? sourceSnapshot.lastName ?? '',
+    lastName: resolveMergeConflictValue(match.id, 'surname', request, sourceSnapshot, targetSnapshot) ?? targetSnapshot.lastName ?? sourceSnapshot.lastName ?? '',
     maidenName: targetSnapshot.maidenName || sourceSnapshot.maidenName || '',
     nicknames: mergeUniqueStrings(targetSnapshot.nicknames, sourceSnapshot.nicknames),
     clanName: targetSnapshot.clanName || sourceSnapshot.clanName || '',
     familyBranch: targetSnapshot.familyBranch || sourceSnapshot.familyBranch || '',
-    hometown: resolveMergeConflictValue('hometown', request, sourceSnapshot, targetSnapshot) ?? targetSnapshot.hometown ?? sourceSnapshot.hometown ?? '',
+    hometown: resolveMergeConflictValue(match.id, 'hometown', request, sourceSnapshot, targetSnapshot) ?? targetSnapshot.hometown ?? sourceSnapshot.hometown ?? '',
     birthPlace: targetSnapshot.birthPlace || sourceSnapshot.birthPlace || '',
     surnameVariantHints: mergeUniqueStrings(targetSnapshot.surnameVariantHints, sourceSnapshot.surnameVariantHints),
-    birthDate: resolveMergeConflictValue('birthDate', request, sourceSnapshot, targetSnapshot) ?? targetSnapshot.birthDate ?? sourceSnapshot.birthDate ?? '',
+    birthDate: resolveMergeConflictValue(match.id, 'birthDate', request, sourceSnapshot, targetSnapshot) ?? targetSnapshot.birthDate ?? sourceSnapshot.birthDate ?? '',
     deathDate: targetSnapshot.deathDate || sourceSnapshot.deathDate || '',
     gender: targetSnapshot.gender && targetSnapshot.gender !== 'unspecified' ? targetSnapshot.gender : sourceSnapshot.gender ?? targetSnapshot.gender ?? 'unspecified',
     notes: mergeTextBlocks(targetSnapshot.notes, sourceSnapshot.notes),
@@ -215,7 +216,15 @@ export function buildMergedTargetPersonUpdate(
   };
 }
 
-export function getRelationshipCanonicalKey(relationship: Pick<RelationshipRecord, 'type' | 'fromPersonId' | 'toPersonId'>) {
+export function getRelationshipCanonicalKey(
+  relationship: Pick<RelationshipRecord, 'type' | 'fromPersonId' | 'toPersonId' | 'relationshipStatus' | 'parentChildKind'>,
+) {
   const normalized = normalizeRelationshipEndpoints(relationship.type, relationship.fromPersonId, relationship.toPersonId);
-  return `${relationship.type}:${normalized.fromPersonId}:${normalized.toPersonId}`;
+  return [
+    relationship.type,
+    normalized.fromPersonId,
+    normalized.toPersonId,
+    relationship.type === 'spouse' ? relationship.relationshipStatus ?? '' : '',
+    relationship.type === 'parent-child' ? relationship.parentChildKind ?? '' : '',
+  ].join(':');
 }

@@ -211,11 +211,13 @@ test('buildMergePreview promotes strong duplicate matches and reports aggregate 
   assert.ok(strongMatch?.signals.some((signal) => signal.label === 'Spouse' && signal.matched));
   assert.deepEqual(strongMatch?.conflicts, [
     {
+      matchId: 'source-child:target-child',
       field: 'birthDate',
       sourceValue: '1985-06-01',
       targetValue: '1986-06-01',
     },
     {
+      matchId: 'source-child:target-child',
       field: 'surname',
       sourceValue: 'Khumalo',
       targetValue: 'Cumalo',

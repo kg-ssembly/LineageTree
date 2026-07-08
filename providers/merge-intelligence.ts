@@ -259,13 +259,28 @@ function comparePeople(source: PersonMergeFacts, target: PersonMergeFacts): Merg
 
   const conflicts: MergeConflict[] = [];
   if (sourcePerson.birthDate && targetPerson.birthDate && sourcePerson.birthDate !== targetPerson.birthDate) {
-    conflicts.push({ field: 'birthDate', sourceValue: sourcePerson.birthDate, targetValue: targetPerson.birthDate });
+    conflicts.push({
+      matchId: `${sourcePerson.id}:${targetPerson.id}`,
+      field: 'birthDate',
+      sourceValue: sourcePerson.birthDate,
+      targetValue: targetPerson.birthDate,
+    });
   }
   if (sourcePerson.lastName && targetPerson.lastName && normalise(sourcePerson.lastName) !== normalise(targetPerson.lastName)) {
-    conflicts.push({ field: 'surname', sourceValue: sourcePerson.lastName, targetValue: targetPerson.lastName });
+    conflicts.push({
+      matchId: `${sourcePerson.id}:${targetPerson.id}`,
+      field: 'surname',
+      sourceValue: sourcePerson.lastName,
+      targetValue: targetPerson.lastName,
+    });
   }
   if (sourcePerson.hometown && targetPerson.hometown && source.hometown !== target.hometown) {
-    conflicts.push({ field: 'hometown', sourceValue: sourcePerson.hometown, targetValue: targetPerson.hometown });
+    conflicts.push({
+      matchId: `${sourcePerson.id}:${targetPerson.id}`,
+      field: 'hometown',
+      sourceValue: sourcePerson.hometown,
+      targetValue: targetPerson.hometown,
+    });
   }
 
   return {

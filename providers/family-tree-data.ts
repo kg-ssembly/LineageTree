@@ -14,6 +14,7 @@ import type { PersonLifeEvent, PersonRecord } from '../components/dto/person';
 import type { UserProfile } from '../components/dto/user';
 import { formatPersonName, mapLifeEvent, mapPerson, mapRelationship, mapTreeData, mergeUniqueById, normaliseLifeEvents } from './family-tree-mappers';
 import { db } from './firebase-provider';
+import { personRecordBelongsToTree } from './family-tree-membership';
 import { nowIso } from './family-tree-shared';
 
 export const TREES_COLLECTION = 'trees';
@@ -47,7 +48,7 @@ function normaliseDisplayName(displayName: string) {
 }
 
 function needsTreeMembershipBackfill(data: DocumentData, treeId: string) {
-  return !(Array.isArray(data.treeMembershipIds) && data.treeMembershipIds.includes(treeId));
+  return !personRecordBelongsToTree(data, treeId);
 }
 
 export async function getLegacyPeopleNeedingBackfill(treeId: string) {
@@ -92,7 +93,7 @@ export async function updateParentLifeEventsForChild(
     }
 
     const parentData = parentSnapshot.data();
-    if (parentData.treeId !== child.treeId) {
+    if (!personRecordBelongsToTree(parentData, child.treeId)) {
       return;
     }
 
@@ -168,7 +169,7 @@ export async function ensurePeopleBelongToTree(treeId: string, personIds: string
     const membershipIds = Array.isArray(snapshot.data().treeMembershipIds)
       ? snapshot.data().treeMembershipIds
       : [snapshot.data().treeId].filter(Boolean);
-    if (!membershipIds.includes(treeId)) {
+    if (!membershipIds.includes(treeId) && !personRecordBelongsToTree(snapshot.data(), treeId)) {
       throw new Error('Family members must belong to the selected tree.');
     }
   });

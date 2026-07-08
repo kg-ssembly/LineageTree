@@ -51,6 +51,7 @@ import {
   uploadPersonPhotos,
   uploadPreferredPhotoDisplayVariant,
 } from './family-tree-photo-service';
+import { shouldApplyApprovalImmediately } from './family-tree-approval-policy';
 import { nowIso } from './family-tree-shared';
 
 type PendingCreateRelationshipInput = {
@@ -749,7 +750,11 @@ export async function submitCreatePersonApproval(
     };
     const { eligibleApproverIds, autoApproveBecauseNoSameSurnameContributor } = await getEligibleApproverIds(tree, actorUserId, payload);
 
-    if (options?.forceImmediateApproval || eligibleApproverIds.length === 0 || areApprovalsDisabled(tree) || autoApproveBecauseNoSameSurnameContributor) {
+    if (shouldApplyApprovalImmediately({
+      eligibleApproverIds,
+      approvalsDisabled: areApprovalsDisabled(tree),
+      forceImmediateApproval: options?.forceImmediateApproval,
+    })) {
       await applyApprovedCreatePerson(payload);
       const appliedAt = nowIso();
       await createApprovalRequest({
@@ -844,7 +849,10 @@ export async function submitPersonUpdateApproval(
   };
   const { eligibleApproverIds, autoApproveBecauseNoSameSurnameContributor } = await getEligibleApproverIds(tree, actorUserId, payload);
 
-  if (eligibleApproverIds.length === 0 || areApprovalsDisabled(tree) || autoApproveBecauseNoSameSurnameContributor) {
+  if (shouldApplyApprovalImmediately({
+    eligibleApproverIds,
+    approvalsDisabled: areApprovalsDisabled(tree),
+  })) {
     await applyApprovedPersonUpdate(payload);
     const appliedAt = nowIso();
     await createApprovalRequest({
@@ -913,7 +921,10 @@ export async function submitDeletePersonApproval(
   const payload: ApprovalRequestPayload = { deletedPerson: person };
   const { eligibleApproverIds, autoApproveBecauseNoSameSurnameContributor } = await getEligibleApproverIds(tree, actorUserId, payload);
 
-  if (eligibleApproverIds.length === 0 || areApprovalsDisabled(tree) || autoApproveBecauseNoSameSurnameContributor) {
+  if (shouldApplyApprovalImmediately({
+    eligibleApproverIds,
+    approvalsDisabled: areApprovalsDisabled(tree),
+  })) {
     await applyApprovedDeletePerson(payload);
     const appliedAt = nowIso();
     await createApprovalRequest({
@@ -1024,7 +1035,10 @@ export async function submitCreateRelationshipApproval(
   const relationLabel = type === 'spouse' ? 'spouse relationship' : 'parent-child relationship';
   const { eligibleApproverIds, autoApproveBecauseNoSameSurnameContributor } = await getEligibleApproverIds(tree, actorUserId, payload);
 
-  if (eligibleApproverIds.length === 0 || areApprovalsDisabled(tree) || autoApproveBecauseNoSameSurnameContributor) {
+  if (shouldApplyApprovalImmediately({
+    eligibleApproverIds,
+    approvalsDisabled: areApprovalsDisabled(tree),
+  })) {
     await applyApprovedCreateRelationship(payload);
     const appliedAt = nowIso();
     await createApprovalRequest({
@@ -1117,7 +1131,10 @@ export async function submitUpdateRelationshipApproval(
   const relationLabel = relationship.type === 'spouse' ? 'spouse relationship' : 'parent-child relationship';
   const { eligibleApproverIds, autoApproveBecauseNoSameSurnameContributor } = await getEligibleApproverIds(tree, actorUserId, payload);
 
-  if (eligibleApproverIds.length === 0 || areApprovalsDisabled(tree) || autoApproveBecauseNoSameSurnameContributor) {
+  if (shouldApplyApprovalImmediately({
+    eligibleApproverIds,
+    approvalsDisabled: areApprovalsDisabled(tree),
+  })) {
     await applyApprovedUpdateRelationship(payload);
     const appliedAt = nowIso();
     await createApprovalRequest({
@@ -1187,7 +1204,10 @@ export async function submitDeleteRelationshipApproval(
   const relationLabel = relationship.type === 'spouse' ? 'spouse relationship' : 'parent-child relationship';
   const { eligibleApproverIds, autoApproveBecauseNoSameSurnameContributor } = await getEligibleApproverIds(tree, actorUserId, payload);
 
-  if (eligibleApproverIds.length === 0 || areApprovalsDisabled(tree) || autoApproveBecauseNoSameSurnameContributor) {
+  if (shouldApplyApprovalImmediately({
+    eligibleApproverIds,
+    approvalsDisabled: areApprovalsDisabled(tree),
+  })) {
     await applyApprovedDeleteRelationship(payload);
     const appliedAt = nowIso();
     await createApprovalRequest({

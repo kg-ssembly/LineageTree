@@ -195,11 +195,13 @@ function getRelationshipAttemptDescription({
   perspective,
   anchorName,
   relatedPersonName,
+  t,
 }: {
   mode: RelationshipSelectionMode;
   perspective: 'new-person' | 'anchor-person';
   anchorName?: string;
   relatedPersonName: string;
+  t: (key: string, values?: Record<string, string | number>) => string;
 }) {
   const mode = resolveSubmissionMode(rawMode, perspective);
 
@@ -590,6 +592,7 @@ export default function AddPersonEntryDialog({
                   perspective,
                   anchorName: anchorDisplayName,
                   relatedPersonName: formatPersonDisplayName(blockingState.relatedPerson),
+                  t,
                 })}
               </Text>
               <Text variant="bodyMedium">
@@ -639,6 +642,7 @@ export default function AddPersonEntryDialog({
                   perspective,
                   anchorName: anchorDisplayName,
                   relatedPersonName: formatPersonDisplayName(reviewState.relatedPerson),
+                  t,
                 })}
               </Text>
               <Text variant="bodyMedium">
