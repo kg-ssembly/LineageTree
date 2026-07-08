@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, Easing, type StyleProp, type ViewStyle } from 'react-native';
+import { Animated, Easing, Platform, View, type StyleProp, type ViewStyle } from 'react-native';
 
 type RevealProps = {
   children: React.ReactNode;
@@ -16,6 +16,10 @@ export default function Reveal({
   duration = 360,
   style,
 }: RevealProps) {
+  if (Platform.OS === 'web') {
+    return <View style={style}>{children}</View>;
+  }
+
   const translateY = useRef(new Animated.Value(distance)).current;
 
   useEffect(() => {
