@@ -1,9 +1,9 @@
 import React from 'react';
 import { Dialog, IconButton, List, Portal, Text } from 'react-native-paper';
+import { GlobalStyles } from '../../../components';
 import type { PersonRecord } from '../../../components/dto/person';
 import { extractSurname } from '../../../components/family-tree-surname-clusters';
 import { formatPersonName } from '../../../components/person-formatting';
-import { GlobalStyles } from '../../../constants/styles';
 import { I18N_KEYS as K } from '../../../i18n/keys';
 
 const dialogChrome = GlobalStyles.dialogChrome;

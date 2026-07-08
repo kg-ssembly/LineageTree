@@ -2,11 +2,10 @@ import React from 'react';
 import { Image, Modal, Pressable, ScrollView, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Button, Chip, Dialog, IconButton, Portal, Text, TextInput } from 'react-native-paper';
-import { Reveal, SectionCard } from '../../../components';
+import { GlobalStyles, Reveal, SectionCard } from '../../../components';
 import type { PersonPhoto, PersonRecord } from '../../../components/dto/person';
 import { formatPersonDate, getDisplayPersonPhoto, getPersonLifeSpanLabel, getPersonPresenceLabel } from '../../../components/dto/person';
 import { formatPersonName } from '../../../components/person-formatting';
-import { GlobalStyles } from '../../../constants/styles';
 import { I18N_KEYS as K } from '../../../i18n/keys';
 
 const dialogChrome = GlobalStyles.dialogChrome;

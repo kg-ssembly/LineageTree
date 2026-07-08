@@ -3,10 +3,9 @@ import { ScrollView, View, type LayoutChangeEvent, type StyleProp, type ViewStyl
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
 import { ActivityIndicator, Button, Chip, Dialog, IconButton, Portal, Text, useTheme } from 'react-native-paper';
-import { FloatingSnackbar, HorizontalTabStrip, InfoDialog, Reveal, ScreenBackground, SectionCard, SuggestionList, TabStripCard, type SuggestionActionTarget } from '../../../../components';
+import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, FloatingSnackbar, GlobalStyles, HorizontalTabStrip, InfoDialog, Reveal, ScreenBackground, SectionCard, SuggestionList, TabStripCard, type SuggestionActionTarget } from '../../../../components';
 import type { MainTabParamList } from '../../../../components/dto/navigation';
 import type { AppTheme } from '../../../../constants/theme';
-import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
 import { formatPersonName } from '../../../../components/person-formatting';

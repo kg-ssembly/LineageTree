@@ -1,13 +1,12 @@
 import React from 'react';
 import { View } from 'react-native';
 import { Button, Chip, IconButton, Text, useTheme } from 'react-native-paper';
-import { HorizontalTabStrip, RelationshipInsightCard, Reveal, SectionCard, TabStripCard } from '../../../../components';
+import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, GlobalStyles, HorizontalTabStrip, RelationshipInsightCard, Reveal, SectionCard, TabStripCard } from '../../../../components';
 import type { PersonRelationshipMode } from '../../../../components/person-relationship-dialog';
 import type { PersonRecord } from '../../../../components/dto/person';
 import type { RelationshipRecord } from '../../../../components/dto/relationship';
 import type { KinshipSystem } from '../../../../components/dto/tree';
 import { formatPersonName } from '../../../../components/person-formatting';
-import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
 

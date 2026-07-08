@@ -13,8 +13,8 @@ import {
   useTheme,
 } from 'react-native-paper';
 import { DatePickerModal } from 'react-native-paper-dates';
+import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, GlobalStyles, InfoDialog, Reveal, ScreenBackground } from '../../../../components';
 import type { PersonGender, PersonRecord } from '../../../../components/dto/person';
-import { InfoDialog, Reveal, ScreenBackground } from '../../../../components';
 import {
   formatPersonDate,
   getDisplayPersonPhoto,
@@ -23,7 +23,6 @@ import {
   parsePersonDate,
 } from '../../../../components/dto/person';
 import { formatPersonGender, formatPersonName } from '../../../../components/person-formatting';
-import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
 import type { SharedTabProps } from '../shared';
@@ -302,6 +301,7 @@ export function FamilyMembersView({
     theme.colors.onSurfaceVariant,
     theme.colors.outlineVariant,
     theme.colors.primary,
+    theme.colors.elevation.level1,
     theme.colors.surface,
     theme.colors.surfaceVariant,
   ]);

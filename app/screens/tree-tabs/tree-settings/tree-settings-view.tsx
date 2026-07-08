@@ -1,7 +1,7 @@
 import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { FlatList, ScrollView, Share, View } from 'react-native';
 import { Button, Chip, Dialog, IconButton, Portal, ProgressBar, Text, TextInput, useTheme } from 'react-native-paper';
-import { FloatingSnackbar, HorizontalTabStrip, InfoDialog, Reveal, ScreenBackground, TabStripCard } from '../../../../components';
+import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, FloatingSnackbar, GlobalStyles, HorizontalTabStrip, InfoDialog, Reveal, ScreenBackground, TabStripCard } from '../../../../components';
 import type { ApprovalRequest } from '../../../../components/dto/approval';
 import type { PersonRecord } from '../../../../components/dto/person';
 import {
@@ -10,7 +10,6 @@ import {
   getTreeRole,
   getUnlinkedCollaborators,
 } from '../../../../components/dto/tree';
-import { GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
 import { normaliseSurnameKey } from '../../tree-screen-helpers';
@@ -30,8 +29,6 @@ import {
   type TreeManagementTabKey,
 } from './tree-settings-shared';
 import { TreesSection } from './trees-section';
-import { BUTTON_CHROME, BUTTON_CONTENT_CHROME } from '../../../../constants/styles';
-
 const dialogChrome = GlobalStyles.dialogChrome;
 const styles = GlobalStyles.treeDetail;
 

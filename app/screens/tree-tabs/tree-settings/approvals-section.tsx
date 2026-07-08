@@ -1,9 +1,8 @@
 import React from 'react';
 import { View } from 'react-native';
 import { Button, Chip, IconButton, SegmentedButtons, Text, useTheme } from 'react-native-paper';
-import { Reveal, SectionCard } from '../../../../components';
+import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, GlobalStyles, Reveal, SectionCard } from '../../../../components';
 import { canUserReviewApprovalRequest, isApprovalExpired } from '../../../../components/dto/approval';
-import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
 import type { ApprovalsSectionProps } from './tree-settings-shared';

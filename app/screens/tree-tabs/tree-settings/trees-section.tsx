@@ -1,9 +1,8 @@
 import React from 'react';
 import { View } from 'react-native';
 import { ActivityIndicator, Button, Chip, IconButton, Text, useTheme } from 'react-native-paper';
-import { Reveal, SectionCard } from '../../../../components';
+import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, GlobalStyles, Reveal, SectionCard } from '../../../../components';
 import { getTreeRole } from '../../../../components/dto/tree';
-import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
 import type { TreesSectionProps } from './tree-settings-shared';

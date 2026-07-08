@@ -14,6 +14,7 @@ import {
   CollaboratorDialog,
   ConfirmDialog,
   FloatingSnackbar,
+  GlobalStyles,
   MaidenTreeSuggestionDialog,
   PersonFormDialog,
   RelationshipDialog,
@@ -33,7 +34,6 @@ import { findCrossSurnameChildren } from '../../../components/family-tree-surnam
 import { canEditTreeContent, canManageTree, getAssignedPersonId, getTreeRole, type CollaboratorRole } from '../../../components/dto/tree';
 import { computeRelationshipInsight } from '../../../providers';
 import { getTreeBundle } from '../../../providers/family-tree-service';
-import { GlobalStyles } from '../../../constants/styles';
 import { useI18n } from '../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../i18n/keys';
 import { useShallow } from 'zustand/react/shallow';

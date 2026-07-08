@@ -1,10 +1,9 @@
 import React from 'react';
 import { View } from 'react-native';
 import { IconButton, Text, useTheme } from 'react-native-paper';
-import { FamilyTreeCanvas, Reveal, SectionCard } from '../../../../components';
+import { FamilyTreeCanvas, GlobalStyles, Reveal, SectionCard } from '../../../../components';
 import type { PersonRecord } from '../../../../components/dto/person';
 import type { RelationshipRecord } from '../../../../components/dto/relationship';
-import { GlobalStyles } from '../../../../constants/styles';
 
 const styles = GlobalStyles.personProfile;
 

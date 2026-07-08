@@ -1,10 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Image, Pressable, View } from 'react-native';
 import { Button, Chip, Dialog, IconButton, Portal, Text, TextInput, useTheme } from 'react-native-paper';
-import { HorizontalTabStrip, Reveal, SectionCard, TabStripCard } from '../../../../components';
+import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, GlobalStyles, HorizontalTabStrip, Reveal, SectionCard, TabStripCard } from '../../../../components';
 import type { NewPersonPhotoInput, PersonLifeEvent, PersonPhoto, PersonRecord } from '../../../../components/dto/person';
 import { formatPersonDate } from '../../../../components/dto/person';
-import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
 

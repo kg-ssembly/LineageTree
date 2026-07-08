@@ -1,9 +1,8 @@
 import React from 'react';
 import { View } from 'react-native';
 import { Button, Chip, IconButton, Text, TextInput, useTheme } from 'react-native-paper';
-import { Reveal, SectionCard } from '../../../../components';
+import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, GlobalStyles, Reveal, SectionCard } from '../../../../components';
 import { formatPersonName } from '../../../../components/person-formatting';
-import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
 import { buildSelfAssignmentSuggestions } from '../shared';

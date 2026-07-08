@@ -4,7 +4,6 @@ import {
   getDoc,
   runTransaction,
   setDoc,
-  updateDoc,
   writeBatch,
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';

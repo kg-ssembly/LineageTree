@@ -145,10 +145,6 @@ function getResolvedLastNameValue(
   return '';
 }
 
-function getUniqueReviewMessages(messages: string[]) {
-  return [...new Set(messages.map((message) => message.trim()).filter(Boolean))];
-}
-
 function getAnchorRelationshipSummary(
   relationshipMode: PendingRelationshipMode,
   relatedPersonName: string,
@@ -669,33 +665,6 @@ export default function PersonFormDialog({
     && Boolean(resolvedLastName)
     && hasExistingSurnames
     && !normalizedTreeSurnames.has(normaliseSurnameValue(resolvedLastName));
-  const stepOneHasContext = Boolean(firstName.trim() || resolvedLastName || birthDate || maidenName.trim());
-  const stepOneReviewMessages = useMemo(() => {
-    const messages: string[] = [];
-
-    if (firstName.trim() && !resolvedLastName) {
-      messages.push(t(K.personForm.lastNameRequired));
-    }
-
-    if ((firstName.trim() || resolvedLastName) && !birthDate) {
-      messages.push(t(K.personForm.birthDateRequired));
-    }
-
-    if (surnameNeedsReview) {
-      messages.push(t(K.personForm.surnameNotInTree));
-    }
-
-    messages.push(
-      ...personValidationFeedback.errors.filter((message) => ![
-        t(K.personForm.firstNameRequiredError),
-        t(K.personForm.lastNameRequired),
-        t(K.personForm.birthDateRequired),
-      ].includes(message)),
-      ...personValidationFeedback.warnings,
-    );
-
-    return getUniqueReviewMessages(messages).slice(0, 3);
-  }, [birthDate, firstName, personValidationFeedback.errors, personValidationFeedback.warnings, resolvedLastName, surnameNeedsReview, t]);
   useEffect(() => {
     if (mode !== 'create' || !suggestedLastName || lastNameTouched) {
       return;
@@ -745,24 +714,6 @@ export default function PersonFormDialog({
   const relationshipStepTitle = pendingRelationshipSectionName
     ? t(K.personForm.addRelationshipsForName, { name: pendingRelationshipSectionName })
     : t(K.personForm.addRelationship);
-  const stepTwoReviewMessages = useMemo(() => {
-    const messages: string[] = [];
-
-    if (hasConnectedRelationshipRequirement && !hasSelectedPendingRelationships) {
-      messages.push(t(K.personForm.addRelationshipToConnectMember));
-    }
-
-    if (pendingRelationships.some((draft) => !draft.relatedPersonId)) {
-      messages.push(t(K.personForm.chooseFamilyMemberForRelationship));
-    }
-
-    messages.push(
-      ...pendingRelationships.flatMap((draft) => pendingRelationshipFeedbackByKey.get(draft.key)?.errors ?? []),
-      ...relationshipWarnings,
-    );
-
-    return getUniqueReviewMessages(messages).slice(0, 3);
-  }, [hasConnectedRelationshipRequirement, hasSelectedPendingRelationships, pendingRelationshipFeedbackByKey, pendingRelationships, relationshipWarnings, t]);
   const isBusy = loading || submitPending;
   const childOverlayVisible = (
     addConnectionDialogVisible

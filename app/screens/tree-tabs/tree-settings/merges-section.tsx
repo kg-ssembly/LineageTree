@@ -1,8 +1,7 @@
 import React from 'react';
 import { Pressable, View } from 'react-native';
 import { ActivityIndicator, Button, Chip, Divider, IconButton, ProgressBar, Text, TextInput, useTheme } from 'react-native-paper';
-import { HorizontalTabStrip, Reveal, SectionCard, TabStripCard } from '../../../../components';
-import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, GlobalStyles } from '../../../../constants/styles';
+import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, GlobalStyles, HorizontalTabStrip, Reveal, SectionCard, TabStripCard } from '../../../../components';
 import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
 import type { MergesSectionProps } from './tree-settings-shared';

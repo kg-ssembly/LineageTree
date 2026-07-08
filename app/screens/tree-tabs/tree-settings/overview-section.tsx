@@ -1,12 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { Button, Chip, IconButton, Menu, Text, TextInput, useTheme } from 'react-native-paper';
-import { Reveal, SectionCard } from '../../../../components';
+import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, GlobalStyles, Reveal, SectionCard } from '../../../../components';
 import { isPersonDeceased } from '../../../../components/dto/person';
 import { getTreeKinshipSystem, isTreeDiscoverable, treeNeedsDiscoverabilityChoice } from '../../../../components/dto/tree';
 import { formatPersonName } from '../../../../components/person-formatting';
-import { GlobalStyles } from '../../../../constants/styles';
-import { BUTTON_CHROME, BUTTON_CONTENT_CHROME } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
 import { LANGUAGE_OPTIONS } from '../../../../i18n';

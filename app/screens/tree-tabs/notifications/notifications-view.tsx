@@ -9,10 +9,9 @@ import {
   Text,
   useTheme,
 } from 'react-native-paper';
-import { InfoDialog, Reveal, SectionCard } from '../../../../components';
+import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, GlobalStyles, InfoDialog, Reveal, SectionCard } from '../../../../components';
 import type { NotificationActivityState } from '../../../../components/dto/notification';
 import type { MainTabParamList } from '../../../../components/dto/navigation';
-import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
 import { translate } from '../../../../i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';

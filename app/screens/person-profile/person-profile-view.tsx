@@ -11,11 +11,10 @@ import {
   Divider,
   IconButton,
   Portal,
-  Surface,
   Text,
   useTheme,
 } from 'react-native-paper';
-import { ConfirmDialog, FloatingSnackbar, HorizontalTabStrip, InfoDialog, LifeEventDialog, MaidenTreeSuggestionDialog, PersonFormDialog, PersonRelationshipDialog, Reveal, ScreenBackground, SharedLoader, TabStripCard } from '../../../components';
+import { ConfirmDialog, FloatingSnackbar, getThemeChrome, GlobalStyles, HorizontalTabStrip, InfoDialog, LifeEventDialog, MaidenTreeSuggestionDialog, PanelSurface, PersonFormDialog, PersonRelationshipDialog, Reveal, ScreenBackground, SharedLoader, TabStripCard } from '../../../components';
 import type { PersonRelationshipMode } from '../../../components/person-relationship-dialog';
 import type { PendingRelationshipMode, PersonFormSubmission } from '../../../components/person-form-dialog';
 import { useAuthStore } from '../../../stores/auth-store';
@@ -34,7 +33,6 @@ import { getPersonValidationFeedback } from '../../../components/family-tree-val
 import { MAX_PHOTOS_PER_PERSON, MAX_PHOTO_BYTES, preparePhotoForUpload } from '../../../components/photo-utils';
 import { formatPersonName } from '../../../components/person-formatting';
 import { computeRelationshipInsight } from '../../../providers';
-import { getThemeChrome, GlobalStyles } from '../../../constants/styles';
 import { useI18n } from '../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../i18n/keys';
 import { useShallow } from 'zustand/react/shallow';
@@ -1062,7 +1060,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
       </View>
       <ScrollView contentContainerStyle={styles.content}>
         <Reveal delay={60}>
-          <Surface style={[styles.heroCard, { backgroundColor: chrome.primaryCardBackground }]} elevation={1}>
+          <PanelSurface style={[styles.heroCard, { backgroundColor: chrome.primaryCardBackground }]} elevation={1}>
           {canEdit ? (
             <IconButton
               icon="pencil"
@@ -1145,7 +1143,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
               ) : null}
             </View>
           ) : null}
-          </Surface>
+          </PanelSurface>
         </Reveal>
 
         <Reveal delay={75}>
@@ -1262,7 +1260,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
         ) : null}
       </ScrollView>
       {!isMainTabNavigation ? (
-        <Surface
+        <PanelSurface
           style={[
             treeDetailStyles.tabBar,
             {
@@ -1301,7 +1299,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
               </Pressable>
             );
           })}
-        </Surface>
+        </PanelSurface>
       ) : null}
       <PersonFormDialog
         visible={editorVisible}

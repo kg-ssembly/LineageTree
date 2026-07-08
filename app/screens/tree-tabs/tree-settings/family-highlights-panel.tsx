@@ -1,11 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { Button, IconButton, Text, useTheme } from 'react-native-paper';
-import { InfoDialog, Reveal, SectionCard } from '../../../../components';
+import { GlobalStyles, InfoDialog, Reveal, SectionCard } from '../../../../components';
 import type { PersonLifeEvent, PersonRecord } from '../../../../components/dto/person';
 import { formatPersonDate, parsePersonDate } from '../../../../components/dto/person';
 import { formatPersonName } from '../../../../components/person-formatting';
-import { GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
 
