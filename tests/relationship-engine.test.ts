@@ -332,7 +332,7 @@ test('returns Sepedi-specific maternal aunt labels when age context is available
 
   const insight = computeRelationshipInsight(people, relationships, 'child', 'older-aunt');
 
-  assert.equal(insight?.relationship, 'mangwane');
+  assert.equal(insight?.relationship, 'mamoholo');
   assert.equal(insight?.descriptor.kind, 'aunt-uncle');
   if (insight?.descriptor.kind === 'aunt-uncle') {
     assert.equal(insight.descriptor.side, 'maternal');
@@ -408,7 +408,7 @@ test('allows a tree kinship system override to apply Northern Sotho terms outsid
     kinshipSystem: 'northern-sotho',
   });
 
-  assert.equal(insight?.relationship, 'Aunt (mangwane)');
+  assert.equal(insight?.relationship, 'Aunt (mamoholo)');
 });
 
 test('shows only the kinship term when the app language already matches the selected kinship system', () => {
@@ -440,7 +440,7 @@ test('shows only the kinship term when the app language already matches the sele
     kinshipSystem: 'northern-sotho',
   });
 
-  assert.equal(insight?.relationship, 'mangwane');
+  assert.equal(insight?.relationship, 'mamoholo');
 
   setActiveLanguage('en');
 });
@@ -504,7 +504,7 @@ test('uses a generic localized aunt label when seniority is unknown', () => {
     kinshipSystem: 'st',
   });
 
-  assert.equal(insight?.relationship, 'Aunt (rakgadi)');
+  assert.equal(insight?.relationship, 'Aunt (mangwane)');
   assert.equal(insight?.descriptor.kind, 'aunt-uncle');
   if (insight?.descriptor.kind === 'aunt-uncle') {
     assert.equal(insight.descriptor.seniority, 'unknown');
