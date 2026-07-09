@@ -1350,7 +1350,7 @@ export const TRANSLATION_FALLBACKS: Record<string, string> = {
   [I18N_KEYS.home.theseStepsShapeYourOwnPageIntoAFullerBiography]: 'These steps shape your own page into a fuller biography.',
   [I18N_KEYS.home.treeBuildingStepsFinishedCount]: '{completed} of {total} family tree basics done',
   [I18N_KEYS.home.treePriorityLinkedProfile]: 'Your profile is linked to the tree',
-  [I18N_KEYS.home.treePriorityTwoMembers]: 'At least 2 people have been added',
+  [I18N_KEYS.home.treePriorityTwoMembers]: 'At least 10 people have been added',
   [I18N_KEYS.home.treePriorityRelationships]: 'People are connected with relationships',
   [I18N_KEYS.home.treePriorityMissingDetails]: 'No key details are missing from the people shown here',
   [I18N_KEYS.home.treePriorityBuildSteps]: 'No major family tree steps are left',

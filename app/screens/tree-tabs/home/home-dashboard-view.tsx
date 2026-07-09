@@ -21,6 +21,7 @@ const profileStyles = GlobalStyles.personProfile;
 const dialogChrome = GlobalStyles.dialogChrome;
 const DASHBOARD_PROMPTS_STORAGE_KEY = 'lineagetree-dashboard-hidden-prompts';
 const DASHBOARD_LAST_VISIT_STORAGE_KEY = 'lineagetree-dashboard-last-visit';
+const MIN_TREE_MEMBERS_FOR_PROGRESS = 10;
 
 type SetupStep = {
   id: string;
@@ -1029,7 +1030,7 @@ export function HomeDashboardView(props: SharedTabProps) {
     const remainingObjectiveTreeTasks = treeTasks.filter((task) => !task.done).length;
     const checks = [
       Boolean(currentAssignedPerson),
-      people.length >= 2,
+      people.length >= MIN_TREE_MEMBERS_FOR_PROGRESS,
       relationships.length > 0,
       missingMemberDetails.length === 0,
       remainingObjectiveTreeTasks === 0,
@@ -1053,7 +1054,7 @@ export function HomeDashboardView(props: SharedTabProps) {
       {
         id: 'two-people',
         label: t(K.home.treePriorityTwoMembers),
-        done: people.length >= 2,
+        done: people.length >= MIN_TREE_MEMBERS_FOR_PROGRESS,
       },
       {
         id: 'relationships',
