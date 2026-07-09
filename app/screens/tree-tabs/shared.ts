@@ -46,6 +46,7 @@ export interface SharedTabProps {
   canCreateSelfProfile: boolean;
   mutating: boolean;
   loadingTreeData: boolean;
+  onEnsureTreeAuxiliaryData?: (treeId: string) => void;
   openConfirm: (title: string, message: string, confirmLabel: string, action: () => Promise<void>) => void;
   openPersonProfile: (
     person: PersonRecord,

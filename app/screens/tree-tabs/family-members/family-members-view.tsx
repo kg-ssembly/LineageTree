@@ -1,5 +1,5 @@
 import React, { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
-import { FlatList, Image, Pressable, ScrollView, View } from 'react-native';
+import { FlatList, Pressable, ScrollView, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   ActivityIndicator,
@@ -13,7 +13,7 @@ import {
   useTheme,
 } from 'react-native-paper';
 import { DatePickerModal } from 'react-native-paper-dates';
-import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, GlobalStyles, InfoDialog, Reveal, ScreenBackground } from '../../../../components';
+import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, CachedImage, GlobalStyles, InfoDialog, Reveal, ScreenBackground } from '../../../../components';
 import type { PersonGender, PersonRecord } from '../../../../components/dto/person';
 import {
   formatPersonDate,
@@ -253,8 +253,8 @@ export function FamilyMembersView({
         >
           <View style={styles.personPhotoWrap}>
             {preferredPhoto ? (
-              <Image
-                source={{ uri: preferredPhoto.url }}
+              <CachedImage
+                uri={preferredPhoto.url}
                 style={[
                   styles.personPhoto,
                   {
@@ -262,6 +262,8 @@ export function FamilyMembersView({
                     backgroundColor: theme.colors.surfaceVariant,
                   },
                 ]}
+                priority="low"
+                recyclingKey={`${person.id}:${preferredPhoto.id}`}
               />
             ) : (
               <View

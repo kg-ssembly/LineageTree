@@ -104,6 +104,9 @@ export interface DiscoverableTreeSummary {
   matchedLabel: string;
 }
 
+const ACTIVITY_SUBSCRIPTION_LIMIT = 80;
+const NOTIFICATION_SUBSCRIPTION_LIMIT = 120;
+
 export {
   addCollaboratorToTree,
   assignTreePersonToUser,
@@ -259,7 +262,11 @@ export function subscribeToApprovalRequests(
   onChange: (requests: ApprovalRequest[]) => void,
   onError?: (error: Error) => void,
 ) {
-  const approvalRequestsQuery = query(collection(db, APPROVAL_REQUESTS_COLLECTION), where('treeId', '==', treeId));
+  const approvalRequestsQuery = query(
+    collection(db, APPROVAL_REQUESTS_COLLECTION),
+    where('treeId', '==', treeId),
+    limit(ACTIVITY_SUBSCRIPTION_LIMIT),
+  );
   return onSnapshot(
     approvalRequestsQuery,
     (snapshot) => {
@@ -277,7 +284,11 @@ export function subscribeToMergeRequests(
   onChange: (requests: MergeRequestRecord[]) => void,
   onError?: (error: Error) => void,
 ) {
-  const mergeRequestsQuery = query(collection(db, MERGE_REQUESTS_COLLECTION), where('involvedTreeIds', 'array-contains', treeId));
+  const mergeRequestsQuery = query(
+    collection(db, MERGE_REQUESTS_COLLECTION),
+    where('involvedTreeIds', 'array-contains', treeId),
+    limit(ACTIVITY_SUBSCRIPTION_LIMIT),
+  );
   return onSnapshot(
     mergeRequestsQuery,
     (snapshot) => onChange(snapshot.docs.map(mapMergeRequest).sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))),
@@ -290,7 +301,11 @@ export function subscribeToMergeHistory(
   onChange: (history: MergeHistoryRecord[]) => void,
   onError?: (error: Error) => void,
 ) {
-  const mergeHistoryQuery = query(collection(db, MERGE_HISTORY_COLLECTION), where('involvedTreeIds', 'array-contains', treeId));
+  const mergeHistoryQuery = query(
+    collection(db, MERGE_HISTORY_COLLECTION),
+    where('involvedTreeIds', 'array-contains', treeId),
+    limit(ACTIVITY_SUBSCRIPTION_LIMIT),
+  );
   return onSnapshot(
     mergeHistoryQuery,
     (snapshot) => onChange(snapshot.docs.map(mapMergeHistory).sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))),
@@ -303,7 +318,11 @@ export function subscribeToNotifications(
   onChange: (notifications: AppNotification[]) => void,
   onError?: (error: Error) => void,
 ) {
-  const notificationsQuery = query(collection(db, NOTIFICATIONS_COLLECTION), where('userId', '==', userId));
+  const notificationsQuery = query(
+    collection(db, NOTIFICATIONS_COLLECTION),
+    where('userId', '==', userId),
+    limit(NOTIFICATION_SUBSCRIPTION_LIMIT),
+  );
   return onSnapshot(
     notificationsQuery,
     (snapshot) => onChange(snapshot.docs.map(mapNotification).sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))),
@@ -316,7 +335,11 @@ export function subscribeToNotificationActivityStates(
   onChange: (states: NotificationActivityState[]) => void,
   onError?: (error: Error) => void,
 ) {
-  const activityQuery = query(collection(db, NOTIFICATION_ACTIVITY_COLLECTION), where('userId', '==', userId));
+  const activityQuery = query(
+    collection(db, NOTIFICATION_ACTIVITY_COLLECTION),
+    where('userId', '==', userId),
+    limit(NOTIFICATION_SUBSCRIPTION_LIMIT),
+  );
   return onSnapshot(
     activityQuery,
     (snapshot) => onChange(snapshot.docs.map(mapNotificationActivityState).sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))),

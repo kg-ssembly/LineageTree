@@ -73,6 +73,7 @@ let unsubscribeMergeHistory: (() => void) | null = null;
 let unsubscribeNotifications: (() => void) | null = null;
 let unsubscribeNotificationActivity: (() => void) | null = null;
 let subscribedTreeId: string | null = null;
+let subscribedTreeAuxiliaryId: string | null = null;
 const expiryProcessingTreeIds = new Set<string>();
 const TREE_STORE_STORAGE_KEY = 'lineagetree-tree-store';
 const TREE_STORE_CACHE_VERSION = 3;
@@ -122,6 +123,7 @@ function stopTreeSubscriptions() {
   unsubscribeApprovalRequests = null;
   unsubscribeMergeRequests = null;
   unsubscribeMergeHistory = null;
+  subscribedTreeAuxiliaryId = null;
   if (subscribedTreeId) {
     expiryProcessingTreeIds.delete(subscribedTreeId);
   }
@@ -156,6 +158,7 @@ interface TreeState {
   error: string | null;
   notice: string | null;
   syncFamilyData: (userId: string | null) => void;
+  ensureTreeAuxiliaryData: (treeId: string | null) => void;
   selectTree: (treeId: string | null) => void;
   createTree: (owner: Pick<UserProfile, 'id' | 'email' | 'displayName'>, name: string) => Promise<FamilyTree>;
   createTreeFromSurname: (owner: Pick<UserProfile, 'id' | 'email' | 'displayName'>, sourceTreeId: string, surname: string) => Promise<FamilyTree>;
@@ -218,53 +221,18 @@ type PersistedTreeState = Pick<
 >;
 
 export const useTreeStore = create<TreeState>()(persist((set, get) => {
-  const subscribeToTreeData = (treeId: string | null) => {
-    if (treeId && subscribedTreeId === treeId && get().trees.some((tree) => tree.id === treeId)) {
-      set({ selectedTreeId: treeId, loadingTreeData: false });
+  const subscribeToTreeAuxiliaryData = (treeId: string | null) => {
+    if (!treeId || subscribedTreeId !== treeId || subscribedTreeAuxiliaryId === treeId) {
       return;
     }
 
-    stopTreeSubscriptions();
-
-    if (!treeId) {
-      set({ people: [], relationships: [], approvalRequests: [], mergeRequests: [], mergeHistory: [], mergePreview: null, loadingTreeData: false });
-      return;
-    }
-
-    subscribedTreeId = treeId;
-    set({ people: [], relationships: [], approvalRequests: [], mergeRequests: [], mergeHistory: [], mergePreview: null, loadingTreeData: true });
-    let hasLoadedPeople = false;
-    let hasLoadedRelationships = false;
-
-    const updateInitialLoadState = () => {
-      if (hasLoadedPeople && hasLoadedRelationships) {
-        set({ loadingTreeData: false });
-      }
-    };
-
-    unsubscribePeople = subscribeToPeople(
-      treeId,
-      (people) => {
-        hasLoadedPeople = true;
-        if (!haveSameRecordVersions(get().people, people)) {
-          set({ people });
-        }
-        updateInitialLoadState();
-      },
-      (error) => set({ error: normaliseError(error), loadingTreeData: false }),
-    );
-
-    unsubscribeRelationships = subscribeToRelationships(
-      treeId,
-      (relationships) => {
-        hasLoadedRelationships = true;
-        if (!haveSameRecordVersions(get().relationships, relationships, getRelationshipVersion)) {
-          set({ relationships });
-        }
-        updateInitialLoadState();
-      },
-      (error) => set({ error: normaliseError(error), loadingTreeData: false }),
-    );
+    unsubscribeApprovalRequests?.();
+    unsubscribeMergeRequests?.();
+    unsubscribeMergeHistory?.();
+    unsubscribeApprovalRequests = null;
+    unsubscribeMergeRequests = null;
+    unsubscribeMergeHistory = null;
+    subscribedTreeAuxiliaryId = treeId;
 
     unsubscribeApprovalRequests = subscribeToApprovalRequests(
       treeId,
@@ -315,6 +283,56 @@ export const useTreeStore = create<TreeState>()(persist((set, get) => {
       },
       (error) => set({ error: normaliseError(error) }),
     );
+  };
+
+  const subscribeToTreeData = (treeId: string | null) => {
+    if (treeId && subscribedTreeId === treeId && get().trees.some((tree) => tree.id === treeId)) {
+      set({ selectedTreeId: treeId, loadingTreeData: false });
+      return;
+    }
+
+    stopTreeSubscriptions();
+
+    if (!treeId) {
+      set({ people: [], relationships: [], approvalRequests: [], mergeRequests: [], mergeHistory: [], mergePreview: null, loadingTreeData: false });
+      return;
+    }
+
+    subscribedTreeId = treeId;
+    set({ people: [], relationships: [], approvalRequests: [], mergeRequests: [], mergeHistory: [], mergePreview: null, loadingTreeData: true });
+    let hasLoadedPeople = false;
+    let hasLoadedRelationships = false;
+
+    const updateInitialLoadState = () => {
+      if (hasLoadedPeople && hasLoadedRelationships) {
+        set({ loadingTreeData: false });
+      }
+    };
+
+    unsubscribePeople = subscribeToPeople(
+      treeId,
+      (people) => {
+        hasLoadedPeople = true;
+        if (!haveSameRecordVersions(get().people, people)) {
+          set({ people });
+        }
+        updateInitialLoadState();
+      },
+      (error) => set({ error: normaliseError(error), loadingTreeData: false }),
+    );
+
+    unsubscribeRelationships = subscribeToRelationships(
+      treeId,
+      (relationships) => {
+        hasLoadedRelationships = true;
+        if (!haveSameRecordVersions(get().relationships, relationships, getRelationshipVersion)) {
+          set({ relationships });
+        }
+        updateInitialLoadState();
+      },
+      (error) => set({ error: normaliseError(error), loadingTreeData: false }),
+    );
+
   };
 
   return {
@@ -447,6 +465,10 @@ export const useTreeStore = create<TreeState>()(persist((set, get) => {
         },
         (error) => set({ error: normaliseError(error) }),
       );
+    },
+
+    ensureTreeAuxiliaryData: (treeId) => {
+      subscribeToTreeAuxiliaryData(treeId);
     },
 
     selectTree: (treeId) => {

@@ -1,5 +1,6 @@
 export { default as CollaboratorDialog } from './collaborator-dialog';
 export { default as ConfirmDialog } from './confirm-dialog';
+export { default as CachedImage } from './cached-image';
 export { default as FamilyTreeCanvas } from './family-tree-canvas';
 export { default as HorizontalTabStrip } from './horizontal-tab-strip';
 export { default as InfoDialog } from './info-dialog';

@@ -56,6 +56,7 @@ function TreeSettingsContent({
   assignedUserIdByPersonId,
   canCreateSelfProfile,
   mutating,
+  onEnsureTreeAuxiliaryData,
   onOpenCollaboratorDialog,
   openConfirm,
   onRemoveCollaborator,
@@ -114,6 +115,10 @@ function TreeSettingsContent({
   const [highlightedMergeRequestId, setHighlightedMergeRequestId] = useState<string | null>(null);
   const deferredLinkSearchQuery = useDeferredValue(linkSearchQuery);
   const deferredOwnerLinkSearchQuery = useDeferredValue(ownerLinkSearchQuery);
+
+  useEffect(() => {
+    onEnsureTreeAuxiliaryData?.(selectedTree.id);
+  }, [onEnsureTreeAuxiliaryData, selectedTree.id]);
 
   const treeSurnameVariants = useMemo(
     () => [...new Set(selectedTree.surnameVariantGroups.flatMap((group) => [group.primarySurname, ...group.variants]).map((value) => value.trim()).filter(Boolean))],
