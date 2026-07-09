@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ScrollView, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native';
+import { ScrollView, StyleSheet, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
 import { ActivityIndicator, Button, Chip, Dialog, IconButton, Portal, Text, useTheme } from 'react-native-paper';
 import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, FloatingSnackbar, GlobalStyles, HorizontalTabStrip, InfoDialog, Reveal, ScreenBackground, SectionCard, SuggestionList, TabStripCard, type SuggestionActionTarget } from '../../../../components';
 import type { MainTabParamList } from '../../../../components/dto/navigation';
+import { getThemeChrome } from '../../../../constants/styles';
 import type { AppTheme } from '../../../../constants/theme';
 import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
@@ -72,6 +73,107 @@ type MissingMemberDetail = {
   score: number;
   action: () => void;
 };
+
+type OverviewPriorityItem = {
+  id: string;
+  title: string;
+  description: string;
+  actionLabel: string;
+  action: () => void;
+  tone: 'default' | 'attention';
+};
+
+const localStyles = StyleSheet.create({
+  strengthCard: {
+    marginTop: 4,
+    borderRadius: 24,
+    padding: 18,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  strengthTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    flexWrap: 'wrap',
+    gap: 16,
+  },
+  strengthCopy: {
+    flex: 1,
+    minWidth: 220,
+  },
+  strengthMetricWrap: {
+    minWidth: 74,
+    alignItems: 'flex-end',
+  },
+  strengthProgressTrack: {
+    height: 10,
+    borderRadius: 999,
+    overflow: 'hidden',
+    marginTop: 14,
+  },
+  strengthProgressFill: {
+    height: '100%',
+    borderRadius: 999,
+  },
+  strengthChipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 14,
+  },
+  strengthStatsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginTop: 14,
+  },
+  strengthStatCard: {
+    minWidth: 110,
+    flexGrow: 1,
+    flexBasis: 110,
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    gap: 4,
+  },
+  strengthSummaryCard: {
+    marginTop: 14,
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  actionPanel: {
+    marginTop: 14,
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  actionPanelHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 12,
+  },
+  actionPanelBody: {
+    marginTop: 10,
+    gap: 10,
+  },
+  actionItem: {
+    borderRadius: 18,
+    padding: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  actionItemRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  actionItemCopy: {
+    flex: 1,
+  },
+});
 
 type DashboardSuggestionActionContext = Pick<
   SharedTabProps,
@@ -206,6 +308,7 @@ function buildDashboardTasks(
 export function HomeDashboardView(props: SharedTabProps) {
   const isFocused = useIsFocused();
   const theme = useTheme();
+  const chrome = getThemeChrome(theme);
   const { t } = useI18n();
   const navigation = useNavigation<any>();
   const {
@@ -232,6 +335,8 @@ export function HomeDashboardView(props: SharedTabProps) {
     onOpenTreeSettingsTarget,
     onConsumeFollowUpTreePrompts,
   } = props;
+  const spotlightTextColor = theme.colors.onPrimaryContainer;
+  const spotlightSubtextColor = theme.dark ? theme.colors.onPrimaryContainer : '#345447';
   const [showFollowUpTreePrompts, setShowFollowUpTreePrompts] = useState(false);
   const suggestionActionContext = useMemo<DashboardSuggestionActionContext>(() => ({
     people,
@@ -439,6 +544,7 @@ export function HomeDashboardView(props: SharedTabProps) {
     });
   }, [approvalRequests, mergeHistory, mergeRequests, notificationActivityStates, notifications, trees, userId]);
   const [deeperExpanded, setDeeperExpanded] = useState(false);
+  const [overviewActionsExpanded, setOverviewActionsExpanded] = useState(false);
   const [activityModalVisible, setActivityModalVisible] = useState(false);
   const [buildInfoVisible, setBuildInfoVisible] = useState(false);
   const [heroInfoVisible, setHeroInfoVisible] = useState(false);
@@ -899,6 +1005,113 @@ export function HomeDashboardView(props: SharedTabProps) {
       .slice(0, 3);
   }, [people, relationships, suggestionActionContext, t]);
 
+  const treeStrengthChecks = useMemo(() => {
+    const checks = [
+      Boolean(currentAssignedPerson),
+      people.length >= 2,
+      relationships.length > 0,
+      missingMemberDetails.length === 0,
+      visibleTreeTasks.length === 0,
+    ];
+    const completed = checks.filter(Boolean).length;
+    return {
+      completed,
+      total: checks.length,
+      percent: Math.round((completed / checks.length) * 100),
+    };
+  }, [currentAssignedPerson, missingMemberDetails.length, people.length, relationships.length, visibleTreeTasks.length]);
+
+  const overviewStats = useMemo(() => ([
+    { id: 'people', label: t(K.home.familyMembersMetric), value: String(people.length) },
+    { id: 'connections', label: t(K.home.connectFamily), value: String(relationships.length) },
+    { id: 'tasks', label: t(K.home.openTasksMetric), value: String(isSetupMode ? Math.max(0, setupSteps.length - setupCompletedCount) : pendingBuildTaskCount) },
+    { id: 'review', label: t(K.home.whatNeedsReview), value: String(needsAttentionCount) },
+  ]), [
+    isSetupMode,
+    needsAttentionCount,
+    pendingBuildTaskCount,
+    people.length,
+    relationships.length,
+    setupCompletedCount,
+    setupSteps.length,
+    t,
+  ]);
+
+  const overviewPriorityItems = useMemo<OverviewPriorityItem[]>(() => {
+    const items: OverviewPriorityItem[] = [];
+
+    if (heroAttentionCallout) {
+      items.push({
+        id: 'attention-callout',
+        title: heroAttentionCallout.title,
+        description: heroAttentionCallout.description,
+        actionLabel: heroAttentionCallout.buttonLabel,
+        action: heroAttentionCallout.action,
+        tone: 'attention',
+      });
+    }
+
+    if (isSetupMode) {
+      for (const step of setupSteps.filter((item) => !item.done).slice(0, 3)) {
+        items.push({
+          id: step.id,
+          title: step.title,
+          description: step.description,
+          actionLabel: t(K.home.doThis),
+          action: step.action,
+          tone: 'default',
+        });
+      }
+    } else {
+      for (const task of visibleTreeTasks.slice(0, 2)) {
+        items.push({
+          id: task.id,
+          title: task.title,
+          description: task.description,
+          actionLabel: task.ctaLabel,
+          action: task.action,
+          tone: 'default',
+        });
+      }
+    }
+
+    for (const item of missingMemberDetails.slice(0, 2)) {
+      items.push({
+        id: `missing-${item.personId}`,
+        title: item.name,
+        description: item.summary,
+        actionLabel: t(K.home.reviewMemberDetails),
+        action: item.action,
+        tone: 'default',
+      });
+    }
+
+    if (items.length === 0) {
+      items.push({
+        id: 'hero-fallback',
+        title: heroTitle,
+        description: heroAction.description,
+        actionLabel: heroAction.buttonLabel ?? heroAction.label,
+        action: heroAction.action,
+        tone: 'default',
+      });
+    }
+
+    return items.slice(0, 4);
+  }, [
+    heroAction.action,
+    heroAction.buttonLabel,
+    heroAction.description,
+    heroAction.label,
+    heroAttentionCallout,
+    heroTitle,
+    isSetupMode,
+    missingMemberDetails,
+    setupSteps,
+    t,
+    visibleTreeTasks,
+  ]);
+
   const sinceLastVisit = useMemo(() => {
     if (!lastVisitAt) {
       return [];
@@ -976,167 +1189,205 @@ export function HomeDashboardView(props: SharedTabProps) {
       {dashboardTab !== 'highlights' && !isEmptyTree ? (
         <Reveal delay={70}>
           <SectionCard>
-          {isSetupMode ? (
-            <View>
-              <View style={{ gap: 10 }}>
-                {setupSteps.map((step) => (
-                  <DashboardTaskCard
-                    key={step.id}
-                    backgroundColor={
-                      step.done
-                        ? theme.colors.elevation.level1
-                        : setupSteps[nextSetupStepIndex]?.id === step.id
-                          ? theme.colors.secondaryContainer
-                          : theme.colors.surface
-                    }
-                    borderColor={
-                      step.done
-                        ? theme.colors.primary
-                        : setupSteps[nextSetupStepIndex]?.id === step.id
-                          ? theme.colors.secondary
-                          : theme.colors.outlineVariant
-                    }
+            <View
+              style={[
+                localStyles.strengthCard,
+                {
+                  backgroundColor: theme.colors.primaryContainer,
+                  borderColor: theme.colors.primary,
+                },
+              ]}
+            >
+              <View style={localStyles.strengthTopRow}>
+                <View style={localStyles.strengthCopy}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <Text variant="titleLarge">{t(K.home.completeYourTree)}</Text>
+                    <IconButton
+                      icon="information-outline"
+                      size={18}
+                      style={{ margin: 0 }}
+                      onPress={() => setHeroInfoVisible(true)}
+                      accessibilityLabel={t(K.home.whyThisMatters)}
+                    />
+                  </View>
+                  <Text variant="bodyMedium" style={{ color: spotlightSubtextColor, marginTop: 6 }}>
+                    {dashboardTab === 'activity'
+                      ? t(K.home.reviewWhatChangedWhatIsWaitingAndWhereSharedWorkNeedsADecision)
+                      : dashboardTab === 'build'
+                        ? t(K.home.focusOnAddingPeopleStrengtheningBranchesAndGrowingTheFamilyStory)
+                        : t(K.home.hereIsTheBestNextStepToMakeYourProfileFeelFullerAndYourBranchMoreConnected)}
+                  </Text>
+                </View>
+
+                <View style={localStyles.strengthMetricWrap}>
+                  <Text variant="headlineMedium" style={{ color: spotlightTextColor }}>
+                    {treeStrengthChecks.percent}%
+                  </Text>
+                  <Text variant="labelMedium" style={{ color: spotlightSubtextColor }}>
+                    {t(K.home.branchGrowth)}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={[localStyles.strengthProgressTrack, { backgroundColor: theme.dark ? theme.colors.elevation.level2 : '#D5E6DC' }]}>
+                <View
+                  style={[
+                    localStyles.strengthProgressFill,
+                    {
+                      width: `${Math.max(8, treeStrengthChecks.percent)}%`,
+                      backgroundColor: theme.colors.primary,
+                    },
+                  ]}
+                />
+              </View>
+
+              <View style={localStyles.strengthChipRow}>
+                <Chip compact icon={isSetupMode ? 'rocket-launch-outline' : 'check-decagram'}>
+                  {isSetupMode ? t(K.home.continueSetup) : t(K.home.profileLookingStrong)}
+                </Chip>
+                <Chip compact icon="check-circle-outline">
+                  {t(K.home.treeBuildingStepsFinishedCount, {
+                    completed: treeStrengthChecks.completed,
+                    total: treeStrengthChecks.total,
+                  })}
+                </Chip>
+                {needsAttentionCount > 0 ? (
+                  <Chip
+                    compact
+                    icon="alert-circle-outline"
+                    style={{ backgroundColor: theme.colors.errorContainer }}
+                    textStyle={{ color: theme.colors.onErrorContainer }}
                   >
-                    <View style={styles.sectionHeader}>
-                      <View style={styles.titleWrap}>
-                        {step.done ? (
-                          <Chip compact icon="check-circle-outline">
-                            {t(K.common.done)}
-                          </Chip>
-                        ) : null}
-                        <Text variant="titleMedium" style={{ marginTop: 8 }}>{step.title}</Text>
-                        <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
-                          {step.description}
-                        </Text>
-                      </View>
-                      {step.done ? (
-                        <Button mode="text" onPress={step.action} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>
-                          {t(K.common.open)}
-                        </Button>
-                      ) : setupSteps[nextSetupStepIndex]?.id === step.id ? (
-                        <Button mode="contained" onPress={step.action} style={BUTTON_CHROME} buttonColor={theme.colors.primary} textColor={theme.colors.onPrimary} contentStyle={BUTTON_CONTENT_CHROME}>
-                          {t(K.home.doThis)}
-                        </Button>
-                      ) : null}
-                    </View>
-                  </DashboardTaskCard>
+                    {t(K.home.activityCount, { count: needsAttentionCount })}
+                  </Chip>
+                ) : null}
+              </View>
+
+              <View style={localStyles.strengthStatsRow}>
+                {overviewStats.map((item) => (
+                  <View
+                    key={item.id}
+                    style={[
+                      localStyles.strengthStatCard,
+                      {
+                        backgroundColor: chrome.primaryCardBackground,
+                        borderColor: theme.colors.primary,
+                      },
+                    ]}
+                  >
+                    <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+                      {item.label}
+                    </Text>
+                    <Text variant="headlineSmall">{item.value}</Text>
+                  </View>
                 ))}
               </View>
-            </View>
-          ) : null}
 
-          {!isSetupMode && bestNextStep ? (
-            <View style={{ gap: 16 }}>
-              {dashboardTab === 'overview' && heroAttentionCallout ? (
-                <DashboardTaskCard
-                  backgroundColor={theme.colors.errorContainer}
-                  borderColor={theme.colors.error}
-                  style={{ marginBottom: 0 }}
-                >
-                  <View style={styles.sectionHeader}>
-                    <View style={styles.titleWrap}>
-                      <Chip
-                        compact
-                        icon="alert-circle-outline"
-                        style={{ alignSelf: 'flex-start', backgroundColor: theme.colors.errorContainer }}
-                        textStyle={{ color: theme.colors.onErrorContainer }}
-                      >
-                        {t(K.home.needsAttentionNow)}
-                      </Chip>
-                      <Text variant="titleMedium" style={{ marginTop: 8, color: theme.colors.onErrorContainer }}>
-                        {heroAttentionCallout.title}
-                      </Text>
-                      <Text variant="bodySmall" style={{ color: theme.colors.onErrorContainer, marginTop: 4 }}>
-                        {heroAttentionCallout.description}
-                      </Text>
-                    </View>
-                    <Button mode="contained" onPress={heroAttentionCallout.action} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>
-                      {heroAttentionCallout.buttonLabel}
-                    </Button>
-                  </View>
-                </DashboardTaskCard>
-              ) : null}
-
-              <DashboardTaskCard
-                backgroundColor={theme.colors.surface}
-                borderColor={theme.colors.outlineVariant}
+              <View
+                style={[
+                  localStyles.strengthSummaryCard,
+                  {
+                    backgroundColor: chrome.primaryCardBackground,
+                    borderColor: theme.colors.primary,
+                  },
+                ]}
               >
-                <View style={styles.sectionHeader}>
-                  <View style={styles.titleWrap}>
-                    <Text variant="titleMedium" style={{ marginTop: 8 }}>
-                      {heroTitle}
-                    </Text>
+                <Text variant="titleMedium">
+                  {missingMemberDetails.length > 0 ? t(K.home.membersMissingDetails) : t(K.home.connectFamilyRelationships)}
+                </Text>
+                <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 6 }}>
+                  {missingMemberDetails.length > 0
+                    ? t(K.home.missingImportantDetailsSummary, { count: missingMemberDetails.length })
+                    : relationships.length === 0
+                      ? t(K.home.linkPeopleTogetherSoTheTreeBecomesAConnectedFamilyInsteadOfSeparatePages)
+                      : t(K.home.theseStepsGrowTheFamilyBeyondOnePersonAndStrengthenTheBranchStructure)}
+                </Text>
+                <View style={localStyles.strengthChipRow}>
+                  {missingMemberDetails.slice(0, 3).map((item) => (
+                    <Chip key={item.personId} compact icon="account-alert-outline" onPress={item.action}>
+                      {item.name}
+                    </Chip>
+                  ))}
+                  {missingMemberDetails.length === 0 && relationships.length > 0 ? (
+                    <Chip compact icon="source-branch-check">{t(K.home.yourEssentialsAreInPlace)}</Chip>
+                  ) : null}
+                </View>
+              </View>
+
+              <View
+                style={[
+                  localStyles.actionPanel,
+                  {
+                    backgroundColor: chrome.primaryCardBackground,
+                    borderColor: theme.colors.primary,
+                  },
+                ]}
+              >
+                <View style={localStyles.actionPanelHeader}>
+                  <View style={{ flex: 1 }}>
+                    <Text variant="titleMedium">{t(K.home.nextRecommendedAction)}</Text>
                     <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
-                      {heroAction.description}
+                      {overviewPriorityItems.length > 1
+                        ? t(K.home.stepsLeftCount, { count: overviewPriorityItems.length })
+                        : heroAction.description}
                     </Text>
                   </View>
-                  <Button mode="contained" onPress={heroAction.action} style={BUTTON_CHROME} buttonColor={theme.colors.primary} textColor={theme.colors.onPrimary} contentStyle={BUTTON_CONTENT_CHROME}>
-                    {heroAction.buttonLabel ?? heroAction.label}
+                  <Button
+                    mode="text"
+                    icon={overviewActionsExpanded ? 'chevron-up' : 'chevron-down'}
+                    onPress={() => setOverviewActionsExpanded((current) => !current)}
+                    style={BUTTON_CHROME}
+                    contentStyle={BUTTON_CONTENT_CHROME}
+                  >
+                    {overviewActionsExpanded ? t(K.common.close) : t(K.common.open)}
                   </Button>
                 </View>
-              </DashboardTaskCard>
-            </View>
-          ) : dashboardLens === 'activity' ? (
-            <View style={[styles.dashboardAccentCard, { backgroundColor: theme.colors.elevation.level1, borderColor: theme.colors.outlineVariant }]}>
-              <Chip compact icon="calendar-clock">{t(K.home.viewFamilyActivity)}</Chip>
-              <Text variant="titleMedium" style={{ marginTop: 10 }}>{heroTitle}</Text>
-              <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 6 }}>
-                {heroAction.description}
-              </Text>
-              <View style={styles.dashboardActionRow}>
-                <Button mode="contained" onPress={heroAction.action} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>
-                  {heroAction.buttonLabel ?? heroAction.label}
-                </Button>
-              </View>
-            </View>
-          ) : (
-            <View style={[styles.dashboardAccentCard, { backgroundColor: theme.colors.elevation.level1, borderColor: theme.colors.outlineVariant }]}>
-              <Chip compact icon="check-decagram">{dismissedTaskIds.length > 0 ? t(K.home.promptsClearedForNow) : t(K.home.profileLookingStrong)}</Chip>
-              <Text variant="titleMedium" style={{ marginTop: 10 }}>{t(K.home.yourEssentialsAreInPlace)}</Text>
-              <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 6 }}>
-                {dismissedTaskIds.length > 0
-                  ? t(K.home.youHaveClearedTheCurrentPromptsBringThemBackWheneverYouWantAnotherNudge)
-                  : t(K.home.keepTheStoryGrowingByAddingMoreMemoriesPhotosAndRelativesAroundYourBranch)}
-              </Text>
-              <View style={styles.dashboardActionRow}>
-                <Button mode="contained" onPress={currentAssignedPerson ? () => openPersonProfile(currentAssignedPerson) : onOpenAddSelf} style={BUTTON_CHROME} buttonColor={theme.colors.primary} textColor={theme.colors.onPrimary} contentStyle={BUTTON_CONTENT_CHROME}>
-                  {currentAssignedPerson ? t(K.home.openMyProfile) : t(K.home.startMyProfile)}
-                </Button>
-                {canEdit ? <Button mode="outlined" onPress={onOpenAddPerson} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>{t(K.home.addFamilyMember)}</Button> : null}
-                {dismissedTaskIds.length > 0 ? <Button mode="text" onPress={restoreHiddenPrompts} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>{t(K.home.restorePrompts)}</Button> : null}
-              </View>
-            </View>
-          )}
 
-          {dashboardTab === 'overview' && missingMemberDetails.length > 0 ? (
-            <View style={{ marginTop: 16 }}>
-              <Text variant="titleLarge">{t(K.home.membersMissingDetails)}</Text>
-              <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-                {t(K.home.missingImportantDetailsSummary, { count: missingMemberDetails.length })}
-              </Text>
-              <View style={{ marginTop: 14 }}>
-                {missingMemberDetails.map((item) => (
-                  <DashboardTaskCard
-                    key={item.personId}
-                    backgroundColor={theme.colors.surface}
-                    borderColor={theme.colors.outlineVariant}
-                  >
-                      <View style={styles.sectionHeader}>
-                        <View style={styles.titleWrap}>
-                          <Text variant="titleMedium">{item.name}</Text>
-                          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
-                            {item.summary}
-                          </Text>
+                {overviewActionsExpanded ? (
+                  <View style={localStyles.actionPanelBody}>
+                    {overviewPriorityItems.map((item) => (
+                      <View
+                          key={item.id}
+                          style={[
+                            localStyles.actionItem,
+                            {
+                              backgroundColor: item.tone === 'attention' ? theme.colors.errorContainer : chrome.secondaryCardBackground,
+                              borderColor: item.tone === 'attention' ? theme.colors.error : chrome.sectionBorder,
+                            },
+                          ]}
+                      >
+                        <View style={localStyles.actionItemRow}>
+                          <View style={localStyles.actionItemCopy}>
+                            <Text variant="titleSmall" style={item.tone === 'attention' ? { color: theme.colors.onErrorContainer } : undefined}>
+                              {item.title}
+                            </Text>
+                            <Text
+                              variant="bodySmall"
+                              style={{
+                                marginTop: 4,
+                                color: item.tone === 'attention' ? theme.colors.onErrorContainer : theme.colors.onSurfaceVariant,
+                              }}
+                            >
+                              {item.description}
+                            </Text>
+                          </View>
+                          <Button
+                            mode={item.tone === 'attention' ? 'contained' : 'outlined'}
+                            onPress={item.action}
+                            style={BUTTON_CHROME}
+                            buttonColor={item.tone === 'attention' ? theme.colors.error : undefined}
+                            textColor={item.tone === 'attention' ? theme.colors.onError : undefined}
+                            contentStyle={BUTTON_CONTENT_CHROME}
+                          >
+                            {item.actionLabel}
+                          </Button>
                         </View>
-                        <Button mode="outlined" onPress={item.action} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>
-                          {t(K.home.reviewMemberDetails)}
-                        </Button>
                       </View>
-                  </DashboardTaskCard>
-                ))}
+                    ))}
+                  </View>
+                ) : null}
               </View>
             </View>
-          ) : null}
           </SectionCard>
         </Reveal>
       ) : null}
