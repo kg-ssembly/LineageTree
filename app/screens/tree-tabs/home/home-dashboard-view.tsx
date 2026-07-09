@@ -31,8 +31,8 @@ type SetupStep = {
 };
 
 type DashboardSectionKey = 'since-last-visit' | 'keep-building' | 'family-highlights';
-type DashboardLens = 'focus' | 'activity' | 'growth';
-type DashboardTabKey = 'overview' | 'highlights' | 'activity' | 'build';
+type DashboardLens = 'focus' | 'activity';
+type DashboardTabKey = 'overview' | 'highlights' | 'activity';
 
 type ActivityAttentionItem = {
   id: string;
@@ -716,12 +716,6 @@ export function HomeDashboardView(props: SharedTabProps) {
   }, [promptStorageId, showFollowUpTreePrompts]);
 
   useEffect(() => {
-    if (dashboardTab === 'build' && (isSetupMode || pendingBuildTaskCount > 0)) {
-      setDeeperExpanded(true);
-    }
-  }, [dashboardTab, isSetupMode, pendingBuildTaskCount]);
-
-  useEffect(() => {
     const previousNeedsAttentionCount = previousNeedsAttentionCountRef.current;
     previousNeedsAttentionCountRef.current = needsAttentionCount;
 
@@ -796,7 +790,7 @@ export function HomeDashboardView(props: SharedTabProps) {
       setDashboardTab('highlights');
     }
     if (key === 'keep-building') {
-      setDashboardTab('build');
+      setDashboardTab('overview');
       setDeeperExpanded(true);
     }
 
@@ -807,16 +801,13 @@ export function HomeDashboardView(props: SharedTabProps) {
 
   const dashboardLens: DashboardLens = dashboardTab === 'activity'
     ? 'activity'
-    : dashboardTab === 'build'
-      ? 'growth'
-      : 'focus';
+    : 'focus';
 
   const dashboardTabs = useMemo<Array<{ key: DashboardTabKey; label: string }>>(
     () => [
       { key: 'overview', label: t(K.home.overview) },
       { key: 'highlights', label: t(K.home.highlights) },
       { key: 'activity', label: activityNotificationCount > 0 ? t(K.home.activityCount, { count: activityNotificationCount }) : t(K.home.activity) },
-      { key: 'build', label: t(K.home.build) },
     ],
     [activityNotificationCount, t],
   );
@@ -870,25 +861,6 @@ export function HomeDashboardView(props: SharedTabProps) {
         description: t(K.home.everythingIsCalmRightNowButYouCanStillOpenTheActivityAreas),
         action: openFamilyActivity,
         buttonLabel: t(K.home.activity),
-      };
-    }
-
-    if (dashboardLens === 'growth') {
-      if (bestTreeStep) {
-        return {
-          label: bestTreeStep.ctaLabel,
-          description: bestTreeStep.description,
-          action: bestTreeStep.action,
-          taskId: bestTreeStep.id,
-        };
-      }
-
-      return {
-        label: canEdit ? t(K.home.addFamilyMember) : t(K.home.openStories),
-        description: canEdit
-          ? t(K.home.growTheTreeByAddingANewPersonMemoryOrBranchConnection)
-          : t(K.home.exploreTheLatestStoriesAndPeopleInYourFamilySpace),
-        action: canEdit ? onOpenAddPerson : () => focusSection('family-highlights'),
       };
     }
 
@@ -948,11 +920,9 @@ export function HomeDashboardView(props: SharedTabProps) {
     ? t(K.home.startWithTheSetupStepsBelowOnceTheBasicsAreInPlaceThisHomeScreenOpensUpIntoTheFullFamilyDashboard)
     : dashboardLens === 'activity'
       ? t(K.home.reviewWhatChangedWhatIsWaitingAndWhereSharedWorkNeedsADecision)
-      : dashboardLens === 'growth'
-        ? t(K.home.focusOnAddingPeopleStrengtheningBranchesAndGrowingTheFamilyStory)
-        : currentAssignedPerson
-          ? t(K.home.hereIsTheBestNextStepToMakeYourProfileFeelFullerAndYourBranchMoreConnected)
-          : t(K.home.startByLinkingYourselfIntoTheTreeThenTheAppCanGuideYouThroughTheStepsThatAlreadyExistHere);
+      : currentAssignedPerson
+        ? t(K.home.hereIsTheBestNextStepToMakeYourProfileFeelFullerAndYourBranchMoreConnected)
+        : t(K.home.startByLinkingYourselfIntoTheTreeThenTheAppCanGuideYouThroughTheStepsThatAlreadyExistHere);
 
   const heroAttentionCallout = useMemo<HeroAttentionCallout | null>(() => {
     if (pendingApprovals > 0) {
@@ -1295,9 +1265,7 @@ export function HomeDashboardView(props: SharedTabProps) {
                   <Text variant="bodyMedium" style={{ color: spotlightSubtextColor, marginTop: 6 }}>
                     {dashboardTab === 'activity'
                       ? t(K.home.reviewWhatChangedWhatIsWaitingAndWhereSharedWorkNeedsADecision)
-                      : dashboardTab === 'build'
-                        ? t(K.home.focusOnAddingPeopleStrengtheningBranchesAndGrowingTheFamilyStory)
-                        : t(K.home.hereIsTheBestNextStepToMakeYourProfileFeelFullerAndYourBranchMoreConnected)}
+                      : t(K.home.hereIsTheBestNextStepToMakeYourProfileFeelFullerAndYourBranchMoreConnected)}
                   </Text>
                 </View>
 
@@ -1449,7 +1417,7 @@ export function HomeDashboardView(props: SharedTabProps) {
                   </Button>
                 </View>
 
-                {overviewActionsExpanded ? (
+                  {overviewActionsExpanded ? (
                   <View style={localStyles.actionPanelBody}>
                     {overviewPriorityItems.map((item) => (
                       <View
@@ -1493,6 +1461,132 @@ export function HomeDashboardView(props: SharedTabProps) {
                   </View>
                 ) : null}
               </View>
+
+              {dashboardTab === 'overview' ? (
+                <View
+                  onLayout={registerSectionOffset('keep-building')}
+                  style={[
+                    localStyles.actionPanel,
+                    {
+                      backgroundColor: chrome.primaryCardBackground,
+                      borderColor: theme.colors.primary,
+                    },
+                  ]}
+                >
+                  <View style={styles.sectionHeader}>
+                    <View style={styles.titleWrap}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <Text variant="titleMedium">{isSetupMode ? t(K.home.setupWizard) : t(K.home.buildYourFamily)}</Text>
+                        <IconButton
+                          icon="information-outline"
+                          size={18}
+                          style={{ margin: 0 }}
+                          onPress={() => setBuildInfoVisible(true)}
+                          accessibilityLabel={t(K.home.aboutBuildYourFamily)}
+                        />
+                      </View>
+                      <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
+                        {t(K.home.buildOverviewHelper)}
+                      </Text>
+                    </View>
+                    <IconButton
+                      icon={deeperExpanded ? 'chevron-up' : 'chevron-down'}
+                      onPress={() => setDeeperExpanded((current) => !current)}
+                      accessibilityLabel={deeperExpanded ? t(K.home.collapseBuildYourFamily) : t(K.home.expandBuildYourFamily)}
+                    />
+                  </View>
+
+                  {deeperExpanded && (visibleStoryTasks.length + visibleTreeTasks.length > 0) ? (
+                    <View style={{ marginTop: 14, gap: 18 }}>
+                      {dashboardBundles.length > 0 ? (
+                        <View style={styles.dashboardMetricRow}>
+                          {dashboardBundles.map((bundle) => (
+                            <DashboardMetricCard
+                              key={bundle.id}
+                              backgroundColor={theme.colors.elevation.level1}
+                              borderColor={theme.colors.outlineVariant}
+                            >
+                              <Text variant="titleMedium">{bundle.title}</Text>
+                              <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
+                                {bundle.description}
+                              </Text>
+                              <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 10 }}>
+                                {t(K.home.stepsLeftCount, { count: bundle.remainingCount })}
+                              </Text>
+                              <Button mode={bundle.id === 'tree' ? 'contained' : 'outlined'} onPress={bundle.action} style={[BUTTON_CHROME, { alignSelf: 'flex-start', marginTop: 12 }]} buttonColor={theme.colors.primary} textColor={theme.colors.onPrimary} contentStyle={BUTTON_CONTENT_CHROME}>
+                                {bundle.actionLabel}
+                              </Button>
+                            </DashboardMetricCard>
+                          ))}
+                        </View>
+                      ) : null}
+
+                      {visibleStoryTasks.length > 0 ? (
+                        <View>
+                          <Text variant="titleMedium">{t(K.home.completeYourStory)}</Text>
+                          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
+                            {t(K.home.theseStepsShapeYourOwnPageIntoAFullerBiography)}
+                          </Text>
+                          <SuggestionList
+                            suggestions={visibleStoryTasks}
+                            onPressSuggestion={(suggestion) => suggestion.action()}
+                            onDismissSuggestion={(suggestion) => dismissTask(suggestion.id)}
+                            dismissLabel={t(K.home.hide)}
+                            variant="dashboard"
+                            getCardColors={() => ({
+                              backgroundColor: theme.colors.surface,
+                              borderColor: theme.colors.outlineVariant,
+                            })}
+                            getActionMode={() => 'outlined'}
+                          />
+                        </View>
+                      ) : null}
+
+                      {visibleTreeTasks.length > 0 ? (
+                        <View>
+                          <Text variant="titleMedium">{t(K.home.completeYourTree)}</Text>
+                          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
+                            {t(K.home.theseStepsGrowTheFamilyBeyondOnePersonAndStrengthenTheBranchStructure)}
+                          </Text>
+                          <SuggestionList
+                            suggestions={visibleTreeTasks}
+                            onPressSuggestion={(suggestion) => suggestion.action()}
+                            onDismissSuggestion={(suggestion) => dismissTask(suggestion.id)}
+                            dismissLabel={t(K.home.hide)}
+                            variant="dashboard"
+                            getCardColors={() => ({
+                              backgroundColor: theme.colors.surface,
+                              borderColor: theme.colors.outlineVariant,
+                            })}
+                            getActionMode={() => 'contained'}
+                          />
+                        </View>
+                      ) : null}
+                    </View>
+                  ) : null}
+                  {visibleStoryTasks.length + visibleTreeTasks.length === 0 ? (
+                    <View style={{ marginTop: 14 }}>
+                      <Text variant="titleSmall">{t(K.home.yourBuildListIsClear)}</Text>
+                      <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
+                        {t(K.home.yourStoryAndTreePromptsAreCoveredForNowAddANewFamilyMemberOrOpenYourProfileToKeepGrowing)}
+                      </Text>
+                      <View style={[styles.dashboardActionRow, { marginTop: 14 }]}>
+                        {currentAssignedPerson ? (
+                          <Button mode="contained" onPress={() => openPersonProfile(currentAssignedPerson)} style={BUTTON_CHROME} buttonColor={theme.colors.primary} textColor={theme.colors.onPrimary} contentStyle={BUTTON_CONTENT_CHROME}>
+                            {t(K.home.openMyProfile)}
+                          </Button>
+                        ) : (
+                          <Button mode="contained" onPress={onOpenAddSelf} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>
+                            {t(K.home.startMyProfile)}
+                          </Button>
+                        )}
+                        {canEdit ? <Button mode="outlined" onPress={onOpenAddPerson} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>{t(K.home.addFamilyMember)}</Button> : null}
+                        {dismissedTaskIds.length > 0 ? <Button mode="text" onPress={restoreHiddenPrompts} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>{t(K.home.restorePrompts)}</Button> : null}
+                      </View>
+                    </View>
+                  ) : null}
+                </View>
+              ) : null}
             </View>
           </SectionCard>
         </Reveal>
@@ -1599,131 +1693,6 @@ export function HomeDashboardView(props: SharedTabProps) {
           ) : null}
 
         </>
-      ) : null}
-
-      {dashboardTab === 'build' ? (
-        visibleStoryTasks.length + visibleTreeTasks.length > 0 ? (
-          <Reveal delay={140}>
-            <View onLayout={registerSectionOffset('keep-building')}>
-              <SectionCard>
-                <View style={styles.sectionHeader}>
-                  <View style={styles.titleWrap}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <Text variant="titleLarge">{isSetupMode ? t(K.home.setupWizard) : t(K.home.buildYourFamily)}</Text>
-                      <IconButton
-                        icon="information-outline"
-                        size={18}
-                        style={{ margin: 0 }}
-                        onPress={() => setBuildInfoVisible(true)}
-                        accessibilityLabel={t(K.home.aboutBuildYourFamily)}
-                      />
-                    </View>
-                  </View>
-                  <IconButton
-                    icon={deeperExpanded ? 'chevron-up' : 'chevron-down'}
-                    onPress={() => setDeeperExpanded((current) => !current)}
-                    accessibilityLabel={deeperExpanded ? t(K.home.collapseBuildYourFamily) : t(K.home.expandBuildYourFamily)}
-                  />
-                </View>
-
-                {deeperExpanded ? (
-                <View style={{ marginTop: 14, gap: 18 }}>
-                  {dashboardBundles.length > 0 ? (
-                    <View style={styles.dashboardMetricRow}>
-                      {dashboardBundles.map((bundle) => (
-                        <DashboardMetricCard
-                          key={bundle.id}
-                          backgroundColor={theme.colors.elevation.level1}
-                          borderColor={theme.colors.outlineVariant}
-                        >
-                            <Text variant="titleMedium">{bundle.title}</Text>
-                            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
-                              {bundle.description}
-                            </Text>
-                            <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 10 }}>
-                              {t(K.home.stepsLeftCount, { count: bundle.remainingCount })}
-                            </Text>
-                            <Button mode={bundle.id === 'tree' ? 'contained' : 'outlined'} onPress={bundle.action} style={[BUTTON_CHROME, { alignSelf: 'flex-start', marginTop: 12 }]} buttonColor={theme.colors.primary} textColor={theme.colors.onPrimary} contentStyle={BUTTON_CONTENT_CHROME}>
-                              {bundle.actionLabel}
-                            </Button>
-                        </DashboardMetricCard>
-                      ))}
-                    </View>
-                  ) : null}
-
-                  <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-                    {t(K.home.buildOverviewHelper)}
-                  </Text>
-
-                  {visibleStoryTasks.length > 0 ? (
-                    <View>
-                      <Text variant="titleMedium">{t(K.home.completeYourStory)}</Text>
-                      <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
-                        {t(K.home.theseStepsShapeYourOwnPageIntoAFullerBiography)}
-                      </Text>
-                      <SuggestionList
-                        suggestions={visibleStoryTasks}
-                        onPressSuggestion={(suggestion) => suggestion.action()}
-                        onDismissSuggestion={(suggestion) => dismissTask(suggestion.id)}
-                        dismissLabel={t(K.home.hide)}
-                        variant="dashboard"
-                        getCardColors={() => ({
-                          backgroundColor: theme.colors.surface,
-                          borderColor: theme.colors.outlineVariant,
-                        })}
-                        getActionMode={() => 'outlined'}
-                      />
-                    </View>
-                  ) : null}
-
-                  {visibleTreeTasks.length > 0 ? (
-                    <View>
-                      <Text variant="titleMedium">{t(K.home.completeYourTree)}</Text>
-                      <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
-                        {t(K.home.theseStepsGrowTheFamilyBeyondOnePersonAndStrengthenTheBranchStructure)}
-                      </Text>
-                      <SuggestionList
-                        suggestions={visibleTreeTasks}
-                        onPressSuggestion={(suggestion) => suggestion.action()}
-                        onDismissSuggestion={(suggestion) => dismissTask(suggestion.id)}
-                        dismissLabel={t(K.home.hide)}
-                        variant="dashboard"
-                        getCardColors={() => ({
-                          backgroundColor: theme.colors.surface,
-                          borderColor: theme.colors.outlineVariant,
-                        })}
-                        getActionMode={() => 'contained'}
-                      />
-                    </View>
-                  ) : null}
-                </View>
-                ) : null}
-              </SectionCard>
-            </View>
-          </Reveal>
-        ) : (
-          <Reveal delay={140}>
-            <SectionCard>
-              <Text variant="titleLarge">{t(K.home.yourBuildListIsClear)}</Text>
-              <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-                {t(K.home.yourStoryAndTreePromptsAreCoveredForNowAddANewFamilyMemberOrOpenYourProfileToKeepGrowing)}
-              </Text>
-              <View style={styles.dashboardActionRow}>
-                {currentAssignedPerson ? (
-                  <Button mode="contained" onPress={() => openPersonProfile(currentAssignedPerson)} style={BUTTON_CHROME} buttonColor={theme.colors.primary} textColor={theme.colors.onPrimary} contentStyle={BUTTON_CONTENT_CHROME}>
-                    {t(K.home.openMyProfile)}
-                  </Button>
-                ) : (
-                  <Button mode="contained" onPress={onOpenAddSelf} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>
-                    {t(K.home.startMyProfile)}
-                  </Button>
-                )}
-                {canEdit ? <Button mode="outlined" onPress={onOpenAddPerson} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>{t(K.home.addFamilyMember)}</Button> : null}
-                {dismissedTaskIds.length > 0 ? <Button mode="text" onPress={restoreHiddenPrompts} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>{t(K.home.restorePrompts)}</Button> : null}
-              </View>
-            </SectionCard>
-          </Reveal>
-        )
       ) : null}
 
       <InfoDialog
