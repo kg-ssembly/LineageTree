@@ -1,10 +1,36 @@
 import { getDisplayPersonPhoto, type PersonRecord } from '../../../components/dto/person';
 import type { RelationshipRecord } from '../../../components/dto/relationship';
-import type { SuggestionItem } from '../../../components';
 import { I18N_KEYS as K } from '../../../i18n/keys';
 
 type Translate = (key: string, params?: Record<string, string | number | null | undefined>) => string;
-const MIN_TREE_MEMBERS_FOR_PROFILE_SUGGESTIONS = 10;
+
+type SuggestionActionTarget =
+  | { kind: 'edit-profile'; personId: string }
+  | {
+      kind: 'open-profile';
+      personId: string;
+      initialTab?: 'biography' | 'relationships' | 'memories-gallery';
+      initialMemorySectionTab?: 'events' | 'photos' | 'notes';
+    }
+  | { kind: 'add-relationship'; personId: string }
+  | { kind: 'add-relative'; personId: string; mode: 'parent-of' | 'child-of' | 'spouse-of' }
+  | { kind: 'add-person' }
+  | { kind: 'add-self' }
+  | { kind: 'open-relationship-dialog' };
+
+export type SuggestionItem = {
+  id: string;
+  title: string;
+  description: string;
+  ctaLabel: string;
+  actionTarget: SuggestionActionTarget;
+  scope: 'profile' | 'tree';
+  category: 'identity' | 'memories' | 'relationships' | 'growth' | 'tree';
+  done?: boolean;
+  icon?: string;
+  priority?: 'urgent' | 'easy-win' | 'recommended';
+  score?: number;
+};
 
 export function getPersonRelationshipCounts(personId: string, relationships: RelationshipRecord[]) {
   return relationships.reduce((acc, relationship) => {
@@ -163,7 +189,7 @@ export function buildTreeSuggestions(
     canEdit,
     showFollowUpTreePrompts,
   } = input;
-  const canSuggestProfileScope = people.length >= MIN_TREE_MEMBERS_FOR_PROFILE_SUGGESTIONS;
+  const canSuggestProfileScope = true;
 
   if (!currentAssignedPerson) {
     const initialSuggestions: SuggestionItem[] = [];
@@ -399,14 +425,22 @@ export function buildMissingDetailSuggestionForPerson(
     score += 3;
     issues.push(t(K.home.missingBirthDate));
     actionTarget = { kind: 'edit-profile', personId: person.id };
-  } else if (!getDisplayPersonPhoto(person)) {
+  }
+
+  if (!getDisplayPersonPhoto(person)) {
     score += 2;
     issues.push(t(K.home.missingProfilePhoto));
-    actionTarget = { kind: 'open-profile', personId: person.id, initialTab: 'memories-gallery', initialMemorySectionTab: 'photos' };
-  } else if (relationshipCount === 0) {
+    if (actionTarget.kind !== 'edit-profile') {
+      actionTarget = { kind: 'open-profile', personId: person.id, initialTab: 'memories-gallery', initialMemorySectionTab: 'photos' };
+    }
+  }
+
+  if (relationshipCount === 0) {
     score += 3;
     issues.push(t(K.home.missingFamilyConnections));
-    actionTarget = { kind: 'open-profile', personId: person.id, initialTab: 'relationships' };
+    if (actionTarget.kind !== 'edit-profile') {
+      actionTarget = { kind: 'open-profile', personId: person.id, initialTab: 'relationships' };
+    }
   }
 
   if (score === 0) {

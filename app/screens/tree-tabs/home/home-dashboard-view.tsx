@@ -83,6 +83,12 @@ type OverviewPriorityItem = {
   tone: 'default' | 'attention';
 };
 
+type TreeProgressChecklistItem = {
+  id: string;
+  label: string;
+  done: boolean;
+};
+
 const localStyles = StyleSheet.create({
   strengthCard: {
     marginTop: 4,
@@ -142,6 +148,18 @@ const localStyles = StyleSheet.create({
     borderRadius: 18,
     padding: 14,
     borderWidth: StyleSheet.hairlineWidth,
+  },
+  checklistWrap: {
+    marginTop: 14,
+    gap: 8,
+  },
+  checklistRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  checklistCopy: {
+    flex: 1,
   },
   actionPanel: {
     marginTop: 14,
@@ -548,8 +566,12 @@ export function HomeDashboardView(props: SharedTabProps) {
   const [activityModalVisible, setActivityModalVisible] = useState(false);
   const [buildInfoVisible, setBuildInfoVisible] = useState(false);
   const [heroInfoVisible, setHeroInfoVisible] = useState(false);
+  const [progressIncludesExpanded, setProgressIncludesExpanded] = useState(false);
+  const [progressIncludesDialogExpanded, setProgressIncludesDialogExpanded] = useState(false);
   const [dashboardTab, setDashboardTab] = useState<DashboardTabKey>(needsAttentionCount > 0 ? 'activity' : 'overview');
   const hasUserSelectedDashboardTabRef = useRef(false);
+  const previousFocusRef = useRef(isFocused);
+  const previousNeedsAttentionCountRef = useRef(needsAttentionCount);
   const promptStorageId = `${selectedTree.id}:${currentAssignedPerson?.id ?? 'unlinked'}`;
   const dashboardVisitStorageId = `${selectedTree.id}:${currentAssignedPerson?.id ?? 'unlinked'}`;
   const isEmptyTree = people.length === 0;
@@ -640,18 +662,34 @@ export function HomeDashboardView(props: SharedTabProps) {
     };
   }, [dashboardVisitStorageId]);
 
-  useEffect(() => () => {
-    void (async () => {
-      try {
-        const stored = await AsyncStorage.getItem(DASHBOARD_LAST_VISIT_STORAGE_KEY);
-        const parsed = stored ? JSON.parse(stored) as Record<string, string> : {};
-        const next = { ...parsed, [dashboardVisitStorageId]: new Date().toISOString() };
-        await AsyncStorage.setItem(DASHBOARD_LAST_VISIT_STORAGE_KEY, JSON.stringify(next));
-      } catch {
-        // Ignore storage failures so the dashboard still works in-memory.
-      }
-    })();
+  const persistDashboardVisit = useCallback(async () => {
+    try {
+      const stored = await AsyncStorage.getItem(DASHBOARD_LAST_VISIT_STORAGE_KEY);
+      const parsed = stored ? JSON.parse(stored) as Record<string, string> : {};
+      const nextVisitAt = new Date().toISOString();
+      await AsyncStorage.setItem(DASHBOARD_LAST_VISIT_STORAGE_KEY, JSON.stringify({
+        ...parsed,
+        [dashboardVisitStorageId]: nextVisitAt,
+      }));
+      setLastVisitAt(nextVisitAt);
+    } catch {
+      // Ignore storage failures so the dashboard still works in-memory.
+    }
   }, [dashboardVisitStorageId]);
+
+  useEffect(() => {
+    if (previousFocusRef.current && !isFocused) {
+      void persistDashboardVisit();
+    }
+
+    previousFocusRef.current = isFocused;
+  }, [isFocused, persistDashboardVisit]);
+
+  useEffect(() => () => {
+    if (previousFocusRef.current) {
+      void persistDashboardVisit();
+    }
+  }, [persistDashboardVisit]);
 
   useEffect(() => {
     if (!promptsHydrated) {
@@ -684,12 +722,24 @@ export function HomeDashboardView(props: SharedTabProps) {
   }, [dashboardTab, isSetupMode, pendingBuildTaskCount]);
 
   useEffect(() => {
-    if (loadingTreeData || hasUserSelectedDashboardTabRef.current) {
+    const previousNeedsAttentionCount = previousNeedsAttentionCountRef.current;
+    previousNeedsAttentionCountRef.current = needsAttentionCount;
+
+    if (loadingTreeData) {
+      return;
+    }
+
+    if (previousNeedsAttentionCount === 0 && needsAttentionCount > 0 && dashboardTab !== 'activity') {
+      setDashboardTab('activity');
+      return;
+    }
+
+    if (hasUserSelectedDashboardTabRef.current) {
       return;
     }
 
     setDashboardTab(needsAttentionCount > 0 ? 'activity' : 'overview');
-  }, [loadingTreeData, needsAttentionCount]);
+  }, [dashboardTab, loadingTreeData, needsAttentionCount]);
 
   useEffect(() => {
     if (!showFollowUpTreePrompts) {
@@ -1006,12 +1056,13 @@ export function HomeDashboardView(props: SharedTabProps) {
   }, [people, relationships, suggestionActionContext, t]);
 
   const treeStrengthChecks = useMemo(() => {
+    const remainingObjectiveTreeTasks = treeTasks.filter((task) => !task.done).length;
     const checks = [
       Boolean(currentAssignedPerson),
       people.length >= 2,
       relationships.length > 0,
       missingMemberDetails.length === 0,
-      visibleTreeTasks.length === 0,
+      remainingObjectiveTreeTasks === 0,
     ];
     const completed = checks.filter(Boolean).length;
     return {
@@ -1019,7 +1070,38 @@ export function HomeDashboardView(props: SharedTabProps) {
       total: checks.length,
       percent: Math.round((completed / checks.length) * 100),
     };
-  }, [currentAssignedPerson, missingMemberDetails.length, people.length, relationships.length, visibleTreeTasks.length]);
+  }, [currentAssignedPerson, missingMemberDetails.length, people.length, relationships.length, treeTasks]);
+  const treeProgressChecklist = useMemo<TreeProgressChecklistItem[]>(() => {
+    const remainingObjectiveTreeTasks = treeTasks.filter((task) => !task.done).length;
+
+    return [
+      {
+        id: 'linked-profile',
+        label: t(K.home.treePriorityLinkedProfile),
+        done: Boolean(currentAssignedPerson),
+      },
+      {
+        id: 'two-people',
+        label: t(K.home.treePriorityTwoMembers),
+        done: people.length >= 2,
+      },
+      {
+        id: 'relationships',
+        label: t(K.home.treePriorityRelationships),
+        done: relationships.length > 0,
+      },
+      {
+        id: 'details',
+        label: t(K.home.treePriorityMissingDetails),
+        done: missingMemberDetails.length === 0,
+      },
+      {
+        id: 'steps',
+        label: t(K.home.treePriorityBuildSteps),
+        done: remainingObjectiveTreeTasks === 0,
+      },
+    ];
+  }, [currentAssignedPerson, missingMemberDetails.length, people.length, relationships.length, t, treeTasks]);
 
   const overviewStats = useMemo(() => ([
     { id: 'people', label: t(K.home.familyMembersMetric), value: String(people.length) },
@@ -1224,7 +1306,7 @@ export function HomeDashboardView(props: SharedTabProps) {
                     {treeStrengthChecks.percent}%
                   </Text>
                   <Text variant="labelMedium" style={{ color: spotlightSubtextColor }}>
-                    {t(K.home.branchGrowth)}
+                    {t(K.home.progressLabel)}
                   </Text>
                 </View>
               </View>
@@ -1311,6 +1393,30 @@ export function HomeDashboardView(props: SharedTabProps) {
                   {missingMemberDetails.length === 0 && relationships.length > 0 ? (
                     <Chip compact icon="source-branch-check">{t(K.home.yourEssentialsAreInPlace)}</Chip>
                   ) : null}
+                </View>
+                <View style={localStyles.checklistWrap}>
+                  <View style={localStyles.actionPanelHeader}>
+                    <Text variant="labelLarge">{t(K.home.progressIncludes)}</Text>
+                    <Button
+                      mode="text"
+                      icon={progressIncludesExpanded ? 'chevron-up' : 'chevron-down'}
+                      onPress={() => setProgressIncludesExpanded((current) => !current)}
+                      style={BUTTON_CHROME}
+                      contentStyle={BUTTON_CONTENT_CHROME}
+                    >
+                      {progressIncludesExpanded ? t(K.common.close) : t(K.common.open)}
+                    </Button>
+                  </View>
+                  {progressIncludesExpanded ? treeProgressChecklist.map((item) => (
+                    <View key={item.id} style={localStyles.checklistRow}>
+                      <Chip compact icon={item.done ? 'check-circle-outline' : 'circle-outline'}>
+                        {item.done ? t(K.common.done) : t(K.home.doThis)}
+                      </Chip>
+                      <Text variant="bodyMedium" style={localStyles.checklistCopy}>
+                        {item.label}
+                      </Text>
+                    </View>
+                  )) : null}
                 </View>
               </View>
 
@@ -1632,6 +1738,30 @@ export function HomeDashboardView(props: SharedTabProps) {
             <Text variant="bodyMedium" style={{ marginTop: 12 }}>
               {lensSubtitle}
             </Text>
+            <View style={localStyles.checklistWrap}>
+              <View style={localStyles.actionPanelHeader}>
+                <Text variant="labelLarge">{t(K.home.progressIncludes)}</Text>
+                <Button
+                  mode="text"
+                  icon={progressIncludesDialogExpanded ? 'chevron-up' : 'chevron-down'}
+                  onPress={() => setProgressIncludesDialogExpanded((current) => !current)}
+                  style={BUTTON_CHROME}
+                  contentStyle={BUTTON_CONTENT_CHROME}
+                >
+                  {progressIncludesDialogExpanded ? t(K.common.close) : t(K.common.open)}
+                </Button>
+              </View>
+              {progressIncludesDialogExpanded ? treeProgressChecklist.map((item) => (
+                <View key={item.id} style={localStyles.checklistRow}>
+                  <Chip compact icon={item.done ? 'check-circle-outline' : 'circle-outline'}>
+                    {item.done ? t(K.common.done) : t(K.home.doThis)}
+                  </Chip>
+                  <Text variant="bodyMedium" style={localStyles.checklistCopy}>
+                    {item.label}
+                  </Text>
+                </View>
+              )) : null}
+            </View>
           </>
         )}
         onDismiss={() => setHeroInfoVisible(false)}

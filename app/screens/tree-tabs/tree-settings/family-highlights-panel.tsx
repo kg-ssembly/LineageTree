@@ -7,6 +7,7 @@ import { formatPersonDate, parsePersonDate } from '../../../../components/dto/pe
 import { formatPersonName } from '../../../../components/person-formatting';
 import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
+import { buildBranchGrowth } from './family-highlights-helpers';
 
 const styles = GlobalStyles.treeDetail;
 
@@ -45,25 +46,6 @@ function getDaysUntil(date: Date, now: Date) {
   return Math.round((end - start) / (1000 * 60 * 60 * 24));
 }
 
-function buildBranchGrowth(people: PersonRecord[], unknownLabel: string) {
-  const counts = new Map<string, { surname: string; total: number; fresh: number }>();
-  const newestBoundary = Date.now() - (1000 * 60 * 60 * 24 * 45);
-
-  people.forEach((person) => {
-    const surname = person.lastName.trim() || person.maidenName?.trim() || unknownLabel;
-    const current = counts.get(surname) ?? { surname, total: 0, fresh: 0 };
-    current.total += 1;
-    const createdAt = Date.parse(person.createdAt);
-    if (Number.isFinite(createdAt) && createdAt >= newestBoundary) {
-      current.fresh += 1;
-    }
-    counts.set(surname, current);
-  });
-
-  return [...counts.values()]
-    .sort((left, right) => right.total - left.total || right.fresh - left.fresh || left.surname.localeCompare(right.surname));
-}
-
 function paginateItems<T>(items: T[], page: number, pageSize: number) {
   const start = page * pageSize;
   return items.slice(start, start + pageSize);
@@ -81,6 +63,7 @@ export function FamilyHighlightsPanel({
   const theme = useTheme();
   const { t } = useI18n();
   const pageSize = 3;
+  const peopleById = useMemo(() => new Map(people.map((person) => [person.id, person])), [people]);
   const [helperVisible, setHelperVisible] = useState(false);
   const [expandedPanel, setExpandedPanel] = useState<HighlightPanelKey | null>(null);
   const [recentPage, setRecentPage] = useState(0);
@@ -175,16 +158,19 @@ export function FamilyHighlightsPanel({
     }
 
     if (currentAssignedPerson && branchGrowth.length > 0) {
+      const representativePerson = branchGrowth[0].representativePersonId
+        ? peopleById.get(branchGrowth[0].representativePersonId) ?? null
+        : null;
       return {
         title: t(K.home.exploreGrowingBranch),
-        description: `${branchGrowth[0].surname} · ${t(K.treeSettings.familyMembersCount, { count: branchGrowth[0].total })}`,
-        actionLabel: t(K.home.openMyProfile),
-        action: () => openPersonProfile(currentAssignedPerson),
+        description: `${branchGrowth[0].surname} · ${branchGrowth[0].fresh > 0 ? t('{count} new in the last 45 days', { count: branchGrowth[0].fresh }) : t(K.treeSettings.familyMembersCount, { count: branchGrowth[0].total })}`,
+        actionLabel: representativePerson ? t(K.home.viewProfile) : t(K.home.openMyProfile),
+        action: () => openPersonProfile(representativePerson ?? currentAssignedPerson),
       };
     }
 
     return null;
-  }, [anniversaries, branchGrowth, currentAssignedPerson, openPersonProfile, recentAdditions, t]);
+  }, [anniversaries, branchGrowth, currentAssignedPerson, openPersonProfile, peopleById, recentAdditions, t]);
 
   return (
     <Reveal delay={80}>
@@ -349,7 +335,7 @@ export function FamilyHighlightsPanel({
                 <View style={styles.titleWrap}>
                   <Text variant="titleMedium">{t(K.home.branchGrowth)}</Text>
                   <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                    {t('A quick look at the family names and branches growing most recently.')}
+                    {t('A quick look at the branches growing most in the last 45 days.')}
                   </Text>
                 </View>
                 <IconButton
@@ -359,19 +345,30 @@ export function FamilyHighlightsPanel({
                 />
               </View>
             </View>
-            {growthExpanded ? growthPageItems.map((branch, index) => (
-              <Reveal key={branch.surname} delay={220 + index * 60}>
-                <SectionCard nested style={styles.highlightStoryCard}>
-                  <Text variant="titleSmall">{branch.surname}</Text>
-                  <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                    {t(K.treeSettings.familyMembersCount, { count: branch.total })}
-                  </Text>
-                  <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                    {branch.fresh > 0 ? t('{count} new this season', { count: branch.fresh }) : t('Steady and well-rooted')}
-                  </Text>
-                </SectionCard>
-              </Reveal>
-            )) : null}
+            {growthExpanded ? growthPageItems.map((branch, index) => {
+              const representativePerson = branch.representativePersonId
+                ? peopleById.get(branch.representativePersonId) ?? null
+                : null;
+
+              return (
+                <Reveal key={branch.surname} delay={220 + index * 60}>
+                  <SectionCard nested style={styles.highlightStoryCard}>
+                    <Text variant="titleSmall">{branch.surname}</Text>
+                    <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                      {t(K.treeSettings.familyMembersCount, { count: branch.total })}
+                    </Text>
+                    <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                      {branch.fresh > 0 ? t('{count} new in the last 45 days', { count: branch.fresh }) : t('No new additions in the last 45 days')}
+                    </Text>
+                    {representativePerson ? (
+                      <Button compact mode="text" onPress={() => openPersonProfile(representativePerson)} style={styles.highlightAction}>
+                        {t('Open this branch')}
+                      </Button>
+                    ) : null}
+                  </SectionCard>
+                </Reveal>
+              );
+            }) : null}
             {growthExpanded && branchGrowth.length > pageSize ? (
               <View style={styles.dashboardActionRow}>
                 <IconButton
