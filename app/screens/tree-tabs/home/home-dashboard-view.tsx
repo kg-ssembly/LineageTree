@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ScrollView, StyleSheet, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
-import { ActivityIndicator, Button, Chip, Dialog, IconButton, Portal, Text, useTheme } from 'react-native-paper';
+import { ActivityIndicator, Button, Chip, IconButton, Text, useTheme } from 'react-native-paper';
 import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, FloatingSnackbar, GlobalStyles, HorizontalTabStrip, InfoDialog, Reveal, ScreenBackground, SectionCard, SuggestionList, TabStripCard, type SuggestionActionTarget } from '../../../../components';
 import type { MainTabParamList } from '../../../../components/dto/navigation';
 import { getThemeChrome } from '../../../../constants/styles';
@@ -18,7 +18,6 @@ import { buildMissingDetailSuggestionForPerson, buildTreeSuggestions } from '../
 
 const styles = GlobalStyles.treeDetail;
 const profileStyles = GlobalStyles.personProfile;
-const dialogChrome = GlobalStyles.dialogChrome;
 const DASHBOARD_PROMPTS_STORAGE_KEY = 'lineagetree-dashboard-hidden-prompts';
 const DASHBOARD_LAST_VISIT_STORAGE_KEY = 'lineagetree-dashboard-last-visit';
 const MIN_TREE_MEMBERS_FOR_PROGRESS = 10;
@@ -553,7 +552,6 @@ export function HomeDashboardView(props: SharedTabProps) {
   }, [approvalRequests, mergeHistory, mergeRequests, notificationActivityStates, notifications, trees, userId]);
   const [deeperExpanded, setDeeperExpanded] = useState(false);
   const [overviewActionsExpanded, setOverviewActionsExpanded] = useState(false);
-  const [activityModalVisible, setActivityModalVisible] = useState(false);
   const [buildInfoVisible, setBuildInfoVisible] = useState(false);
   const [heroInfoVisible, setHeroInfoVisible] = useState(false);
   const [progressIncludesExpanded, setProgressIncludesExpanded] = useState(false);
@@ -807,7 +805,6 @@ export function HomeDashboardView(props: SharedTabProps) {
 
   const openFamilyActivity = useCallback(() => {
     setDashboardTab('activity');
-    setActivityModalVisible(true);
   }, []);
 
   const openApprovals = useCallback(() => {
@@ -1235,7 +1232,7 @@ export function HomeDashboardView(props: SharedTabProps) {
           </TabStripCard>
         </Reveal>
 
-      {dashboardTab !== 'highlights' && !isEmptyTree ? (
+      {dashboardTab !== 'highlights' && dashboardTab !== 'activity' && !isEmptyTree ? (
         <Reveal delay={70}>
           <SectionCard>
             <View
@@ -1260,9 +1257,7 @@ export function HomeDashboardView(props: SharedTabProps) {
                     />
                   </View>
                   <Text variant="bodyMedium" style={{ color: spotlightSubtextColor, marginTop: 6 }}>
-                    {dashboardTab === 'activity'
-                      ? t(K.home.reviewWhatChangedWhatIsWaitingAndWhereSharedWorkNeedsADecision)
-                      : t(K.home.hereIsTheBestNextStepToMakeYourProfileFeelFullerAndYourBranchMoreConnected)}
+                    {t(K.home.hereIsTheBestNextStepToMakeYourProfileFeelFullerAndYourBranchMoreConnected)}
                   </Text>
                 </View>
 
@@ -1689,6 +1684,16 @@ export function HomeDashboardView(props: SharedTabProps) {
             </Reveal>
           ) : null}
 
+          <Reveal delay={135}>
+            <NotificationsView
+              {...props}
+              embedded
+              navigation={{
+                navigate: (name) => navigation.navigate(name),
+              }}
+            />
+          </Reveal>
+
         </>
       ) : null}
 
@@ -1732,35 +1737,6 @@ export function HomeDashboardView(props: SharedTabProps) {
         )}
         onDismiss={() => setHeroInfoVisible(false)}
       />
-      <Portal>
-        <Dialog
-          visible={activityModalVisible}
-          onDismiss={() => setActivityModalVisible(false)}
-          style={[dialogChrome.dialog, { backgroundColor: theme.colors.surface, maxHeight: '88%' }]}
-        >
-          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{t(K.home.activity)}</Dialog.Title>
-          <IconButton
-            icon="close"
-            size={20}
-            onPress={() => setActivityModalVisible(false)}
-            style={dialogChrome.closeButton}
-            accessibilityLabel={t(K.common.close)}
-          />
-          <Dialog.ScrollArea style={dialogChrome.scrollArea}>
-            {activityModalVisible ? (
-              <ScrollView contentContainerStyle={{ paddingBottom: 8 }}>
-                <NotificationsView
-                  {...props}
-                  embedded
-                  navigation={{
-                    navigate: (name) => navigation.navigate(name),
-                  }}
-                />
-              </ScrollView>
-            ) : null}
-          </Dialog.ScrollArea>
-        </Dialog>
-      </Portal>
       <InfoDialog
         visible={buildInfoVisible}
         title={isSetupMode ? t(K.home.aboutSetupWizard) : t(K.home.aboutBuildYourFamily)}

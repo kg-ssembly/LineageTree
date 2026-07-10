@@ -20,8 +20,7 @@ import type { SharedTabProps } from '../shared';
 const dialogChrome = GlobalStyles.dialogChrome;
 const styles = GlobalStyles.treeDetail;
 const ACTIVITY_PAGE_SIZE = 5;
-const EMBEDDED_ATTENTION_LIMIT = 6;
-const EMBEDDED_COMPLETED_LIMIT = 4;
+type NotificationFilterKey = 'attention' | 'done';
 
 type NotificationFeedKind = 'merge-invite' | 'tree-access-request' | 'tree-access-response' | 'approval' | 'merge-request' | 'merge-history' | 'membership';
 
@@ -116,6 +115,7 @@ export function NotificationsView({
   const { t } = useI18n();
   const [selectedNotification, setSelectedNotification] = useState<NotificationFeedItem | null>(null);
   const [helperVisible, setHelperVisible] = useState(false);
+  const [activeFilter, setActiveFilter] = useState<NotificationFilterKey>('attention');
   const [currentPage, setCurrentPage] = useState(1);
 
   const activityStateByKey = useMemo(
@@ -250,10 +250,13 @@ export function NotificationsView({
       unactionedDerivedItems,
       attentionItems,
       completedItems,
-      embeddedAttentionItems: attentionItems.slice(0, EMBEDDED_ATTENTION_LIMIT),
-      embeddedCompletedItems: completedItems.slice(0, EMBEDDED_COMPLETED_LIMIT),
     };
   }, [notificationFeed]);
+
+  const filteredFeed = useMemo(
+    () => (activeFilter === 'attention' ? feedMetrics.attentionItems : feedMetrics.completedItems),
+    [activeFilter, feedMetrics.attentionItems, feedMetrics.completedItems],
+  );
 
   const openNotification = async (item: NotificationFeedItem) => {
     setSelectedNotification(item);
@@ -262,11 +265,11 @@ export function NotificationsView({
     }
   };
 
-  const totalPages = Math.max(1, Math.ceil(notificationFeed.length / ACTIVITY_PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(filteredFeed.length / ACTIVITY_PAGE_SIZE));
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [notificationFeed.length]);
+  }, [activeFilter, filteredFeed.length]);
 
   useEffect(() => {
     setCurrentPage((page) => Math.min(page, totalPages));
@@ -274,8 +277,8 @@ export function NotificationsView({
 
   const paginatedFeed = useMemo(() => {
     const startIndex = (currentPage - 1) * ACTIVITY_PAGE_SIZE;
-    return notificationFeed.slice(startIndex, startIndex + ACTIVITY_PAGE_SIZE);
-  }, [currentPage, notificationFeed]);
+    return filteredFeed.slice(startIndex, startIndex + ACTIVITY_PAGE_SIZE);
+  }, [currentPage, filteredFeed]);
 
   const handleMarkAllSeen = async () => {
     for (const notificationId of feedMetrics.unseenDirectIds) {
@@ -458,35 +461,64 @@ export function NotificationsView({
 
               <View style={{ gap: 8 }}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-                  <Text variant="titleSmall">{t(K.notifications.needsAttention)}</Text>
-                  <Chip compact>{feedMetrics.attentionItems.length}</Chip>
+                  <Text variant="titleSmall">{t(K.notifications.familyActivity)}</Text>
+                  <Chip compact>{filteredFeed.length}</Chip>
                 </View>
-                {feedMetrics.embeddedAttentionItems.length > 0 ? feedMetrics.embeddedAttentionItems.map(renderCompactRow) : (
+
+                <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                  <Chip
+                    compact
+                    selected={activeFilter === 'attention'}
+                    onPress={() => setActiveFilter('attention')}
+                    style={activeFilter === 'attention' ? { backgroundColor: theme.colors.primaryContainer } : undefined}
+                  >
+                    {t(K.notifications.needsAttention)} ({feedMetrics.attentionItems.length})
+                  </Chip>
+                  <Chip
+                    compact
+                    selected={activeFilter === 'done'}
+                    onPress={() => setActiveFilter('done')}
+                    style={activeFilter === 'done' ? { backgroundColor: theme.colors.primaryContainer } : undefined}
+                  >
+                    {t(K.common.done)} ({feedMetrics.completedItems.length})
+                  </Chip>
+                </View>
+
+                {paginatedFeed.length > 0 ? paginatedFeed.map(renderCompactRow) : (
                   <View style={{ borderWidth: 1, borderColor: theme.colors.outlineVariant, borderRadius: 14, padding: 14 }}>
-                    <Text variant="bodyMedium">{t(K.notifications.everythingCaughtUp)}</Text>
+                    <Text variant="bodyMedium">
+                      {activeFilter === 'attention' ? t(K.notifications.everythingCaughtUp) : t(K.notifications.yourFamilyActivityFeedIsQuiet)}
+                    </Text>
                   </View>
                 )}
-                {feedMetrics.attentionItems.length > feedMetrics.embeddedAttentionItems.length ? (
-                  <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                    {t('Showing the latest {count} items first.', { count: feedMetrics.embeddedAttentionItems.length })}
-                  </Text>
+                {totalPages > 1 ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingTop: 4 }}>
+                    <IconButton
+                      icon="chevron-left"
+                      onPress={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                      disabled={currentPage === 1}
+                      accessibilityLabel={t(K.tree.familyMembers.previousPage)}
+                      mode="outlined"
+                      style={BUTTON_CHROME}
+                      containerColor={theme.colors.surface}
+                      iconColor={theme.colors.primary}
+                    />
+                    <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                      {t(K.app.resultsPageCount, { current: currentPage, total: totalPages })}
+                    </Text>
+                    <IconButton
+                      icon="chevron-right"
+                      onPress={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                      disabled={currentPage === totalPages}
+                      accessibilityLabel={t(K.tree.familyMembers.nextPage)}
+                      mode="outlined"
+                      style={BUTTON_CHROME}
+                      containerColor={theme.colors.surface}
+                      iconColor={theme.colors.primary}
+                    />
+                  </View>
                 ) : null}
               </View>
-
-              {feedMetrics.completedItems.length > 0 ? (
-                <View style={{ gap: 8 }}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-                    <Text variant="titleSmall">{t(K.common.done)}</Text>
-                    <Chip compact>{feedMetrics.completedItems.length}</Chip>
-                  </View>
-                  {feedMetrics.embeddedCompletedItems.map(renderCompactRow)}
-                  {feedMetrics.completedItems.length > feedMetrics.embeddedCompletedItems.length ? (
-                    <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-                      {t('{count} more completed items are still in your full activity view.', { count: feedMetrics.completedItems.length - feedMetrics.embeddedCompletedItems.length })}
-                    </Text>
-                  ) : null}
-                </View>
-              ) : null}
             </View>
           ) : (
             <View style={styles.emptyState}>
@@ -509,6 +541,24 @@ export function NotificationsView({
                 <Chip compact icon="bell-ring-outline">{feedMetrics.unseenDirectIds.length} new</Chip>
                 <Chip compact icon="email-open-outline">{feedMetrics.unopenedDirectIds.length} unopened</Chip>
                 <Chip compact icon="check-decagram-outline">{feedMetrics.unactionedDerivedItems.length} to follow up</Chip>
+              </View>
+              <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                <Chip
+                  compact
+                  selected={activeFilter === 'attention'}
+                  onPress={() => setActiveFilter('attention')}
+                  style={activeFilter === 'attention' ? { backgroundColor: theme.colors.primaryContainer } : undefined}
+                >
+                  {t(K.notifications.needsAttention)} ({feedMetrics.attentionItems.length})
+                </Chip>
+                <Chip
+                  compact
+                  selected={activeFilter === 'done'}
+                  onPress={() => setActiveFilter('done')}
+                  style={activeFilter === 'done' ? { backgroundColor: theme.colors.primaryContainer } : undefined}
+                >
+                  {t(K.common.done)} ({feedMetrics.completedItems.length})
+                </Chip>
               </View>
               <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
                 <Button mode="outlined" onPress={() => { void handleMarkAllSeen(); }} disabled={mutating || feedMetrics.unseenDirectIds.length === 0} style={BUTTON_CHROME} buttonColor={theme.colors.surface} textColor={theme.colors.primary} contentStyle={BUTTON_CONTENT_CHROME}>
@@ -590,6 +640,13 @@ export function NotificationsView({
                 </SectionCard>
               </Reveal>
             ))}
+            {paginatedFeed.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Text variant="titleMedium">
+                  {activeFilter === 'attention' ? t(K.notifications.everythingCaughtUp) : t(K.notifications.yourFamilyActivityFeedIsQuiet)}
+                </Text>
+              </View>
+            ) : null}
             {totalPages > 1 ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingTop: 4 }}>
                 <IconButton
