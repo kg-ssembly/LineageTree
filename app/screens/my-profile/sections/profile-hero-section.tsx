@@ -1,8 +1,8 @@
 import React from 'react';
-import { Image, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { Avatar, Chip, IconButton, Text, useTheme } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Reveal, SectionCard } from '../../../../components';
+import { CachedImage, Reveal, SectionCard } from '../../../../components';
 import type { PersonRecord } from '../../../../components/dto/person';
 import { getPersonLifeSpanLabel, isPersonDeceased, type PersonPhoto } from '../../../../components/dto/person';
 import { formatPersonName } from '../../../../components/person-formatting';
@@ -120,9 +120,11 @@ export function ProfileHeroSection({
           <View style={styles.heroHeader}>
             <View style={styles.heroAvatarRow}>
               {preferredPhoto ? (
-                <Image
-                  source={{ uri: preferredPhoto.url }}
+                <CachedImage
+                  uri={preferredPhoto.url}
                   style={[styles.heroAvatar, { backgroundColor: chrome.avatarBackground, borderColor: chrome.avatarBorder }]}
+                  priority="high"
+                  recyclingKey={preferredPhoto.id}
                 />
               ) : (
                 <View style={[styles.heroAvatarFallback, { backgroundColor: chrome.avatarBackground, borderColor: chrome.avatarBorder }]}>

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Image, Pressable, View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import { Button, Chip, Dialog, IconButton, Portal, Text, TextInput, useTheme } from 'react-native-paper';
-import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, GlobalStyles, HorizontalTabStrip, Reveal, SectionCard, TabStripCard } from '../../../../components';
+import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, CachedImage, GlobalStyles, HorizontalTabStrip, Reveal, SectionCard, TabStripCard } from '../../../../components';
 import type { NewPersonPhotoInput, PersonLifeEvent, PersonPhoto, PersonRecord } from '../../../../components/dto/person';
 import { formatPersonDate } from '../../../../components/dto/person';
 import { useI18n } from '../../../../hooks/use-i18n';
@@ -161,7 +161,7 @@ export function PersonMemoriesSection({
                   style={[styles.photoCard, preferredPhoto?.id === photo.id && styles.photoCardPreferred]}
                 >
                   <Pressable onPress={() => onOpenViewer(index)}>
-                    <Image source={{ uri: photo.url }} style={styles.photo} />
+                    <CachedImage uri={photo.url} style={styles.photo} priority="low" recyclingKey={photo.id} />
                   </Pressable>
                   {draft.description || draft.linkedLifeEventId ? (
                     <View style={styles.photoMeta}>
@@ -215,7 +215,14 @@ export function PersonMemoriesSection({
                         {index < memoryTimeline.length - 1 ? <View style={[styles.timelineLine, { backgroundColor: theme.colors.outlineVariant }]} /> : null}
                       </View>
                       <View style={[styles.timelineStoryCard, { backgroundColor: theme.colors.surface }]}>
-                        {preferredPhoto && index === 0 ? <Image source={{ uri: preferredPhoto.url }} style={styles.timelinePhoto} /> : null}
+                        {preferredPhoto && index === 0 ? (
+                          <CachedImage
+                            uri={preferredPhoto.url}
+                            style={styles.timelinePhoto}
+                            priority="normal"
+                            recyclingKey={preferredPhoto.id}
+                          />
+                        ) : null}
                         <View style={styles.timelineChipRow}>
                           <Chip compact>{item.badgeLabel}</Chip>
                           <Chip compact icon="calendar">{formatPersonDate(item.date)}</Chip>
@@ -252,7 +259,14 @@ export function PersonMemoriesSection({
               <Text variant="bodySmall" style={styles.memoryDialogHint}>
                 {t(K.memories.photoInfoSummary)}
               </Text>
-              {selectedPhoto ? <Image source={{ uri: selectedPhoto.url }} style={styles.timelinePhoto} /> : null}
+              {selectedPhoto ? (
+                <CachedImage
+                  uri={selectedPhoto.url}
+                  style={styles.timelinePhoto}
+                  priority="high"
+                  recyclingKey={selectedPhoto.id}
+                />
+              ) : null}
               {selectedDraft ? (
                 <>
                   <TextInput

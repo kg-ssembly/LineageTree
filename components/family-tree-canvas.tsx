@@ -25,7 +25,6 @@ import React, {
 import {
   Animated,
   GestureResponderEvent,
-  Image,
   LayoutChangeEvent,
   Modal,
   PanResponder,
@@ -68,6 +67,7 @@ import {
   getSortedSurnames,
 } from './family-tree-surname-clusters';
 import { useI18n } from '../hooks/use-i18n';
+import CachedImage from './cached-image';
 
 const styles = GlobalStyles.familyTreeCanvas;
 
@@ -406,9 +406,11 @@ const PersonNode = React.memo(function PersonNode(props: PersonNodeProps) {
           <View style={styles.nodeAvatarColumn}>
             <View style={styles.nodeAvatarWrap}>
               {photo && !deferPhoto ? (
-                <Image
-                  source={{ uri: photo.url }}
+                <CachedImage
+                  uri={photo.url}
                   style={styles.nodeAvatar}
+                  priority="low"
+                  recyclingKey={photo.id}
                 />
               ) : (
                 <View style={[styles.nodeAvatarFallback, { borderColor: outlineColor, backgroundColor: variantSurface }]}>

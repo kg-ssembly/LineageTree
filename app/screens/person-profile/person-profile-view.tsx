@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, Image, Platform, Pressable, ScrollView, View } from 'react-native';
+import { Alert, Platform, Pressable, ScrollView, View } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -14,7 +14,7 @@ import {
   Text,
   useTheme,
 } from 'react-native-paper';
-import { ConfirmDialog, FloatingSnackbar, getThemeChrome, GlobalStyles, HorizontalTabStrip, InfoDialog, LifeEventDialog, MaidenTreeSuggestionDialog, PanelSurface, PersonFormDialog, PersonRelationshipDialog, Reveal, ScreenBackground, SharedLoader, TabStripCard } from '../../../components';
+import { CachedImage, ConfirmDialog, FloatingSnackbar, getThemeChrome, GlobalStyles, HorizontalTabStrip, InfoDialog, LifeEventDialog, MaidenTreeSuggestionDialog, PanelSurface, PersonFormDialog, PersonRelationshipDialog, Reveal, ScreenBackground, SharedLoader, TabStripCard } from '../../../components';
 import type { PersonRelationshipMode } from '../../../components/person-relationship-dialog';
 import type { PendingRelationshipMode, PersonFormSubmission } from '../../../components/person-form-dialog';
 import { useAuthStore } from '../../../stores/auth-store';
@@ -1075,7 +1075,12 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
           <View style={styles.heroHeader}>
             <View style={styles.heroAvatarRow}>
               {preferredPhoto ? (
-                <Image source={{ uri: preferredPhoto.url }} style={[styles.heroAvatar, { backgroundColor: chrome.avatarBackground, borderColor: chrome.avatarBorder }]} />
+                <CachedImage
+                  uri={preferredPhoto.url}
+                  style={[styles.heroAvatar, { backgroundColor: chrome.avatarBackground, borderColor: chrome.avatarBorder }]}
+                  priority="high"
+                  recyclingKey={preferredPhoto.id}
+                />
               ) : (
                 <View style={[styles.heroAvatarFallback, { backgroundColor: chrome.avatarBackground, borderColor: chrome.avatarBorder }]}>
                   <MaterialCommunityIcons
