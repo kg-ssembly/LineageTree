@@ -6,12 +6,12 @@
 //   3. Viewport culling                                  → unlimited nodes.
 //   4. Per-node `Pressable`                              → reliable taps at
 //      any zoom level (no manual hit-testing math).
-//   5. Gesture Handler + Reanimated pan/pinch            → smooth mobile zoom.
+//   5. Two-finger pinch + drag pan with PanResponder     → stable mobile zoom.
 //   6. Cursor / pinch-anchored zoom                      → focus stays put.
 //   7. Viewport culling + large-tree mode                → lower memory use.
 //
-// Uses react-native-svg/react-native-paper plus Gesture Handler, Reanimated,
-// and expo-image for the high-traffic rendering paths.
+// Uses react-native-svg/react-native-paper and standard React Native gestures
+// to keep the runtime path stable on native builds.
 // ---------------------------------------------------------------------------
 
 import React, {
@@ -23,20 +23,19 @@ import React, {
   useState,
 } from 'react';
 import {
+  Animated,
+  GestureResponderEvent,
+  Image,
   LayoutChangeEvent,
   Modal,
+  PanResponder,
+  PanResponderGestureState,
   Platform,
   Pressable,
   StyleSheet,
   useWindowDimensions,
   View,
 } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, {
-  runOnJS,
-  useAnimatedStyle,
-  useSharedValue,
-} from 'react-native-reanimated';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Button, Chip, IconButton, Text, useTheme } from 'react-native-paper';
 import { translate } from '../i18n';
@@ -69,7 +68,6 @@ import {
   getSortedSurnames,
 } from './family-tree-surname-clusters';
 import { useI18n } from '../hooks/use-i18n';
-import CachedImage from './cached-image';
 
 const styles = GlobalStyles.familyTreeCanvas;
 
@@ -408,11 +406,9 @@ const PersonNode = React.memo(function PersonNode(props: PersonNodeProps) {
           <View style={styles.nodeAvatarColumn}>
             <View style={styles.nodeAvatarWrap}>
               {photo && !deferPhoto ? (
-                <CachedImage
-                  uri={photo.url}
+                <Image
+                  source={{ uri: photo.url }}
                   style={styles.nodeAvatar}
-                  priority="low"
-                  recyclingKey={`${person.id}:${photo.id}`}
                 />
               ) : (
                 <View style={[styles.nodeAvatarFallback, { borderColor: outlineColor, backgroundColor: variantSurface }]}>
@@ -477,12 +473,9 @@ function FamilyTreeCanvas({
   const panRef = useRef(pan);
   scaleRef.current = scale;
   panRef.current = pan;
-  const scaleShared = useSharedValue(scale);
-  const panXShared = useSharedValue(pan.x);
-  const panYShared = useSharedValue(pan.y);
-  const gestureStartPanX = useSharedValue(0);
-  const gestureStartPanY = useSharedValue(0);
-  const gestureStartScale = useSharedValue(1);
+  const scaleAnim = useRef(new Animated.Value(scale)).current;
+  const panXAnim = useRef(new Animated.Value(pan.x)).current;
+  const panYAnim = useRef(new Animated.Value(pan.y)).current;
   const pendingViewportRef = useRef<{ scale: number; pan: { x: number; y: number } } | null>(null);
   const viewportCommitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [interactionActive, setInteractionActive] = useState(false);
@@ -503,21 +496,13 @@ function FamilyTreeCanvas({
   const scheduleViewportState = useCallback((nextPan: { x: number; y: number }, nextScale: number) => {
     panRef.current = nextPan;
     scaleRef.current = nextScale;
-    panXShared.value = nextPan.x;
-    panYShared.value = nextPan.y;
-    scaleShared.value = nextScale;
+    panXAnim.setValue(nextPan.x * nextScale);
+    panYAnim.setValue(nextPan.y * nextScale);
+    scaleAnim.setValue(nextScale);
     pendingViewportRef.current = { pan: nextPan, scale: nextScale };
     if (viewportCommitTimerRef.current !== null) return;
     viewportCommitTimerRef.current = setTimeout(commitViewportState, VIEWPORT_COMMIT_INTERVAL_MS);
-  }, [commitViewportState, panXShared, panYShared, scaleShared]);
-
-  const scheduleGestureViewportState = useCallback((nextPanX: number, nextPanY: number, nextScale: number) => {
-    panRef.current = { x: nextPanX, y: nextPanY };
-    scaleRef.current = nextScale;
-    pendingViewportRef.current = { pan: { x: nextPanX, y: nextPanY }, scale: nextScale };
-    if (viewportCommitTimerRef.current !== null) return;
-    viewportCommitTimerRef.current = setTimeout(commitViewportState, VIEWPORT_COMMIT_INTERVAL_MS);
-  }, [commitViewportState]);
+  }, [commitViewportState, panXAnim, panYAnim, scaleAnim]);
 
   const flushViewportState = useCallback(() => {
     if (viewportCommitTimerRef.current !== null) {
@@ -827,103 +812,96 @@ function FamilyTreeCanvas({
     );
   }, [activeViewportSize.width, activeViewportSize.height, clampPanToViewport, scheduleViewportState, zoomAt]);
 
-  // ---- Pan + pinch via Gesture Handler + Reanimated ----
-  const setInteractionActiveOnJS = useCallback((active: boolean) => {
-    setInteractionActive(active);
-  }, []);
+  // ---- Pan + pinch via PanResponder (mobile + web touch) ----
+  const gestureMovedRef = useRef(false);
+  const dragStartPanRef = useRef({ x: 0, y: 0 });
+  const pinchStateRef = useRef<{ startDist: number; startScale: number; focal: { x: number; y: number } } | null>(null);
 
-  const commitGestureOnJS = useCallback((nextPanX: number, nextPanY: number, nextScale: number) => {
-    scheduleGestureViewportState(nextPanX, nextPanY, nextScale);
-  }, [scheduleGestureViewportState]);
+  const distanceBetweenTouches = (e: GestureResponderEvent) => {
+    const ts = e.nativeEvent.touches;
+    if (ts.length < 2) return 0;
+    return Math.hypot(ts[0].pageX - ts[1].pageX, ts[0].pageY - ts[1].pageY);
+  };
 
-  const flushGestureOnJS = useCallback((nextPanX: number, nextPanY: number, nextScale: number) => {
-    scheduleGestureViewportState(nextPanX, nextPanY, nextScale);
-    flushViewportState();
-    setInteractionActive(false);
-  }, [flushViewportState, scheduleGestureViewportState]);
-
-  const treeGesture = useMemo(() => {
-    const clampForGesture = (panXValue: number, panYValue: number, scaleValue: number) => {
-      'worklet';
-      return clampCanvasPan(
-        panXValue,
-        panYValue,
-        scaleValue,
-        activeViewportSize.width,
-        activeViewportSize.height,
-        contentBounds,
-        CONTENT_BOUNDARY_PADDING,
-      );
+  const focalOfTouches = (e: GestureResponderEvent) => {
+    const ts = e.nativeEvent.touches;
+    if (ts.length < 2) return { x: 0, y: 0 };
+    return {
+      x: (ts[0].locationX + ts[1].locationX) / 2,
+      y: (ts[0].locationY + ts[1].locationY) / 2,
     };
+  };
 
-    const panGesture = Gesture.Pan()
-      .minDistance(DRAG_ACTIVATION_DISTANCE)
-      .onBegin(() => {
-        gestureStartPanX.value = panXShared.value;
-        gestureStartPanY.value = panYShared.value;
-        runOnJS(setInteractionActiveOnJS)(true);
-      })
-      .onUpdate((event) => {
-        const nextScale = scaleShared.value;
-        const clamped = clampForGesture(
-          gestureStartPanX.value + event.translationX / nextScale,
-          gestureStartPanY.value + event.translationY / nextScale,
-          nextScale,
+  const panResponder = useMemo(
+    () => PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onStartShouldSetPanResponderCapture: () => false,
+      onMoveShouldSetPanResponder: (e, g: PanResponderGestureState) => {
+        if (e.nativeEvent.touches.length >= 2) return true;
+        return Math.hypot(g.dx, g.dy) > DRAG_ACTIVATION_DISTANCE;
+      },
+      onMoveShouldSetPanResponderCapture: (e, g) => {
+        if (e.nativeEvent.touches.length >= 2) return true;
+        return Math.hypot(g.dx, g.dy) > DRAG_ACTIVATION_DISTANCE;
+      },
+      onPanResponderGrant: (e) => {
+        gestureMovedRef.current = false;
+        dragStartPanRef.current = panRef.current;
+        setInteractionActive(true);
+        if (e.nativeEvent.touches.length >= 2) {
+          pinchStateRef.current = {
+            startDist: distanceBetweenTouches(e),
+            startScale: scaleRef.current,
+            focal: focalOfTouches(e),
+          };
+        } else {
+          pinchStateRef.current = null;
+        }
+      },
+      onPanResponderMove: (e, g) => {
+        if (!gestureMovedRef.current) {
+          gestureMovedRef.current = Math.hypot(g.dx, g.dy) > DRAG_ACTIVATION_DISTANCE;
+        }
+
+        if (e.nativeEvent.touches.length >= 2) {
+          if (!pinchStateRef.current) {
+            pinchStateRef.current = {
+              startDist: distanceBetweenTouches(e),
+              startScale: scaleRef.current,
+              focal: focalOfTouches(e),
+            };
+            return;
+          }
+          const dist = distanceBetweenTouches(e);
+          if (dist <= 0 || pinchStateRef.current.startDist <= 0) return;
+          const next = pinchStateRef.current.startScale * (dist / pinchStateRef.current.startDist);
+          zoomAt(pinchStateRef.current.focal.x, pinchStateRef.current.focal.y, next);
+          return;
+        }
+
+        pinchStateRef.current = null;
+        scheduleViewportState(
+          clampPanToViewport({
+            x: dragStartPanRef.current.x + g.dx / scaleRef.current,
+            y: dragStartPanRef.current.y + g.dy / scaleRef.current,
+          }, scaleRef.current, activeViewportSize.width, activeViewportSize.height, CONTENT_BOUNDARY_PADDING),
+          scaleRef.current,
         );
-        panXShared.value = clamped.x;
-        panYShared.value = clamped.y;
-        runOnJS(commitGestureOnJS)(clamped.x, clamped.y, nextScale);
-      })
-      .onFinalize(() => {
-        const clamped = clampForGesture(panXShared.value, panYShared.value, scaleShared.value);
-        panXShared.value = clamped.x;
-        panYShared.value = clamped.y;
-        runOnJS(flushGestureOnJS)(clamped.x, clamped.y, scaleShared.value);
-      });
-
-    const pinchGesture = Gesture.Pinch()
-      .onBegin(() => {
-        gestureStartScale.value = scaleShared.value;
-        gestureStartPanX.value = panXShared.value;
-        gestureStartPanY.value = panYShared.value;
-        runOnJS(setInteractionActiveOnJS)(true);
-      })
-      .onUpdate((event) => {
-        const nextScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, gestureStartScale.value * event.scale));
-        const canvasFocalX = event.focalX / gestureStartScale.value - gestureStartPanX.value;
-        const canvasFocalY = event.focalY / gestureStartScale.value - gestureStartPanY.value;
-        const clamped = clampForGesture(
-          event.focalX / nextScale - canvasFocalX,
-          event.focalY / nextScale - canvasFocalY,
-          nextScale,
-        );
-        scaleShared.value = nextScale;
-        panXShared.value = clamped.x;
-        panYShared.value = clamped.y;
-        runOnJS(commitGestureOnJS)(clamped.x, clamped.y, nextScale);
-      })
-      .onFinalize(() => {
-        const clamped = clampForGesture(panXShared.value, panYShared.value, scaleShared.value);
-        panXShared.value = clamped.x;
-        panYShared.value = clamped.y;
-        runOnJS(flushGestureOnJS)(clamped.x, clamped.y, scaleShared.value);
-      });
-
-    return Gesture.Simultaneous(panGesture, pinchGesture);
-  }, [
-    activeViewportSize.height,
-    activeViewportSize.width,
-    commitGestureOnJS,
-    contentBounds,
-    flushGestureOnJS,
-    gestureStartPanX,
-    gestureStartPanY,
-    gestureStartScale,
-    panXShared,
-    panYShared,
-    scaleShared,
-    setInteractionActiveOnJS,
-  ]);
+      },
+      onPanResponderRelease: () => {
+        pinchStateRef.current = null;
+        flushViewportState();
+        setInteractionActive(false);
+      },
+      onPanResponderTerminate: () => {
+        pinchStateRef.current = null;
+        flushViewportState();
+        setInteractionActive(false);
+      },
+      onPanResponderTerminationRequest: () => false,
+    }),
+    [activeViewportSize.height, activeViewportSize.width, clampPanToViewport, flushViewportState, scheduleViewportState, zoomAt],
+  );
 
   // ---- Viewport culling ----
   // Compute the visible canvas-space rect to skip off-screen nodes/connectors.
@@ -997,14 +975,14 @@ function FamilyTreeCanvas({
       : lineageMode === 'descendant' ? t(K.lineage.fullScreenDescendantTree) : t(K.lineage.fullScreenFamilyTree);
 
   // ---- Render helpers ----
-  const transformStyle = useAnimatedStyle(() => ({
+  const transformStyle = useMemo(() => ({
     transform: [
-      { translateX: panXShared.value * scaleShared.value },
-      { translateY: panYShared.value * scaleShared.value },
-      { scale: scaleShared.value },
+      { translateX: panXAnim },
+      { translateY: panYAnim },
+      { scale: scaleAnim },
     ],
     transformOrigin: '0 0' as const,
-  }), [panXShared, panYShared, scaleShared]);
+  }), [panXAnim, panYAnim, scaleAnim]);
 
   const renderFloatingControls = (mode: 'inline' | 'fullscreen') => (
       <View pointerEvents="box-none" style={styles.viewportOverlay}>
@@ -1025,8 +1003,8 @@ function FamilyTreeCanvas({
   );
 
   const renderViewport = (mode: 'inline' | 'fullscreen', viewportStyle?: object) => (
-    <GestureDetector gesture={treeGesture}>
       <View
+          {...panResponder.panHandlers}
           {...(Platform.OS === 'web' ? ({ onWheel: handleWheel } as any) : {})}
           style={[
             styles.viewport,
@@ -1119,7 +1097,6 @@ function FamilyTreeCanvas({
 
         {floatingControls ? renderFloatingControls(mode) : null}
       </View>
-    </GestureDetector>
   );
 
   return (
