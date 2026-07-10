@@ -51,6 +51,60 @@ function paginateItems<T>(items: T[], page: number, pageSize: number) {
   return items.slice(start, start + pageSize);
 }
 
+function buildUpcomingAnniversaries(
+  people: PersonRecord[],
+  t: (message: string, params?: Record<string, string | number | null | undefined>) => string,
+  limit?: number,
+) {
+  const now = new Date();
+  const candidates: Array<HighlightAnniversary & { daysUntil: number }> = [];
+
+  people.forEach((person) => {
+    const birthThisYear = getAnniversaryDateForYear(person.birthDate, now.getFullYear());
+    if (birthThisYear) {
+      let date = birthThisYear;
+      if (getDaysUntil(date, now) < 0) {
+        date = getAnniversaryDateForYear(person.birthDate, now.getFullYear() + 1) ?? birthThisYear;
+      }
+      const daysUntil = getDaysUntil(date, now);
+      if (daysUntil >= 0 && daysUntil <= 90) {
+        candidates.push({
+          id: `birth-${person.id}`,
+          date: date.toISOString(),
+          title: t(K.home.birthdayTitle, { name: formatPersonName(person) }),
+          subtitle: person.birthDate ? t(K.home.bornOnDate, { date: formatPersonDate(person.birthDate) }) : t(K.home.birthdayRememberedInTheTree),
+          daysUntil,
+        });
+      }
+    }
+
+    person.lifeEvents.forEach((event: PersonLifeEvent) => {
+      const eventThisYear = getAnniversaryDateForYear(event.date, now.getFullYear());
+      if (!eventThisYear) {
+        return;
+      }
+      let date = eventThisYear;
+      if (getDaysUntil(date, now) < 0) {
+        date = getAnniversaryDateForYear(event.date, now.getFullYear() + 1) ?? eventThisYear;
+      }
+      const daysUntil = getDaysUntil(date, now);
+      if (daysUntil >= 0 && daysUntil <= 90) {
+        candidates.push({
+          id: `${person.id}-${event.id}`,
+          date: date.toISOString(),
+          title: event.title || t(K.home.memoryLabel, { name: formatPersonName(person) }),
+          subtitle: `${formatPersonName(person)} • ${event.description || t(K.memories.rememberedFamilyMoment)}`,
+          daysUntil,
+        });
+      }
+    });
+  });
+
+  candidates.sort((left, right) => left.daysUntil - right.daysUntil);
+  const sorted = candidates.map(({ daysUntil: _daysUntil, ...item }) => item);
+  return typeof limit === 'number' ? sorted.slice(0, limit) : sorted;
+}
+
 export function FamilyHighlightsPanel({
   people,
   currentAssignedPerson,
@@ -73,58 +127,40 @@ export function FamilyHighlightsPanel({
   const togglePanel = (panel: HighlightPanelKey) => {
     setExpandedPanel((current) => (current === panel ? null : panel));
   };
+  const recentExpanded = expandedPanel === 'recent';
+  const anniversaryExpanded = expandedPanel === 'anniversary';
+  const growthExpanded = expandedPanel === 'growth';
+  const hasHighlights = people.length > 0;
 
   const recentAdditions = useMemo(
-    () => [...people]
-      .sort((left, right) => (right.createdAt ?? '').localeCompare(left.createdAt ?? '')),
-    [people],
+    () => (recentExpanded
+      ? [...people].sort((left, right) => (right.createdAt ?? '').localeCompare(left.createdAt ?? ''))
+      : []),
+    [people, recentExpanded],
   );
 
-  const anniversaries = useMemo<HighlightAnniversary[]>(() => {
-    const now = new Date();
-    const candidates: HighlightAnniversary[] = [];
+  const anniversaries = useMemo<HighlightAnniversary[]>(
+    () => (anniversaryExpanded ? buildUpcomingAnniversaries(people, t) : []),
+    [anniversaryExpanded, people, t],
+  );
 
-    people.forEach((person) => {
-      const birthThisYear = getAnniversaryDateForYear(person.birthDate, now.getFullYear());
-      if (birthThisYear) {
-        let date = birthThisYear;
-        if (getDaysUntil(date, now) < 0) {
-          date = getAnniversaryDateForYear(person.birthDate, now.getFullYear() + 1) ?? birthThisYear;
-        }
-        candidates.push({
-          id: `birth-${person.id}`,
-          date: date.toISOString(),
-          title: t(K.home.birthdayTitle, { name: formatPersonName(person) }),
-          subtitle: person.birthDate ? t(K.home.bornOnDate, { date: formatPersonDate(person.birthDate) }) : t(K.home.birthdayRememberedInTheTree),
-        });
+  const branchGrowth = useMemo(
+    () => (growthExpanded ? buildBranchGrowth(people, t(K.common.unknown)) : []),
+    [growthExpanded, people, t],
+  );
+  const newestPerson = useMemo(
+    () => people.reduce<PersonRecord | null>((latest, person) => {
+      if (!latest) {
+        return person;
       }
-
-      person.lifeEvents.forEach((event: PersonLifeEvent) => {
-        const eventThisYear = getAnniversaryDateForYear(event.date, now.getFullYear());
-        if (!eventThisYear) {
-          return;
-        }
-        let date = eventThisYear;
-        if (getDaysUntil(date, now) < 0) {
-          date = getAnniversaryDateForYear(event.date, now.getFullYear() + 1) ?? eventThisYear;
-        }
-        candidates.push({
-          id: `${person.id}-${event.id}`,
-          date: date.toISOString(),
-          title: event.title || t(K.home.memoryLabel, { name: formatPersonName(person) }),
-          subtitle: `${formatPersonName(person)} • ${event.description || t(K.memories.rememberedFamilyMoment)}`,
-        });
-      });
-    });
-
-    return candidates
-      .map((item) => ({ ...item, daysUntil: getDaysUntil(new Date(item.date), now) }))
-      .filter((item) => item.daysUntil >= 0 && item.daysUntil <= 90)
-      .sort((left, right) => left.daysUntil - right.daysUntil)
-      .map(({ daysUntil: _daysUntil, ...item }) => item);
-  }, [people, t]);
-
-  const branchGrowth = useMemo(() => buildBranchGrowth(people, t(K.common.unknown)), [people, t]);
+      return (person.createdAt ?? '') > (latest.createdAt ?? '') ? person : latest;
+    }, null),
+    [people],
+  );
+  const firstUpcomingAnniversary = useMemo(
+    () => buildUpcomingAnniversaries(people, t, 1)[0] ?? null,
+    [people, t],
+  );
   const recentPageCount = Math.max(1, Math.ceil(recentAdditions.length / pageSize));
   const anniversaryPageCount = Math.max(1, Math.ceil(anniversaries.length / pageSize));
   const growthPageCount = Math.max(1, Math.ceil(branchGrowth.length / pageSize));
@@ -132,23 +168,18 @@ export function FamilyHighlightsPanel({
   const anniversaryPageItems = paginateItems(anniversaries, anniversaryPage, pageSize);
   const growthPageItems = paginateItems(branchGrowth, growthPage, pageSize);
 
-  const recentExpanded = expandedPanel === 'recent';
-  const anniversaryExpanded = expandedPanel === 'anniversary';
-  const growthExpanded = expandedPanel === 'growth';
-  const hasHighlights = recentAdditions.length > 0 || anniversaries.length > 0 || branchGrowth.length > 0;
-
   const suggestedHighlight = useMemo<HighlightSuggestion | null>(() => {
-    if (anniversaries.length > 0 && currentAssignedPerson) {
+    if (firstUpcomingAnniversary && currentAssignedPerson) {
       return {
         title: t(K.home.addMemoryForUpcomingMoment),
-        description: `${anniversaries[0].title} · ${anniversaries[0].subtitle}`,
+        description: `${firstUpcomingAnniversary.title} · ${firstUpcomingAnniversary.subtitle}`,
         actionLabel: t(K.home.openMyProfile),
         action: () => openPersonProfile(currentAssignedPerson),
       };
     }
 
-    if (recentAdditions.length > 0) {
-      const person = recentAdditions[0];
+    if (newestPerson) {
+      const person = newestPerson;
       return {
         title: t(K.home.reviewRecentAddition),
         description: `${formatPersonName(person)} · ${t(K.home.newFamilyMembersCount, { count: 1 })}`,
@@ -157,20 +188,8 @@ export function FamilyHighlightsPanel({
       };
     }
 
-    if (currentAssignedPerson && branchGrowth.length > 0) {
-      const representativePerson = branchGrowth[0].representativePersonId
-        ? peopleById.get(branchGrowth[0].representativePersonId) ?? null
-        : null;
-      return {
-        title: t(K.home.exploreGrowingBranch),
-        description: `${branchGrowth[0].surname} · ${branchGrowth[0].fresh > 0 ? t('{count} new in the last 45 days', { count: branchGrowth[0].fresh }) : t(K.treeSettings.familyMembersCount, { count: branchGrowth[0].total })}`,
-        actionLabel: representativePerson ? t(K.home.viewProfile) : t(K.home.openMyProfile),
-        action: () => openPersonProfile(representativePerson ?? currentAssignedPerson),
-      };
-    }
-
     return null;
-  }, [anniversaries, branchGrowth, currentAssignedPerson, openPersonProfile, peopleById, recentAdditions, t]);
+  }, [currentAssignedPerson, firstUpcomingAnniversary, newestPerson, openPersonProfile, t]);
 
   return (
     <Reveal delay={80}>

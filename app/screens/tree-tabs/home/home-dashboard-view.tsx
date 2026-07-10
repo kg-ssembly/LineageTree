@@ -196,8 +196,10 @@ const localStyles = StyleSheet.create({
 
 type DashboardSuggestionActionContext = Pick<
   SharedTabProps,
-  'people' | 'onEditPerson' | 'openPersonProfile' | 'onOpenAddPersonForRelationship' | 'onOpenAddPerson' | 'onOpenAddSelf' | 'onOpenRelationshipDialog'
->;
+  'onEditPerson' | 'openPersonProfile' | 'onOpenAddPersonForRelationship' | 'onOpenAddPerson' | 'onOpenAddSelf' | 'onOpenRelationshipDialog'
+> & {
+  peopleById: Map<string, SharedTabProps['people'][number]>;
+};
 
 function getUrgencyTone(theme: AppTheme, level: 'urgent' | 'attention' | 'calm') {
   if (level === 'urgent') {
@@ -230,19 +232,6 @@ type DashboardCardProps = {
   borderColor: string;
 };
 
-function DashboardTaskCard({ children, style, backgroundColor, borderColor }: DashboardCardProps) {
-  return (
-    <SectionCard
-      nested
-      elevation={0}
-      backgroundColor={backgroundColor}
-      style={[styles.dashboardTaskCard, { borderColor }, style]}
-    >
-      {children}
-    </SectionCard>
-  );
-}
-
 function DashboardMetricCard({ children, style, backgroundColor, borderColor }: DashboardCardProps) {
   return (
     <SectionCard
@@ -262,11 +251,11 @@ function resolveDashboardSuggestionAction(
 ) {
   switch (target.kind) {
     case 'edit-profile': {
-      const person = context.people.find((entry) => entry.id === target.personId);
+      const person = context.peopleById.get(target.personId);
       return person ? () => context.onEditPerson(person) : () => undefined;
     }
     case 'open-profile': {
-      const person = context.people.find((entry) => entry.id === target.personId);
+      const person = context.peopleById.get(target.personId);
       return person
         ? () => context.openPersonProfile(person, {
           initialTab: target.initialTab,
@@ -275,11 +264,11 @@ function resolveDashboardSuggestionAction(
         : () => undefined;
     }
     case 'add-relationship': {
-      const person = context.people.find((entry) => entry.id === target.personId);
+      const person = context.peopleById.get(target.personId);
       return person ? () => context.openPersonProfile(person, { initialTab: 'relationships' }) : () => undefined;
     }
     case 'add-relative': {
-      const person = context.people.find((entry) => entry.id === target.personId);
+      const person = context.peopleById.get(target.personId);
       return person ? () => context.onOpenAddPersonForRelationship(target.mode, person) : () => undefined;
     }
     case 'add-person':
@@ -354,18 +343,19 @@ export function HomeDashboardView(props: SharedTabProps) {
     onOpenTreeSettingsTarget,
     onConsumeFollowUpTreePrompts,
   } = props;
+  const peopleById = useMemo(() => new Map(people.map((person) => [person.id, person])), [people]);
   const spotlightTextColor = theme.colors.onPrimaryContainer;
   const spotlightSubtextColor = theme.dark ? theme.colors.onPrimaryContainer : '#345447';
   const [showFollowUpTreePrompts, setShowFollowUpTreePrompts] = useState(false);
   const suggestionActionContext = useMemo<DashboardSuggestionActionContext>(() => ({
-    people,
+    peopleById,
     onEditPerson,
     openPersonProfile,
     onOpenAddPersonForRelationship,
     onOpenAddPerson,
     onOpenAddSelf,
     onOpenRelationshipDialog,
-  }), [onEditPerson, onOpenAddPerson, onOpenAddPersonForRelationship, onOpenAddSelf, onOpenRelationshipDialog, openPersonProfile, people]);
+  }), [onEditPerson, onOpenAddPerson, onOpenAddPersonForRelationship, onOpenAddSelf, onOpenRelationshipDialog, openPersonProfile, peopleById]);
   const dashboardTaskInputs = useMemo(() => ({
     people,
     currentAssignedPerson,
@@ -463,7 +453,6 @@ export function HomeDashboardView(props: SharedTabProps) {
   }, [currentAssignedPerson, onEditPerson, onOpenAddSelf, onOpenRelationshipDialog, openPersonProfile, people, relationships, showFollowUpTreePrompts, t]);
   const setupCompletedCount = setupSteps.filter((step) => step.done).length;
   const nextSetupStep = setupSteps.find((step) => !step.done) ?? null;
-  const nextSetupStepIndex = setupSteps.findIndex((step) => !step.done);
   const isSetupMode = !currentAssignedPerson || (showFollowUpTreePrompts && (people.length <= 2 || relationships.length === 0 || setupCompletedCount < setupSteps.length));
   const activityMetrics = useMemo(() => {
     const activityAttentionItems: ActivityAttentionItem[] = [];
@@ -812,6 +801,9 @@ export function HomeDashboardView(props: SharedTabProps) {
     ],
     [activityNotificationCount, t],
   );
+  const isOverviewTab = dashboardTab === 'overview';
+  const isActivityTab = dashboardTab === 'activity';
+  const shouldBuildProgressChecklist = progressIncludesExpanded || progressIncludesDialogExpanded;
 
   const openFamilyActivity = useCallback(() => {
     setDashboardTab('activity');
@@ -900,15 +892,11 @@ export function HomeDashboardView(props: SharedTabProps) {
   }, [
     bestNextStep,
     bestStoryStep,
-    bestTreeStep,
-    canEdit,
     currentAssignedPerson,
     dashboardLens,
-    focusSection,
     isSetupMode,
     latestActivityAttentionItem,
     nextSetupStep,
-    onOpenAddPerson,
     onOpenAddSelf,
     openFamilyActivity,
     openApprovals,
@@ -978,6 +966,10 @@ export function HomeDashboardView(props: SharedTabProps) {
       : heroAction.label;
 
   const dashboardBundles = useMemo<DashboardBundle[]>(() => {
+    if (!isOverviewTab || !deeperExpanded) {
+      return [];
+    }
+
     const bundles: DashboardBundle[] = [];
 
     if (visibleStoryTasks.length > 0 && bestStoryStep) {
@@ -1003,7 +995,7 @@ export function HomeDashboardView(props: SharedTabProps) {
     }
 
     return bundles;
-  }, [bestStoryStep, bestTreeStep, t, visibleStoryTasks.length, visibleTreeTasks.length]);
+  }, [bestStoryStep, bestTreeStep, deeperExpanded, isOverviewTab, t, visibleStoryTasks.length, visibleTreeTasks.length]);
 
   const missingMemberDetails = useMemo<MissingMemberDetail[]>(() => {
     return people
@@ -1043,6 +1035,10 @@ export function HomeDashboardView(props: SharedTabProps) {
     };
   }, [currentAssignedPerson, missingMemberDetails.length, people.length, relationships.length, treeTasks]);
   const treeProgressChecklist = useMemo<TreeProgressChecklistItem[]>(() => {
+    if (!shouldBuildProgressChecklist) {
+      return [];
+    }
+
     const remainingObjectiveTreeTasks = treeTasks.filter((task) => !task.done).length;
 
     return [
@@ -1072,7 +1068,7 @@ export function HomeDashboardView(props: SharedTabProps) {
         done: remainingObjectiveTreeTasks === 0,
       },
     ];
-  }, [currentAssignedPerson, missingMemberDetails.length, people.length, relationships.length, t, treeTasks]);
+  }, [currentAssignedPerson, missingMemberDetails.length, people.length, relationships.length, shouldBuildProgressChecklist, t, treeTasks]);
 
   const overviewStats = useMemo(() => ([
     { id: 'people', label: t(K.home.familyMembersMetric), value: String(people.length) },
@@ -1166,7 +1162,7 @@ export function HomeDashboardView(props: SharedTabProps) {
   ]);
 
   const sinceLastVisit = useMemo(() => {
-    if (!lastVisitAt) {
+    if (!isActivityTab || !lastVisitAt) {
       return [];
     }
 
@@ -1190,7 +1186,7 @@ export function HomeDashboardView(props: SharedTabProps) {
     }
 
     return items;
-  }, [approvalRequests, focusSection, lastVisitAt, navigation, notifications, openApprovals, openMergeInvites, people, relationships, t]);
+  }, [approvalRequests, focusSection, isActivityTab, lastVisitAt, navigation, notifications, openApprovals, openMergeInvites, people, relationships, t]);
 
   if (loadingTreeData) {
     return (

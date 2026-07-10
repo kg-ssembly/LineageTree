@@ -9,8 +9,62 @@ import { I18N_KEYS as K } from '../../../../i18n/keys';
 
 const styles = GlobalStyles.personProfile;
 const dialogChrome = GlobalStyles.dialogChrome;
+const MAX_ANIMATED_PHOTO_CARDS = 6;
+const MAX_ANIMATED_TIMELINE_ROWS = 6;
+const PHOTO_ANIMATION_THRESHOLD = 8;
+const TIMELINE_ANIMATION_THRESHOLD = 10;
 
 export type PersonMemorySectionTabKey = 'notes' | 'photos' | 'events';
+
+function syncPhotoDrafts(
+  currentDrafts: Record<string, { description: string; linkedLifeEventId: string }>,
+  photos: PersonPhoto[],
+) {
+  let changed = false;
+  const nextDrafts: Record<string, { description: string; linkedLifeEventId: string }> = {};
+
+  for (const photo of photos) {
+    const description = photo.description ?? '';
+    const linkedLifeEventId = photo.linkedLifeEventId ?? '';
+    const existingDraft = currentDrafts[photo.id];
+
+    if (existingDraft && existingDraft.description === description && existingDraft.linkedLifeEventId === linkedLifeEventId) {
+      nextDrafts[photo.id] = existingDraft;
+      continue;
+    }
+
+    nextDrafts[photo.id] = { description, linkedLifeEventId };
+    changed = true;
+  }
+
+  if (!changed && Object.keys(currentDrafts).length === photos.length) {
+    return currentDrafts;
+  }
+
+  return nextDrafts;
+}
+
+function MaybeReveal({
+  enabled,
+  delay,
+  style,
+  children,
+}: {
+  enabled: boolean;
+  delay?: number;
+  style?: React.ComponentProps<typeof Reveal>['style'];
+  children: React.ReactNode;
+}) {
+  if (!enabled) {
+    return <View style={style}>{children}</View>;
+  }
+
+  return (
+    <Reveal delay={delay} style={style}>
+      {children}
+    </Reveal>
+  );
+}
 
 export function PersonMemoriesSection({
   person,
@@ -58,35 +112,38 @@ export function PersonMemoriesSection({
   const theme = useTheme();
   const { t } = useI18n();
   const [photoDrafts, setPhotoDrafts] = useState<Record<string, { description: string; linkedLifeEventId: string }>>({});
+  const isPhotosTab = memorySectionTab === 'photos';
+  const isEventsTab = memorySectionTab === 'events';
 
   useEffect(() => {
-    const nextDrafts = person.photos.reduce<Record<string, { description: string; linkedLifeEventId: string }>>((acc, photo) => {
-      acc[photo.id] = {
-        description: photo.description ?? '',
-        linkedLifeEventId: photo.linkedLifeEventId ?? '',
-      };
-      return acc;
-    }, {});
-    setPhotoDrafts(nextDrafts);
+    setPhotoDrafts((currentDrafts) => syncPhotoDrafts(currentDrafts, person.photos));
   }, [person.photos]);
 
   const photoCards = useMemo(
-    () => person.photos.map((photo, index) => ({
-      photo,
-      index,
-      draft: photoDrafts[photo.id] ?? { description: photo.description ?? '', linkedLifeEventId: photo.linkedLifeEventId ?? '' },
-    })),
-    [person.photos, photoDrafts],
+    () => (isPhotosTab
+      ? person.photos.map((photo, index) => ({
+          photo,
+          index,
+          draft: photoDrafts[photo.id] ?? { description: photo.description ?? '', linkedLifeEventId: photo.linkedLifeEventId ?? '' },
+        }))
+      : []),
+    [isPhotosTab, person.photos, photoDrafts],
   );
   const selectedPhoto = useMemo(
-    () => person.photos.find((photo) => photo.id === selectedPhotoId) ?? null,
+    () => (selectedPhotoId ? person.photos.find((photo) => photo.id === selectedPhotoId) ?? null : null),
     [person.photos, selectedPhotoId],
+  );
+  const lifeEventsById = useMemo(
+    () => new Map(person.lifeEvents.map((event) => [event.id, event])),
+    [person.lifeEvents],
   );
   const selectedDraft = selectedPhoto ? (photoDrafts[selectedPhoto.id] ?? {
     description: selectedPhoto.description ?? '',
     linkedLifeEventId: selectedPhoto.linkedLifeEventId ?? '',
   }) : null;
-  const linkedEventLabel = (linkedLifeEventId?: string) => person.lifeEvents.find((event) => event.id === linkedLifeEventId)?.title ?? '';
+  const animatePhotoCards = isPhotosTab && person.photos.length <= PHOTO_ANIMATION_THRESHOLD;
+  const animateTimelineRows = isEventsTab && memoryTimeline.length <= TIMELINE_ANIMATION_THRESHOLD;
+  const linkedEventLabel = (linkedLifeEventId?: string) => lifeEventsById.get(linkedLifeEventId ?? '')?.title ?? '';
 
   return (
     <Reveal delay={130}>
@@ -134,7 +191,7 @@ export function PersonMemoriesSection({
         </View>
       ) : null}
 
-      {memorySectionTab === 'photos' ? (
+      {isPhotosTab ? (
         <View style={styles.gallerySection}>
           <View style={styles.sectionHeader}>
             <View style={styles.sectionHeaderText}>
@@ -154,29 +211,36 @@ export function PersonMemoriesSection({
           {person.photos.length > 0 ? (
             <View style={styles.galleryGrid}>
               {photoCards.map(({ photo, index, draft }) => (
-                <Reveal key={photo.id} delay={80 + index * 50} style={styles.photoGridCard}>
-                <SectionCard
-                  variant="person"
-                  nested
-                  style={[styles.photoCard, preferredPhoto?.id === photo.id && styles.photoCardPreferred]}
+                <MaybeReveal
+                  key={photo.id}
+                  enabled={animatePhotoCards && index < MAX_ANIMATED_PHOTO_CARDS}
+                  delay={Math.min(80 + index * 40, 240)}
+                  style={styles.photoGridCard}
                 >
-                  <Pressable onPress={() => onOpenViewer(index)}>
-                    <CachedImage uri={photo.url} style={styles.photo} priority="low" recyclingKey={photo.id} />
-                  </Pressable>
-                  {draft.description || draft.linkedLifeEventId ? (
-                    <View style={styles.photoMeta}>
-                      {draft.description ? (
-                        <Text variant="bodySmall" style={[styles.relationshipSubtitle, { color: theme.colors.onSurfaceVariant }]}>{draft.description}</Text>
-                      ) : null}
-                      {draft.linkedLifeEventId ? (
-                        <Chip compact icon="link-variant">
-                          {linkedEventLabel(draft.linkedLifeEventId) || t(K.memories.linkedMemory)}
-                        </Chip>
-                      ) : null}
-                    </View>
-                  ) : null}
-                </SectionCard>
-                </Reveal>
+                  <SectionCard
+                    variant="person"
+                    nested
+                    style={[styles.photoCard, preferredPhoto?.id === photo.id && styles.photoCardPreferred]}
+                  >
+                    <Pressable onPress={() => onOpenViewer(index)}>
+                      <CachedImage uri={photo.url} style={styles.photo} priority="low" recyclingKey={photo.id} />
+                    </Pressable>
+                    {draft.description || draft.linkedLifeEventId ? (
+                      <View style={styles.photoMeta}>
+                        {draft.description ? (
+                          <Text variant="bodySmall" style={[styles.relationshipSubtitle, { color: theme.colors.onSurfaceVariant }]}>
+                            {draft.description}
+                          </Text>
+                        ) : null}
+                        {draft.linkedLifeEventId ? (
+                          <Chip compact icon="link-variant">
+                            {linkedEventLabel(draft.linkedLifeEventId) || t(K.memories.linkedMemory)}
+                          </Chip>
+                        ) : null}
+                      </View>
+                    ) : null}
+                  </SectionCard>
+                </MaybeReveal>
               ))}
             </View>
           ) : (
@@ -190,7 +254,7 @@ export function PersonMemoriesSection({
         </View>
       ) : null}
 
-      {memorySectionTab === 'events' ? (
+      {isEventsTab ? (
         <View style={styles.lifeEventsSection}>
           <View style={styles.sectionHeader}>
             <View style={styles.sectionHeaderText}>
@@ -206,9 +270,13 @@ export function PersonMemoriesSection({
           {memoryTimeline.length > 0 ? (
             <View style={styles.timelineList}>
               {memoryTimeline.map((item, index) => {
-                const editableEvent = !item.system ? person.lifeEvents.find((event) => event.id === item.id) ?? null : null;
+                const editableEvent = !item.system ? lifeEventsById.get(item.id) ?? null : null;
                 return (
-                  <Reveal key={item.id} delay={90 + index * 55}>
+                  <MaybeReveal
+                    key={item.id}
+                    enabled={animateTimelineRows && index < MAX_ANIMATED_TIMELINE_ROWS}
+                    delay={Math.min(90 + index * 45, 270)}
+                  >
                     <View style={styles.timelineRow}>
                       <View style={styles.timelineRail}>
                         <View style={[styles.timelineDot, { backgroundColor: item.system ? theme.colors.secondary : theme.colors.primary }]} />
@@ -236,7 +304,7 @@ export function PersonMemoriesSection({
                         ) : null}
                       </View>
                     </View>
-                  </Reveal>
+                  </MaybeReveal>
                 );
               })}
             </View>

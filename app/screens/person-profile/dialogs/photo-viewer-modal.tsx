@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
-import { Dimensions, Image, Modal, ScrollView, StyleSheet, View } from 'react-native';
+import { Dimensions, FlatList, Modal, StyleSheet, View } from 'react-native';
 import { IconButton, Text } from 'react-native-paper';
+import { CachedImage } from '../../../../components';
 import type { PersonPhoto, PersonRecord } from '../../../../components/dto/person';
 import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
@@ -102,6 +103,7 @@ export function PersonPhotoViewerModal({
     () => (viewerIndex !== null ? person.photos[viewerIndex] ?? null : null),
     [person.photos, viewerIndex],
   );
+  const initialViewerIndex = viewerIndex ?? 0;
   const linkedEventLabel = selectedPhoto?.linkedLifeEventId
     ? person.lifeEvents.find((event) => event.id === selectedPhoto.linkedLifeEventId)?.title ?? ''
     : '';
@@ -142,20 +144,29 @@ export function PersonPhotoViewerModal({
           </>
         ) : null}
         {person.photos.length > 0 ? (
-          <ScrollView
+          <FlatList
             key={viewerIndex ?? 0}
             style={{ flex: 1 }}
+            data={person.photos}
             horizontal
             pagingEnabled
             showsHorizontalScrollIndicator={false}
-            contentOffset={{ x: (viewerIndex ?? 0) * viewerWidth, y: 0 }}
-          >
-            {person.photos.map((photo) => (
-              <View key={`viewer-${photo.id}`} style={[styles.viewerSlide, { width: viewerWidth, height: viewerHeight }]}>
-                <Image source={{ uri: photo.url }} style={styles.viewerImage} resizeMode="contain" />
+            initialScrollIndex={initialViewerIndex}
+            getItemLayout={(_, index) => ({
+              length: viewerWidth,
+              offset: viewerWidth * index,
+              index,
+            })}
+            initialNumToRender={1}
+            maxToRenderPerBatch={2}
+            windowSize={3}
+            removeClippedSubviews
+            renderItem={({ item }) => (
+              <View key={`viewer-${item.id}`} style={[styles.viewerSlide, { width: viewerWidth, height: viewerHeight }]}>
+                <CachedImage uri={item.url} style={styles.viewerImage} contentFit="contain" priority="high" recyclingKey={item.id} />
               </View>
-            ))}
-          </ScrollView>
+            )}
+          />
         ) : null}
         {selectedPhoto ? (
           <View style={styles.viewerInfoCard}>
