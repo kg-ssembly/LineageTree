@@ -568,7 +568,7 @@ export const useTreeStore = create<TreeState>()(persist((set, get) => {
       set({ mutating: true, error: null });
       try {
         await addCollaboratorToTree(actorUserId, treeId, email, role);
-        set({ mutating: false });
+        set({ mutating: false, notice: 'Collaborator added. Invitation email sent.' });
       } catch (error) {
         set({ mutating: false, error: normaliseError(error) });
         throw error;

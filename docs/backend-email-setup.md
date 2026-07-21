@@ -43,7 +43,15 @@ SENDGRID_FROM_EMAIL=no-reply@yourdomain.com
 SENDGRID_FROM_NAME=Lineage Tree
 APP_BASE_URL=https://lineagetree.web.app
 SUPPORT_EMAIL=support@yourdomain.com
+EMAIL_LOGO_URL=https://lineagetree.web.app/logo-email.png
 ```
+
+`EMAIL_LOGO_URL` should be a publicly accessible HTTPS image URL.
+Recommended:
+
+- PNG with transparent background
+- around 240px to 400px wide
+- hosted on your own verified domain if possible
 
 ### 3. Verify SendGrid sender identity
 
@@ -53,6 +61,31 @@ In SendGrid, make sure you have verified:
 - the single sender address used in `SENDGRID_FROM_EMAIL`
 
 Without that, SendGrid will reject the messages.
+
+### 3a. Reduce spam-folder risk
+
+The biggest causes of spam placement are almost always deliverability setup issues, not the HTML template itself.
+
+Make sure you do all of these:
+
+- Verify the full sending domain in SendGrid, not just a single sender address.
+- Set up SPF and DKIM exactly as SendGrid gives them to you in DNS.
+- Add a DMARC record for your domain.
+- Use a sender like `no-reply@yourdomain.com`, not a free mailbox such as Gmail or Outlook.
+- Keep `SENDGRID_FROM_EMAIL`, `SUPPORT_EMAIL`, and `EMAIL_LOGO_URL` on the same branded domain when possible.
+- Warm up the domain by sending low volume first.
+- Avoid misleading subject lines and all-caps promotional wording.
+- Keep the plain-text version enabled.
+- Make sure your app/site domain in links matches your sender branding.
+
+Recommended starter DMARC record:
+
+```txt
+Host: _dmarc.ssemblydev.com
+Value: v=DMARC1; p=none; rua=mailto:lineage-noreply@ssemblydev.com
+```
+
+After monitoring, you can tighten that policy later.
 
 ### 4. Deploy the backend functions
 
@@ -110,6 +143,8 @@ After updating `.env`, restart the app so the Functions region is picked up.
   - That is safer for account enumeration.
 - Only `merge-invite` notifications are mapped to email today.
   - Approval-request emails can be added next once you decide which approval events should generate mail.
+- The email templates now support a hosted logo through `EMAIL_LOGO_URL`.
+  - If you leave it blank, the emails fall back to the text wordmark.
 
 ## Recommended next step
 

@@ -20,6 +20,7 @@ const SENDGRID_FROM_EMAIL = (0, params_1.defineString)('SENDGRID_FROM_EMAIL');
 const SENDGRID_FROM_NAME = (0, params_1.defineString)('SENDGRID_FROM_NAME');
 const APP_BASE_URL = (0, params_1.defineString)('APP_BASE_URL');
 const SUPPORT_EMAIL = (0, params_1.defineString)('SUPPORT_EMAIL');
+const EMAIL_LOGO_URL = (0, params_1.defineString)('EMAIL_LOGO_URL');
 function now() {
     return firestore_1.Timestamp.now();
 }
@@ -34,6 +35,7 @@ function buildBranding() {
     return {
         appName: 'Lineage Tree',
         supportEmail: getStringParam(SUPPORT_EMAIL, 'support@lineagetree.app'),
+        logoUrl: getStringParam(EMAIL_LOGO_URL),
     };
 }
 function buildLoginUrl() {
@@ -70,6 +72,10 @@ async function sendTransactionalEmail(options) {
         from: {
             email: fromEmail,
             name: fromName,
+        },
+        replyTo: {
+            email: getStringParam(SUPPORT_EMAIL, fromEmail),
+            name: getStringParam(SENDGRID_FROM_NAME, 'Lineage Tree'),
         },
         subject: options.subject,
         html: options.html,

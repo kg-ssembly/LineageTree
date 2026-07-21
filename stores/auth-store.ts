@@ -316,12 +316,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   requestPasswordReset: async (email) => {
-    set({ loading: true, error: null });
+    set({ error: null });
     try {
       await sendPasswordResetEmailNotification(email);
-      set({ loading: false });
     } catch (err: any) {
-      set({ loading: false, error: humaniseError(err.code ?? '') });
+      set({ error: humaniseError(err.code ?? '') });
       throw err;
     }
   },

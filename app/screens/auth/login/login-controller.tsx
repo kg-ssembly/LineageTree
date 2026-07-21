@@ -18,6 +18,7 @@ export function useLoginScreenController(navigation: LoginNavigation) {
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [snackVisible, setSnackVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
+  const [inlineNoticeMessage, setInlineNoticeMessage] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState({
     email: null as string | null,
     password: null as string | null,
@@ -63,7 +64,9 @@ export function useLoginScreenController(navigation: LoginNavigation) {
 
     try {
       await requestPasswordReset(email.trim());
-      setSnackbarMessage(t(K.auth.passwordResetEmailSent));
+      const successMessage = t(K.auth.passwordResetEmailSent);
+      setInlineNoticeMessage(successMessage);
+      setSnackbarMessage(successMessage);
       setSnackVisible(true);
     } catch {
       // surfaced via store snackbar
@@ -77,6 +80,7 @@ export function useLoginScreenController(navigation: LoginNavigation) {
       value: email,
       onChangeText: (value) => {
         setEmail(value);
+        setInlineNoticeMessage(null);
         setFieldErrors((current) => ({ ...current, email: null }));
       },
       error: fieldErrors.email,
@@ -91,6 +95,7 @@ export function useLoginScreenController(navigation: LoginNavigation) {
       value: password,
       onChangeText: (value) => {
         setPassword(value);
+        setInlineNoticeMessage(null);
         setFieldErrors((current) => ({ ...current, password: null }));
       },
       error: fieldErrors.password,
@@ -128,6 +133,7 @@ export function useLoginScreenController(navigation: LoginNavigation) {
     onSubmit: handleSignIn,
     tertiaryActionLabel: t(K.auth.forgotPassword),
     onTertiaryAction: handleForgotPassword,
+    inlineNoticeMessage,
     onSecondaryAction: () => navigation.navigate('SignUp'),
   };
 }

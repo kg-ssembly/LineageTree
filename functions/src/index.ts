@@ -22,6 +22,7 @@ const SENDGRID_FROM_EMAIL = defineString('SENDGRID_FROM_EMAIL');
 const SENDGRID_FROM_NAME = defineString('SENDGRID_FROM_NAME');
 const APP_BASE_URL = defineString('APP_BASE_URL');
 const SUPPORT_EMAIL = defineString('SUPPORT_EMAIL');
+const EMAIL_LOGO_URL = defineString('EMAIL_LOGO_URL');
 
 type UserRecordShape = {
   email?: string;
@@ -67,6 +68,7 @@ function buildBranding() {
   return {
     appName: 'Lineage Tree',
     supportEmail: getStringParam(SUPPORT_EMAIL, 'support@lineagetree.app'),
+    logoUrl: getStringParam(EMAIL_LOGO_URL),
   };
 }
 
@@ -117,6 +119,10 @@ async function sendTransactionalEmail(options: {
     from: {
       email: fromEmail,
       name: fromName,
+    },
+    replyTo: {
+      email: getStringParam(SUPPORT_EMAIL, fromEmail),
+      name: getStringParam(SENDGRID_FROM_NAME, 'Lineage Tree'),
     },
     subject: options.subject,
     html: options.html,
