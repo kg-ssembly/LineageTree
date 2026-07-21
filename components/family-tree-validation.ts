@@ -1,8 +1,9 @@
-import type { PersonInput, PersonLifeEvent, PersonPhoto, PersonRecord } from './dto/person';
+import type { PersonInput, PersonPhoto, PersonRecord } from './dto/person';
 import { parsePersonDate } from './dto/person';
 import type { ParentChildRelationshipKind, RelationshipRecord, RelationshipType, SpouseRelationshipStatus } from './dto/relationship';
 import { MAX_PHOTOS_PER_PERSON } from './photo-constants';
 import { translate } from '../i18n';
+import { I18N_KEYS as K } from '../i18n/keys';
 
 const MIN_BIOLOGICAL_PARENT_AGE = 12;
 
@@ -31,12 +32,18 @@ type PersonValidationInput = {
   removedPhotos?: PersonPhoto[];
   newPhotoUris?: string[];
   requireIdentityContext?: boolean;
+  requireRelationshipContext?: boolean;
   ignorePersonId?: string | null;
 };
 
 type ValidationFeedback = {
   errors: string[];
   warnings: string[];
+};
+
+export type RelationshipValidationResolution = {
+  blockingErrors: string[];
+  softWarnings: string[];
 };
 
 function normaliseNamePart(value?: string) {
@@ -228,6 +235,7 @@ export function getPersonValidationFeedback({
   removedPhotos = [],
   newPhotoUris = [],
   requireIdentityContext = false,
+  requireRelationshipContext = false,
   ignorePersonId,
 }: PersonValidationInput): ValidationFeedback {
   const errors: string[] = [];
@@ -239,34 +247,46 @@ export function getPersonValidationFeedback({
   const deathDate = person.deathDate.trim();
 
   if (!firstName) {
-    errors.push(translate('First name is required.'));
+    errors.push(translate(K.personForm.firstNameRequiredError));
+  }
+
+  if (!lastName) {
+    errors.push(translate(K.personForm.lastNameRequired));
+  }
+
+  if (!birthDate) {
+    errors.push(translate(K.personForm.birthDateRequired));
   }
 
   if (requireIdentityContext && !lastName && !birthDate && pendingRelationships.filter((relationship) => relationship.relatedPersonId).length === 0) {
-    errors.push(translate('Add at least one identifying detail: surname, birth date, or a relationship.'));
+    errors.push(translate(K.personForm.identityDetailRequired));
+  }
+
+  if (requireRelationshipContext && pendingRelationships.filter((relationship) => relationship.relatedPersonId).length === 0) {
+    errors.push(translate(K.personForm.addRelationshipToConnectMember));
   }
 
   if (birthDate && birthDate > formatDateToIso(new Date())) {
-    errors.push(translate('Birth date cannot be in the future.'));
+    errors.push(translate(K.personForm.birthDateInFuture));
   }
 
   if (deathDate && deathDate > formatDateToIso(new Date())) {
-    errors.push(translate('Death date cannot be in the future.'));
+    errors.push(translate(K.personForm.deathDateInFuture));
   }
 
   if (birthDate && deathDate && deathDate < birthDate) {
-    errors.push(translate('Death date cannot be earlier than birth date.'));
+    errors.push(translate(K.personForm.deathDateBeforeBirth));
   }
 
   person.lifeEvents.forEach((event) => {
     if (birthDate && event.date < birthDate) {
-      errors.push(translate('Life events cannot be earlier than the birth date.'));
+      errors.push(translate(K.personForm.lifeEventBeforeBirth));
     }
 
     if (deathDate && event.date > deathDate) {
-      errors.push(translate('Life events cannot be later than the death date.'));
+      errors.push(translate(K.personForm.lifeEventAfterDeath));
       if (event.type !== 'death') {
-        warnings.push(translate('This deceased person has present-day life events recorded after death. Please review those dates.'));
+        warnings.push(translate(K.personForm.deceasedPersonHasPresentDayEvents));
       }
     }
   });
@@ -288,9 +308,9 @@ export function getPersonValidationFeedback({
   });
 
   if (exactDuplicate) {
-    errors.push(translate('A family member with the same name and date already exists. Review before saving a duplicate.'));
+    errors.push(translate(K.personForm.duplicateNameAndDate));
   } else if (matches.length > 0) {
-    warnings.push(translate('A family member with the same name already exists. Please check that this is not a duplicate.'));
+    warnings.push(translate(K.personForm.duplicateNameWarning));
   }
 
   const nearDuplicate = people.find((candidate) => {
@@ -311,7 +331,7 @@ export function getPersonValidationFeedback({
   });
 
   if (nearDuplicate) {
-    warnings.push(translate('This looks very similar to an existing family member name. Please check for a near-duplicate before saving.'));
+    warnings.push(translate(K.personForm.nearDuplicateNameWarning));
   }
 
   const activeExistingPhotos = existingPhotos.filter((photo) => !removedPhotos.some((removedPhoto) => removedPhoto.id === photo.id));
@@ -337,11 +357,11 @@ export function getPersonValidationFeedback({
   });
 
   if (duplicateNewPhoto || duplicateAgainstExisting) {
-    errors.push(translate('Remove duplicate photos before saving.'));
+    errors.push(translate(K.personForm.duplicatePhotosBeforeSaving));
   }
 
   if (activeExistingPhotos.length + newPhotoUris.length > MAX_PHOTOS_PER_PERSON) {
-    errors.push(translate('You can save up to 5 photos per family member.'));
+    errors.push(translate(K.media.photoLimitSummary));
   }
 
   const exactRelationshipSignature = getRelationshipSignature(pendingRelationships);
@@ -368,12 +388,12 @@ export function getPersonValidationFeedback({
     });
 
     if (duplicateImportedPerson) {
-      errors.push(translate('A family member with the same name and attached relationships already exists. Please review before importing a duplicate.'));
+      errors.push(translate(K.personForm.duplicateImportedPerson));
     }
   }
 
   if (!lastName && person.maidenName?.trim()) {
-    warnings.push(translate('This person has a maiden name recorded but no current surname yet.'));
+    warnings.push(translate(K.personForm.maidenNameWithoutSurname));
   }
 
   return { errors, warnings };
@@ -560,15 +580,15 @@ export function getRelationshipValidationFeedback({
 
   if (fromPersonId === toPersonId) {
     errors.push(type === 'spouse'
-      ? translate('A family member cannot be their own spouse.')
-      : translate('A family member cannot be their own parent or child.'));
+      ? translate(K.relationship.cannotBeOwnSpouse)
+      : translate(K.relationship.cannotBeOwnParentOrChild));
     return { errors, warnings };
   }
 
   if (people && people.length > 0) {
     const peopleById = new Map(people.map((person) => [person.id, person]));
     if (!peopleById.has(fromPersonId) || !peopleById.has(toPersonId)) {
-      errors.push(translate('Select valid family members for this relationship.'));
+      errors.push(translate(K.relationship.peopleMustBeValid));
       return { errors, warnings };
     }
 
@@ -581,7 +601,11 @@ export function getRelationshipValidationFeedback({
         : biologicalParentIds;
 
       if (isBiologicalParentChildKind(parentChildKind) && nextBiologicalParentIds.length > 2) {
-        warnings.push(translate('This child would have more than two biological parents recorded. Please double-check the relationship type.'));
+        errors.push(translate(K.relationship.moreThanTwoBiologicalParents));
+      }
+
+      if (isBiologicalParentChildKind(parentChildKind) && (!parent.birthDate || !child.birthDate)) {
+        errors.push(translate(K.relationship.biologicalRelationshipBirthDatesRequired));
       }
 
       if (parent.birthDate && child.birthDate) {
@@ -589,22 +613,26 @@ export function getRelationshipValidationFeedback({
         if (typeof ageGap === 'number') {
           if (ageGap < 0) {
             if (parentChildKind === 'biological' || !isNonBiologicalParentChildKind(parentChildKind)) {
-              errors.push(translate('A biological parent cannot be younger than their child.'));
+              errors.push(translate(K.relationship.biologicalParentTooYoung));
             } else {
-              warnings.push(translate('This parent is younger than the child. If that is intentional, keep this as a non-biological relationship.'));
+              warnings.push(translate(K.relationship.parentTooYoungForChild));
             }
           } else if (ageGap < MIN_BIOLOGICAL_PARENT_AGE) {
             if (parentChildKind === 'biological' || !isNonBiologicalParentChildKind(parentChildKind)) {
-              errors.push(translate('A biological parent should be at least {years} years older than the child.', { years: MIN_BIOLOGICAL_PARENT_AGE }));
+              errors.push(translate(K.relationship.biologicalParentMinimumAge, { years: MIN_BIOLOGICAL_PARENT_AGE }));
             } else {
-              warnings.push(translate('This parent is less than {years} years older than the child. Double-check the dates and relationship type.', { years: MIN_BIOLOGICAL_PARENT_AGE }));
+              warnings.push(translate(K.relationship.parentChildKindConflict, { years: MIN_BIOLOGICAL_PARENT_AGE }));
             }
           }
         }
       }
 
       if (parent.deathDate && child.birthDate && parent.deathDate < child.birthDate) {
-        warnings.push(translate('This child was recorded as born after the parent died. Please double-check the dates.'));
+        if (isBiologicalParentChildKind(parentChildKind)) {
+          errors.push(translate(K.relationship.childBornAfterParentDeath));
+        } else {
+          warnings.push(translate(K.relationship.childBornAfterParentDeath));
+        }
       }
 
       if (isBiologicalParentChildKind(parentChildKind) && child.lastName.trim()) {
@@ -628,7 +656,7 @@ export function getRelationshipValidationFeedback({
         });
 
         if (differsFromAllBiologicalParents && noNonBiologicalContext && !child.maidenName?.trim()) {
-          warnings.push(translate('This child surname differs from both biological parents and there is no maiden-name or non-biological context recorded.'));
+          warnings.push(translate(K.relationship.childSurnameDiffersFromBiologicalParents));
         }
       }
 
@@ -662,7 +690,7 @@ export function getRelationshipValidationFeedback({
           });
 
         if (implausiblyCloseSibling) {
-          warnings.push(translate('This child birth date is unusually close to a sibling. If they were twins or triplets, add that context in notes.'));
+          warnings.push(translate(K.relationship.siblingBirthDatesTooClose));
         }
       }
     }
@@ -699,7 +727,7 @@ export function getRelationshipValidationFeedback({
       });
 
       if (hasImplausibleSharedChildTimeline) {
-        warnings.push(translate('These spouses have shared children whose recorded timelines look implausible. Please double-check the parents and birth dates.'));
+        warnings.push(translate(K.relationship.spousesTimelineImplausible));
       }
 
       if (isCurrentSpouseStatus(relationshipStatus)) {
@@ -715,7 +743,7 @@ export function getRelationshipValidationFeedback({
           });
 
         if (currentSpouseExists) {
-          warnings.push(translate('One of these family members already has another current spouse or partner recorded. Please review before saving.'));
+          warnings.push(translate(K.relationship.anotherCurrentPartnerExists));
         }
       }
     }
@@ -723,8 +751,8 @@ export function getRelationshipValidationFeedback({
 
   if (findDuplicateRelationship(relationships, type, fromPersonId, toPersonId, ignoreRelationshipId)) {
     errors.push(type === 'spouse'
-      ? translate('That spouse relationship already exists. Update its status instead of creating another one.')
-      : translate('That relationship already exists.'));
+      ? translate(K.relationship.spouseRelationshipAlreadyExists)
+      : translate(K.relationship.alreadyExists));
     return { errors, warnings };
   }
 
@@ -732,31 +760,41 @@ export function getRelationshipValidationFeedback({
 
   if (type === 'spouse') {
     if (isAncestorOf(childrenByParentId, fromPersonId, toPersonId) || isAncestorOf(childrenByParentId, toPersonId, fromPersonId)) {
-      errors.push(translate('A spouse relationship cannot be added between an ancestor and descendant.'));
+      errors.push(translate(K.relationship.spouseAncestorDescendant));
     }
 
     if (sharesParent(parentIdsByChildId, fromPersonId, toPersonId)) {
-      errors.push(translate('A spouse relationship cannot be added between siblings.'));
+      errors.push(translate(K.relationship.spouseBetweenSiblings));
     }
   }
 
   if (type === 'parent-child') {
     if (findDuplicateRelationship(relationships, 'spouse', fromPersonId, toPersonId, ignoreRelationshipId)) {
-      errors.push(translate('A parent-child relationship cannot also be a spouse relationship.'));
+      errors.push(translate(K.relationship.parentChildAlsoSpouse));
     }
 
     if (isAncestorOf(childrenByParentId, fromPersonId, toPersonId)) {
-      errors.push(translate('That family member is already an ancestor of this person.'));
+      errors.push(translate(K.relationship.alreadyAncestor));
     }
 
     if (sharesParent(parentIdsByChildId, fromPersonId, toPersonId)) {
-      errors.push(translate('Siblings cannot be linked as a parent and child.'));
+      errors.push(translate(K.relationship.siblingsCannotBeParentChild));
     }
   }
 
   if (type === 'parent-child' && buildsCircularAncestry(relationships, fromPersonId, toPersonId, ignoreRelationshipId)) {
-    errors.push(translate('That parent-child link would create a circular ancestry loop.'));
+    errors.push(translate(K.relationship.circularAncestryLoop));
   }
 
   return { errors, warnings };
+}
+
+export function getRelationshipValidationResolution(
+  input: RelationshipValidationInput,
+): RelationshipValidationResolution {
+  const feedback = getRelationshipValidationFeedback(input);
+  return {
+    blockingErrors: feedback.errors,
+    softWarnings: feedback.warnings,
+  };
 }

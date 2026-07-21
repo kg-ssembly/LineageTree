@@ -33,10 +33,10 @@ const missingKeys = Object.entries(firebaseConfig)
   .map(([key]) => `EXPO_PUBLIC_FIREBASE_${key.replace(/([A-Z])/g, '_$1').toUpperCase()}`);
 
 if (missingKeys.length > 0) {
-  console.warn(
-    `[Firebase Provider Warning]: The following environment variables are missing! ` +
-    `Ensure they are defined in your .env or EAS build configuration:\n` +
-    missingKeys.join('\n')
+  throw new Error(
+    `[Firebase Provider Error]: Missing required environment variables.\n` +
+    `${missingKeys.join('\n')}\n` +
+    'Define them in your local .env file and in your EAS environment before starting the app or creating a release build.'
   );
 }
 

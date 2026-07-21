@@ -1,5 +1,7 @@
 export type TreeRole = 'owner' | 'editor' | 'contributor' | 'viewer';
 export type CollaboratorRole = Exclude<TreeRole, 'owner'>;
+export type KinshipLanguage = 'nso' | 'ss' | 'st' | 'tn' | 'ts' | 've' | 'zu';
+export type KinshipSystem = 'auto' | 'generic' | KinshipLanguage | 'northern-sotho';
 
 export interface TreeMembershipHistoryEntry {
   id: string;
@@ -30,6 +32,9 @@ export interface FamilyTree {
   id: string;
   ownerId: string;
   name: string;
+  kinshipSystem?: KinshipSystem;
+  discoverable?: boolean;
+  searchKeywords: string[];
   memberIds: string[];
   editorIds: string[];
   collaborators: TreeCollaborator[];
@@ -44,6 +49,11 @@ export interface FamilyTree {
 
 export interface FamilyTreeInput {
   name: string;
+}
+
+export function getTreeKinshipSystem(tree?: Pick<FamilyTree, 'kinshipSystem'> | null): KinshipSystem {
+  const system = tree?.kinshipSystem ?? 'auto';
+  return system === 'northern-sotho' ? 'nso' : system;
 }
 
 export function getTreeRole(tree: FamilyTree, userId?: string | null): TreeRole | null {
@@ -69,6 +79,14 @@ export function canEditTreeContent(tree: FamilyTree, userId?: string | null) {
 export function canSetDefaultTree(tree: FamilyTree, userId?: string | null) {
   const role = getTreeRole(tree, userId);
   return role !== null && role !== 'viewer';
+}
+
+export function isTreeDiscoverable(tree?: Pick<FamilyTree, 'discoverable'> | null) {
+  return tree?.discoverable === true;
+}
+
+export function treeNeedsDiscoverabilityChoice(tree?: Pick<FamilyTree, 'discoverable'> | null) {
+  return tree?.discoverable == null;
 }
 
 export function getAssignedPersonId(tree: FamilyTree, userId?: string | null) {

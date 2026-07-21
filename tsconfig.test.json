@@ -10,9 +10,20 @@
   },
   "include": [
     "tests/**/*.ts",
+    "providers/maiden-tree-search.ts",
+    "providers/family-tree-merge-application.ts",
+    "providers/family-tree-merge-review-workflow.ts",
+    "providers/merge-intelligence.ts",
     "providers/relationship-intelligence.ts",
+    "providers/family-tree-shared.ts",
     "components/family-tree-validation.ts",
+    "components/family-tree-connectors.ts",
+    "components/family-tree-layout.ts",
+    "components/family-tree-types.ts",
+    "components/person-formatting.ts",
+    "components/dto/merge.ts",
     "components/dto/person.ts",
-    "components/dto/relationship.ts"
+    "components/dto/relationship.ts",
+    "components/dto/tree.ts"
   ]
 }

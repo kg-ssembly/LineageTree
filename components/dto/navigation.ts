@@ -1,12 +1,15 @@
 import type { NavigatorScreenParams } from '@react-navigation/native';
 
 export type MainTabParamList = {
+  home: undefined;
   tree: undefined;
   members: undefined;
-  notifications: undefined;
   treeSettings: undefined;
   myProfile: undefined;
 };
+
+export type PersonProfileRouteTab = 'biography' | 'relationships' | 'memories-gallery';
+export type PersonProfileRouteMemorySection = 'notes' | 'photos' | 'events';
 
 // Legacy — used by tree-detail-screen.tsx (kept for compatibility)
 export type TreeDetailTabParamList = {
@@ -24,5 +27,7 @@ export type RootStackParamList = {
   PersonProfile: {
     treeId: string;
     personId: string;
+    initialTab?: PersonProfileRouteTab;
+    initialMemorySectionTab?: PersonProfileRouteMemorySection;
   };
 };

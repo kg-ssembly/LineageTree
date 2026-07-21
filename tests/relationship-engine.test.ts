@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import type { PersonRecord } from '../components/dto/person';
 import type { RelationshipRecord } from '../components/dto/relationship';
+import { setActiveLanguage } from '../i18n';
 import { computeRelationshipInsight } from '../providers/relationship-intelligence';
 import { getPersonValidationFeedback, getRelationshipValidationFeedback, validateProposedRelationship } from '../components/family-tree-validation';
 
@@ -70,7 +71,8 @@ test('returns sibling labels using the compared person gender', () => {
   ];
 
   const insight = computeRelationshipInsight(people, relationships, 'a', 'b');
-  assert.equal(insight?.relationship, 'sister');
+  assert.equal(insight?.relationship, 'Sister');
+  assert.equal(insight?.descriptor.kind, 'sibling');
 });
 
 test('returns in-law labels from the selected source person perspective', () => {
@@ -86,6 +88,481 @@ test('returns in-law labels from the selected source person perspective', () => 
 
   const insight = computeRelationshipInsight(people, relationships, 'parent', 'inlaw');
   assert.equal(insight?.relationship, 'Daughter-in-law');
+});
+
+test('returns parent-in-law labels from the selected source person perspective', () => {
+  const people = [
+    makePerson('person', 'Alex', 'female'),
+    makePerson('spouse', 'Jordan', 'male'),
+    makePerson('parent-in-law', 'Morgan', 'male'),
+  ];
+  const relationships = [
+    makeRelationship('spouse-link', 'spouse', 'person', 'spouse'),
+    makeRelationship('pil-spouse', 'parent-child', 'parent-in-law', 'spouse'),
+  ];
+
+  const insight = computeRelationshipInsight(people, relationships, 'person', 'parent-in-law');
+
+  assert.equal(insight?.relationship, 'Father-in-law');
+});
+
+test('returns sibling-in-law labels when the person is a spouses sibling', () => {
+  const people = [
+    makePerson('person', 'Alex', 'male'),
+    makePerson('spouse', 'Jordan', 'female'),
+    makePerson('parent', 'Morgan', 'male'),
+    makePerson('sibling-in-law', 'Casey', 'male'),
+  ];
+  const relationships = [
+    makeRelationship('person-spouse', 'spouse', 'person', 'spouse'),
+    makeRelationship('parent-spouse', 'parent-child', 'parent', 'spouse'),
+    makeRelationship('parent-sibling', 'parent-child', 'parent', 'sibling-in-law'),
+  ];
+
+  const insight = computeRelationshipInsight(people, relationships, 'person', 'sibling-in-law');
+
+  assert.equal(insight?.relationship, 'Brother-in-law');
+});
+
+test('returns spouse labels using the compared person gender', () => {
+  const people = [
+    makePerson('a', 'Alex', 'female'),
+    makePerson('b', 'Jordan', 'male'),
+  ];
+  const relationships = [makeRelationship('spouse', 'spouse', 'a', 'b')];
+
+  const insight = computeRelationshipInsight(people, relationships, 'a', 'b');
+
+  assert.equal(insight?.relationship, 'Husband');
+});
+
+test('returns Self when comparing the same person', () => {
+  const people = [makePerson('self', 'Jordan', 'male')];
+
+  const insight = computeRelationshipInsight(people, [], 'self', 'self');
+
+  assert.equal(insight?.relationship, 'Self');
+  assert.deepEqual(insight?.pathPersonIds, ['self']);
+  assert.deepEqual(insight?.pathRelations, []);
+});
+
+test('returns null when two people are not connected in the tree', () => {
+  const people = [
+    makePerson('a', 'Alex', 'male'),
+    makePerson('b', 'Blair', 'female'),
+  ];
+
+  const insight = computeRelationshipInsight(people, [], 'a', 'b');
+
+  assert.equal(insight, null);
+});
+
+test('returns stepchild labels from the selected source person perspective', () => {
+  const people = [
+    makePerson('step-parent', 'Alex', 'male'),
+    makePerson('parent', 'Blair', 'female'),
+    makePerson('child', 'Casey', 'female'),
+  ];
+  const relationships = [
+    makeRelationship('spouse', 'spouse', 'step-parent', 'parent'),
+    makeRelationship('parent-child', 'parent-child', 'parent', 'child'),
+  ];
+
+  const insight = computeRelationshipInsight(people, relationships, 'step-parent', 'child');
+
+  assert.equal(insight?.relationship, 'Stepdaughter');
+});
+
+test('returns stepparent labels from the selected source person perspective', () => {
+  const people = [
+    makePerson('child', 'Alex', 'male'),
+    makePerson('parent', 'Blair', 'female'),
+    makePerson('step-parent', 'Casey', 'male'),
+  ];
+  const relationships = [
+    makeRelationship('parent-child', 'parent-child', 'parent', 'child'),
+    makeRelationship('spouse', 'spouse', 'parent', 'step-parent'),
+  ];
+
+  const insight = computeRelationshipInsight(people, relationships, 'child', 'step-parent');
+
+  assert.equal(insight?.relationship, 'Stepfather');
+});
+
+test('returns stepsibling labels when people share only a step-parent connection', () => {
+  const people = [
+    makePerson('parent-a', 'Alex', 'male'),
+    makePerson('parent-b', 'Blair', 'female'),
+    makePerson('child-a', 'Casey', 'male'),
+    makePerson('child-b', 'Jordan', 'female'),
+  ];
+  const relationships = [
+    makeRelationship('a-child', 'parent-child', 'parent-a', 'child-a'),
+    makeRelationship('b-child', 'parent-child', 'parent-b', 'child-b'),
+    makeRelationship('spouse', 'spouse', 'parent-a', 'parent-b'),
+  ];
+
+  const insight = computeRelationshipInsight(people, relationships, 'child-a', 'child-b');
+
+  assert.equal(insight?.relationship, 'Step-sister');
+});
+
+test('returns cousin labels for relatives who share grandparents', () => {
+  const people = [
+    makePerson('grandparent', 'Alex', 'male'),
+    makePerson('parent-a', 'Blair', 'female'),
+    makePerson('parent-b', 'Casey', 'male'),
+    makePerson('child-a', 'Jordan', 'male'),
+    makePerson('child-b', 'Taylor', 'female'),
+  ];
+  const relationships = [
+    makeRelationship('gp-pa', 'parent-child', 'grandparent', 'parent-a'),
+    makeRelationship('gp-pb', 'parent-child', 'grandparent', 'parent-b'),
+    makeRelationship('pa-ca', 'parent-child', 'parent-a', 'child-a'),
+    makeRelationship('pb-cb', 'parent-child', 'parent-b', 'child-b'),
+  ];
+
+  const insight = computeRelationshipInsight(people, relationships, 'child-a', 'child-b');
+
+  assert.equal(insight?.relationship, '1st cousin');
+});
+
+test('returns half-sibling labels when only one parent is shared', () => {
+  const people = [
+    makePerson('shared-parent', 'Alex', 'male'),
+    makePerson('other-parent-a', 'Blair', 'female'),
+    makePerson('other-parent-b', 'Casey', 'male'),
+    makePerson('child-a', 'Jordan', 'male'),
+    makePerson('child-b', 'Taylor', 'female'),
+  ];
+  const relationships = [
+    makeRelationship('sp-ca', 'parent-child', 'shared-parent', 'child-a'),
+    makeRelationship('sp-cb', 'parent-child', 'shared-parent', 'child-b'),
+    makeRelationship('opa-ca', 'parent-child', 'other-parent-a', 'child-a'),
+    makeRelationship('opb-cb', 'parent-child', 'other-parent-b', 'child-b'),
+  ];
+
+  const insight = computeRelationshipInsight(people, relationships, 'child-a', 'child-b');
+
+  assert.equal(insight?.relationship, 'Half-Sister');
+});
+
+test('returns grandparent labels for direct ancestors two generations away', () => {
+  const people = [
+    makePerson('grandparent', 'Alex', 'male'),
+    makePerson('parent', 'Blair', 'female'),
+    makePerson('child', 'Casey', 'male'),
+  ];
+  const relationships = [
+    makeRelationship('gp-p', 'parent-child', 'grandparent', 'parent'),
+    makeRelationship('p-c', 'parent-child', 'parent', 'child'),
+  ];
+
+  const insight = computeRelationshipInsight(people, relationships, 'child', 'grandparent');
+
+  assert.equal(insight?.relationship, 'Grandfather');
+});
+
+test('returns great-grandchild labels for direct descendants beyond two generations', () => {
+  const people = [
+    makePerson('ancestor', 'Alex', 'female'),
+    makePerson('parent', 'Blair', 'male'),
+    makePerson('child', 'Casey', 'female'),
+    makePerson('grandchild', 'Jordan', 'male'),
+  ];
+  const relationships = [
+    makeRelationship('a-p', 'parent-child', 'ancestor', 'parent'),
+    makeRelationship('p-c', 'parent-child', 'parent', 'child'),
+    makeRelationship('c-g', 'parent-child', 'child', 'grandchild'),
+  ];
+
+  const insight = computeRelationshipInsight(people, relationships, 'ancestor', 'grandchild');
+
+  assert.equal(insight?.relationship, 'Great-Grandson');
+});
+
+test('returns aunt and nephew labels across generations of lateral relatives', () => {
+  const people = [
+    makePerson('grandparent', 'Alex', 'female'),
+    makePerson('aunt', 'Blair', 'female'),
+    makePerson('parent', 'Casey', 'male'),
+    makePerson('child', 'Jordan', 'male'),
+  ];
+  const relationships = [
+    makeRelationship('gp-aunt', 'parent-child', 'grandparent', 'aunt'),
+    makeRelationship('gp-parent', 'parent-child', 'grandparent', 'parent'),
+    makeRelationship('parent-child', 'parent-child', 'parent', 'child'),
+  ];
+
+  const auntToChild = computeRelationshipInsight(people, relationships, 'aunt', 'child');
+  const childToAunt = computeRelationshipInsight(people, relationships, 'child', 'aunt');
+
+  assert.equal(auntToChild?.relationship, 'Nephew');
+  assert.equal(childToAunt?.relationship, 'Aunt');
+  assert.equal(childToAunt?.descriptor.kind, 'aunt-uncle');
+  if (childToAunt?.descriptor.kind === 'aunt-uncle') {
+    assert.equal(childToAunt.descriptor.side, 'paternal');
+  }
+});
+
+test('returns Sepedi-specific maternal aunt labels when age context is available', () => {
+  setActiveLanguage('nso');
+
+  const people = [
+    makePerson('grandparent', 'Alex', 'female'),
+    makePerson('older-aunt', 'Blair', 'female'),
+    makePerson('mother', 'Casey', 'female'),
+    makePerson('child', 'Jordan', 'male'),
+  ].map((person) => {
+    if (person.id === 'older-aunt') {
+      return { ...person, birthDate: '1970-01-01' };
+    }
+
+    if (person.id === 'mother') {
+      return { ...person, birthDate: '1978-01-01' };
+    }
+
+    return person;
+  });
+  const relationships = [
+    makeRelationship('gp-aunt', 'parent-child', 'grandparent', 'older-aunt'),
+    makeRelationship('gp-mother', 'parent-child', 'grandparent', 'mother'),
+    makeRelationship('mother-child', 'parent-child', 'mother', 'child'),
+  ];
+
+  const insight = computeRelationshipInsight(people, relationships, 'child', 'older-aunt');
+
+  assert.equal(insight?.relationship, 'mamoholo');
+  assert.equal(insight?.descriptor.kind, 'aunt-uncle');
+  if (insight?.descriptor.kind === 'aunt-uncle') {
+    assert.equal(insight.descriptor.side, 'maternal');
+    assert.equal(insight.descriptor.seniority, 'older');
+  }
+
+  setActiveLanguage('en');
+});
+
+test('falls back to another Sepedi-specific maternal aunt label when the aunt is younger', () => {
+  setActiveLanguage('nso');
+
+  const people = [
+    makePerson('grandparent', 'Alex', 'female'),
+    makePerson('younger-aunt', 'Blair', 'female'),
+    makePerson('mother', 'Casey', 'female'),
+    makePerson('child', 'Jordan', 'male'),
+  ].map((person) => {
+    if (person.id === 'younger-aunt') {
+      return { ...person, birthDate: '1982-01-01' };
+    }
+
+    if (person.id === 'mother') {
+      return { ...person, birthDate: '1978-01-01' };
+    }
+
+    return person;
+  });
+  const relationships = [
+    makeRelationship('gp-aunt', 'parent-child', 'grandparent', 'younger-aunt'),
+    makeRelationship('gp-mother', 'parent-child', 'grandparent', 'mother'),
+    makeRelationship('mother-child', 'parent-child', 'mother', 'child'),
+  ];
+
+  const insight = computeRelationshipInsight(people, relationships, 'child', 'younger-aunt');
+
+  assert.equal(insight?.relationship, 'mangwane');
+  assert.equal(insight?.descriptor.kind, 'aunt-uncle');
+  if (insight?.descriptor.kind === 'aunt-uncle') {
+    assert.equal(insight.descriptor.side, 'maternal');
+    assert.equal(insight.descriptor.seniority, 'younger');
+  }
+
+  setActiveLanguage('en');
+});
+
+test('allows a tree kinship system override to apply Northern Sotho terms outside the app language', () => {
+  setActiveLanguage('en');
+
+  const people = [
+    makePerson('grandparent', 'Alex', 'female'),
+    makePerson('older-aunt', 'Blair', 'female'),
+    makePerson('mother', 'Casey', 'female'),
+    makePerson('child', 'Jordan', 'male'),
+  ].map((person) => {
+    if (person.id === 'older-aunt') {
+      return { ...person, birthDate: '1970-01-01' };
+    }
+
+    if (person.id === 'mother') {
+      return { ...person, birthDate: '1978-01-01' };
+    }
+
+    return person;
+  });
+  const relationships = [
+    makeRelationship('gp-aunt', 'parent-child', 'grandparent', 'older-aunt'),
+    makeRelationship('gp-mother', 'parent-child', 'grandparent', 'mother'),
+    makeRelationship('mother-child', 'parent-child', 'mother', 'child'),
+  ];
+
+  const insight = computeRelationshipInsight(people, relationships, 'child', 'older-aunt', {
+    kinshipSystem: 'northern-sotho',
+  });
+
+  assert.equal(insight?.relationship, 'Aunt (mamoholo)');
+});
+
+test('shows only the kinship term when the app language already matches the selected kinship system', () => {
+  setActiveLanguage('nso');
+
+  const people = [
+    makePerson('grandparent', 'Alex', 'female'),
+    makePerson('older-aunt', 'Blair', 'female'),
+    makePerson('mother', 'Casey', 'female'),
+    makePerson('child', 'Jordan', 'male'),
+  ].map((person) => {
+    if (person.id === 'older-aunt') {
+      return { ...person, birthDate: '1970-01-01' };
+    }
+
+    if (person.id === 'mother') {
+      return { ...person, birthDate: '1978-01-01' };
+    }
+
+    return person;
+  });
+  const relationships = [
+    makeRelationship('gp-aunt', 'parent-child', 'grandparent', 'older-aunt'),
+    makeRelationship('gp-mother', 'parent-child', 'grandparent', 'mother'),
+    makeRelationship('mother-child', 'parent-child', 'mother', 'child'),
+  ];
+
+  const insight = computeRelationshipInsight(people, relationships, 'child', 'older-aunt', {
+    kinshipSystem: 'northern-sotho',
+  });
+
+  assert.equal(insight?.relationship, 'mamoholo');
+
+  setActiveLanguage('en');
+});
+
+test('localizes simple kinship labels in isiZulu when the app language is isiZulu', () => {
+  setActiveLanguage('zu');
+
+  const people = [
+    makePerson('parent', 'Morgan', 'other'),
+    makePerson('older-sister', 'Taylor', 'female'),
+    makePerson('younger-brother', 'Casey', 'male'),
+  ];
+  const relationships = [
+    makeRelationship('p-sis', 'parent-child', 'parent', 'older-sister'),
+    makeRelationship('p-bro', 'parent-child', 'parent', 'younger-brother'),
+  ];
+
+  const insight = computeRelationshipInsight(people, relationships, 'younger-brother', 'older-sister');
+
+  assert.equal(insight?.relationship, 'udadewethu');
+
+  setActiveLanguage('en');
+});
+
+test('shows combined labels for other simple relationships such as siblings', () => {
+  setActiveLanguage('en');
+
+  const people = [
+    makePerson('parent', 'Morgan', 'other'),
+    makePerson('older-sister', 'Taylor', 'female'),
+    makePerson('younger-brother', 'Casey', 'male'),
+  ];
+  const relationships = [
+    makeRelationship('p-sis', 'parent-child', 'parent', 'older-sister'),
+    makeRelationship('p-bro', 'parent-child', 'parent', 'younger-brother'),
+  ];
+
+  const insight = computeRelationshipInsight(people, relationships, 'younger-brother', 'older-sister', {
+    kinshipSystem: 'northern-sotho',
+  });
+
+  assert.equal(insight?.relationship, 'Sister (kgaitsedi)');
+});
+
+test('uses a generic localized aunt label when seniority is unknown', () => {
+  setActiveLanguage('en');
+
+  const people = [
+    makePerson('grandparent', 'Alex', 'female'),
+    makePerson('aunt', 'Blair', 'female'),
+    makePerson('mother', 'Casey', 'female'),
+    makePerson('child', 'Jordan', 'male'),
+  ];
+  const relationships = [
+    makeRelationship('gp-aunt', 'parent-child', 'grandparent', 'aunt'),
+    makeRelationship('gp-mother', 'parent-child', 'grandparent', 'mother'),
+    makeRelationship('mother-child', 'parent-child', 'mother', 'child'),
+  ];
+
+  const insight = computeRelationshipInsight(people, relationships, 'child', 'aunt', {
+    kinshipSystem: 'st',
+  });
+
+  assert.equal(insight?.relationship, 'Aunt (mangwane)');
+  assert.equal(insight?.descriptor.kind, 'aunt-uncle');
+  if (insight?.descriptor.kind === 'aunt-uncle') {
+    assert.equal(insight.descriptor.seniority, 'unknown');
+  }
+});
+
+test('returns cousin removed labels when generations are offset', () => {
+  const people = [
+    makePerson('grandparent', 'Alex', 'female'),
+    makePerson('parent-a', 'Blair', 'female'),
+    makePerson('parent-b', 'Casey', 'male'),
+    makePerson('child-a', 'Jordan', 'male'),
+    makePerson('grandchild-a', 'Morgan', 'female'),
+    makePerson('child-b', 'Taylor', 'female'),
+  ];
+  const relationships = [
+    makeRelationship('gp-pa', 'parent-child', 'grandparent', 'parent-a'),
+    makeRelationship('gp-pb', 'parent-child', 'grandparent', 'parent-b'),
+    makeRelationship('pa-ca', 'parent-child', 'parent-a', 'child-a'),
+    makeRelationship('ca-ga', 'parent-child', 'child-a', 'grandchild-a'),
+    makeRelationship('pb-cb', 'parent-child', 'parent-b', 'child-b'),
+  ];
+
+  const insight = computeRelationshipInsight(people, relationships, 'grandchild-a', 'child-b');
+
+  assert.equal(insight?.relationship, '1st cousin 1× removed');
+});
+
+test('returns second cousin labels for more distant lateral relatives', () => {
+  const people = [
+    makePerson('ancestor', 'Alex', 'female'),
+    makePerson('child-a', 'Blair', 'female'),
+    makePerson('child-b', 'Casey', 'male'),
+    makePerson('grandchild-a', 'Jordan', 'male'),
+    makePerson('grandchild-b', 'Taylor', 'female'),
+    makePerson('greatgrandchild-a', 'Morgan', 'male'),
+    makePerson('greatgrandchild-b', 'Avery', 'female'),
+  ];
+  const relationships = [
+    makeRelationship('a-ca', 'parent-child', 'ancestor', 'child-a'),
+    makeRelationship('a-cb', 'parent-child', 'ancestor', 'child-b'),
+    makeRelationship('ca-ga', 'parent-child', 'child-a', 'grandchild-a'),
+    makeRelationship('cb-gb', 'parent-child', 'child-b', 'grandchild-b'),
+    makeRelationship('ga-gga', 'parent-child', 'grandchild-a', 'greatgrandchild-a'),
+    makeRelationship('gb-ggb', 'parent-child', 'grandchild-b', 'greatgrandchild-b'),
+  ];
+
+  const insight = computeRelationshipInsight(people, relationships, 'greatgrandchild-a', 'greatgrandchild-b');
+
+  assert.equal(insight?.relationship, '2nd cousin');
+});
+
+test('returns null when either compared person id does not exist', () => {
+  const people = [makePerson('a', 'Alex', 'male')];
+
+  const insight = computeRelationshipInsight(people, [], 'a', 'missing');
+
+  assert.equal(insight, null);
 });
 
 test('blocks spouse relationships between ancestors and descendants', () => {
@@ -117,6 +594,28 @@ test('blocks spouse relationships between siblings', () => {
   assert.equal(message, 'A spouse relationship cannot be added between siblings.');
 });
 
+test('blocks a person from being their own spouse', () => {
+  const feedback = getRelationshipValidationFeedback({
+    relationships: [],
+    type: 'spouse',
+    fromPersonId: 'person-1',
+    toPersonId: 'person-1',
+  });
+
+  assert.ok(feedback.errors.includes('A family member cannot be their own spouse.'));
+});
+
+test('blocks duplicate spouse relationships regardless of endpoint order', () => {
+  const feedback = getRelationshipValidationFeedback({
+    relationships: [makeRelationship('spouse', 'spouse', 'a', 'b')],
+    type: 'spouse',
+    fromPersonId: 'b',
+    toPersonId: 'a',
+  });
+
+  assert.ok(feedback.errors.includes('That spouse relationship already exists. Update its status instead of creating another one.'));
+});
+
 test('blocks parent-child links for existing spouses', () => {
   const relationships = [makeRelationship('spouse', 'spouse', 'a', 'b')];
 
@@ -130,7 +629,59 @@ test('blocks parent-child links for existing spouses', () => {
   assert.equal(message, 'A parent-child relationship cannot also be a spouse relationship.');
 });
 
-test('warns when adding a third biological parent', () => {
+test('blocks circular ancestry when reversing an existing parent-child chain', () => {
+  const feedback = getRelationshipValidationFeedback({
+    relationships: [
+      makeRelationship('a-b', 'parent-child', 'a', 'b'),
+      makeRelationship('b-c', 'parent-child', 'b', 'c'),
+    ],
+    type: 'parent-child',
+    fromPersonId: 'c',
+    toPersonId: 'a',
+  });
+
+  assert.ok(feedback.errors.includes('That parent-child link would create a circular ancestry loop.'));
+});
+
+test('warns when a maiden name is recorded without a current surname', () => {
+  const feedback = getPersonValidationFeedback({
+    people: [],
+    person: {
+      firstName: 'Jordan',
+      middleNames: '',
+      lastName: '',
+      maidenName: 'Khumalo',
+      birthDate: '2000-01-01',
+      deathDate: '',
+      notes: '',
+      lifeEvents: [],
+    },
+  });
+
+  assert.ok(feedback.warnings.includes('This person has a maiden name recorded but no current surname yet.'));
+});
+
+test('treats swapped first and middle names as a near-duplicate warning', () => {
+  const existing = { ...makePerson('existing', 'Grace', 'female'), middleNames: 'Jordan', lastName: 'Example' };
+
+  const feedback = getPersonValidationFeedback({
+    people: [existing],
+    person: {
+      firstName: 'Jordan',
+      middleNames: 'Grace',
+      lastName: 'Example',
+      maidenName: '',
+      birthDate: '2000-01-01',
+      deathDate: '',
+      notes: '',
+      lifeEvents: [],
+    },
+  });
+
+  assert.ok(feedback.warnings.includes('This looks very similar to an existing family member name. Please check for a near-duplicate before saving.'));
+});
+
+test('blocks adding a third biological parent', () => {
   const people = [
     makePerson('parent-a', 'Alex', 'male'),
     makePerson('parent-b', 'Blair', 'female'),
@@ -151,7 +702,7 @@ test('warns when adding a third biological parent', () => {
     parentChildKind: 'biological',
   });
 
-  assert.ok(feedback.warnings.includes('This child would have more than two biological parents recorded. Please double-check the relationship type.'));
+  assert.ok(feedback.errors.includes('This child would have more than two biological parents recorded. Please double-check the relationship type.'));
 });
 
 test('warns when child birth is after recorded parent death', () => {
@@ -167,7 +718,23 @@ test('warns when child birth is after recorded parent death', () => {
     parentChildKind: 'biological',
   });
 
-  assert.ok(feedback.warnings.includes('This child was recorded as born after the parent died. Please double-check the dates.'));
+  assert.ok(feedback.errors.includes('This child was recorded as born after the parent died. Please double-check the dates.'));
+});
+
+test('blocks biological parent-child relationships without birth dates for both people', () => {
+  const parent = makePerson('parent', 'Alex', 'male');
+  const child = { ...makePerson('child', 'Jordan', 'male'), birthDate: '2001-01-01' };
+
+  const feedback = getRelationshipValidationFeedback({
+    people: [parent, child],
+    relationships: [],
+    type: 'parent-child',
+    fromPersonId: 'parent',
+    toPersonId: 'child',
+    parentChildKind: 'biological',
+  });
+
+  assert.ok(feedback.errors.includes('Birth dates are required for both family members before adding a biological parent-child relationship.'));
 });
 
 test('warns when spouse shared-child timelines are implausible', () => {
@@ -227,6 +794,24 @@ test('blocks future birth dates', () => {
   });
 
   assert.ok(feedback.errors.includes('Birth date cannot be in the future.'));
+});
+
+test('requires a birth date when validating a person', () => {
+  const feedback = getPersonValidationFeedback({
+    people: [],
+    person: {
+      firstName: 'Jordan',
+      middleNames: '',
+      lastName: 'Example',
+      maidenName: '',
+      birthDate: '',
+      deathDate: '',
+      notes: '',
+      lifeEvents: [],
+    },
+  });
+
+  assert.ok(feedback.errors.includes('Birth date is required.'));
 });
 
 test('warns when child surname differs from both biological parents without context', () => {
@@ -349,6 +934,44 @@ test('requires at least one additional identity detail when creating a person', 
   });
 
   assert.ok(feedback.errors.includes('Add at least one identifying detail: surname, birth date, or a relationship.'));
+});
+
+test('requires a last name when creating a person', () => {
+  const feedback = getPersonValidationFeedback({
+    people: [],
+    person: {
+      firstName: 'Jordan',
+      middleNames: '',
+      lastName: '',
+      maidenName: '',
+      birthDate: '',
+      deathDate: '',
+      notes: '',
+      lifeEvents: [],
+    },
+  });
+
+  assert.ok(feedback.errors.includes('Last name is required.'));
+});
+
+test('requires a relationship anchor when the create flow is in connected mode', () => {
+  const feedback = getPersonValidationFeedback({
+    people: [makePerson('existing', 'Alex', 'male')],
+    person: {
+      firstName: 'Jordan',
+      middleNames: '',
+      lastName: 'Example',
+      maidenName: '',
+      birthDate: '',
+      deathDate: '',
+      notes: '',
+      lifeEvents: [],
+    },
+    pendingRelationships: [],
+    requireRelationshipContext: true,
+  });
+
+  assert.ok(feedback.errors.includes('Add at least one relationship so this family member stays connected to the tree.'));
 });
 
 test('blocks duplicate photos before saving', () => {

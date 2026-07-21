@@ -1,11 +1,9 @@
 import React from 'react';
 import { View } from 'react-native';
-import { IconButton, Surface, Text, useTheme } from 'react-native-paper';
-import { FamilyTreeCanvas } from '../../../../components';
+import { IconButton, Text, useTheme } from 'react-native-paper';
+import { FamilyTreeCanvas, GlobalStyles, Reveal, SectionCard } from '../../../../components';
 import type { PersonRecord } from '../../../../components/dto/person';
 import type { RelationshipRecord } from '../../../../components/dto/relationship';
-import { GlobalStyles } from '../../../../constants/styles';
-import { useI18n } from '../../../../hooks/use-i18n';
 
 const styles = GlobalStyles.personProfile;
 
@@ -13,8 +11,6 @@ export function PersonLineageSection({
   title,
   helperLabel,
   count,
-  singularLabel,
-  pluralLabel,
   person,
   people,
   relationships,
@@ -26,8 +22,6 @@ export function PersonLineageSection({
   title: string;
   helperLabel: string;
   count: number;
-  singularLabel: string;
-  pluralLabel: string;
   person: PersonRecord;
   people: PersonRecord[];
   relationships: RelationshipRecord[];
@@ -37,10 +31,9 @@ export function PersonLineageSection({
   mode: 'ascendant' | 'descendant';
 }) {
   const theme = useTheme();
-  const { t } = useI18n();
-
   return (
-    <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
+    <Reveal delay={120}>
+      <SectionCard variant="person">
       <View style={styles.sectionHeader}>
         <View style={styles.sectionHeaderText}>
           <View style={styles.titleWithHelperRow}>
@@ -55,7 +48,7 @@ export function PersonLineageSection({
           </View>
           {count > 0 ? (
             <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-              {count === 1 ? t('{count} ' + singularLabel, { count }) : t('{count} ' + pluralLabel, { count })}
+              {count}
             </Text>
           ) : null}
         </View>
@@ -72,6 +65,7 @@ export function PersonLineageSection({
         showMaidenFamilyInNodeTitle
         floatingControls
       />
-    </Surface>
+      </SectionCard>
+    </Reveal>
   );
 }

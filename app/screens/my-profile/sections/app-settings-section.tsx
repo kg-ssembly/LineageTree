@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { View } from 'react-native';
-import { Button, Chip, SegmentedButtons, Surface, Text, TextInput, useTheme } from 'react-native-paper';
+import { StyleSheet, View } from 'react-native';
+import { Button, Chip, SegmentedButtons, Text, TextInput, useTheme } from 'react-native-paper';
+import { Reveal, SectionCard } from '../../../../components';
 import type { ThemePreference } from '../../../../constants/theme';
-import { GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
 import { useAuthStore } from '../../../../stores/auth-store';
@@ -13,13 +13,46 @@ export type UserProfileTabProps = {
   authLoading: boolean;
 };
 
-const treeDetailStyles = GlobalStyles.treeDetail;
-const homeStyles = GlobalStyles.home;
+const styles = StyleSheet.create({
+  sectionSubtitle: {
+    marginTop: 4,
+  },
+  editNameRow: {
+    gap: 12,
+    marginTop: 16,
+  },
+  editNameInput: {
+    width: '100%',
+  },
+  saveNameButton: {
+    alignSelf: 'flex-start',
+    borderRadius: 999,
+  },
+  themeSwitch: {
+    marginTop: 16,
+  },
+  appearanceHint: {
+    marginTop: 16,
+    borderRadius: 20,
+    padding: 16,
+  },
+  languageChipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  signOutButton: {
+    marginTop: 16,
+  },
+  signOutButtonContent: {
+    height: 48,
+  },
+});
 
 export function AppSettingsSection({ onSignOut, authLoading }: UserProfileTabProps) {
   const theme = useTheme();
   const { language, languages, setLanguage, t } = useI18n();
-  const { user, updateDisplayName } = useAuthStore();
+  const { user, updateDisplayName, updatePreferredLanguage } = useAuthStore();
   const preference = useThemeStore((state) => state.preference);
   const setPreference = useThemeStore((state) => state.setPreference);
   const [editName, setEditName] = useState(user?.displayName ?? '');
@@ -53,14 +86,20 @@ export function AppSettingsSection({ onSignOut, authLoading }: UserProfileTabPro
     }
   };
 
+  const handleLanguageChange = async (nextLanguage: typeof language) => {
+    await setLanguage(nextLanguage);
+    await updatePreferredLanguage(nextLanguage);
+  };
+
   return (
     <>
-      <Surface style={[treeDetailStyles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
+      <Reveal delay={80}>
+        <SectionCard variant="tree">
         <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>{t(K.settings.editProfile)}</Text>
-        <Text variant="bodySmall" style={[treeDetailStyles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
+        <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
           {t(K.settings.changeDisplayName)}
         </Text>
-        <View style={homeStyles.editNameRow}>
+        <View style={styles.editNameRow}>
           <TextInput
             label={t(K.settings.displayName)}
             value={editName}
@@ -69,20 +108,22 @@ export function AppSettingsSection({ onSignOut, authLoading }: UserProfileTabPro
               setNameError(null);
             }}
             mode="outlined"
-            style={homeStyles.editNameInput}
+            style={styles.editNameInput}
             error={!!nameError}
             disabled={savingName}
           />
-          <Button mode="contained" icon="content-save-outline" onPress={handleSaveName} disabled={savingName || !isDirty} style={homeStyles.saveNameButton}>
+          <Button mode="contained" icon="content-save-outline" onPress={handleSaveName} disabled={savingName || !isDirty} style={styles.saveNameButton}>
             {t(K.common.saveChanges)}
           </Button>
         </View>
         {nameError ? <Text variant="bodySmall" style={{ color: theme.colors.error, marginTop: 4 }}>{nameError}</Text> : null}
-      </Surface>
+        </SectionCard>
+      </Reveal>
 
-      <Surface style={[treeDetailStyles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
+      <Reveal delay={100}>
+        <SectionCard variant="tree">
         <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>{t(K.settings.appearance)}</Text>
-        <Text variant="bodySmall" style={[treeDetailStyles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
+        <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
           {t(K.settings.switchLightDarkModes)}
         </Text>
         <SegmentedButtons
@@ -93,24 +134,26 @@ export function AppSettingsSection({ onSignOut, authLoading }: UserProfileTabPro
             { value: 'light', label: t(K.common.light), icon: 'white-balance-sunny' },
             { value: 'dark', label: t(K.common.dark), icon: 'weather-night' },
           ]}
-          style={homeStyles.themeSwitch}
+          style={styles.themeSwitch}
         />
-        <View style={[homeStyles.appearanceHint, { backgroundColor: theme.colors.surfaceVariant }]}>
+        <View style={[styles.appearanceHint, { backgroundColor: theme.colors.surfaceVariant }]}>
           <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>{appearanceSummary}</Text>
         </View>
-      </Surface>
+        </SectionCard>
+      </Reveal>
 
-      <Surface style={[treeDetailStyles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
+      <Reveal delay={120}>
+        <SectionCard variant="tree">
         <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>{t(K.settings.appLanguage)}</Text>
-        <Text variant="bodySmall" style={[treeDetailStyles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
+        <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
           {t(K.settings.chooseLanguage)}
         </Text>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+        <View style={styles.languageChipRow}>
           {languages.map((option) => (
             <Chip
               key={option.code}
               selected={option.code === language}
-              onPress={() => void setLanguage(option.code)}
+              onPress={() => void handleLanguageChange(option.code)}
               style={{ marginBottom: 8 }}
               icon={option.code === language ? 'check' : 'translate'}
             >
@@ -118,9 +161,10 @@ export function AppSettingsSection({ onSignOut, authLoading }: UserProfileTabPro
             </Chip>
           ))}
         </View>
-      </Surface>
+        </SectionCard>
+      </Reveal>
 
-      <Button mode="contained-tonal" icon="logout" onPress={onSignOut} disabled={authLoading} contentStyle={homeStyles.signOutButtonContent} style={homeStyles.signOutButton}>
+      <Button mode="outlined" icon="logout" onPress={onSignOut} disabled={authLoading} contentStyle={styles.signOutButtonContent} style={styles.signOutButton} buttonColor={theme.colors.surface} textColor={theme.colors.primary}>
         {t(K.common.logOut)}
       </Button>
     </>

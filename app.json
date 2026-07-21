@@ -1,9 +1,9 @@
 {
   "expo": {
-    "name": "lineagetree",
+    "name": "Lineage Tree",
     "slug": "lineage-tree",
     "scheme": "lineagetree",
-    "version": "1.0.9",
+    "version": "1.0.13",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -22,7 +22,7 @@
     },
     "android": {
       "package": "com.ssembly.lineagetree",
-      "versionCode": 9,
+      "versionCode": 13,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -32,8 +32,7 @@
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.READ_MEDIA_IMAGES",
-        "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.READ_EXTERNAL_STORAGE"
       ]
     },
     "plugins": [

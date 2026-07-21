@@ -1,19 +1,24 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
+import type { createJSONStorage as createJSONStorageFn, persist as persistFn } from 'zustand/middleware';
 import type { ApprovalRequest } from '../components/dto/approval';
 import type { MergeConflictChoice, MergeHistoryRecord, MergeRequestRecord } from '../components/dto/merge';
 import type { AppNotification, NotificationActivityState } from '../components/dto/notification';
 import type { NewPersonPhotoInput, PersonInput, PersonMutationPayload, PersonRecord } from '../components/dto/person';
+import type { PendingRelationshipSubmission } from '../components/person-form-dialog';
 import type { ParentChildRelationshipKind, RelationshipRecord, SpouseRelationshipStatus } from '../components/dto/relationship';
-import type { CollaboratorRole, FamilyTree, SurnameVariantGroup } from '../components/dto/tree';
+import type { CollaboratorRole, FamilyTree, KinshipSystem, SurnameVariantGroup } from '../components/dto/tree';
 import type { UserProfile } from '../components/dto/user';
 import {
   addCollaboratorToTree,
   assignTreePersonToUser,
   clearTreePersonAssignment,
+  cancelTreeAccessRequest,
   createSuggestedSurnameTree,
   createMergeRequest,
   createParentChildRelationship,
   createPerson,
+  createPersonWithRelationships,
   createSpouseRelationship,
   createTree,
   decideApprovalRequest,
@@ -26,10 +31,16 @@ import {
   markNotificationOpened,
   markNotificationSeen,
   processExpiredApprovalRequests,
+  requestAccessFromIdentifier,
+  requestAccessToTree,
   removeCollaboratorFromTree,
+  respondToTreeAccessRequest,
   respondToMergeInvite,
   reviewMergeRequest,
+  searchDiscoverableTrees,
+  searchDiscoverableTreesByOwnerUsername,
   sendMergeInviteByIdentifier,
+  type DiscoverableTreeSummary,
   subscribeToApprovalRequests,
   subscribeToMergeHistory,
   subscribeToMergeRequests,
@@ -43,8 +54,15 @@ import {
   updatePerson,
   updateSurnameVariantGroups,
   updateTreeApprovalWindow,
+  updateTreeDiscoverability,
+  updateTreeKinshipSystem,
   updateTreeName,
 } from '../providers/family-tree-service';
+
+const { createJSONStorage, persist } = require('zustand/middleware') as {
+  createJSONStorage: typeof createJSONStorageFn;
+  persist: typeof persistFn;
+};
 
 let unsubscribeTrees: (() => void) | null = null;
 let unsubscribePeople: (() => void) | null = null;
@@ -55,7 +73,10 @@ let unsubscribeMergeHistory: (() => void) | null = null;
 let unsubscribeNotifications: (() => void) | null = null;
 let unsubscribeNotificationActivity: (() => void) | null = null;
 let subscribedTreeId: string | null = null;
+let subscribedTreeAuxiliaryId: string | null = null;
 const expiryProcessingTreeIds = new Set<string>();
+const TREE_STORE_STORAGE_KEY = 'lineagetree-tree-store';
+const TREE_STORE_CACHE_VERSION = 3;
 
 function normaliseError(error: unknown) {
   if (error instanceof Error && error.message) {
@@ -63,6 +84,32 @@ function normaliseError(error: unknown) {
   }
 
   return 'Something went wrong. Please try again.';
+}
+
+function haveSameRecordVersions<T extends { id: string; updatedAt?: string; createdAt?: string }>(
+  currentRecords: T[],
+  nextRecords: T[],
+  getVersion = (record: T) => record.updatedAt ?? record.createdAt ?? '',
+) {
+  if (currentRecords.length !== nextRecords.length) {
+    return false;
+  }
+
+  return currentRecords.every((currentRecord, index) => {
+    const nextRecord = nextRecords[index];
+    return currentRecord.id === nextRecord.id && getVersion(currentRecord) === getVersion(nextRecord);
+  });
+}
+
+function getRelationshipVersion(relationship: RelationshipRecord) {
+  return [
+    relationship.createdAt,
+    relationship.type,
+    relationship.fromPersonId,
+    relationship.toPersonId,
+    relationship.relationshipStatus ?? '',
+    relationship.parentChildKind ?? '',
+  ].join(':');
 }
 
 function stopTreeSubscriptions() {
@@ -76,6 +123,7 @@ function stopTreeSubscriptions() {
   unsubscribeApprovalRequests = null;
   unsubscribeMergeRequests = null;
   unsubscribeMergeHistory = null;
+  subscribedTreeAuxiliaryId = null;
   if (subscribedTreeId) {
     expiryProcessingTreeIds.delete(subscribedTreeId);
   }
@@ -110,16 +158,29 @@ interface TreeState {
   error: string | null;
   notice: string | null;
   syncFamilyData: (userId: string | null) => void;
+  ensureTreeAuxiliaryData: (treeId: string | null) => void;
   selectTree: (treeId: string | null) => void;
   createTree: (owner: Pick<UserProfile, 'id' | 'email' | 'displayName'>, name: string) => Promise<FamilyTree>;
   createTreeFromSurname: (owner: Pick<UserProfile, 'id' | 'email' | 'displayName'>, sourceTreeId: string, surname: string) => Promise<FamilyTree>;
   renameTree: (treeId: string, name: string) => Promise<void>;
+  setTreeDiscoverability: (treeId: string, discoverable: boolean) => Promise<void>;
   setApprovalWindowHours: (treeId: string, hours: number) => Promise<void>;
+  setTreeKinshipSystem: (treeId: string, kinshipSystem: KinshipSystem) => Promise<void>;
   setSurnameVariantGroups: (treeId: string, groups: SurnameVariantGroup[]) => Promise<void>;
-  addCollaborator: (treeId: string, email: string, role: CollaboratorRole) => Promise<void>;
-  removeCollaborator: (treeId: string, collaboratorUserId: string) => Promise<void>;
+  addCollaborator: (actorUserId: string, treeId: string, email: string, role: CollaboratorRole) => Promise<void>;
+  removeCollaborator: (actorUserId: string, treeId: string, collaboratorUserId: string) => Promise<void>;
   removeTree: (tree: FamilyTree) => Promise<void>;
   createPerson: (ownerId: string, treeId: string, input: PersonInput, newPhotos: NewPersonPhotoInput[]) => Promise<PersonRecord>;
+  createPersonWithRelationships: (
+    ownerId: string,
+    treeId: string,
+    input: PersonInput,
+    newPhotos: NewPersonPhotoInput[],
+    pendingRelationships: PendingRelationshipSubmission[],
+    options?: {
+      forceImmediateApproval?: boolean;
+    },
+  ) => Promise<PersonRecord | null>;
   updatePerson: (ownerId: string, person: PersonRecord, input: PersonMutationPayload) => Promise<void>;
   removePerson: (actorUserId: string, person: PersonRecord) => Promise<void>;
   addParentChildRelationship: (ownerId: string, treeId: string, parentId: string, childId: string, parentChildKind?: ParentChildRelationshipKind) => Promise<void>;
@@ -131,6 +192,12 @@ interface TreeState {
   createMergeRequest: (actorUserId: string, sourceTreeId: string, targetTreeId: string) => Promise<void>;
   sendMergeInvite: (actorUserId: string, sourceTreeId: string, identifier: string) => Promise<void>;
   respondToMergeInvite: (actorUserId: string, notificationId: string, status: 'accepted' | 'dismissed') => Promise<void>;
+  requestTreeAccess: (actorUserId: string, treeId: string) => Promise<void>;
+  requestTreeAccessByIdentifier: (actorUserId: string, identifier: string) => Promise<void>;
+  cancelTreeAccessRequest: (actorUserId: string, notificationId: string) => Promise<void>;
+  respondToTreeAccessRequest: (actorUserId: string, notificationId: string, status: 'accepted' | 'rejected') => Promise<void>;
+  searchDiscoverableTrees: (searchTerm: string, actorUserId: string) => Promise<DiscoverableTreeSummary[]>;
+  searchDiscoverableTreesByUsername: (username: string, actorUserId: string) => Promise<DiscoverableTreeSummary[]>;
   markNotificationSeen: (actorUserId: string, notificationId: string) => Promise<void>;
   markNotificationOpened: (actorUserId: string, notificationId: string) => Promise<void>;
   markNotificationActivityActioned: (actorUserId: string, sourceKind: NotificationActivityState['sourceKind'], sourceId: string) => Promise<void>;
@@ -148,7 +215,76 @@ interface TreeState {
   reset: () => void;
 }
 
-export const useTreeStore = create<TreeState>((set, get) => {
+type PersistedTreeState = Pick<
+  TreeState,
+  'currentUserId' | 'trees' | 'selectedTreeId'
+>;
+
+export const useTreeStore = create<TreeState>()(persist((set, get) => {
+  const subscribeToTreeAuxiliaryData = (treeId: string | null) => {
+    if (!treeId || subscribedTreeId !== treeId || subscribedTreeAuxiliaryId === treeId) {
+      return;
+    }
+
+    unsubscribeApprovalRequests?.();
+    unsubscribeMergeRequests?.();
+    unsubscribeMergeHistory?.();
+    unsubscribeApprovalRequests = null;
+    unsubscribeMergeRequests = null;
+    unsubscribeMergeHistory = null;
+    subscribedTreeAuxiliaryId = treeId;
+
+    unsubscribeApprovalRequests = subscribeToApprovalRequests(
+      treeId,
+      (approvalRequests) => {
+        if (!haveSameRecordVersions(get().approvalRequests, approvalRequests)) {
+          set({ approvalRequests });
+        }
+        const currentUserId = get().currentUserId;
+        const currentTree = get().trees.find((tree) => tree.id === treeId) ?? null;
+        const canProcessExpirations = Boolean(
+          currentUserId
+          && currentTree
+          && Array.isArray(currentTree.editorIds)
+          && currentTree.editorIds.includes(currentUserId),
+        );
+        const hasExpiredPendingRequests = approvalRequests.some(
+          (request) => request.status === 'pending' && request.expiresAtMillis <= Date.now(),
+        );
+
+        if (currentUserId && canProcessExpirations && hasExpiredPendingRequests && !expiryProcessingTreeIds.has(treeId)) {
+          expiryProcessingTreeIds.add(treeId);
+          processExpiredApprovalRequests(currentUserId, treeId)
+            .catch((error) => set({ error: normaliseError(error) }))
+            .finally(() => {
+              expiryProcessingTreeIds.delete(treeId);
+            });
+        }
+      },
+      (error) => set({ error: normaliseError(error) }),
+    );
+
+    unsubscribeMergeRequests = subscribeToMergeRequests(
+      treeId,
+      (mergeRequests) => {
+        if (!haveSameRecordVersions(get().mergeRequests, mergeRequests)) {
+          set({ mergeRequests });
+        }
+      },
+      (error) => set({ error: normaliseError(error) }),
+    );
+
+    unsubscribeMergeHistory = subscribeToMergeHistory(
+      treeId,
+      (mergeHistory) => {
+        if (!haveSameRecordVersions(get().mergeHistory, mergeHistory)) {
+          set({ mergeHistory });
+        }
+      },
+      (error) => set({ error: normaliseError(error) }),
+    );
+  };
+
   const subscribeToTreeData = (treeId: string | null) => {
     if (treeId && subscribedTreeId === treeId && get().trees.some((tree) => tree.id === treeId)) {
       set({ selectedTreeId: treeId, loadingTreeData: false });
@@ -177,7 +313,9 @@ export const useTreeStore = create<TreeState>((set, get) => {
       treeId,
       (people) => {
         hasLoadedPeople = true;
-        set({ people });
+        if (!haveSameRecordVersions(get().people, people)) {
+          set({ people });
+        }
         updateInitialLoadState();
       },
       (error) => set({ error: normaliseError(error), loadingTreeData: false }),
@@ -187,51 +325,14 @@ export const useTreeStore = create<TreeState>((set, get) => {
       treeId,
       (relationships) => {
         hasLoadedRelationships = true;
-        set({ relationships });
+        if (!haveSameRecordVersions(get().relationships, relationships, getRelationshipVersion)) {
+          set({ relationships });
+        }
         updateInitialLoadState();
       },
       (error) => set({ error: normaliseError(error), loadingTreeData: false }),
     );
 
-    unsubscribeApprovalRequests = subscribeToApprovalRequests(
-      treeId,
-      (approvalRequests) => {
-        set({ approvalRequests });
-        const currentUserId = get().currentUserId;
-        const currentTree = get().trees.find((tree) => tree.id === treeId) ?? null;
-        const canProcessExpirations = Boolean(
-          currentUserId
-          && currentTree
-          && Array.isArray(currentTree.editorIds)
-          && currentTree.editorIds.includes(currentUserId),
-        );
-        const hasExpiredPendingRequests = approvalRequests.some(
-          (request) => request.status === 'pending' && request.expiresAtMillis <= Date.now(),
-        );
-
-        if (currentUserId && canProcessExpirations && hasExpiredPendingRequests && !expiryProcessingTreeIds.has(treeId)) {
-          expiryProcessingTreeIds.add(treeId);
-          processExpiredApprovalRequests(currentUserId, treeId)
-            .catch((error) => set({ error: normaliseError(error) }))
-            .finally(() => {
-              expiryProcessingTreeIds.delete(treeId);
-            });
-        }
-      },
-      (error) => set({ error: normaliseError(error) }),
-    );
-
-    unsubscribeMergeRequests = subscribeToMergeRequests(
-      treeId,
-      (mergeRequests) => set({ mergeRequests }),
-      (error) => set({ error: normaliseError(error) }),
-    );
-
-    unsubscribeMergeHistory = subscribeToMergeHistory(
-      treeId,
-      (mergeHistory) => set({ mergeHistory }),
-      (error) => set({ error: normaliseError(error) }),
-    );
   };
 
   return {
@@ -277,35 +378,97 @@ export const useTreeStore = create<TreeState>((set, get) => {
         return;
       }
 
-      set({ currentUserId: userId, loadingTrees: true, loadingTreeData: false, error: null, notice: null });
+      const state = get();
+      const hasCachedTrees = state.currentUserId === userId && state.trees.length > 0;
+      const hasCachedTreeSelection = hasCachedTrees
+        && Boolean(state.selectedTreeId)
+        && state.people.length > 0;
+
+      if (state.currentUserId !== userId) {
+        set({
+          currentUserId: userId,
+          trees: [],
+          selectedTreeId: null,
+          people: [],
+          relationships: [],
+          approvalRequests: [],
+          mergeRequests: [],
+          mergeHistory: [],
+          mergePreview: null,
+          loadingTrees: true,
+          loadingTreeData: false,
+          error: null,
+          notice: null,
+        });
+      } else {
+        set({
+          currentUserId: userId,
+          loadingTrees: !hasCachedTrees,
+          loadingTreeData: false,
+          error: null,
+          notice: null,
+        });
+      }
 
       unsubscribeTrees = subscribeToTrees(
         userId,
         (trees) => {
-          const previousSelectedTreeId = get().selectedTreeId;
+          const currentState = get();
+          const previousSelectedTreeId = currentState.selectedTreeId;
           const nextSelectedTreeId = trees.some((tree) => tree.id === previousSelectedTreeId)
             ? previousSelectedTreeId
             : trees[0]?.id ?? null;
 
-          set({ trees, selectedTreeId: nextSelectedTreeId, loadingTrees: false });
+          const nextState: Partial<TreeState> = {
+            selectedTreeId: nextSelectedTreeId,
+            loadingTrees: false,
+          };
 
-          if (nextSelectedTreeId !== previousSelectedTreeId) {
+          if (!haveSameRecordVersions(currentState.trees, trees)) {
+            nextState.trees = trees;
+          }
+
+          if (
+            currentState.loadingTrees
+            || currentState.selectedTreeId !== nextSelectedTreeId
+            || nextState.trees
+          ) {
+            set(nextState);
+          }
+
+          if (nextSelectedTreeId !== previousSelectedTreeId || (nextSelectedTreeId && subscribedTreeId !== nextSelectedTreeId)) {
             subscribeToTreeData(nextSelectedTreeId);
           }
         },
         (error) => set({ error: normaliseError(error), loadingTrees: false }),
       );
 
+      if (hasCachedTreeSelection && state.selectedTreeId) {
+        set({ loadingTreeData: false });
+      }
+
       unsubscribeNotifications = subscribeToNotifications(
         userId,
-        (notifications) => set({ notifications }),
+        (notifications) => {
+          if (!haveSameRecordVersions(get().notifications, notifications)) {
+            set({ notifications });
+          }
+        },
         (error) => set({ error: normaliseError(error) }),
       );
       unsubscribeNotificationActivity = subscribeToNotificationActivityStates(
         userId,
-        (notificationActivityStates) => set({ notificationActivityStates }),
+        (notificationActivityStates) => {
+          if (!haveSameRecordVersions(get().notificationActivityStates, notificationActivityStates)) {
+            set({ notificationActivityStates });
+          }
+        },
         (error) => set({ error: normaliseError(error) }),
       );
+    },
+
+    ensureTreeAuxiliaryData: (treeId) => {
+      subscribeToTreeAuxiliaryData(treeId);
     },
 
     selectTree: (treeId) => {
@@ -357,11 +520,33 @@ export const useTreeStore = create<TreeState>((set, get) => {
       }
     },
 
+    setTreeDiscoverability: async (treeId, discoverable) => {
+      set({ mutating: true, error: null });
+      try {
+        await updateTreeDiscoverability(treeId, discoverable);
+        set({ mutating: false, notice: discoverable ? 'Tree discoverability turned on.' : 'Tree discoverability turned off.' });
+      } catch (error) {
+        set({ mutating: false, error: normaliseError(error) });
+        throw error;
+      }
+    },
+
     setApprovalWindowHours: async (treeId, hours) => {
       set({ mutating: true, error: null });
       try {
         await updateTreeApprovalWindow(treeId, hours);
         set({ mutating: false, notice: 'Approval window updated.' });
+      } catch (error) {
+        set({ mutating: false, error: normaliseError(error) });
+        throw error;
+      }
+    },
+
+    setTreeKinshipSystem: async (treeId, kinshipSystem) => {
+      set({ mutating: true, error: null });
+      try {
+        await updateTreeKinshipSystem(treeId, kinshipSystem);
+        set({ mutating: false, notice: 'Kinship terms updated.' });
       } catch (error) {
         set({ mutating: false, error: normaliseError(error) });
         throw error;
@@ -379,10 +564,10 @@ export const useTreeStore = create<TreeState>((set, get) => {
       }
     },
 
-    addCollaborator: async (treeId, email, role) => {
+    addCollaborator: async (actorUserId, treeId, email, role) => {
       set({ mutating: true, error: null });
       try {
-        await addCollaboratorToTree(treeId, email, role);
+        await addCollaboratorToTree(actorUserId, treeId, email, role);
         set({ mutating: false });
       } catch (error) {
         set({ mutating: false, error: normaliseError(error) });
@@ -390,10 +575,10 @@ export const useTreeStore = create<TreeState>((set, get) => {
       }
     },
 
-    removeCollaborator: async (treeId, collaboratorUserId) => {
+    removeCollaborator: async (actorUserId, treeId, collaboratorUserId) => {
       set({ mutating: true, error: null });
       try {
-        await removeCollaboratorFromTree(treeId, collaboratorUserId);
+        await removeCollaboratorFromTree(actorUserId, treeId, collaboratorUserId);
         set({ mutating: false });
       } catch (error) {
         set({ mutating: false, error: normaliseError(error) });
@@ -422,6 +607,18 @@ export const useTreeStore = create<TreeState>((set, get) => {
         const person = await createPerson(ownerId, treeId, input, newPhotos);
         set({ mutating: false });
         return person;
+      } catch (error) {
+        set({ mutating: false, error: normaliseError(error) });
+        throw error;
+      }
+    },
+
+    createPersonWithRelationships: async (ownerId, treeId, input, newPhotos, pendingRelationships, options) => {
+      set({ mutating: true, error: null });
+      try {
+        const result = await createPersonWithRelationships(ownerId, treeId, input, newPhotos, pendingRelationships, options);
+        set({ mutating: false, notice: result.message });
+        return result.person ?? null;
       } catch (error) {
         set({ mutating: false, error: normaliseError(error) });
         throw error;
@@ -538,6 +735,39 @@ export const useTreeStore = create<TreeState>((set, get) => {
       }
     },
 
+    requestTreeAccess: async (actorUserId, treeId) => {
+      set({ mutating: true, error: null });
+      try {
+        await requestAccessToTree(actorUserId, treeId);
+        set({ mutating: false, notice: 'Access request sent.' });
+      } catch (error) {
+        set({ mutating: false, error: normaliseError(error) });
+        throw error;
+      }
+    },
+
+    requestTreeAccessByIdentifier: async (actorUserId, identifier) => {
+      set({ mutating: true, error: null });
+      try {
+        await requestAccessFromIdentifier(actorUserId, identifier);
+        set({ mutating: false, notice: 'Access request sent.' });
+      } catch (error) {
+        set({ mutating: false, error: normaliseError(error) });
+        throw error;
+      }
+    },
+
+    cancelTreeAccessRequest: async (actorUserId, notificationId) => {
+      set({ mutating: true, error: null });
+      try {
+        await cancelTreeAccessRequest(actorUserId, notificationId);
+        set({ mutating: false, notice: 'Access request cancelled.' });
+      } catch (error) {
+        set({ mutating: false, error: normaliseError(error) });
+        throw error;
+      }
+    },
+
     respondToMergeInvite: async (actorUserId, notificationId, status) => {
       set({ mutating: true, error: null });
       try {
@@ -545,6 +775,37 @@ export const useTreeStore = create<TreeState>((set, get) => {
         set({ mutating: false, notice: status === 'accepted' ? 'Merge invitation accepted.' : 'Merge invitation dismissed.' });
       } catch (error) {
         set({ mutating: false, error: normaliseError(error) });
+        throw error;
+      }
+    },
+
+    respondToTreeAccessRequest: async (actorUserId, notificationId, status) => {
+      set({ mutating: true, error: null });
+      try {
+        await respondToTreeAccessRequest(actorUserId, notificationId, status);
+        set({ mutating: false, notice: status === 'accepted' ? 'Access request approved.' : 'Access request declined.' });
+      } catch (error) {
+        set({ mutating: false, error: normaliseError(error) });
+        throw error;
+      }
+    },
+
+    searchDiscoverableTrees: async (searchTerm, actorUserId) => {
+      set({ error: null });
+      try {
+        return await searchDiscoverableTrees(searchTerm, actorUserId);
+      } catch (error) {
+        set({ error: normaliseError(error) });
+        throw error;
+      }
+    },
+
+    searchDiscoverableTreesByUsername: async (username, actorUserId) => {
+      set({ error: null });
+      try {
+        return await searchDiscoverableTreesByOwnerUsername(username, actorUserId);
+      } catch (error) {
+        set({ error: normaliseError(error) });
         throw error;
       }
     },
@@ -700,4 +961,13 @@ export const useTreeStore = create<TreeState>((set, get) => {
       });
     },
   };
-});
+}, {
+  name: TREE_STORE_STORAGE_KEY,
+  version: TREE_STORE_CACHE_VERSION,
+  storage: createJSONStorage(() => AsyncStorage),
+  partialize: (state): PersistedTreeState => ({
+    currentUserId: state.currentUserId,
+    trees: state.trees,
+    selectedTreeId: state.selectedTreeId,
+  }),
+}));

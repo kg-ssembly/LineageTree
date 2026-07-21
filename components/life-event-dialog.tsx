@@ -29,26 +29,26 @@ function formatIsoDate(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
-function getDefaultTitle(type: PersonLifeEventType) {
+function getDefaultTitleKey(type: PersonLifeEventType) {
   switch (type) {
     case 'married':
-      return 'Marriage';
+      return K.memories.lifeEventMarriageTitle;
     case 'divorced':
-      return 'Divorce';
+      return K.memories.lifeEventDivorceTitle;
     case 'moved':
-      return 'Moved home';
+      return K.memories.lifeEventMovedHomeTitle;
     case 'graduated':
-      return 'Graduation';
+      return K.memories.lifeEventGraduationTitle;
     case 'retired':
-      return 'Retirement';
+      return K.memories.lifeEventRetirementTitle;
     case 'milestone':
-      return 'Family milestone';
+      return K.memories.lifeEventFamilyMilestoneTitle;
     case 'death':
-      return 'Passed away';
+      return K.memories.lifeEventPassedAwayTitle;
     case 'child-born':
-      return 'Welcomed a child';
+      return K.memories.lifeEventWelcomedChildTitle;
     default:
-      return 'Life event';
+      return K.memories.lifeEventDefaultTitle;
   }
 }
 
@@ -65,9 +65,9 @@ export default function LifeEventDialog({
   onSubmit,
 }: LifeEventDialogProps) {
   const theme = useTheme();
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const [type, setType] = useState<PersonLifeEventType>('married');
-  const [title, setTitle] = useState('Marriage');
+  const [title, setTitle] = useState('');
   const [date, setDate] = useState('');
   const [description, setDescription] = useState('');
   const [titleError, setTitleError] = useState<string | null>(null);
@@ -81,19 +81,19 @@ export default function LifeEventDialog({
 
     const nextType = event?.type ?? 'married';
     setType(nextType);
-    setTitle(event?.title ?? getDefaultTitle(nextType));
+    setTitle(event?.title ?? t(getDefaultTitleKey(nextType)));
     setDate(event?.date ?? '');
     setDescription(event?.description ?? '');
     setTitleError(null);
     setDateError(null);
     setDatePickerVisible(false);
-  }, [event, visible]);
+  }, [event, t, visible]);
 
   const selectedDate = useMemo(() => parsePersonDate(date) ?? undefined, [date]);
 
   const handleTypeChange = (nextType: PersonLifeEventType) => {
     setType(nextType);
-    setTitle((current) => (!current || current === getDefaultTitle(type) ? getDefaultTitle(nextType) : current));
+    setTitle((current) => (!current || current === t(getDefaultTitleKey(type)) ? t(getDefaultTitleKey(nextType)) : current));
   };
 
   const handleSubmit = async () => {
@@ -124,12 +124,12 @@ export default function LifeEventDialog({
           onDismiss={loading ? undefined : onDismiss}
           style={[dialogChrome.dialog, styles.dialog, { backgroundColor: theme.colors.surface }]}
         >
-          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{event ? t('Edit life event') : t('Add life event')}</Dialog.Title>
+          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{event ? t(K.memories.editLifeEvent) : t(K.memories.addLifeEvent)}</Dialog.Title>
           <IconButton icon="close" onPress={onDismiss} disabled={loading} accessibilityLabel={t(K.common.cancel)} style={dialogChrome.closeButton} />
           <Dialog.ScrollArea style={[dialogChrome.scrollArea, styles.scrollArea]}>
             <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
               <Text variant="bodyMedium" style={styles.helperText}>
-                {t('Capture milestones like marriage, divorce, moves, or other memorable family moments.')}
+                {t(K.memories.captureMilestones)}
               </Text>
 
               <View style={styles.typeWrap}>
@@ -148,7 +148,7 @@ export default function LifeEventDialog({
 
               <TextInput
                 mode="outlined"
-                label={t('Event title')}
+                label={t(K.memories.eventTitle)}
                 value={title}
                 onChangeText={(value) => {
                   setTitle(value);
@@ -165,7 +165,7 @@ export default function LifeEventDialog({
               </HelperText>
 
               <View style={styles.fieldSpacing}>
-                <Text variant="titleSmall">{t('Event date')}</Text>
+                <Text variant="titleSmall">{t(K.memories.eventDate)}</Text>
                 <View style={styles.dateActions}>
                   <Button mode="outlined" icon="calendar" onPress={() => setDatePickerVisible(true)} disabled={loading}>
                   {t(formatDateButtonLabel(date))}
@@ -183,7 +183,7 @@ export default function LifeEventDialog({
 
               <TextInput
                 mode="outlined"
-                label={t('Details')}
+                label={t(K.memories.eventDetails)}
                 value={description}
                 onChangeText={setDescription}
                 style={styles.fieldSpacing}
@@ -210,7 +210,7 @@ export default function LifeEventDialog({
       </Portal>
 
       <DatePickerModal
-        locale="en"
+        locale={language}
         mode="single"
         visible={datePickerVisible}
         date={selectedDate}
@@ -225,7 +225,7 @@ export default function LifeEventDialog({
           }
         }}
         saveLabel={t(K.common.save)}
-        label={t('Select event date')}
+        label={t(K.common.selectEventDate)}
       />
     </>
   );

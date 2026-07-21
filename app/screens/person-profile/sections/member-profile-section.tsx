@@ -1,104 +1,47 @@
 import React from 'react';
-import { View } from 'react-native';
-import { Button, Chip, IconButton, Surface, Text, useTheme } from 'react-native-paper';
 import type { PersonPhoto, PersonRecord } from '../../../../components/dto/person';
-import { formatPersonDate, getPersonPresenceLabel, getPersonTreeMembershipIds, isPersonDeceased } from '../../../../components/dto/person';
-import { formatPersonGender } from '../../../../components/person-formatting';
-import { GlobalStyles } from '../../../../constants/styles';
-import { useI18n } from '../../../../hooks/use-i18n';
-import { I18N_KEYS as K } from '../../../../i18n/keys';
-
-const styles = GlobalStyles.personProfile;
+import type { RelationshipRecord } from '../../../../components/dto/relationship';
+import { ProfileOverviewCard } from '../../profile-shared/profile-overview-card';
 
 export function MemberProfileSection({
   person,
   preferredPhoto,
+  relationships,
   canEdit,
   linkedCollaboratorLabel,
   isCurrentUsersPerson,
   onOpenHelperDialog,
   onEdit,
+  onOpenPhotos,
+  onOpenNotes,
+  onAddRelationship,
 }: {
   person: PersonRecord;
   preferredPhoto: PersonPhoto | null | undefined;
+  relationships: RelationshipRecord[];
   canEdit: boolean;
   linkedCollaboratorLabel: string | null;
   isCurrentUsersPerson: boolean;
   onOpenHelperDialog: () => void;
   onEdit: () => void;
+  onOpenPhotos: () => void;
+  onOpenNotes: () => void;
+  onAddRelationship: () => void;
 }) {
-  const theme = useTheme();
-  const { t } = useI18n();
-
   return (
-    <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
-      <View style={styles.sectionHeader}>
-        <View style={styles.sectionHeaderText}>
-          <View style={styles.titleWithHelperRow}>
-            <Text variant="titleLarge">{t(K.personProfile.memberProfile)}</Text>
-            <IconButton
-              icon="information-outline"
-              size={20}
-              style={styles.helperIconButton}
-              onPress={onOpenHelperDialog}
-              accessibilityLabel={t(K.personProfile.aboutMemberProfile)}
-            />
-          </View>
-        </View>
-        {canEdit ? (
-          <Button mode="contained-tonal" icon="pencil" onPress={onEdit}>
-            {t(K.personProfile.editFamilyMember)}
-          </Button>
-        ) : null}
-      </View>
-
-      <View style={styles.metadataRow}>
-        {person.gender !== 'unspecified' ? <Chip compact>{formatPersonGender(person.gender)}</Chip> : null}
-        <Chip compact icon={isPersonDeceased(person) ? 'flower-outline' : 'heart-pulse'}>{getPersonPresenceLabel(person)}</Chip>
-        <Chip compact icon="image-multiple">{t(K.memories.photoGalleryCount, { count: person.photos.length })}</Chip>
-        <Chip compact icon="source-branch">{t(K.personProfile.treeMemberships)}: {getPersonTreeMembershipIds(person).length}</Chip>
-        {preferredPhoto ? <Chip compact icon="star">{t(K.personProfile.preferredPhotoSelected)}</Chip> : null}
-        {linkedCollaboratorLabel && !isCurrentUsersPerson ? <Chip compact icon="link-variant">{t(K.common.linked)}</Chip> : null}
-        {person.canonicalPersonId?.trim() ? <Chip compact icon="merge">{t(K.personProfile.mergedCanonicalProfile)}</Chip> : null}
-      </View>
-
-      <View style={styles.detailGrid}>
-        <View style={[styles.detailCard, { backgroundColor: theme.colors.elevation.level1 }]}>
-          <Text variant="labelMedium" style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>{t(K.personProfile.firstName)}</Text>
-          <Text variant="titleMedium">{person.firstName || t(K.common.unknown)}</Text>
-        </View>
-        {person.middleNames?.trim() ? (
-          <View style={[styles.detailCard, { backgroundColor: theme.colors.elevation.level1 }]}>
-            <Text variant="labelMedium" style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>{t(K.personProfile.secondMiddleNames)}</Text>
-            <Text variant="titleMedium">{person.middleNames.trim()}</Text>
-          </View>
-        ) : null}
-        <View style={[styles.detailCard, { backgroundColor: theme.colors.elevation.level1 }]}>
-          <Text variant="labelMedium" style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>{t(K.personForm.lastName)}</Text>
-          <Text variant="titleMedium">{person.lastName || t(K.common.unknown)}</Text>
-        </View>
-        {person.maidenName?.trim() ? (
-          <View style={[styles.detailCard, { backgroundColor: theme.colors.elevation.level1 }]}>
-            <Text variant="labelMedium" style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>{t(K.personForm.maidenName)}</Text>
-            <Text variant="titleMedium">{person.maidenName.trim()}</Text>
-          </View>
-        ) : null}
-        <View style={[styles.detailCard, { backgroundColor: theme.colors.elevation.level1 }]}>
-          <Text variant="labelMedium" style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>{t(K.personForm.birthDate)}</Text>
-          <Text variant="titleMedium">{person.birthDate ? formatPersonDate(person.birthDate) : t(K.common.unknown)}</Text>
-        </View>
-        <View style={[styles.detailCard, { backgroundColor: theme.colors.elevation.level1 }]}>
-          <Text variant="labelMedium" style={[styles.detailLabel, { color: theme.colors.onSurfaceVariant }]}>{t(K.personProfile.treeMemberships)}</Text>
-          <Text variant="titleMedium">{getPersonTreeMembershipIds(person).join(', ') || t(K.personProfile.currentTreeOnly)}</Text>
-        </View>
-      </View>
-
-      <View style={[styles.notesBox, { backgroundColor: theme.colors.surfaceVariant }]}>
-        <Text variant="titleSmall">{t(K.memories.notes)}</Text>
-        <Text variant="bodyMedium" style={[styles.notesText, { color: theme.colors.onSurfaceVariant }]}>
-          {person.notes || t(K.memories.noNotesAddedYet)}
-        </Text>
-      </View>
-    </Surface>
+    <ProfileOverviewCard
+      person={person}
+      preferredPhoto={preferredPhoto}
+      relationships={relationships}
+      canEdit={canEdit}
+      linkedCollaboratorLabel={linkedCollaboratorLabel}
+      isCurrentUsersPerson={isCurrentUsersPerson}
+      onOpenHelperDialog={onOpenHelperDialog}
+      onEdit={onEdit}
+      onOpenPhotos={onOpenPhotos}
+      onOpenNotes={onOpenNotes}
+      onAddRelationship={onAddRelationship}
+      delay={90}
+    />
   );
 }

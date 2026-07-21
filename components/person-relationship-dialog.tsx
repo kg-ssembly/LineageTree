@@ -4,7 +4,7 @@ import { Button, Chip, Dialog, HelperText, IconButton, Portal, SegmentedButtons,
 import { getPersonLifeSpanLabel, type PersonRecord } from './dto/person';
 import type { ParentChildRelationshipKind, RelationshipRecord, SpouseRelationshipStatus } from './dto/relationship';
 import { DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND, DEFAULT_SPOUSE_RELATIONSHIP_STATUS } from './dto/relationship';
-import { getRelationshipValidationFeedback, validateProposedRelationship } from './family-tree-validation';
+import { getRelationshipValidationFeedback, getRelationshipValidationResolution } from './family-tree-validation';
 import { useI18n } from '../hooks/use-i18n';
 import { translate } from '../i18n';
 import { I18N_KEYS as K } from '../i18n/keys';
@@ -12,7 +12,7 @@ import { GlobalStyles } from '../constants/styles';
 
 const styles = GlobalStyles.personRelationshipDialog;
 const dialogChrome = GlobalStyles.dialogChrome;
-const MAX_VISIBLE_RESULTS = 3;
+const ITEMS_PER_PAGE = 5;
 
 export type PersonRelationshipMode = 'parent-of' | 'child-of' | 'spouse-of';
 
@@ -40,7 +40,7 @@ function formatPersonName(person?: PersonRecord | null) {
 
 function formatPersonMeta(person: PersonRecord) {
   const lifespan = getPersonLifeSpanLabel(person);
-  return lifespan === 'Unknown lifespan' ? translate('No dates recorded yet') : lifespan;
+  return lifespan === translate(K.personProfile.unknownLifespan) ? translate(K.relationshipInsight.noDatesRecordedYet) : lifespan;
 }
 
 function getDraftFromRelationship(personId: string, relationship?: RelationshipRecord | null) {
@@ -95,6 +95,9 @@ export default function PersonRelationshipDialog({
   const [relationshipStatus, setRelationshipStatus] = useState<SpouseRelationshipStatus>(DEFAULT_SPOUSE_RELATIONSHIP_STATUS);
   const [parentChildKind, setParentChildKind] = useState<ParentChildRelationshipKind>(DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND);
   const [error, setError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [blockingValidationMessage, setBlockingValidationMessage] = useState<string | null>(null);
+  const [reviewWarnings, setReviewWarnings] = useState<string[]>([]);
 
   useEffect(() => {
     if (!visible || !person) return;
@@ -105,6 +108,7 @@ export default function PersonRelationshipDialog({
     setParentChildKind(draft.parentChildKind);
     setSearchQuery('');
     setError(null);
+    setCurrentPage(0);
   }, [editingRelationship, person, visible]);
 
   // Gender-aware mode button labels
@@ -131,37 +135,45 @@ export default function PersonRelationshipDialog({
         .filter((r) => r.type === 'parent-child' && r.toPersonId === person?.id)
         .map((r) => r.fromPersonId),
     );
+    const spouseIds = new Set(
+      relationships
+        .filter((r) => r.type === 'spouse' && (r.fromPersonId === person?.id || r.toPersonId === person?.id))
+        .map((r) => r.fromPersonId === person?.id ? r.toPersonId : r.fromPersonId),
+    );
+
     return people.filter((candidate) => {
       if (candidate.id === person?.id) return false;
       if (mode === 'parent-of') return !childIds.has(candidate.id);
       if (mode === 'child-of') return !parentIds.has(candidate.id);
+      if (mode === 'spouse-of') return !spouseIds.has(candidate.id);
       return true;
     });
   }, [people, person?.id, relationships, mode]);
 
   const selectedPerson = useMemo(
-    () => (relatedPersonId ? candidates.find((c) => c.id === relatedPersonId) ?? null : null),
-    [candidates, relatedPersonId],
+   () => (relatedPersonId ? candidates.find((c) => c.id === relatedPersonId) ?? null : null),
+   [candidates, relatedPersonId],
   );
 
-  const filteredCandidates = useMemo(
-    () => candidates
-      .filter((c) => formatPersonName(c).toLowerCase().includes(searchQuery.trim().toLowerCase()))
-      .slice(0, MAX_VISIBLE_RESULTS),
-    [candidates, searchQuery],
+  const allFilteredCandidates = useMemo(
+   () => candidates.filter((c) => formatPersonName(c).toLowerCase().includes(searchQuery.trim().toLowerCase())),
+   [candidates, searchQuery],
   );
 
-  const totalCandidateMatches = useMemo(
-    () => candidates.filter((c) => formatPersonName(c).toLowerCase().includes(searchQuery.trim().toLowerCase())).length,
-    [candidates, searchQuery],
-  );
+  const totalCandidateMatches = allFilteredCandidates.length;
 
-  const validationMessage = useMemo(() => {
+  const filteredCandidates = useMemo(() => {
+   const start = currentPage * ITEMS_PER_PAGE;
+   const end = start + ITEMS_PER_PAGE;
+   return allFilteredCandidates.slice(start, end);
+  }, [allFilteredCandidates, currentPage]);
+
+  const validationResolution = useMemo(() => {
     if (!person || !relatedPersonId) {
-      return null;
+      return { blockingErrors: [], softWarnings: [] };
     }
 
-    return validateProposedRelationship({
+    return getRelationshipValidationResolution({
       people,
       relationships,
       type: mode === 'spouse-of' ? 'spouse' : 'parent-child',
@@ -172,6 +184,8 @@ export default function PersonRelationshipDialog({
       ignoreRelationshipId: editingRelationship?.id,
     });
   }, [editingRelationship?.id, mode, parentChildKind, people, person, relatedPersonId, relationshipStatus, relationships]);
+  const validationMessage = validationResolution.blockingErrors[0] ?? null;
+
   const validationWarnings = useMemo(() => {
     if (!person || !relatedPersonId) {
       return [];
@@ -190,9 +204,16 @@ export default function PersonRelationshipDialog({
   }, [editingRelationship?.id, mode, parentChildKind, people, person, relatedPersonId, relationshipStatus, relationships]);
 
   const handleSubmit = async () => {
-    if (!person) { setError(t('This family member could not be loaded.')); return; }
+    if (!person) { setError(t(K.relationship.familyMemberCouldNotBeLoaded)); return; }
     if (!relatedPersonId) { setError(t(K.relationship.chooseRelatedFamilyMemberFirst)); return; }
-    if (validationMessage) { setError(validationMessage); return; }
+    if (validationResolution.blockingErrors.length > 0) {
+      setBlockingValidationMessage(validationResolution.blockingErrors[0] ?? null);
+      return;
+    }
+    if (validationResolution.softWarnings.length > 0) {
+      setReviewWarnings(validationResolution.softWarnings);
+      return;
+    }
     await onSubmit({
       mode,
       relatedPersonId,
@@ -205,6 +226,7 @@ export default function PersonRelationshipDialog({
     setRelatedPersonId('');
     setSearchQuery('');
     setError(null);
+    setCurrentPage(0);
   };
 
   return (
@@ -214,7 +236,7 @@ export default function PersonRelationshipDialog({
         onDismiss={loading ? undefined : onDismiss}
         style={[dialogChrome.dialog, styles.dialog, { backgroundColor: theme.colors.surface }]}
       >
-        <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{editingRelationship ? t('Edit relationship') : t(K.relationship.addRelationship)}</Dialog.Title>
+        <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{editingRelationship ? t(K.relationship.editRelationship) : t(K.relationship.addRelationship)}</Dialog.Title>
         <IconButton icon="close" onPress={onDismiss} disabled={loading} accessibilityLabel={t(K.common.cancel)} style={dialogChrome.closeButton} />
         <Dialog.ScrollArea style={[dialogChrome.scrollArea, styles.scrollArea]}>
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
@@ -229,6 +251,7 @@ export default function PersonRelationshipDialog({
                 setRelatedPersonId('');
                 setSearchQuery('');
                 setError(null);
+                setCurrentPage(0);
               }}
               buttons={modeButtons}
               style={styles.segmentedButtons}
@@ -239,11 +262,11 @@ export default function PersonRelationshipDialog({
                 <Text variant="titleSmall">{t(K.relationship.relationshipStatus)}</Text>
                 <View style={styles.choiceWrap}>
                   {[
-                    { value: 'partner', label: 'Partner' },
-                    { value: 'married', label: 'Married' },
-                    { value: 'separated', label: 'Separated' },
-                    { value: 'divorced', label: 'Divorced' },
-                    { value: 'widowed', label: 'Widowed' },
+                    { value: 'partner', label: K.relationship.partnerLabel },
+                    { value: 'married', label: K.relationship.marriedLabel },
+                    { value: 'separated', label: K.relationship.separatedLabel },
+                    { value: 'divorced', label: K.relationship.divorcedLabel },
+                    { value: 'widowed', label: K.relationship.widowedLabel },
                   ].map((option) => (
                     <Chip
                       key={option.value}
@@ -262,12 +285,12 @@ export default function PersonRelationshipDialog({
                 <Text variant="titleSmall">{t(K.relationship.childRelationship)}</Text>
                 <View style={styles.choiceWrap}>
                   {[
-                    { value: 'biological', label: 'Biological' },
-                    { value: 'non-biological', label: 'Non-biological' },
-                    { value: 'step', label: 'Step' },
-                    { value: 'adopted', label: 'Adopted' },
-                    { value: 'foster', label: 'Foster' },
-                    { value: 'guardian', label: 'Guardian' },
+                    { value: 'biological', label: K.relationship.biologicalLabel },
+                    { value: 'non-biological', label: K.relationship.nonBiologicalLabel },
+                    { value: 'step', label: K.relationship.stepLabel },
+                    { value: 'adopted', label: K.relationship.adoptedLabel },
+                    { value: 'foster', label: K.relationship.fosterLabel },
+                    { value: 'guardian', label: K.relationship.guardianLabel },
                   ].map((option) => (
                     <Chip
                       key={option.value}
@@ -312,20 +335,24 @@ export default function PersonRelationshipDialog({
                     left={<TextInput.Icon icon="magnify" />}
                   />
                   {filteredCandidates.length > 0 ? (
-                    <View style={styles.resultsList}>
+                    <View style={[styles.resultsList, { borderColor: theme.colors.outlineVariant }]}>
                       {filteredCandidates.map((candidate, index) => (
                         <Pressable
                           key={candidate.id}
                           onPress={() => {
                             setRelatedPersonId(candidate.id);
-                          setSearchQuery('');
-                          setError(null);
+                            setSearchQuery('');
+                            setError(null);
                           }}
                           disabled={loading}
                           style={[
                             styles.resultRow,
-                            relatedPersonId === candidate.id ? styles.resultRowSelected : null,
-                            index > 0 ? styles.resultRowDivider : null,
+                            {
+                              backgroundColor: relatedPersonId === candidate.id
+                                ? theme.colors.primaryContainer
+                                : theme.colors.surface,
+                            },
+                            index > 0 ? [styles.resultRowDivider, { borderTopColor: theme.colors.outlineVariant }] : null,
                           ]}
                         >
                           <Text variant="titleSmall" style={styles.resultRowTitle}>{formatPersonName(candidate)}</Text>
@@ -334,14 +361,33 @@ export default function PersonRelationshipDialog({
                       ))}
                     </View>
                   ) : (
-                    <View style={styles.emptyState}>
+                    <View style={[styles.emptyState, { backgroundColor: theme.colors.elevation.level1 }]}>
                       <Text variant="bodyMedium">{t(K.relationship.noMatchingForRelationshipType)}</Text>
                     </View>
                   )}
-                  {totalCandidateMatches > MAX_VISIBLE_RESULTS ? (
-                    <Text variant="bodySmall" style={styles.resultsFooterText}>
-                      {t(K.relationship.showThreeMatchesAddSearch)}
-                    </Text>
+                  {totalCandidateMatches > ITEMS_PER_PAGE ? (
+                    <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 8, marginTop: 12 }}>
+                      <Button
+                        mode="outlined"
+                        onPress={() => setCurrentPage((prev) => Math.max(0, prev - 1))}
+                        disabled={currentPage === 0 || loading}
+                      >
+                        {t(K.common.previous)}
+                      </Button>
+                      <Text style={{ alignSelf: 'center', paddingHorizontal: 8 }} variant="bodySmall">
+                        {t(K.tree.familyMembers.pageOf, {
+                          current: currentPage + 1,
+                          total: Math.ceil(totalCandidateMatches / ITEMS_PER_PAGE),
+                        })}
+                      </Text>
+                      <Button
+                        mode="outlined"
+                        onPress={() => setCurrentPage((prev) => prev + 1)}
+                        disabled={currentPage >= Math.ceil(totalCandidateMatches / ITEMS_PER_PAGE) - 1 || loading}
+                      >
+                        {t(K.common.next)}
+                      </Button>
+                    </View>
                   ) : null}
                 </>
               )}
@@ -363,9 +409,71 @@ export default function PersonRelationshipDialog({
           ) : (
             <View />
           )}
-          <Button mode="contained" onPress={handleSubmit} disabled={loading || !person || candidates.length === 0 || !!validationMessage}>{t(K.common.save)}</Button>
+          <Button mode="contained" onPress={handleSubmit} disabled={loading || !person || candidates.length === 0}>{t(K.common.save)}</Button>
         </Dialog.Actions>
       </Dialog>
+      <Portal>
+        <Dialog
+          visible={!!blockingValidationMessage}
+          onDismiss={() => setBlockingValidationMessage(null)}
+          style={[dialogChrome.dialog, styles.dialog, { backgroundColor: theme.colors.surface }]}
+        >
+          <Dialog.Title style={dialogChrome.dialogTitle}>
+            {editingRelationship ? t(K.relationship.editRelationship) : t(K.relationship.addRelationship)}
+          </Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodyMedium" style={styles.helperText}>
+              {blockingValidationMessage ?? ''}
+            </Text>
+          </Dialog.Content>
+          <Dialog.Actions style={dialogChrome.dialogActions}>
+            <Button mode="contained" onPress={() => setBlockingValidationMessage(null)} disabled={loading}>
+              {t(K.common.close)}
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
+      <Portal>
+        <Dialog
+          visible={reviewWarnings.length > 0}
+          onDismiss={() => setReviewWarnings([])}
+          style={[dialogChrome.dialog, styles.dialog, { backgroundColor: theme.colors.surface }]}
+        >
+          <Dialog.Title style={dialogChrome.dialogTitle}>
+            {t(K.personForm.relationshipNeedsReviewTitle)}
+          </Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodyMedium" style={styles.helperText}>
+              {t(K.personForm.relationshipValidationCheck)}
+            </Text>
+            <Text variant="bodyMedium" style={[styles.helperText, { marginTop: 12 }]}>
+              {reviewWarnings.length === 1
+                ? reviewWarnings[0]
+                : reviewWarnings.map((warning, index) => `${index + 1}. ${warning}`).join('\n')}
+            </Text>
+          </Dialog.Content>
+          <Dialog.Actions style={dialogChrome.dialogActions}>
+            <Button onPress={() => setReviewWarnings([])} disabled={loading}>
+              {t(K.common.cancel)}
+            </Button>
+            <Button
+              mode="contained"
+              onPress={async () => {
+                setReviewWarnings([]);
+                await onSubmit({
+                  mode,
+                  relatedPersonId,
+                  relationshipStatus: mode === 'spouse-of' ? relationshipStatus : undefined,
+                  parentChildKind: mode === 'spouse-of' ? undefined : parentChildKind,
+                });
+              }}
+              disabled={loading}
+            >
+              {t(K.startup.continue)}
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
     </Portal>
   );
 }

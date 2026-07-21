@@ -4,13 +4,14 @@ import type { RelationshipRecord } from './relationship';
 export type ApprovalRequestStatus = 'pending' | 'approved' | 'rejected' | 'applied';
 export type ApprovalDecisionMode = 'manual' | 'auto' | 'immediate';
 export type ApprovalEntityType = 'person' | 'relationship';
-export type ApprovalOperation = 'update-person' | 'delete-person' | 'create-relationship' | 'update-relationship' | 'delete-relationship';
+export type ApprovalOperation = 'create-person' | 'update-person' | 'delete-person' | 'create-relationship' | 'update-relationship' | 'delete-relationship';
 
 export interface ApprovalRequestPayload {
   beforePerson?: PersonRecord | null;
   afterPerson?: PersonRecord | null;
   deletedPerson?: PersonRecord | null;
   relationship?: RelationshipRecord | null;
+  relationships?: RelationshipRecord[];
   removedPhotos?: PersonPhoto[];
   uploadedPhotos?: PersonPhoto[];
   cleanupPhotos?: PersonPhoto[];

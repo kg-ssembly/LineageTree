@@ -1,8 +1,8 @@
 import React from 'react';
 import { View } from 'react-native';
-import { Button, Card, Chip, IconButton, Text, TextInput, useTheme } from 'react-native-paper';
+import { Button, Chip, IconButton, Text, TextInput, useTheme } from 'react-native-paper';
+import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, GlobalStyles, Reveal, SectionCard } from '../../../../components';
 import { formatPersonName } from '../../../../components/person-formatting';
-import { GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
 import { buildSelfAssignmentSuggestions } from '../shared';
@@ -16,19 +16,22 @@ export function CollaboratorsSection({
   people,
   assignedPersonByUserId,
   assignedUserIdByPersonId,
-  role,
+  canManageCollaborators,
   isOwner,
   userId,
   mutating,
   ownerLinkTargetUserId,
   ownerLinkSearchQuery,
   filteredOwnerLinkPeople,
+  ownerLinkPage,
+  ownerLinkTotalPages,
   onOpenHelperDialog,
   onOpenCollaboratorDialog,
   openConfirm,
   onRemoveCollaborator,
   onAssignPersonToUser,
   setOwnerLinkSearchQuery,
+  setOwnerLinkPage,
   toggleOwnerLinkChooser,
   clearOwnerLinkChooser,
 }: CollaboratorsSectionProps) {
@@ -57,24 +60,24 @@ export function CollaboratorsSection({
             />
           </View>
         </View>
-        {isOwner ? (
-          <Button mode="contained" icon="account-plus" onPress={onOpenCollaboratorDialog} disabled={mutating}>
+        {canManageCollaborators ? (
+          <Button mode="contained" icon="account-plus" onPress={onOpenCollaboratorDialog} disabled={mutating} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>
             {t(K.treeSettings.addCollaborator)}
           </Button>
         ) : null}
       </View>
 
       <View style={styles.collaboratorList}>
-        {selectedTree.collaborators.map((collaborator) => {
+        {selectedTree.collaborators.map((collaborator, collaboratorIndex) => {
           const linkedPerson = assignedPersonByUserId.get(collaborator.userId) ?? null;
           const collaboratorSuggestions = !linkedPerson
             ? buildSelfAssignmentSuggestions(collaborator, people, assignedUserIdByPersonId, collaborator.userId).slice(0, 2)
             : [];
           const isOwnerSuggestionTarget = ownerLinkTargetUserId === collaborator.userId;
 
-          return (
-            <Card key={collaborator.userId} mode="elevated" style={[styles.collaboratorCard, { backgroundColor: theme.colors.surface }]}>
-              <Card.Content>
+            return (
+              <Reveal key={collaborator.userId} delay={90 + collaboratorIndex * 25}>
+              <SectionCard nested style={[styles.collaboratorCard, { backgroundColor: theme.colors.surface, paddingVertical: 14, paddingHorizontal: 14 }]}>
                 <View style={styles.collaboratorRow}>
                   <View style={styles.collaboratorTextWrap}>
                     <Text variant="titleMedium">{collaborator.displayName || collaborator.email}</Text>
@@ -85,7 +88,7 @@ export function CollaboratorsSection({
                       {linkedPerson ? <Chip compact icon="link-variant">{formatPersonName(linkedPerson)}</Chip> : null}
                     </View>
                   </View>
-                  {isOwner && collaborator.role !== 'owner' ? (
+                  {canManageCollaborators && collaborator.role !== 'owner' ? (
                     <IconButton
                       icon="account-remove"
                       iconColor="#C62828"
@@ -109,9 +112,9 @@ export function CollaboratorsSection({
 
                     {collaboratorSuggestions.length > 0 ? (
                       <View style={styles.assignmentSuggestionList}>
-                        {collaboratorSuggestions.map((suggestion) => (
-                          <Card key={`owner-suggestion-${collaborator.userId}-${suggestion.person.id}`} mode="elevated" style={[styles.assignmentSuggestionCard, { backgroundColor: theme.colors.surface }]}>
-                            <Card.Content>
+                        {collaboratorSuggestions.map((suggestion, suggestionIndex) => (
+                          <Reveal key={`owner-suggestion-${collaborator.userId}-${suggestion.person.id}`} delay={120 + suggestionIndex * 20}>
+                            <SectionCard nested style={[styles.assignmentSuggestionCard, { backgroundColor: theme.colors.surface }]}>
                               <View style={styles.assignmentSuggestionRow}>
                                 <View style={styles.assignmentSuggestionTextWrap}>
                                   <View style={styles.collaboratorChipRow}>
@@ -123,18 +126,18 @@ export function CollaboratorsSection({
                                   <Text variant="titleMedium" style={styles.selfAssignmentTitle}>{formatPersonName(suggestion.person)}</Text>
                                   <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>{suggestion.reason}</Text>
                                 </View>
-                                <Button mode="contained-tonal" onPress={() => handleOwnerLinkSuggestion(collaborator.userId, suggestion.person.id)} disabled={mutating}>
-                                  {t(K.treeSettings.link)}
+                                <Button mode="contained" onPress={() => handleOwnerLinkSuggestion(collaborator.userId, suggestion.person.id)} disabled={mutating} style={BUTTON_CHROME} buttonColor={theme.colors.primary} textColor={theme.colors.onPrimary} contentStyle={BUTTON_CONTENT_CHROME}>
+                                  {t(K.treeSettings.suggest)}
                                 </Button>
                               </View>
-                            </Card.Content>
-                          </Card>
+                            </SectionCard>
+                          </Reveal>
                         ))}
                       </View>
                     ) : null}
 
                     <View style={{ flexDirection: 'row', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
-                      <Button mode="outlined" icon={isOwnerSuggestionTarget ? 'chevron-up' : 'account-search'} onPress={() => toggleOwnerLinkChooser(collaborator.userId)}>
+                      <Button mode="outlined" icon={isOwnerSuggestionTarget ? 'chevron-up' : 'account-search'} onPress={() => toggleOwnerLinkChooser(collaborator.userId)} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>
                         {isOwnerSuggestionTarget ? t(K.treeSettings.hideChooser) : t(K.treeSettings.browseFamilyMembers)}
                       </Button>
                     </View>
@@ -152,9 +155,9 @@ export function CollaboratorsSection({
 
                         {filteredOwnerLinkPeople.length > 0 ? (
                           <View style={styles.assignmentSuggestionList}>
-                            {filteredOwnerLinkPeople.map((person) => (
-                              <Card key={`owner-link-${collaborator.userId}-${person.id}`} mode="elevated" style={[styles.assignmentSuggestionCard, { backgroundColor: theme.colors.surface }]}>
-                                <Card.Content>
+                            {filteredOwnerLinkPeople.map((person, personIndex) => (
+                              <Reveal key={`owner-link-${collaborator.userId}-${person.id}`} delay={140 + personIndex * 15}>
+                                <SectionCard nested style={[styles.assignmentSuggestionCard, { backgroundColor: theme.colors.surface }]}>
                                   <View style={styles.assignmentSuggestionRow}>
                                     <View style={styles.assignmentSuggestionTextWrap}>
                                       <Text variant="titleMedium">{formatPersonName(person)}</Text>
@@ -164,13 +167,40 @@ export function CollaboratorsSection({
                                         </Text>
                                       ) : null}
                                     </View>
-                                    <Button mode="contained" onPress={() => handleOwnerLinkSuggestion(collaborator.userId, person.id)} disabled={mutating}>
-                                      {t(K.treeSettings.link)}
+                                    <Button mode="contained" onPress={() => handleOwnerLinkSuggestion(collaborator.userId, person.id)} disabled={mutating} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>
+                                      {t(K.treeSettings.suggest)}
                                     </Button>
                                   </View>
-                                </Card.Content>
-                              </Card>
+                                </SectionCard>
+                              </Reveal>
                             ))}
+                            {ownerLinkTotalPages > 1 ? (
+                              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
+                                <IconButton
+                                  icon="chevron-left"
+                                  onPress={() => setOwnerLinkPage((page) => Math.max(1, page - 1))}
+                                  disabled={ownerLinkPage === 1}
+                                  accessibilityLabel={t(K.tree.familyMembers.previousPage)}
+                                  mode="outlined"
+                                  style={BUTTON_CHROME}
+                                  containerColor={theme.colors.surface}
+                                  iconColor={theme.colors.primary}
+                                />
+                                <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                                  {t(K.tree.familyMembers.pageOf, { current: ownerLinkPage, total: ownerLinkTotalPages })}
+                                </Text>
+                                <IconButton
+                                  icon="chevron-right"
+                                  onPress={() => setOwnerLinkPage((page) => Math.min(ownerLinkTotalPages, page + 1))}
+                                  disabled={ownerLinkPage === ownerLinkTotalPages}
+                                  accessibilityLabel={t(K.tree.familyMembers.nextPage)}
+                                  mode="outlined"
+                                  style={BUTTON_CHROME}
+                                  containerColor={theme.colors.surface}
+                                  iconColor={theme.colors.primary}
+                                />
+                              </View>
+                            ) : null}
                           </View>
                         ) : (
                           <Text variant="bodySmall" style={[styles.assignmentHelperText, { color: theme.colors.onSurfaceVariant }]}>
@@ -181,8 +211,8 @@ export function CollaboratorsSection({
                     ) : null}
                   </View>
                 ) : null}
-              </Card.Content>
-            </Card>
+              </SectionCard>
+            </Reveal>
           );
         })}
       </View>

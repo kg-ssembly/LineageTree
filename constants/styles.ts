@@ -1,41 +1,71 @@
 import {StyleSheet} from 'react-native';
+import type { AppTheme } from './theme';
 
-// ── Soft neutral palette constants (mirrors theme.ts softPalettes) ───────────
+// ── Shared chrome palette constants (mirrors theme.ts light palette) ─────────
 const F = {
-  background:       '#FAFBFD',
+  background:       '#FAF7F2',
   surface:          '#FFFFFF',
-  surfaceVariant:   '#EEF2F7',
-  outlineVariant:   '#D5DEE8',
-  onSurface:        '#10151D',
-  onSurfaceVariant: '#4E5A6A',
-  onSurfaceDeep:    '#313743',
-  primaryGreen:     '#2FA36B',
-  canvasBg:         '#F8FBFE',
-  canvasBorder:     '#D7E1EB',
+  surfaceVariant:   '#F1E8DE',
+  outlineVariant:   '#DDD0C3',
+  onSurface:        '#211A16',
+  onSurfaceVariant: '#6B5B4C',
+  onSurfaceDeep:    '#3F332B',
+  primaryGreen:     '#166B51',
+  canvasBg:         '#F7F0E8',
+  canvasBorder:     '#DCCFC2',
   nodeBg:           '#FFFFFF',
-  nodeBorder:       '#D5DEE8',
-  avatarBg:         '#EAF1F8',
-  avatarBorder:     '#D6E0EA',
-  hintBg:           '#F1F6FB',
-  pendingBg:        '#F7FAFD',
-  pendingBorder:    '#D7E1EB',
-  photoPreferred:   '#2FA36B',
-  photoBg:          '#EAF1F8',
+  nodeBorder:       '#DDD0C3',
+  avatarBg:         '#F2E7DA',
+  avatarBorder:     '#E5D7C8',
+  hintBg:           '#F6EFE6',
+  pendingBg:        '#FBF7F1',
+  pendingBorder:    '#DDD0C3',
+  photoPreferred:   '#166B51',
+  photoBg:          '#F1E5D7',
 };
 
 const CARD_CHROME = {
-    shadowColor: '#161A22',
-    shadowOpacity: 0.08,
-    shadowRadius: 18,
-    shadowOffset: {width: 0, height: 8},
-    elevation: 3,
+    shadowColor: '#2A1C14',
+    shadowOpacity: 0.12,
+    shadowRadius: 26,
+    shadowOffset: {width: 0, height: 12},
+    elevation: 5,
 } as const;
+
+export const BUTTON_CHROME = {
+    borderRadius: 999,
+} as const;
+
+export const BUTTON_CONTENT_CHROME = {
+    height: 40,
+    paddingHorizontal: 10,
+} as const;
+
+export function getThemeChrome(theme: AppTheme) {
+    return {
+        avatarBackground: theme.dark ? '#2C241F' : F.avatarBg,
+        avatarBorder: theme.dark ? theme.colors.outlineVariant : F.avatarBorder,
+        canvasBorder: theme.colors.outlineVariant,
+        hintBackground: theme.dark ? theme.colors.elevation.level2 : F.hintBg,
+        noteText: theme.dark ? theme.colors.onSurface : F.onSurfaceDeep,
+        panelBackground: theme.dark ? theme.colors.elevation.level2 : theme.colors.surface,
+        pillBackground: theme.dark ? theme.colors.elevation.level2 : theme.colors.surfaceVariant,
+        primaryCardBackground: theme.colors.surface,
+        secondaryCardBackground: theme.colors.elevation.level1,
+        sectionBorder: theme.colors.outlineVariant,
+        subtitle: theme.colors.onSurfaceVariant,
+    } as const;
+}
 
 export class GlobalStyles {
     static readonly dialogChrome = StyleSheet.create({
         dialog: {
             marginHorizontal: 12,
             borderRadius: 20,
+        },
+        helperDialog: {
+            marginHorizontal: 12,
+            borderRadius: 16,
         },
         dialogTitle: {
             paddingBottom: 4,
@@ -136,7 +166,7 @@ export class GlobalStyles {
             flexGrow: 1,
         },
         headerButtonContent: {
-            height: 52,
+            height: 40,
         },
         sectionCard: {
             ...CARD_CHROME,
@@ -209,25 +239,25 @@ export class GlobalStyles {
             gap: 2,
         },
         tabBar: {
-            height: 78,
-            paddingTop: 10,
-            paddingBottom: 12,
+            height: 72,
+            paddingTop: 8,
+            paddingBottom: 0,
             borderTopWidth: 1,
             elevation: 0,
             shadowOpacity: 0,
         },
         tabLabel: {
-            fontSize: 12,
+            fontSize: 11,
             fontWeight: '700',
             textTransform: 'none',
         },
         tabItem: {
-            minHeight: 56,
+            minHeight: 52,
         },
         // Profile tab
         profileHeroCard: {
             ...CARD_CHROME,
-            borderRadius: 20,
+            borderRadius: 28,
             padding: 24,
             marginBottom: 18,
         },
@@ -273,20 +303,20 @@ export class GlobalStyles {
             backgroundColor: F.background,
         },
         tabBar: {
-            height: 78,
-            paddingTop: 10,
-            paddingBottom: 12,
+            height: 72,
+            paddingTop: 8,
+            paddingBottom: 0,
             borderTopWidth: 1,
             elevation: 0,
             shadowOpacity: 0,
         },
         tabLabel: {
-            fontSize: 12,
+            fontSize: 11,
             fontWeight: '700',
             textTransform: 'none',
         },
         tabItem: {
-            minHeight: 56,
+            minHeight: 52,
         },
         content: {
             padding: 20,
@@ -350,6 +380,7 @@ export class GlobalStyles {
             flexWrap: 'wrap',
             gap: 8,
             marginTop: 16,
+            marginBottom: 20,
         },
         collaboratorList: {
             marginTop: 16,
@@ -402,8 +433,10 @@ export class GlobalStyles {
             flex: 1,
             alignItems: 'center',
             justifyContent: 'center',
-            borderRadius: 20,
+            borderRadius: 28,
             paddingHorizontal: 24,
+            borderWidth: StyleSheet.hairlineWidth,
+            borderColor: F.outlineVariant,
         },
         filterInput: {
             marginTop: 16,
@@ -434,8 +467,8 @@ export class GlobalStyles {
         },
         resultsPill: {
             alignSelf: 'flex-start',
-            paddingHorizontal: 12,
-            paddingVertical: 6,
+            paddingHorizontal: 14,
+            paddingVertical: 8,
             borderRadius: 999,
             marginBottom: 10,
         },
@@ -456,11 +489,11 @@ export class GlobalStyles {
             borderColor: F.outlineVariant,
         },
         selfAssignmentSectionWrap: {
-            marginTop: 20,
+            marginTop: 4,
         },
         selfAssignmentCard: {
             ...CARD_CHROME,
-            marginTop: 16,
+            marginTop: 0,
             borderRadius: 20,
         },
         selfAssignmentHeader: {
@@ -557,9 +590,10 @@ export class GlobalStyles {
             alignItems: 'center',
             paddingVertical: 14,
             paddingHorizontal: 14,
-            borderRadius: 18,
+            borderRadius: 22,
             borderWidth: StyleSheet.hairlineWidth,
             borderColor: F.outlineVariant,
+            backgroundColor: F.surface,
         },
         memberListInfo: {
             flex: 1,
@@ -644,6 +678,72 @@ export class GlobalStyles {
         quickActionSubtitle: {
             marginBottom: 8,
         },
+        dashboardMetricRow: {
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            gap: 12,
+            alignItems: 'stretch',
+        },
+        dashboardMetricCard: {
+            flex: 1,
+            minWidth: 96,
+            borderRadius: 22,
+            paddingVertical: 14,
+            paddingHorizontal: 14,
+        },
+        dashboardAccentCard: {
+            marginTop: 18,
+            borderRadius: 18,
+            padding: 18,
+            borderWidth: StyleSheet.hairlineWidth,
+        },
+        dashboardInlineAction: {
+            alignSelf: 'flex-start',
+            marginTop: 14,
+        },
+        dashboardTaskCard: {
+            borderRadius: 22,
+            paddingVertical: 14,
+            paddingHorizontal: 14,
+            marginBottom: 12,
+        },
+        dashboardActionRow: {
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            gap: 10,
+            marginTop: 14,
+        },
+        highlightGrid: {
+            marginTop: 16,
+            gap: 12,
+        },
+        highlightColumn: {
+            borderRadius: 18,
+            padding: 16,
+            borderWidth: StyleSheet.hairlineWidth,
+            borderColor: F.outlineVariant,
+        },
+        highlightColumnHeader: {
+            marginBottom: 12,
+        },
+        highlightStoryCard: {
+            borderWidth: StyleSheet.hairlineWidth,
+            borderRadius: 14,
+            padding: 13,
+            marginBottom: 8,
+            backgroundColor: F.surface,
+        },
+        highlightAction: {
+            alignSelf: 'flex-start',
+            marginTop: 4,
+            marginLeft: -8,
+        },
+        highlightAside: {
+            borderWidth: StyleSheet.hairlineWidth,
+            borderRadius: 14,
+            padding: 13,
+            marginTop: 8,
+        },
     });
 
     static readonly personProfile = StyleSheet.create({
@@ -707,7 +807,7 @@ export class GlobalStyles {
         },
         heroCard: {
             ...CARD_CHROME,
-            borderRadius: 20,
+            borderRadius: 28,
             padding: 22,
             marginBottom: 16,
             position: 'relative',
@@ -921,6 +1021,56 @@ export class GlobalStyles {
             borderRadius: 20,
             backgroundColor: F.hintBg,
         },
+        biographyLead: {
+            marginTop: 14,
+            lineHeight: 24,
+            color: F.onSurfaceDeep,
+        },
+        biographyBlock: {
+            marginTop: 16,
+            padding: 18,
+            borderRadius: 20,
+            borderWidth: StyleSheet.hairlineWidth,
+            borderColor: F.outlineVariant,
+        },
+        biographyFactRow: {
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            gap: 8,
+            marginTop: 12,
+        },
+        biographyFactCard: {
+            borderRadius: 18,
+            padding: 14,
+            minWidth: 140,
+            flexGrow: 1,
+            flexBasis: 140,
+            borderWidth: StyleSheet.hairlineWidth,
+            borderColor: F.outlineVariant,
+        },
+        suggestionList: {
+            marginTop: 12,
+            gap: 10,
+        },
+        suggestionCard: {
+            borderRadius: 18,
+            padding: 14,
+            borderWidth: StyleSheet.hairlineWidth,
+            borderColor: F.outlineVariant,
+        },
+        suggestionChip: {
+            alignSelf: 'flex-start',
+        },
+        suggestionBody: {
+            marginTop: 10,
+            lineHeight: 20,
+        },
+        inlineActionRow: {
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            gap: 10,
+            marginTop: 14,
+        },
         notesText: {
             marginTop: 8,
             color: F.onSurfaceDeep,
@@ -1004,11 +1154,8 @@ export class GlobalStyles {
             marginRight: 0,
         },
         photoCardPreferred: {
-            shadowColor: F.photoPreferred,
-            shadowOpacity: 0.18,
-            shadowRadius: 14,
-            shadowOffset: {width: 0, height: 6},
-            elevation: 4,
+            borderColor: F.photoPreferred,
+            borderWidth: 1.5,
         },
         photo: {
             width: '100%',
@@ -1016,11 +1163,16 @@ export class GlobalStyles {
             backgroundColor: F.avatarBg,
         },
         photoMeta: {
-            padding: 12,
-            gap: 8,
+            paddingHorizontal: 10,
+            paddingTop: 10,
+            paddingBottom: 8,
+            gap: 6,
         },
         photoMetaField: {
             marginTop: 4,
+        },
+        photoDeleteButton: {
+            marginLeft: -6,
         },
         photoActionRow: {
             flexDirection: 'row',
@@ -1031,6 +1183,51 @@ export class GlobalStyles {
         },
         lifeEventsSection: {
             marginTop: 12,
+        },
+        timelineList: {
+            marginTop: 12,
+            paddingLeft: 8,
+        },
+        timelineRow: {
+            flexDirection: 'row',
+            alignItems: 'stretch',
+            gap: 12,
+            marginBottom: 14,
+        },
+        timelineRail: {
+            width: 24,
+            alignItems: 'center',
+        },
+        timelineDot: {
+            width: 14,
+            height: 14,
+            borderRadius: 7,
+            marginTop: 8,
+        },
+        timelineLine: {
+            width: 2,
+            flex: 1,
+            marginTop: 6,
+            borderRadius: 999,
+        },
+        timelineStoryCard: {
+            flex: 1,
+            borderRadius: 22,
+            padding: 16,
+            borderWidth: StyleSheet.hairlineWidth,
+            borderColor: F.outlineVariant,
+        },
+        timelinePhoto: {
+            width: '100%',
+            height: 160,
+            borderRadius: 16,
+            marginBottom: 12,
+            backgroundColor: F.photoBg,
+        },
+        timelineAction: {
+            alignSelf: 'flex-start',
+            marginTop: 8,
+            marginLeft: -8,
         },
         timelineChipRow: {
             flexDirection: 'row',
@@ -1049,6 +1246,14 @@ export class GlobalStyles {
             top: 44,
             right: 16,
             zIndex: 2,
+            backgroundColor: 'rgba(255, 255, 255, 0.12)',
+        },
+        viewerEditButton: {
+            position: 'absolute',
+            top: 44,
+            left: 16,
+            zIndex: 2,
+            margin: 0,
             backgroundColor: 'rgba(255, 255, 255, 0.12)',
         },
         viewerNavButton: {
@@ -1072,6 +1277,28 @@ export class GlobalStyles {
             paddingVertical: 8,
             borderRadius: 999,
             backgroundColor: 'rgba(255, 255, 255, 0.14)',
+        },
+        viewerInfoCard: {
+            position: 'absolute',
+            left: 16,
+            right: 16,
+            bottom: 16,
+            zIndex: 2,
+            paddingHorizontal: 14,
+            paddingVertical: 10,
+            borderRadius: 18,
+            backgroundColor: 'rgba(255, 255, 255, 0.10)',
+            borderWidth: StyleSheet.hairlineWidth,
+            borderColor: 'rgba(255, 255, 255, 0.18)',
+        },
+        viewerInfoLabel: {
+            color: '#FFFFFF',
+            opacity: 0.82,
+        },
+        viewerInfoValue: {
+            marginTop: 2,
+            marginBottom: 4,
+            color: '#FFFFFF',
         },
         viewerSlide: {
             height: '100%',
@@ -1189,6 +1416,16 @@ export class GlobalStyles {
         helperCopy: {
             marginTop: 8,
             color: F.onSurfaceVariant,
+        },
+        reviewCard: {
+            marginTop: 16,
+            borderRadius: 18,
+            borderWidth: 1,
+            padding: 12,
+            gap: 6,
+        },
+        reviewMessage: {
+            marginTop: 2,
         },
         choiceWrap: {
             flexDirection: 'row',
@@ -1461,6 +1698,9 @@ export class GlobalStyles {
         sectionSpacing: {
             marginTop: 16,
         },
+        stepMeta: {
+            marginBottom: 8,
+        },
         birthDateActions: {
             flexDirection: 'row',
             flexWrap: 'wrap',
@@ -1493,6 +1733,91 @@ export class GlobalStyles {
             borderWidth: 1,
             borderColor: F.pendingBorder,
             backgroundColor: F.pendingBg,
+        },
+        pendingRelationshipsSection: {
+            marginTop: 16,
+            padding: 12,
+            paddingBottom: 20,
+            borderRadius: 20,
+            borderWidth: 1,
+        },
+        pendingRelationshipList: {
+            marginTop: 12,
+            gap: 0,
+        },
+        relationshipSuggestionsList: {
+            marginTop: 12,
+            gap: 12,
+        },
+        relationshipSuggestionCard: {
+            borderRadius: 20,
+            borderWidth: 1,
+            paddingHorizontal: 12,
+            paddingVertical: 4,
+        },
+        relationshipPreviewPanel: {
+            marginTop: 12,
+            padding: 14,
+            borderRadius: 20,
+            borderWidth: 1,
+            gap: 12,
+        },
+        relationshipAnchorBanner: {
+            marginTop: 12,
+            padding: 12,
+            borderRadius: 18,
+            borderWidth: 1,
+            gap: 4,
+        },
+        relationshipPreviewTree: {
+            alignItems: 'center',
+            gap: 10,
+        },
+        relationshipPreviewActionRow: {
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            gap: 8,
+            justifyContent: 'center',
+        },
+        relationshipPreviewAction: {
+            alignSelf: 'center',
+        },
+        relationshipPreviewLabels: {
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            justifyContent: 'center',
+            gap: 8,
+        },
+        relationshipPreviewButtonRow: {
+            marginTop: 16,
+            flexDirection: 'row',
+            justifyContent: 'flex-start',
+        },
+        reviewPanel: {
+            marginBottom: 16,
+            padding: 12,
+            borderRadius: 18,
+            borderWidth: 1,
+            gap: 6,
+        },
+        reviewPanelMessage: {
+            marginTop: 2,
+        },
+        pendingRelationshipItem: {
+            paddingHorizontal: 0,
+        },
+        relationshipSectionHelper: {
+            marginTop: 6,
+        },
+        pendingRelationshipToggleRow: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 12,
+            marginTop: 8,
+        },
+        addConnectionButton: {
+            alignSelf: 'flex-start',
+            marginTop: 8,
         },
         relationshipChipRow: {
             paddingTop: 12,
@@ -1761,14 +2086,14 @@ export class GlobalStyles {
         },
         card: {
             ...CARD_CHROME,
-            borderRadius: 20,
+            borderRadius: 28,
             padding: 24,
         },
         title: {marginBottom: 4, fontWeight: '700'},
         subtitle: {marginBottom: 20},
         input: {marginTop: 6},
-        button: {marginTop: 24, borderRadius: 999},
-        buttonContent: {height: 52},
+        button: {marginTop: 24, ...BUTTON_CHROME},
+        buttonContent: BUTTON_CONTENT_CHROME,
         linkButton: {marginTop: 12, alignSelf: 'center'},
     });
 
@@ -1788,14 +2113,14 @@ export class GlobalStyles {
         },
         card: {
             ...CARD_CHROME,
-            borderRadius: 20,
+            borderRadius: 28,
             padding: 24,
         },
         title: {marginBottom: 4, fontWeight: '700'},
         subtitle: {marginBottom: 20},
         input: {marginTop: 6},
-        button: {marginTop: 24, borderRadius: 999},
-        buttonContent: {height: 52},
+        button: {marginTop: 24, ...BUTTON_CHROME},
+        buttonContent: BUTTON_CONTENT_CHROME,
         linkButton: {marginTop: 12, alignSelf: 'center'},
     });
 }

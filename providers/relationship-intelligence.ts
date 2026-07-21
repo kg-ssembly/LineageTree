@@ -1,5 +1,7 @@
 import type { PersonGender, PersonRecord } from '../components/dto/person';
+import type { KinshipSystem } from '../components/dto/tree';
 import type { RelationshipRecord } from '../components/dto/relationship';
+import { formatKinshipDescriptor, getRelativeSeniority, type KinshipDescriptor, type KinshipSide } from './kinship-formatting';
 
 type ConnectionRelation = 'parent' | 'child' | 'spouse';
 
@@ -12,6 +14,7 @@ type FamilyIndex = {
 
 export interface RelationshipInsight {
   relationship: string;
+  descriptor: KinshipDescriptor;
   pathPersonIds: string[];
   pathRelations: ConnectionRelation[];
 }
@@ -22,18 +25,6 @@ function ensureSet(map: Map<string, Set<string>>, key: string) {
   }
 
   return map.get(key)!;
-}
-
-function genderedLabel(gender: PersonGender, male: string, female: string, neutral: string) {
-  if (gender === 'male') {
-    return male;
-  }
-
-  if (gender === 'female') {
-    return female;
-  }
-
-  return neutral;
 }
 
 function buildFamilyIndex(people: PersonRecord[], relationships: RelationshipRecord[]): FamilyIndex {
@@ -186,11 +177,36 @@ function findConnectionPath(index: FamilyIndex, fromPersonId: string, toPersonId
   return null;
 }
 
-function cousinOrdinal(degree: number) {
-  if (degree === 1) return '1st';
-  if (degree === 2) return '2nd';
-  if (degree === 3) return '3rd';
-  return `${degree}th`;
+function getParentSiblingContext(
+  index: FamilyIndex,
+  fromPersonId: string,
+  toPersonId: string,
+) {
+  const parents = getParents(index, fromPersonId)
+    .map((parentId) => index.personById.get(parentId))
+    .filter((person): person is PersonRecord => Boolean(person));
+
+  for (const parent of parents) {
+    if (shareAnyParent(index, parent.id, toPersonId)) {
+      const side: KinshipSide = parent.gender === 'female'
+        ? 'maternal'
+        : parent.gender === 'male'
+          ? 'paternal'
+          : 'unknown';
+
+      return {
+        side,
+        seniority: getRelativeSeniority(parent, index.personById.get(toPersonId)),
+        viaParentGender: parent.gender,
+      };
+    }
+  }
+
+  return {
+    side: 'unknown' as const,
+    seniority: 'unknown' as const,
+    viaParentGender: 'unspecified' as PersonGender,
+  };
 }
 
 export function computeRelationshipInsight(
@@ -198,6 +214,9 @@ export function computeRelationshipInsight(
   relationships: RelationshipRecord[],
   fromPersonId: string,
   toPersonId: string,
+  options?: {
+    kinshipSystem?: KinshipSystem;
+  },
 ): RelationshipInsight | null {
   const index = buildFamilyIndex(people, relationships);
   const fromPerson = index.personById.get(fromPersonId);
@@ -212,36 +231,40 @@ export function computeRelationshipInsight(
     return null;
   }
 
+  const formatRelationship = (descriptor: KinshipDescriptor) => formatKinshipDescriptor(descriptor, options);
+
   // ── Self ─────────────────────────────────────────────────────────────────
   if (fromPersonId === toPersonId) {
-    return { relationship: 'Self', ...path };
+    const descriptor: KinshipDescriptor = { kind: 'self' };
+    return { relationship: formatRelationship(descriptor), descriptor, ...path };
   }
 
   // ── Spouse ───────────────────────────────────────────────────────────────
   if (getSpouses(index, fromPersonId).includes(toPersonId)) {
-    return { relationship: genderedLabel(toPerson.gender, 'Husband', 'Wife', 'Spouse'), ...path };
+    const descriptor: KinshipDescriptor = { kind: 'spouse', targetGender: toPerson.gender };
+    return { relationship: formatRelationship(descriptor), descriptor, ...path };
   }
 
   // ── Direct line: descendant of fromPerson ────────────────────────────────
   const ancestorDistance = findAncestorDistance(index, fromPersonId, toPersonId);
   if (ancestorDistance) {
-    const label = ancestorDistance === 1
-      ? genderedLabel(toPerson.gender, 'Son', 'Daughter', 'Child')
-      : ancestorDistance === 2
-        ? genderedLabel(toPerson.gender, 'Grandson', 'Granddaughter', 'Grandchild')
-        : `${'Great-'.repeat(ancestorDistance - 2)}${genderedLabel(toPerson.gender, 'Grandson', 'Granddaughter', 'Grandchild')}`;
-    return { relationship: label, ...path };
+    const descriptor: KinshipDescriptor = {
+      kind: 'direct-descendant',
+      targetGender: toPerson.gender,
+      generations: ancestorDistance,
+    };
+    return { relationship: formatRelationship(descriptor), descriptor, ...path };
   }
 
   // ── Direct line: ancestor of fromPerson ───────────────────────────────────
   const descendantDistance = findAncestorDistance(index, toPersonId, fromPersonId);
   if (descendantDistance) {
-    const label = descendantDistance === 1
-      ? genderedLabel(toPerson.gender, 'Father', 'Mother', 'Parent')
-      : descendantDistance === 2
-        ? genderedLabel(toPerson.gender, 'Grandfather', 'Grandmother', 'Grandparent')
-        : `${'Great-'.repeat(descendantDistance - 2)}${genderedLabel(toPerson.gender, 'Grandfather', 'Grandmother', 'Grandparent')}`;
-    return { relationship: label, ...path };
+    const descriptor: KinshipDescriptor = {
+      kind: 'direct-ancestor',
+      targetGender: toPerson.gender,
+      generations: descendantDistance,
+    };
+    return { relationship: formatRelationship(descriptor), descriptor, ...path };
   }
 
   const fromParentIds = new Set(getParents(index, fromPersonId));
@@ -250,45 +273,37 @@ export function computeRelationshipInsight(
 
   // ── Full / Half sibling ───────────────────────────────────────────────────
   if (sharedParentIds.length > 0) {
-    const isHalf = sharedParentIds.length < Math.max(fromParentIds.size, toParentIds.size);
-    const prefix = isHalf ? 'Half-' : '';
-    return {
-      relationship: `${prefix}${genderedLabel(toPerson.gender, 'brother', 'sister', 'sibling')}`,
-      ...path,
+    const descriptor: KinshipDescriptor = {
+      kind: 'sibling',
+      targetGender: toPerson.gender,
+      siblingKind: sharedParentIds.length < Math.max(fromParentIds.size, toParentIds.size) ? 'half' : 'full',
     };
+    return { relationship: formatRelationship(descriptor), descriptor, ...path };
   }
 
   // ── In-laws ───────────────────────────────────────────────────────────────
   // toPerson is child-in-law (they are married to fromPerson's child)
   if (getChildren(index, fromPersonId).some((cId) => getSpouses(index, cId).includes(toPersonId))) {
-    return {
-      relationship: genderedLabel(toPerson.gender, 'Son-in-law', 'Daughter-in-law', 'Child-in-law'),
-      ...path,
-    };
+    const descriptor: KinshipDescriptor = { kind: 'in-law', targetGender: toPerson.gender, relation: 'child' };
+    return { relationship: formatRelationship(descriptor), descriptor, ...path };
   }
 
   // toPerson is parent-in-law (they are the parent of fromPerson's spouse)
   if (getChildren(index, toPersonId).some((cId) => getSpouses(index, cId).includes(fromPersonId))) {
-    return {
-      relationship: genderedLabel(toPerson.gender, 'Father-in-law', 'Mother-in-law', 'Parent-in-law'),
-      ...path,
-    };
+    const descriptor: KinshipDescriptor = { kind: 'in-law', targetGender: toPerson.gender, relation: 'parent' };
+    return { relationship: formatRelationship(descriptor), descriptor, ...path };
   }
 
   // toPerson is sibling-in-law (they are married to fromPerson's sibling)
   if (getSiblings(index, fromPersonId).some((sib) => getSpouses(index, sib).includes(toPersonId))) {
-    return {
-      relationship: genderedLabel(toPerson.gender, 'Brother-in-law', 'Sister-in-law', 'Sibling-in-law'),
-      ...path,
-    };
+    const descriptor: KinshipDescriptor = { kind: 'in-law', targetGender: toPerson.gender, relation: 'sibling' };
+    return { relationship: formatRelationship(descriptor), descriptor, ...path };
   }
 
   // toPerson is sibling-in-law (they are the sibling of fromPerson's spouse)
   if (getSpouses(index, fromPersonId).some((sp) => getSiblings(index, toPersonId).includes(sp))) {
-    return {
-      relationship: genderedLabel(toPerson.gender, 'Brother-in-law', 'Sister-in-law', 'Sibling-in-law'),
-      ...path,
-    };
+    const descriptor: KinshipDescriptor = { kind: 'in-law', targetGender: toPerson.gender, relation: 'sibling' };
+    return { relationship: formatRelationship(descriptor), descriptor, ...path };
   }
 
   // ── Step-relationships ────────────────────────────────────────────────────
@@ -298,10 +313,8 @@ export function computeRelationshipInsight(
     toParentsArr.some((p) => getSpouses(index, p).includes(fromPersonId))
     && !toParentsArr.includes(fromPersonId)
   ) {
-    return {
-      relationship: genderedLabel(toPerson.gender, 'Stepson', 'Stepdaughter', 'Stepchild'),
-      ...path,
-    };
+    const descriptor: KinshipDescriptor = { kind: 'step', targetGender: toPerson.gender, relation: 'child' };
+    return { relationship: formatRelationship(descriptor), descriptor, ...path };
   }
 
   // toPerson is step-parent of fromPerson
@@ -310,10 +323,8 @@ export function computeRelationshipInsight(
     fromParentsArr.some((p) => getSpouses(index, p).includes(toPersonId))
     && !fromParentsArr.includes(toPersonId)
   ) {
-    return {
-      relationship: genderedLabel(toPerson.gender, 'Stepfather', 'Stepmother', 'Step-parent'),
-      ...path,
-    };
+    const descriptor: KinshipDescriptor = { kind: 'step', targetGender: toPerson.gender, relation: 'parent' };
+    return { relationship: formatRelationship(descriptor), descriptor, ...path };
   }
 
   // toPerson is step-sibling of fromPerson (share a step-parent but no biological parent)
@@ -322,10 +333,8 @@ export function computeRelationshipInsight(
   ) && !shareAnyParent(index, fromPersonId, toPersonId);
 
   if (isStepSibling) {
-    return {
-      relationship: genderedLabel(toPerson.gender, 'Step-brother', 'Step-sister', 'Step-sibling'),
-      ...path,
-    };
+    const descriptor: KinshipDescriptor = { kind: 'step', targetGender: toPerson.gender, relation: 'sibling' };
+    return { relationship: formatRelationship(descriptor), descriptor, ...path };
   }
 
   // ── Lateral relatives via shared biological ancestor ──────────────────────
@@ -354,35 +363,34 @@ export function computeRelationshipInsight(
     const removal = longer - shorter;
 
     if (degree === 0) {
-      // One side is exactly one step from the shared ancestor → uncle/niece axis
-      // removal tells us how many "Great-" prefixes
-      const greats = removal > 1 ? 'Great-'.repeat(removal - 1) : '';
       if (fromIsShorter) {
-        // toPerson is the younger-generation relative.
-        return {
-          relationship: removal === 1
-            ? genderedLabel(toPerson.gender, 'Nephew', 'Niece', 'Niece/Nephew')
-            : `${greats}${genderedLabel(toPerson.gender, 'nephew', 'niece', 'nephew/niece')}`,
-          ...path,
+        const descriptor: KinshipDescriptor = {
+          kind: 'niece-nephew',
+          targetGender: toPerson.gender,
+          generationsRemoved: removal,
         };
+        return { relationship: formatRelationship(descriptor), descriptor, ...path };
       }
 
-      return {
-        relationship: removal === 1
-          ? genderedLabel(toPerson.gender, 'Uncle', 'Aunt', 'Aunt/Uncle')
-          : `${greats}${genderedLabel(toPerson.gender, 'uncle', 'aunt', 'aunt/uncle')}`,
-        ...path,
+      const parentSiblingContext = removal === 1
+        ? getParentSiblingContext(index, fromPersonId, toPersonId)
+        : { side: 'unknown' as const, seniority: 'unknown' as const, viaParentGender: 'unspecified' as PersonGender };
+      const descriptor: KinshipDescriptor = {
+        kind: 'aunt-uncle',
+        targetGender: toPerson.gender,
+        generationsRemoved: removal,
+        side: parentSiblingContext.side,
+        seniority: parentSiblingContext.seniority,
+        viaParentGender: parentSiblingContext.viaParentGender,
       };
+      return { relationship: formatRelationship(descriptor), descriptor, ...path };
     }
 
     // degree ≥ 1 → cousin relationship
-    const ordinal = cousinOrdinal(degree);
-    if (removal === 0) {
-      return { relationship: `${ordinal} cousin`, ...path };
-    }
-
-    return { relationship: `${ordinal} cousin ${removal}× removed`, ...path };
+    const descriptor: KinshipDescriptor = { kind: 'cousin', degree, removal };
+    return { relationship: formatRelationship(descriptor), descriptor, ...path };
   }
 
-  return { relationship: 'Extended family', ...path };
+  const descriptor: KinshipDescriptor = { kind: 'extended' };
+  return { relationship: formatRelationship(descriptor), descriptor, ...path };
 }

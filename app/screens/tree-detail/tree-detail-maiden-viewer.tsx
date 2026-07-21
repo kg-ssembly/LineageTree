@@ -1,11 +1,11 @@
 import React from 'react';
 import { Image, Modal, Pressable, ScrollView, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Button, Card, Chip, Dialog, IconButton, Portal, Text, TextInput } from 'react-native-paper';
+import { Button, Chip, Dialog, IconButton, Portal, Text, TextInput } from 'react-native-paper';
+import { GlobalStyles, Reveal, SectionCard } from '../../../components';
 import type { PersonPhoto, PersonRecord } from '../../../components/dto/person';
 import { formatPersonDate, getDisplayPersonPhoto, getPersonLifeSpanLabel, getPersonPresenceLabel } from '../../../components/dto/person';
 import { formatPersonName } from '../../../components/person-formatting';
-import { GlobalStyles } from '../../../constants/styles';
 import { I18N_KEYS as K } from '../../../i18n/keys';
 
 const dialogChrome = GlobalStyles.dialogChrome;
@@ -84,8 +84,8 @@ export function TreeDetailMaidenViewer({
           justifyContent: 'space-between',
         }}
       >
-        <Button mode="contained-tonal" icon="arrow-left" onPress={navigationGoBack} style={{ borderRadius: 999 }} contentStyle={{ paddingHorizontal: 6 }}>
-          {t('Back to {treeName}', { treeName: returnTreeName ?? t(K.common.originalTree) })}
+        <Button mode="outlined" icon="arrow-left" onPress={navigationGoBack} style={{ borderRadius: 999 }} buttonColor={theme.colors.surface} textColor={theme.colors.primary} contentStyle={{ height: 36, paddingHorizontal: 4 }}>
+          {t(K.treeSettings.backToTreeName, { treeName: returnTreeName ?? t(K.common.originalTree) })}
         </Button>
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <IconButton
@@ -98,7 +98,7 @@ export function TreeDetailMaidenViewer({
             }}
           />
           <IconButton
-            mode={maidenMembersVisible ? 'contained' : 'contained-tonal'}
+            mode={maidenMembersVisible ? 'contained' : 'outlined'}
             icon="account-group-outline"
             onPress={() => setMaidenMembersVisible(true)}
             selected={maidenMembersVisible}
@@ -142,7 +142,7 @@ export function TreeDetailMaidenViewer({
                     </Text>
                   </View>
                   <ScrollView contentContainerStyle={{ gap: 10, paddingBottom: 8 }}>
-                    {paginatedMaidenViewerPeople.map((person) => (
+                    {paginatedMaidenViewerPeople.map((person, index) => (
                       <Pressable
                         key={person.id}
                         onPress={() => {
@@ -152,8 +152,8 @@ export function TreeDetailMaidenViewer({
                           setViewerPhotoIndex(null);
                         }}
                       >
-                        <Card mode="contained" style={{ borderRadius: 12 }}>
-                          <Card.Content style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                        <Reveal delay={70 + index * 30}>
+                          <SectionCard nested style={{ borderRadius: 22, paddingVertical: 14, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                             {getDisplayPersonPhoto(person) ? (
                               <Image source={{ uri: getDisplayPersonPhoto(person)!.url }} style={{ width: 52, height: 52, borderRadius: 10 }} />
                             ) : (
@@ -168,8 +168,8 @@ export function TreeDetailMaidenViewer({
                               </Text>
                             </View>
                             <IconButton icon="chevron-right" size={18} />
-                          </Card.Content>
-                        </Card>
+                          </SectionCard>
+                        </Reveal>
                       </Pressable>
                     ))}
                   </ScrollView>
@@ -236,23 +236,23 @@ export function TreeDetailMaidenViewer({
               <ScrollView style={{ maxHeight: 440 }} contentContainerStyle={{ paddingBottom: 8 }}>
                 {viewerProfileTab === 'summary' ? (
                   <View style={{ gap: 12 }}>
-                    <Card mode="contained" style={{ borderRadius: 12 }}>
-                      <Card.Content>
+                    <Reveal delay={80}>
+                      <SectionCard nested style={{ borderRadius: 22, paddingVertical: 14, paddingHorizontal: 14 }}>
                         <Text variant="titleMedium">{t(K.personProfile.howRelated)}</Text>
                         <Text variant="bodyMedium" style={{ marginTop: 8 }}>
                           {returnTreeAssignedPerson && viewerRelationshipInsight
-                            ? t('{name} is your {relationship}', {
+                            ? t(K.relationshipInsight.nameIsYourRelationship, {
                               name: viewerPerson.firstName || formatPersonName(viewerPerson),
                               relationship: viewerRelationshipInsight.relationship.toLowerCase(),
                             })
                             : returnTreeAssignedPerson
-                              ? t('No family connection found in this tree yet.')
-                              : t('No linked profile found in the original tree.')}
+                              ? t(K.relationshipInsight.noRelationInTreeYet)
+                              : t(K.relationshipInsight.noLinkedProfileInOriginalTree)}
                         </Text>
-                      </Card.Content>
-                    </Card>
-                    <Card mode="contained" style={{ borderRadius: 12 }}>
-                      <Card.Content>
+                      </SectionCard>
+                    </Reveal>
+                    <Reveal delay={100}>
+                      <SectionCard nested style={{ borderRadius: 22, paddingVertical: 14, paddingHorizontal: 14 }}>
                         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                           {viewerPerson.maidenName?.trim() ? <Chip>{viewerPerson.maidenName.trim()}</Chip> : null}
                           {viewerPerson.birthDate ? <Chip icon="calendar">{formatPersonDate(viewerPerson.birthDate)}</Chip> : null}
@@ -261,17 +261,17 @@ export function TreeDetailMaidenViewer({
                         <Text variant="bodyMedium" style={{ marginTop: 12, color: theme.colors.onSurfaceVariant }}>
                           {viewerPerson.notes?.trim() || t(K.memories.noNotesAddedYet)}
                         </Text>
-                      </Card.Content>
-                    </Card>
+                      </SectionCard>
+                    </Reveal>
                   </View>
                 ) : null}
 
                 {viewerProfileTab === 'life' ? (
                   viewerTimeline.length > 0 ? (
                     <View style={{ gap: 12 }}>
-                      {viewerTimeline.map((item) => (
-                        <Card key={item.id} mode="contained" style={{ borderRadius: 12 }}>
-                          <Card.Content>
+                      {viewerTimeline.map((item, index) => (
+                        <Reveal key={item.id} delay={90 + index * 25}>
+                          <SectionCard nested style={{ borderRadius: 22, paddingVertical: 14, paddingHorizontal: 14 }}>
                             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
                               <Chip compact>{item.badgeLabel}</Chip>
                               <Chip compact icon="calendar">{formatPersonDate(item.date)}</Chip>
@@ -280,15 +280,15 @@ export function TreeDetailMaidenViewer({
                             <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
                               {item.description}
                             </Text>
-                          </Card.Content>
-                        </Card>
+                          </SectionCard>
+                        </Reveal>
                       ))}
                     </View>
                   ) : (
                     <View style={{ paddingVertical: 12 }}>
-                      <Text variant="titleMedium">{t('No life events yet')}</Text>
+                      <Text variant="titleMedium">{t(K.memories.noLifeEventsYet)}</Text>
                       <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
-                        {t('Life milestones and memories will appear here.')}
+                        {t(K.memories.startWithMilestones)}
                       </Text>
                     </View>
                   )
@@ -299,9 +299,11 @@ export function TreeDetailMaidenViewer({
                     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingVertical: 4 }}>
                       {viewerPerson.photos.map((photo, index) => (
                         <Pressable key={photo.id} onPress={() => setViewerPhotoIndex(index)}>
-                          <Card mode="elevated" style={{ borderRadius: 12, overflow: 'hidden' }}>
-                            <Image source={{ uri: photo.url }} style={{ width: 180, height: 180 }} />
-                          </Card>
+                          <Reveal key={photo.id} delay={90 + index * 25}>
+                            <SectionCard nested style={{ borderRadius: 22, overflow: 'hidden', padding: 0 }}>
+                              <Image source={{ uri: photo.url }} style={{ width: 180, height: 180 }} />
+                            </SectionCard>
+                          </Reveal>
                         </Pressable>
                       ))}
                     </ScrollView>

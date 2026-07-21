@@ -11,47 +11,51 @@ import {
   Divider,
   IconButton,
   Portal,
-  Snackbar,
-  Surface,
   Text,
-  TextInput,
   useTheme,
 } from 'react-native-paper';
-import { ConfirmDialog, HorizontalTabStrip, LifeEventDialog, PersonFormDialog, PersonRelationshipDialog } from '../../../components';
+import { ConfirmDialog, FloatingSnackbar, getThemeChrome, GlobalStyles, HorizontalTabStrip, InfoDialog, LifeEventDialog, MaidenTreeSuggestionDialog, PanelSurface, PersonFormDialog, PersonRelationshipDialog, Reveal, ScreenBackground, SharedLoader, TabStripCard } from '../../../components';
 import type { PersonRelationshipMode } from '../../../components/person-relationship-dialog';
+import type { PendingRelationshipMode, PersonFormSubmission } from '../../../components/person-form-dialog';
 import { useAuthStore } from '../../../stores/auth-store';
 import { useTreeStore } from '../../../stores/tree-store';
 import type { NewPersonPhotoInput, PersonLifeEvent, PersonMutationPayload, PersonPhoto, PersonRecord } from '../../../components/dto/person';
 import {
-  formatPersonDate,
   getDisplayPersonPhoto,
   getLifeEventTypeLabel,
   getPersonLifeSpanLabel,
-  getPersonPresenceLabel,
-  getPersonTreeMembershipIds,
   isPersonDeceased,
 } from '../../../components/dto/person';
 import type { ParentChildRelationshipKind, RelationshipRecord, SpouseRelationshipStatus } from '../../../components/dto/relationship';
-import type { MainTabParamList } from '../../../components/dto/navigation';
-import { canEditTreeContent, getAssignedPersonId, getAssignedUserIdForPerson } from '../../../components/dto/tree';
+import type { MainTabParamList, PersonProfileRouteMemorySection, PersonProfileRouteTab } from '../../../components/dto/navigation';
+import { canEditTreeContent, getAssignedUserIdForPerson } from '../../../components/dto/tree';
 import { getPersonValidationFeedback } from '../../../components/family-tree-validation';
 import { MAX_PHOTOS_PER_PERSON, MAX_PHOTO_BYTES, preparePhotoForUpload } from '../../../components/photo-utils';
-import { formatPersonGender, formatPersonName } from '../../../components/person-formatting';
+import { formatPersonName } from '../../../components/person-formatting';
 import { computeRelationshipInsight } from '../../../providers';
-import { GlobalStyles } from '../../../constants/styles';
 import { useI18n } from '../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../i18n/keys';
-import { PersonNotesDialog } from './dialogs/notes-dialog';
-import { PersonPhotoViewerModal } from './dialogs/photo-viewer-modal';
-import { PersonLineageSection } from './sections/lineage-section';
-import { PersonMemoriesSection, type PersonMemorySectionTabKey } from './sections/memories-section';
-import { PersonRelationshipsSection, type PersonRelationshipSectionTabKey } from './sections/relationships-section';
+import { useShallow } from 'zustand/react/shallow';
+import { findMaidenTreeCandidates, getFirstPendingRelationshipValidationError, type MaidenTreeSuggestionCandidate } from '../tree-screen-helpers';
+import { buildPeopleDirectory, buildTreeAssignmentContext, getTreeById } from '../tree-tabs/shared';
+import {
+  PersonLineageSection,
+  PersonMemoriesSection,
+  PersonNotesDialog,
+  PersonPhotoViewerModal,
+  PersonRelationshipsSection,
+  type PersonMemorySectionTabKey,
+  type PersonRelationshipSectionTabKey,
+} from '../profile-shared';
+import { MemberProfileSection } from './sections/member-profile-section';
 const dialogChrome = GlobalStyles.dialogChrome;
 const treeDetailStyles = GlobalStyles.treeDetail;
 
 type PersonProfileRouteParams = {
   treeId: string;
   personId: string;
+  initialTab?: PersonProfileRouteTab;
+  initialMemorySectionTab?: PersonProfileRouteMemorySection;
 };
 
 type PersonProfileNavigation = {
@@ -88,9 +92,23 @@ type LifeEventDialogState = {
   event: PersonLifeEvent | null;
 };
 
+type MaidenTreeSuggestionState = {
+  visible: boolean;
+  person: PersonRecord | null;
+  relatedTreeCandidates: MaidenTreeSuggestionCandidate[];
+};
+
 type HelperDialogKey = 'tabs' | 'relationships' | 'descendant-tree' | 'ascendant-tree' | 'memories-gallery';
 
-type PersonProfileTabKey = 'relationships' | 'descendant-tree' | 'ascendant-tree' | 'memories-gallery';
+type PersonProfileTabKey = 'biography' | 'relationships' | 'descendant-tree' | 'ascendant-tree' | 'memories-gallery';
+
+function resolveInitialProfileTab(initialTab?: PersonProfileRouteTab): PersonProfileTabKey {
+  return initialTab ?? 'biography';
+}
+
+function resolveInitialMemorySectionTab(initialTab?: PersonProfileRouteMemorySection): PersonMemorySectionTabKey {
+  return initialTab ?? 'events';
+}
 
 function getRelationshipModeForPerson(personId: string, relationship: RelationshipRecord): PersonRelationshipMode {
   if (relationship.type === 'spouse') {
@@ -103,11 +121,11 @@ function getRelationshipModeForPerson(personId: string, relationship: Relationsh
 function getPathRelationLabel(relation: 'parent' | 'child' | 'spouse') {
   switch (relation) {
     case 'parent':
-      return 'parent';
+      return K.relationship.parent;
     case 'child':
-      return 'child';
+      return K.relationship.child;
     default:
-      return 'spouse';
+      return K.relationship.spouse;
   }
 }
 
@@ -120,6 +138,8 @@ function buildPersonMutationPayload(
     middleNames: person.middleNames ?? '',
     lastName: person.lastName,
     maidenName: person.maidenName ?? '',
+    birthPlace: person.birthPlace ?? '',
+    hometown: person.hometown ?? '',
     birthDate: person.birthDate,
     deathDate: person.deathDate,
     gender: person.gender,
@@ -199,32 +219,33 @@ function getAscendantIds(rootPersonId: string, relationships: RelationshipRecord
 
 const helperDialogCopy: Record<HelperDialogKey, { title: string; message: string }> = {
   tabs: {
-    title: 'Family member sections',
-    message: 'Relationships lets you add and review parent, child, and spouse connections. Memories & gallery holds notes, photos, and life events. Descendant tree follows children downward through generations. Ascendant tree follows parents upward.',
+    title: K.treeSettings.familyMemberSections,
+    message: K.personProfile.profileSummary,
   },
   relationships: {
-    title: 'Relationships',
-    message: 'Add new parent, child, or spouse connections with the button above. Open a relationship in edit mode to change or delete it. The Relationship insight tool lets you search for the path between any two family members in the tree.',
+    title: K.personProfile.relationships,
+    message: K.personProfile.relationshipActionsSummary,
   },
   'descendant-tree': {
-    title: 'Descendant tree',
-    message: 'The canvas starts at this family member and draws children, grandchildren, and every subsequent generation downward. Tap any node to open that person\'s full profile. Pinch or use the zoom buttons to navigate a large tree.',
+    title: K.personProfile.descendantTree,
+    message: K.personProfile.descendantTreeSummary,
   },
   'ascendant-tree': {
-    title: 'Ascendant tree',
-    message: 'The canvas starts at this family member and draws parents, grandparents, and every prior generation upward. Tap any node to open that person\'s full profile. Pinch or use the zoom buttons to navigate a large tree.',
+    title: K.lineage.ascendantTree,
+    message: K.personProfile.ascendantTreeSummary,
   },
   'memories-gallery': {
-    title: 'Memories & gallery',
-    message: 'Notes capture free-form details about this family member. The photo gallery shows all uploaded images — tap any photo to open the full-screen viewer and swipe through. Life events form a date-ordered timeline of milestones such as marriage, graduation, a move, retirement, or any custom family memory. Open an event in edit mode to update or delete it.',
+    title: K.memories.memoriesAndGallery,
+    message: K.personProfile.memorySummary,
   },
 };
 
 const styles = GlobalStyles.personProfile;
 
 const PROFILE_TABS: Array<{ key: PersonProfileTabKey; label: string }> = [
+  { key: 'biography', label: K.personProfile.biography },
   { key: 'relationships', label: K.personProfile.relationships },
-  { key: 'memories-gallery', label: 'Memories' },
+  { key: 'memories-gallery', label: K.memories.memories },
   { key: 'descendant-tree', label: K.lineage.descendants },
   { key: 'ascendant-tree', label: K.lineage.ascendants },
 ];
@@ -235,16 +256,17 @@ const APP_TAB_ROUTES: Array<{
   focusedIcon: keyof typeof MaterialCommunityIcons.glyphMap;
   unfocusedIcon: keyof typeof MaterialCommunityIcons.glyphMap;
 }> = [
-  { key: 'tree', title: 'Tree', focusedIcon: 'family-tree', unfocusedIcon: 'family-tree' },
-  { key: 'members', title: 'Members', focusedIcon: 'account-group-outline', unfocusedIcon: 'account-group-outline' },
-  { key: 'treeSettings', title: 'Settings', focusedIcon: 'cog-outline', unfocusedIcon: 'cog-outline' },
-  { key: 'notifications', title: 'Notifications', focusedIcon: 'bell-outline', unfocusedIcon: 'bell-outline' },
-  { key: 'myProfile', title: 'My profile', focusedIcon: 'account-circle-outline', unfocusedIcon: 'account-circle-outline' },
+  { key: 'home', title: K.navigation.home, focusedIcon: 'home-heart', unfocusedIcon: 'home-heart' },
+  { key: 'tree', title: K.navigation.tree, focusedIcon: 'family-tree', unfocusedIcon: 'family-tree' },
+  { key: 'members', title: K.navigation.members, focusedIcon: 'account-group-outline', unfocusedIcon: 'account-group-outline' },
+  { key: 'treeSettings', title: K.navigation.settings, focusedIcon: 'cog-outline', unfocusedIcon: 'cog-outline' },
+  { key: 'myProfile', title: K.navigation.profile, focusedIcon: 'account-circle-outline', unfocusedIcon: 'account-circle-outline' },
 ];
 
 export default function PersonProfileScreen({ navigation, route }: Props) {
   const isFocused = useIsFocused();
   const theme = useTheme();
+  const chrome = getThemeChrome(theme);
   const { t } = useI18n();
   const { user } = useAuthStore();
   const {
@@ -266,12 +288,38 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
     addSpouseRelationship,
     editRelationship,
     removeRelationship,
+    requestTreeAccess,
+    searchDiscoverableTrees,
     clearError,
     clearNotice,
-  } = useTreeStore();
+  } = useTreeStore(useShallow((state) => ({
+    trees: state.trees,
+    selectedTreeId: state.selectedTreeId,
+    people: state.people,
+    relationships: state.relationships,
+    loadingTrees: state.loadingTrees,
+    loadingTreeData: state.loadingTreeData,
+    mutating: state.mutating,
+    error: state.error,
+    notice: state.notice,
+    selectTree: state.selectTree,
+    assignPersonToUser: state.assignPersonToUser,
+    clearSelfAssignment: state.clearSelfAssignment,
+    updatePerson: state.updatePerson,
+    removePerson: state.removePerson,
+    addParentChildRelationship: state.addParentChildRelationship,
+    addSpouseRelationship: state.addSpouseRelationship,
+    editRelationship: state.editRelationship,
+    removeRelationship: state.removeRelationship,
+    requestTreeAccess: state.requestTreeAccess,
+    searchDiscoverableTrees: state.searchDiscoverableTrees,
+    clearError: state.clearError,
+    clearNotice: state.clearNotice,
+  })));
 
   const [editorVisible, setEditorVisible] = useState(false);
   const [relationshipDialog, setRelationshipDialog] = useState<RelationshipDialogState>({ visible: false, relationship: null });
+  const [relationshipAddFlowVisible, setRelationshipAddFlowVisible] = useState(false);
   const [lifeEventDialog, setLifeEventDialog] = useState<LifeEventDialogState>({ visible: false, event: null });
   const [confirmState, setConfirmState] = useState<ConfirmState>({
     visible: false,
@@ -281,52 +329,48 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
     action: null,
   });
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
+  const [selectedPhotoId, setSelectedPhotoId] = useState<string | null>(null);
   const [snackVisible, setSnackVisible] = useState(false);
-  const [activeTab, setActiveTab] = useState<PersonProfileTabKey>('relationships');
+  const [activeTab, setActiveTab] = useState<PersonProfileTabKey>(resolveInitialProfileTab(route.params.initialTab));
   const [helperDialog, setHelperDialog] = useState<{ visible: boolean; key: HelperDialogKey }>({
     visible: false,
     key: 'tabs',
   });
   const [relationshipPage, setRelationshipPage] = useState(1);
   const [relationshipSectionTab, setRelationshipSectionTab] = useState<PersonRelationshipSectionTabKey>('insight');
-  const [memorySectionTab, setMemorySectionTab] = useState<PersonMemorySectionTabKey>('events');
+  const [memorySectionTab, setMemorySectionTab] = useState<PersonMemorySectionTabKey>(resolveInitialMemorySectionTab(route.params.initialMemorySectionTab));
+  const [maidenTreeSuggestion, setMaidenTreeSuggestion] = useState<MaidenTreeSuggestionState>({
+    visible: false,
+    person: null,
+    relatedTreeCandidates: [],
+  });
   const [notesDialogVisible, setNotesDialogVisible] = useState(false);
   const [relationshipInsightVisible, setRelationshipInsightVisible] = useState(false);
   const [notesDraft, setNotesDraft] = useState('');
   const [photoProcessing, setPhotoProcessing] = useState(false);
   const relationshipPageSize = 3;
 
+  const { peopleById, existingLastNames } = useMemo(
+    () => buildPeopleDirectory(people),
+    [people],
+  );
   const selectedTree = useMemo(
-    () => trees.find((tree) => tree.id === route.params.treeId) ?? null,
+    () => getTreeById(trees, route.params.treeId),
     [route.params.treeId, trees],
   );
 
   const person = useMemo(
-    () => people.find((currentPerson) => currentPerson.id === route.params.personId) ?? null,
-    [people, route.params.personId],
+    () => peopleById.get(route.params.personId) ?? null,
+    [peopleById, route.params.personId],
   );
   const isMainTabNavigation = navigation.getState?.().type === 'tab';
 
   const canEdit = selectedTree ? canEditTreeContent(selectedTree, user?.id) : false;
   const preferredPhoto = getDisplayPersonPhoto(person);
-  const peopleById = useMemo(
-    () => new Map(people.map((currentPerson) => [currentPerson.id, currentPerson])),
-    [people],
-  );
 
-  const existingLastNames = useMemo(
-    () => [...new Set(people.map((currentPerson) => currentPerson.lastName.trim()).filter(Boolean))].sort((left, right) => left.localeCompare(right)),
-    [people],
-  );
-
-  const currentAssignedPersonId = useMemo(
-    () => (selectedTree ? getAssignedPersonId(selectedTree, user?.id) : null),
-    [selectedTree, user?.id],
-  );
-
-  const currentAssignedPerson = useMemo(
-    () => (currentAssignedPersonId ? peopleById.get(currentAssignedPersonId) ?? null : null),
-    [currentAssignedPersonId, peopleById],
+  const { currentAssignedPersonId, currentAssignedPerson } = useMemo(
+    () => buildTreeAssignmentContext(selectedTree, peopleById, user?.id),
+    [peopleById, selectedTree, user?.id],
   );
 
   const linkedUserIdForPerson = useMemo(
@@ -358,10 +402,10 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
       currentAssignedPerson
       && person
       && currentAssignedPerson.id !== person.id
-        ? computeRelationshipInsight(people, relationships, currentAssignedPerson.id, person.id)
+        ? computeRelationshipInsight(people, relationships, currentAssignedPerson.id, person.id, { kinshipSystem: selectedTree?.kinshipSystem })
         : null
     ),
-    [currentAssignedPerson, people, person, relationships],
+    [currentAssignedPerson, people, person, relationships, selectedTree?.kinshipSystem],
   );
   const automaticRelationshipPathLabel = useMemo(
     () => automaticRelationshipInsight
@@ -397,10 +441,10 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
               : relationship.fromPersonId;
         const relatedPerson = peopleById.get(relatedPersonId) ?? null;
         const title = mode === 'parent-of'
-          ? t('Parent of {name}', { name: formatPersonName(relatedPerson) })
+          ? t(K.relationship.parentOfName, { name: formatPersonName(relatedPerson) })
           : mode === 'child-of'
-            ? t('Child of {name}', { name: formatPersonName(relatedPerson) })
-            : t('Spouse of {name}', { name: formatPersonName(relatedPerson) });
+            ? t(K.relationship.childOfName, { name: formatPersonName(relatedPerson) })
+            : t(K.relationship.spouseOfName, { name: formatPersonName(relatedPerson) });
         const subtitle = relationship.type === 'spouse'
           ? t(K.personProfile.partnerConnection)
           : mode === 'parent-of'
@@ -416,7 +460,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
         };
       })
       .sort((left, right) => right.relationship.createdAt.localeCompare(left.relationship.createdAt));
-  }, [peopleById, person, relationships]);
+  }, [peopleById, person, relationships, t]);
 
   const totalRelationshipPages = Math.ceil(relationshipEntries.length / relationshipPageSize);
   const paginatedRelationships = useMemo(() => {
@@ -469,7 +513,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
     }
 
     return items.sort((left, right) => left.date.localeCompare(right.date));
-  }, [person]);
+  }, [person, t]);
 
   const descendantIds = useMemo(
     () => (person ? getDescendantIds(person.id, relationships) : []),
@@ -513,10 +557,11 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
   }, [navigation, person]);
 
   useEffect(() => {
-    setActiveTab('relationships');
+    setActiveTab(resolveInitialProfileTab(route.params.initialTab));
+    setMemorySectionTab(resolveInitialMemorySectionTab(route.params.initialMemorySectionTab));
     setRelationshipPage(1);
     setRelationshipInsightVisible(false);
-  }, [route.params.personId]);
+  }, [route.params.initialMemorySectionTab, route.params.initialTab, route.params.personId]);
 
   useEffect(() => {
     if (!loadingTrees && !selectedTree) {
@@ -576,6 +621,98 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
     } catch {
       // surfaced by store snackbar
     }
+  };
+
+  const handleCreateRelatedPersonSubmit = async (payload: PersonFormSubmission) => {
+    if (!user?.id || !selectedTree || !person) {
+      return;
+    }
+
+    try {
+      const validationError = getFirstPendingRelationshipValidationError({
+        subjectPerson: person,
+        pendingRelationships: payload.pendingRelationships,
+        people: people.filter((candidate) => candidate.id !== person.id),
+        relationships,
+      });
+      if (validationError) {
+        Alert.alert(t(K.relationship.addRelationship), validationError);
+        return;
+      }
+
+      for (const pendingRelationship of payload.pendingRelationships) {
+        if (pendingRelationship.mode === 'spouse-of') {
+          await addSpouseRelationship(user.id, selectedTree.id, person.id, pendingRelationship.relatedPersonId, pendingRelationship.relationshipStatus);
+          continue;
+        }
+
+        if (pendingRelationship.mode === 'parent-of') {
+          await addParentChildRelationship(user.id, selectedTree.id, person.id, pendingRelationship.relatedPersonId, pendingRelationship.parentChildKind);
+          continue;
+        }
+
+        await addParentChildRelationship(user.id, selectedTree.id, pendingRelationship.relatedPersonId, person.id, pendingRelationship.parentChildKind);
+      }
+
+      setRelationshipAddFlowVisible(false);
+    } catch {
+      // surfaced by store snackbar
+    }
+  };
+
+  const closeMaidenTreeSuggestion = () => {
+    setMaidenTreeSuggestion({
+      visible: false,
+      person: null,
+      relatedTreeCandidates: [],
+    });
+  };
+
+  const openMaidenTreeCandidate = (treeId: string) => {
+    const targetTree = trees.find((tree) => tree.id === treeId);
+    if (!targetTree || !selectedTree) {
+      return;
+    }
+
+    closeMaidenTreeSuggestion();
+    navigation.navigate('TreeDetail', {
+      treeId: targetTree.id,
+      initialTab: 'VisualisationTab',
+      returnTreeId: selectedTree.id,
+    });
+  };
+
+  const requestMaidenTreeAccess = async (treeId: string) => {
+    if (!user?.id) {
+      return;
+    }
+
+    await requestTreeAccess(user.id, treeId);
+    closeMaidenTreeSuggestion();
+  };
+
+  const handleMaidenParentSelectionAttempt = async (mode: PendingRelationshipMode, relatedPerson: PersonRecord) => {
+    if (mode !== 'parent-of' || !relatedPerson.maidenName?.trim() || !user?.id || !selectedTree) {
+      return true;
+    }
+
+    const relatedTreeCandidates = await findMaidenTreeCandidates(
+      relatedPerson,
+      trees,
+      (searchTerm) => searchDiscoverableTrees(searchTerm, user.id),
+      selectedTree.id,
+    );
+
+    if (relatedTreeCandidates.length > 0) {
+      setMaidenTreeSuggestion({
+        visible: true,
+        person: relatedPerson,
+        relatedTreeCandidates,
+      });
+      return false;
+    }
+
+    return true;
   };
 
   const openNotesDialog = () => {
@@ -714,7 +851,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
     }
   };
 
-  const handleUpdatePhotoDetails = async (photo: PersonPhoto, values: Pick<NewPersonPhotoInput, 'title' | 'description'>) => {
+  const handleUpdatePhotoDetails = async (photo: PersonPhoto, values: Pick<NewPersonPhotoInput, 'description' | 'linkedLifeEventId'>) => {
     if (!user?.id || !person) {
       return;
     }
@@ -724,7 +861,11 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
     try {
       const nextExistingPhotos = person.photos.map((currentPhoto) => (
         currentPhoto.id === photo.id
-          ? { ...currentPhoto, title: values.title?.trim() ?? '', description: values.description?.trim() ?? '' }
+          ? {
+            ...currentPhoto,
+            description: values.description?.trim() ?? '',
+            linkedLifeEventId: values.linkedLifeEventId?.trim() ?? '',
+          }
           : currentPhoto
       ));
       await updatePerson(user.id, person, buildPersonMutationPayload(person, {
@@ -902,36 +1043,41 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <ScreenBackground />
       <View pointerEvents="box-none" style={styles.stickyActionBarHost}>
         <Button
-          mode="contained-tonal"
+          mode="outlined"
           icon="arrow-left"
           onPress={handleGoBack}
           style={[styles.heroFloatingButton, styles.heroFloatingButtonLeft]}
-          contentStyle={{ height: 44, paddingHorizontal: 6 }}
+          contentStyle={{ height: 36, paddingHorizontal: 4 }}
           accessibilityLabel={t(K.personProfile.backToMemberSearch)}
+          buttonColor={theme.colors.surface}
+          textColor={theme.colors.primary}
         >
-          {t(K.personProfile.backToMemberSearch)}
+          {null}
         </Button>
       </View>
       <ScrollView contentContainerStyle={styles.content}>
-        <Surface style={[styles.heroCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
+        <Reveal delay={60}>
+          <PanelSurface style={[styles.heroCard, { backgroundColor: chrome.primaryCardBackground }]} elevation={1}>
           {canEdit ? (
             <IconButton
               icon="pencil"
-              mode="contained-tonal"
+              mode="contained"
               size={22}
               onPress={() => setEditorVisible(true)}
               style={[styles.heroFloatingButton, styles.heroFloatingButtonRight]}
               accessibilityLabel={t(K.personProfile.editFamilyMember)}
+              contentStyle={{ height: 36, width: 36 }}
             />
           ) : null}
           <View style={styles.heroHeader}>
             <View style={styles.heroAvatarRow}>
               {preferredPhoto ? (
-                <Image source={{ uri: preferredPhoto.url }} style={styles.heroAvatar} />
+                <Image source={{ uri: preferredPhoto.url }} style={[styles.heroAvatar, { backgroundColor: chrome.avatarBackground, borderColor: chrome.avatarBorder }]} />
               ) : (
-                <View style={styles.heroAvatarFallback}>
+                <View style={[styles.heroAvatarFallback, { backgroundColor: chrome.avatarBackground, borderColor: chrome.avatarBorder }]}>
                   <MaterialCommunityIcons
                     name={isPersonDeceased(person) ? 'flower-outline' : 'account-heart-outline'}
                     size={38}
@@ -953,7 +1099,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
                 {showAutomaticRelationshipChip ? (
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
                     <Chip compact icon="account-switch" onPress={() => setRelationshipInsightVisible(true)}>
-                      {automaticRelationshipInsight ? automaticRelationshipInsight.relationship : t('How you relate')}
+                      {automaticRelationshipInsight ? automaticRelationshipInsight.relationship : t(K.relationshipInsight.howYouRelate)}
                     </Chip>
                   </View>
                 ) : null}
@@ -962,7 +1108,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
           </View>
 
           {showClaimBox ? (
-            <View style={[styles.claimBox, { backgroundColor: theme.colors.elevation.level1 }]}>
+            <View style={[styles.claimBox, { backgroundColor: chrome.secondaryCardBackground }]}>
               {isCurrentUsersPerson ? (
                 <View style={styles.claimRow}>
                   <View style={styles.claimTextWrap}>
@@ -997,16 +1143,46 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
               ) : null}
             </View>
           ) : null}
-        </Surface>
+          </PanelSurface>
+        </Reveal>
 
-        <HorizontalTabStrip
-          items={PROFILE_TABS.map((tab) => ({ ...tab, label: t(tab.label) }))}
-          activeKey={activeTab}
-          onChange={setActiveTab}
-          containerStyle={[styles.tabStripCard, { backgroundColor: theme.colors.surface }]}
-          contentContainerStyle={styles.tabStripContent}
-          itemStyle={styles.tabStripItem}
-        />
+        <Reveal delay={75}>
+          <TabStripCard>
+            <HorizontalTabStrip
+              items={PROFILE_TABS.map((tab) => ({ ...tab, label: t(tab.label) }))}
+              activeKey={activeTab}
+              onChange={setActiveTab}
+              contentContainerStyle={styles.tabStripContent}
+              itemStyle={styles.tabStripItem}
+            />
+          </TabStripCard>
+        </Reveal>
+
+        {activeTab === 'biography' ? (
+          <MemberProfileSection
+            person={person}
+            preferredPhoto={preferredPhoto}
+            relationships={relationships}
+            canEdit={canEdit}
+            linkedCollaboratorLabel={linkedCollaborator?.displayName || linkedCollaborator?.email || null}
+            isCurrentUsersPerson={isCurrentUsersPerson}
+            onOpenHelperDialog={() => openHelperDialog('tabs')}
+            onEdit={() => setEditorVisible(true)}
+            onOpenPhotos={() => {
+              setActiveTab('memories-gallery');
+              setMemorySectionTab('photos');
+            }}
+            onOpenNotes={() => {
+              setActiveTab('memories-gallery');
+              setMemorySectionTab('notes');
+              setNotesDialogVisible(true);
+            }}
+            onAddRelationship={() => {
+              setActiveTab('relationships');
+              setRelationshipAddFlowVisible(true);
+            }}
+          />
+        ) : null}
 
         {activeTab === 'relationships' ? (
           <PersonRelationshipsSection
@@ -1022,8 +1198,9 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
             totalRelationshipPages={totalRelationshipPages}
             setRelationshipPage={setRelationshipPage}
             onOpenHelperDialog={() => openHelperDialog('relationships')}
-            onAddRelationship={() => setRelationshipDialog({ visible: true, relationship: null })}
+            onAddRelationship={() => setRelationshipAddFlowVisible(true)}
             onEditRelationship={(relationship) => setRelationshipDialog({ visible: true, relationship })}
+            kinshipSystem={selectedTree?.kinshipSystem}
           />
         ) : null}
 
@@ -1032,8 +1209,6 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
             title={t(K.lineage.descendantTree)}
             helperLabel={t(K.lineage.aboutDescendantTree)}
             count={descendantIds.length}
-            singularLabel="descendant"
-            pluralLabel="descendants"
             person={person}
             people={people}
             relationships={relationships}
@@ -1049,8 +1224,6 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
             title={t(K.lineage.ascendantTree)}
             helperLabel={t(K.lineage.aboutAscendantTree)}
             count={ascendantIds.length}
-            singularLabel="ancestor"
-            pluralLabel="ancestors"
             person={person}
             people={people}
             relationships={relationships}
@@ -1067,6 +1240,8 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
             preferredPhoto={preferredPhoto}
             canEdit={canEdit}
             mutating={mutating}
+            selectedPhotoId={selectedPhotoId}
+            setSelectedPhotoId={setSelectedPhotoId}
             memorySectionTab={memorySectionTab}
             setMemorySectionTab={setMemorySectionTab}
             memoryTimeline={memoryTimeline}
@@ -1085,7 +1260,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
         ) : null}
       </ScrollView>
       {!isMainTabNavigation ? (
-        <Surface
+        <PanelSurface
           style={[
             treeDetailStyles.tabBar,
             {
@@ -1124,7 +1299,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
               </Pressable>
             );
           })}
-        </Surface>
+        </PanelSurface>
       ) : null}
       <PersonFormDialog
         visible={editorVisible}
@@ -1141,6 +1316,33 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
           setEditorVisible(false);
           if (navigation.canGoBack()) navigation.goBack();
         } : undefined}
+      />
+
+      <PersonFormDialog
+        visible={relationshipAddFlowVisible}
+        mode="create"
+        person={person}
+        initialStep={2}
+        autoOpenAddConnectionDialog
+        relationshipOnly
+        loading={mutating}
+        existingLastNames={existingLastNames}
+        relationshipCandidates={people.filter((candidate) => candidate.id !== person?.id)}
+        relationships={relationships}
+        onSelectRelationshipAttempt={handleMaidenParentSelectionAttempt}
+        onDismiss={() => setRelationshipAddFlowVisible(false)}
+        onSubmit={handleCreateRelatedPersonSubmit}
+      />
+
+      <MaidenTreeSuggestionDialog
+        visible={maidenTreeSuggestion.visible}
+        surname={maidenTreeSuggestion.person?.maidenName?.trim() ?? ''}
+        candidates={maidenTreeSuggestion.relatedTreeCandidates}
+        theme={theme}
+        t={t}
+        onDismiss={closeMaidenTreeSuggestion}
+        onOpenTree={openMaidenTreeCandidate}
+        onRequestAccess={requestMaidenTreeAccess}
       />
 
       <PersonRelationshipDialog
@@ -1204,34 +1406,32 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
         onConfirm={handleConfirm}
       />
 
-      <PersonPhotoViewerModal person={person} viewerIndex={viewerIndex} setViewerIndex={setViewerIndex} />
+      <SharedLoader visible={mutating} />
 
+      <PersonPhotoViewerModal
+        person={person}
+        viewerIndex={viewerIndex}
+        setViewerIndex={setViewerIndex}
+        onEditPhoto={(photo) => {
+          setSelectedPhotoId(photo.id);
+          setViewerIndex(null);
+        }}
+      />
+
+      <InfoDialog
+        visible={helperDialog.visible}
+        title={t(helperDialogCopy[helperDialog.key].title)}
+        message={t(helperDialogCopy[helperDialog.key].message)}
+        onDismiss={() => setHelperDialog((current) => ({ ...current, visible: false }))}
+      />
       <Portal>
-        <Dialog
-          visible={helperDialog.visible}
-          onDismiss={() => setHelperDialog((current) => ({ ...current, visible: false }))}
-          style={[dialogChrome.dialog, { backgroundColor: theme.colors.surface }]}
-        >
-          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{t(helperDialogCopy[helperDialog.key].title)}</Dialog.Title>
-          <IconButton
-            icon="close"
-            size={20}
-            onPress={() => setHelperDialog((current) => ({ ...current, visible: false }))}
-            style={dialogChrome.closeButton}
-            accessibilityLabel={t(K.common.close)}
-          />
-          <Dialog.Content style={dialogChrome.content}>
-            <Text variant="bodyMedium">{t(helperDialogCopy[helperDialog.key].message)}</Text>
-          </Dialog.Content>
-        </Dialog>
-
         <Dialog
           visible={relationshipInsightVisible}
           onDismiss={() => setRelationshipInsightVisible(false)}
           style={[dialogChrome.dialog, { backgroundColor: theme.colors.surface }]}
         >
           <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>
-            {t('How you relate')}
+            {t(K.relationshipInsight.howYouRelate)}
           </Dialog.Title>
           <IconButton
             icon="close"
@@ -1246,11 +1446,11 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
                 <View>
                   <Text variant="bodyMedium">
                     {automaticRelationshipInsight
-                      ? t('{name} is your {relationship}.', {
+                      ? t(K.relationshipInsight.nameIsYourRelationship, {
                         name: formatPersonName(person),
                         relationship: automaticRelationshipInsight.relationship.toLowerCase(),
                       })
-                      : t('No relationship path found yet between you and {name}.', { name: formatPersonName(person) })}
+                      : t(K.relationshipInsight.noPathYetWithName, { name: formatPersonName(person) })}
                   </Text>
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
                     <Chip compact icon="account">{formatPersonName(currentAssignedPerson)}</Chip>
@@ -1268,7 +1468,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
                   {automaticRelationshipInsight && automaticRelationshipPathLabel ? (
                     <>
                       <Divider style={{ marginVertical: 16 }} />
-                      <Text variant="titleSmall">{t('Relationship path')}</Text>
+                      <Text variant="titleSmall">{t(K.relationshipInsight.relationshipPath)}</Text>
                       <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 6 }}>
                         {automaticRelationshipPathLabel}
                       </Text>
@@ -1283,7 +1483,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
               ) : (
                 <View>
                   <Text variant="bodyMedium">
-                    {t('Link yourself to a family member profile to see how you relate to other relatives.')}
+                    {t(K.relationshipInsight.linkYourselfToSeeRelation)}
                   </Text>
                 </View>
               )}
@@ -1292,7 +1492,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
         </Dialog>
       </Portal>
 
-      <Snackbar
+      <FloatingSnackbar
         visible={snackVisible}
         onDismiss={() => {
           setSnackVisible(false);
@@ -1302,7 +1502,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
         duration={5000}
       >
         {error ?? notice}
-      </Snackbar>
+      </FloatingSnackbar>
     </View>
   );
 }

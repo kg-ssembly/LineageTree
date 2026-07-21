@@ -12,12 +12,14 @@ export interface GuidedMatchQuestion {
 }
 
 export interface MergeConflictChoice {
+  matchId: string;
   field: string;
   keep: 'source' | 'target' | 'both' | 'later';
   resolvedValue?: string | string[];
 }
 
 export interface MergeConflict {
+  matchId: string;
   field: string;
   sourceValue: string;
   targetValue: string;

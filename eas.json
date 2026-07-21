@@ -27,10 +27,8 @@
   "submit": {
     "production": {
       "android": {
-        "serviceAccountKeyPath": "../secrets/lineagetree-a9b091037d99",
         "track": "production"
       }
     }
   }
 }
-

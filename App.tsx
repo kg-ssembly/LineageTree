@@ -6,11 +6,19 @@ import { useFonts } from 'expo-font';
 import { PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { en as paperDatesEn, registerTranslation } from 'react-native-paper-dates';
 import { getAppThemes } from './constants/theme';
 import linking from './app/navigation/app-linking';
 import { setActiveLanguage } from './i18n';
 import { useLanguageStore } from './stores/language-store';
 import { useThemeStore } from './stores/theme-store';
+
+// react-native-paper-dates only renders cleanly after a locale is registered.
+// We register the built-in English pack for every app language so the date
+// picker stays quiet even when we switch the app UI to a non-supported locale.
+for (const locale of ['en', 'af', 'de', 'es', 'fr', 'it', 'pt', 'st', 'ss', 'tn', 'ts', 've', 'xh', 'zu', 'nso', 'nr']) {
+  registerTranslation(locale, paperDatesEn);
+}
 
 type StartupErrorBoundaryState = {
   error: Error | null;

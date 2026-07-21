@@ -1,22 +1,55 @@
-import React from 'react';
+import React, { type ComponentType } from 'react';
+import { Platform } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import type { MainTabParamList } from '../../../components/dto/navigation';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import type { MainTabParamList, RootStackParamList } from '../../../components/dto/navigation';
 import { I18N_KEYS as K } from '../../../i18n/keys';
-import PersonProfileScreen from '../person-profile';
-import { NotificationsTabContent, PeopleRelationshipsTabContent, TreeSettingsTabContent, VisualisationTabContent } from '../tree-tab-content';
-import { UserProfileTabContent } from '../my-profile';
 import type { useMainScreenController } from './main-controller';
+import type { SharedTabProps } from '../tree-tabs/shared';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
+type TabContentComponent = ComponentType<SharedTabProps>;
+type PersonProfileComponent = ComponentType<{
+  navigation: ReturnType<typeof useMainScreenController>['memberProfileNavigation'];
+  route: { params: RootStackParamList['PersonProfile'] };
+}>;
+type UserProfileComponent = ComponentType<{
+  onSignOut: ReturnType<typeof useMainScreenController>['signOut'];
+  authLoading: boolean;
+}>;
 
 const TAB_ICONS: Record<keyof MainTabParamList, string> = {
+  home: 'home-heart',
   tree: 'family-tree',
   members: 'account-group-outline',
-  notifications: 'bell-outline',
   treeSettings: 'cog-outline',
   myProfile: 'account-circle-outline',
 };
+
+function getHomeTabContent(): TabContentComponent {
+  return require('../tree-tabs/home').HomeTabContent;
+}
+
+function getVisualisationTabContent(): TabContentComponent {
+  return require('../tree-tabs/family-tree').VisualisationTabContent;
+}
+
+function getPeopleRelationshipsTabContent(): TabContentComponent {
+  return require('../tree-tabs/family-members').PeopleRelationshipsTabContent;
+}
+
+function getTreeSettingsTabContent(): TabContentComponent {
+  return require('../tree-tabs/tree-settings').TreeSettingsTabContent;
+}
+
+function getPersonProfileScreen(): PersonProfileComponent {
+  return require('../person-profile').default;
+}
+
+function getUserProfileTabContent(): UserProfileComponent {
+  return require('../my-profile').UserProfileTabContent;
+}
 
 export function MainTabNavigator({
   controller,
@@ -25,8 +58,17 @@ export function MainTabNavigator({
 }: {
   controller: ReturnType<typeof useMainScreenController>;
   noTreeGate: React.ReactNode;
-  styles: typeof import('../../../constants/styles').GlobalStyles.treeDetail;
+  styles: {
+    tabBar: {
+      height: number;
+    };
+    tabItem: object;
+    tabScene: object;
+  };
 }) {
+  const insets = useSafeAreaInsets();
+  const bottomInset = Platform.OS === 'android' && insets.bottom < 24 ? 0 : insets.bottom;
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -37,8 +79,15 @@ export function MainTabNavigator({
         tabBarActiveBackgroundColor: controller.theme.colors.elevation.level2,
         tabBarShowIcon: true,
         tabBarShowLabel: false,
-        tabBarStyle: [styles.tabBar, { backgroundColor: controller.theme.colors.surface, borderTopColor: controller.theme.colors.outlineVariant }],
-        tabBarLabelStyle: styles.tabLabel,
+        tabBarStyle: [
+          styles.tabBar,
+          {
+            backgroundColor: controller.theme.colors.surface,
+            borderTopColor: controller.theme.colors.outlineVariant,
+            paddingBottom: bottomInset,
+            height: styles.tabBar.height + bottomInset,
+          },
+        ],
         tabBarItemStyle: styles.tabItem,
         sceneStyle: [styles.tabScene, { backgroundColor: controller.theme.colors.background }],
         tabBarIcon: ({ color, size }) => (
@@ -46,39 +95,71 @@ export function MainTabNavigator({
         ),
       })}
     >
+      <Tab.Screen
+        name="home"
+        options={{
+          title: controller.t(K.navigation.home),
+          tabBarBadge: controller.notificationBadgeCount > 0 ? controller.notificationBadgeCount : undefined,
+        }}
+      >
+        {() => {
+          if (!controller.sharedTabProps) {
+            return noTreeGate;
+          }
+
+          const HomeTabContent = getHomeTabContent();
+          return <HomeTabContent {...controller.sharedTabProps} />;
+        }}
+      </Tab.Screen>
+
       <Tab.Screen name="tree" options={{ title: controller.t(K.navigation.tree) }}>
-        {() => (controller.sharedTabProps ? <VisualisationTabContent {...controller.sharedTabProps} /> : noTreeGate)}
+        {() => {
+          if (!controller.sharedTabProps) {
+            return noTreeGate;
+          }
+
+          const VisualisationTabContent = getVisualisationTabContent();
+          return <VisualisationTabContent {...controller.sharedTabProps} />;
+        }}
       </Tab.Screen>
 
       <Tab.Screen name="members" options={{ title: controller.t(K.navigation.members) }}>
-        {() => (controller.sharedTabProps
-          ? controller.memberProfileParams
-            ? (
+        {() => {
+          if (!controller.sharedTabProps) {
+            return noTreeGate;
+          }
+
+          if (controller.memberProfileParams) {
+            const PersonProfileScreen = getPersonProfileScreen();
+            return (
               <PersonProfileScreen
                 navigation={controller.memberProfileNavigation}
                 route={{ params: controller.memberProfileParams }}
               />
-            )
-            : <PeopleRelationshipsTabContent {...controller.sharedTabProps} />
-          : noTreeGate)}
+            );
+          }
+
+          const PeopleRelationshipsTabContent = getPeopleRelationshipsTabContent();
+          return <PeopleRelationshipsTabContent {...controller.sharedTabProps} />;
+        }}
       </Tab.Screen>
 
       <Tab.Screen name="treeSettings" options={{ title: controller.t(K.navigation.settings) }}>
-        {() => (controller.sharedTabProps ? <TreeSettingsTabContent {...controller.sharedTabProps} /> : noTreeGate)}
-      </Tab.Screen>
+        {() => {
+          if (!controller.sharedTabProps) {
+            return noTreeGate;
+          }
 
-      <Tab.Screen
-        name="notifications"
-        options={{
-          title: controller.t(K.navigation.notifications),
-          tabBarBadge: controller.notificationBadgeCount > 0 ? controller.notificationBadgeCount : undefined,
+          const TreeSettingsTabContent = getTreeSettingsTabContent();
+          return <TreeSettingsTabContent {...controller.sharedTabProps} />;
         }}
-      >
-        {() => (controller.sharedTabProps ? <NotificationsTabContent {...controller.sharedTabProps} /> : noTreeGate)}
       </Tab.Screen>
 
       <Tab.Screen name="myProfile" options={{ title: controller.t(K.navigation.profile) }}>
-        {() => <UserProfileTabContent onSignOut={controller.signOut} authLoading={controller.authLoading} />}
+        {() => {
+          const UserProfileTabContent = getUserProfileTabContent();
+          return <UserProfileTabContent onSignOut={controller.signOut} authLoading={controller.authLoading} />;
+        }}
       </Tab.Screen>
     </Tab.Navigator>
   );

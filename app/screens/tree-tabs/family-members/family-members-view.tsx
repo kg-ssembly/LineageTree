@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { FlatList, Image, ScrollView, View } from 'react-native';
+import React, { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { FlatList, Pressable, ScrollView, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   ActivityIndicator,
@@ -13,6 +13,7 @@ import {
   useTheme,
 } from 'react-native-paper';
 import { DatePickerModal } from 'react-native-paper-dates';
+import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, CachedImage, GlobalStyles, InfoDialog, Reveal, ScreenBackground } from '../../../../components';
 import type { PersonGender, PersonRecord } from '../../../../components/dto/person';
 import {
   formatPersonDate,
@@ -22,7 +23,6 @@ import {
   parsePersonDate,
 } from '../../../../components/dto/person';
 import { formatPersonGender, formatPersonName } from '../../../../components/person-formatting';
-import { GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
 import type { SharedTabProps } from '../shared';
@@ -116,7 +116,7 @@ export function FamilyMembersView({
   onOpenAddPerson,
 }: SharedTabProps) {
   const theme = useTheme();
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const [helperVisible, setHelperVisible] = useState(false);
   const [filterModalVisible, setFilterModalVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -125,6 +125,7 @@ export function FamilyMembersView({
   const [currentPage, setCurrentPage] = useState(1);
   const [birthDateFromPickerVisible, setBirthDateFromPickerVisible] = useState(false);
   const [birthDateToPickerVisible, setBirthDateToPickerVisible] = useState(false);
+  const deferredSearchQuery = useDeferredValue(searchQuery);
 
   const activeFilterCount = useMemo(() => countActiveFilters(filters), [filters]);
   const selectedBirthDateFrom = useMemo(() => parsePersonDate(draftFilters.birthDateFrom) ?? undefined, [draftFilters.birthDateFrom]);
@@ -146,12 +147,17 @@ export function FamilyMembersView({
     return { parentOf, childOf, spouseOf };
   }, [relationships]);
 
-  const filteredPeople = useMemo(
-    () => people.filter((person) => {
-      const normalizedQuery = searchQuery.trim().toLowerCase();
-      if (normalizedQuery) {
-        const searchableText = [
+  const searchablePeople = useMemo(
+    () => people.map((person) => {
+      const presenceLabel = getPersonPresenceLabel(person);
+      return {
+        person,
+        presenceLabel,
+        searchableText: [
           formatPersonName(person),
+          person.firstName,
+          person.lastName,
+          person.maidenName ?? '',
           person.middleNames ?? '',
           person.nicknames?.join(' ') ?? '',
           person.birthPlace ?? '',
@@ -159,45 +165,55 @@ export function FamilyMembersView({
           person.familyBranch ?? '',
           person.clanName ?? '',
           person.surnameVariantHints?.join(' ') ?? '',
-          ...(selectedTree?.surnameVariantGroups.flatMap((group) => [group.primarySurname, ...group.variants]) ?? []),
           person.birthDate,
           person.deathDate,
           person.notes,
-          getPersonPresenceLabel(person),
-        ].join(' ').toLowerCase();
-        if (!searchableText.includes(normalizedQuery)) {
-          return false;
-        }
-      }
-
-      if (filters.gender !== 'all' && person.gender !== filters.gender) return false;
-      if (filters.presence === 'present' && person.deathDate) return false;
-      if (filters.presence === 'deceased' && !person.deathDate) return false;
-      if (filters.hasNotes === true && !person.notes.trim()) return false;
-      if (filters.hasNotes === false && person.notes.trim()) return false;
-      if (filters.hasParents === true && !personRelStats.childOf.has(person.id)) return false;
-      if (filters.hasParents === false && personRelStats.childOf.has(person.id)) return false;
-      if (filters.hasChildren === true && !personRelStats.parentOf.has(person.id)) return false;
-      if (filters.hasChildren === false && personRelStats.parentOf.has(person.id)) return false;
-      if (filters.hasSpouse === true && !personRelStats.spouseOf.has(person.id)) return false;
-      if (filters.hasSpouse === false && personRelStats.spouseOf.has(person.id)) return false;
-
-      if (filters.birthDateFrom || filters.birthDateTo) {
-        if (!person.birthDate) return false;
-        if (filters.birthDateFrom && person.birthDate < filters.birthDateFrom) return false;
-        if (filters.birthDateTo && person.birthDate > filters.birthDateTo) return false;
-      }
-
-      return true;
+          presenceLabel,
+        ].join(' ').toLowerCase(),
+      };
     }),
-    [filters, people, searchQuery, personRelStats, selectedTree?.surnameVariantGroups],
+    [people],
+  );
+
+  const filteredPeople = useMemo(
+    () => {
+      const normalizedQuery = deferredSearchQuery.trim().toLowerCase();
+      return searchablePeople
+        .filter(({ person, searchableText }) => {
+          if (normalizedQuery && !searchableText.includes(normalizedQuery)) {
+            return false;
+          }
+
+          if (filters.gender !== 'all' && person.gender !== filters.gender) return false;
+          if (filters.presence === 'present' && person.deathDate) return false;
+          if (filters.presence === 'deceased' && !person.deathDate) return false;
+          if (filters.hasNotes === true && !person.notes.trim()) return false;
+          if (filters.hasNotes === false && person.notes.trim()) return false;
+          if (filters.hasParents === true && !personRelStats.childOf.has(person.id)) return false;
+          if (filters.hasParents === false && personRelStats.childOf.has(person.id)) return false;
+          if (filters.hasChildren === true && !personRelStats.parentOf.has(person.id)) return false;
+          if (filters.hasChildren === false && personRelStats.parentOf.has(person.id)) return false;
+          if (filters.hasSpouse === true && !personRelStats.spouseOf.has(person.id)) return false;
+          if (filters.hasSpouse === false && personRelStats.spouseOf.has(person.id)) return false;
+
+          if (filters.birthDateFrom || filters.birthDateTo) {
+            if (!person.birthDate) return false;
+            if (filters.birthDateFrom && person.birthDate < filters.birthDateFrom) return false;
+            if (filters.birthDateTo && person.birthDate > filters.birthDateTo) return false;
+          }
+
+          return true;
+        })
+        .map(({ person }) => person);
+    },
+    [deferredSearchQuery, filters, personRelStats, searchablePeople],
   );
 
   const totalPages = Math.max(1, Math.ceil(filteredPeople.length / MEMBERS_PER_PAGE));
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, filters, people, selectedTree.id]);
+  }, [deferredSearchQuery, filters, selectedTree.id]);
 
   useEffect(() => {
     setCurrentPage((page) => Math.min(page, totalPages));
@@ -208,28 +224,57 @@ export function FamilyMembersView({
     return filteredPeople.slice(startIndex, startIndex + MEMBERS_PER_PAGE);
   }, [currentPage, filteredPeople]);
 
-  const openFilterModal = () => {
+  const openFilterModal = useCallback(() => {
     setDraftFilters(filters);
     setFilterModalVisible(true);
-  };
+  }, [filters]);
 
-  const applyFilters = () => {
+  const applyFilters = useCallback(() => {
     setFilters(draftFilters);
     setFilterModalVisible(false);
-  };
+  }, [draftFilters]);
 
-  const renderMemberItem = ({ item: person }: { item: PersonRecord }) => {
+  const renderMemberItem = useCallback(({ item: person, index }: { item: PersonRecord; index: number }) => {
     const preferredPhoto = getDisplayPersonPhoto(person);
     const isCurrentUsersPerson = currentAssignedPerson?.id === person.id;
 
     return (
-      <View>
-        <View style={styles.memberListRow}>
+      <Reveal delay={90 + index * 35}>
+        <Pressable
+          onPress={() => openPersonProfile(person)}
+          accessibilityRole="button"
+          style={({ pressed }) => [
+            styles.memberListRow,
+            {
+              borderColor: theme.colors.outlineVariant,
+              backgroundColor: pressed ? theme.colors.elevation.level1 : theme.colors.surface,
+            },
+          ]}
+        >
           <View style={styles.personPhotoWrap}>
             {preferredPhoto ? (
-              <Image source={{ uri: preferredPhoto.url }} style={styles.personPhoto} />
+              <CachedImage
+                uri={preferredPhoto.url}
+                style={[
+                  styles.personPhoto,
+                  {
+                    borderColor: theme.colors.outlineVariant,
+                    backgroundColor: theme.colors.surfaceVariant,
+                  },
+                ]}
+                priority="low"
+                recyclingKey={`${person.id}:${preferredPhoto.id}`}
+              />
             ) : (
-              <View style={styles.personPhotoFallback}>
+              <View
+                style={[
+                  styles.personPhotoFallback,
+                  {
+                    borderColor: theme.colors.outlineVariant,
+                    backgroundColor: theme.colors.surfaceVariant,
+                  },
+                ]}
+              >
                 <MaterialCommunityIcons name={getPersonFallbackAvatarIcon(person)} size={30} color={theme.colors.primary} />
               </View>
             )}
@@ -246,15 +291,54 @@ export function FamilyMembersView({
             </Text>
           </View>
           <View style={styles.memberListTrailing}>
-            <IconButton icon="chevron-right" onPress={() => openPersonProfile(person)} />
+            <IconButton icon="chevron-right" disabled />
           </View>
-        </View>
+        </Pressable>
+      </Reveal>
+    );
+  }, [
+    currentAssignedPerson?.id,
+    openPersonProfile,
+    t,
+    theme.colors.onSurfaceVariant,
+    theme.colors.outlineVariant,
+    theme.colors.primary,
+    theme.colors.elevation.level1,
+    theme.colors.surface,
+    theme.colors.surfaceVariant,
+  ]);
+
+  const memberListFooter = useMemo(() => {
+    if (totalPages <= 1) {
+      return null;
+    }
+
+    return (
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingTop: 8 }}>
+        <IconButton
+          icon="chevron-left"
+          onPress={() => setCurrentPage((page) => Math.max(1, page - 1))}
+          disabled={currentPage === 1}
+          accessibilityLabel={t(K.tree.familyMembers.previousPage)}
+          mode="outlined"
+        />
+        <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+          {t(K.tree.familyMembers.pageOf, { current: currentPage, total: totalPages })}
+        </Text>
+        <IconButton
+          icon="chevron-right"
+          onPress={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+          disabled={currentPage === totalPages}
+          accessibilityLabel={t(K.tree.familyMembers.nextPage)}
+          mode="outlined"
+        />
       </View>
     );
-  };
+  }, [currentPage, t, theme.colors.onSurfaceVariant, totalPages]);
 
   return (
-    <View style={[styles.content, { flex: 1, paddingBottom: 0 }]}>
+    <View style={[styles.content, { flex: 1, paddingBottom: 0, backgroundColor: theme.colors.background }]}>
+      <ScreenBackground />
       <View style={{ flex: 1 }}>
         <View style={styles.sectionHeader}>
           <View style={styles.titleWrap}>
@@ -268,13 +352,10 @@ export function FamilyMembersView({
                 accessibilityLabel={t(K.tree.familyMembers.aboutLabel)}
               />
             </View>
-            <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-              {t(K.tree.familyMembers.about)}
-            </Text>
           </View>
           {canEdit ? (
-            <Button mode="contained" icon="account-plus" onPress={onOpenAddPerson} disabled={mutating}>
-              {t('Add')}
+            <Button mode="contained" icon="account-plus" onPress={onOpenAddPerson} disabled={mutating} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>
+              {t(K.common.add)}
             </Button>
           ) : null}
         </View>
@@ -289,22 +370,12 @@ export function FamilyMembersView({
             left={<TextInput.Icon icon="magnify" />}
             right={searchQuery ? <TextInput.Icon icon="close" onPress={() => setSearchQuery('')} /> : undefined}
           />
-          <Button
+          <IconButton
             mode={activeFilterCount > 0 ? 'contained' : 'outlined'}
+            icon="tune"
             onPress={openFilterModal}
-            style={styles.filterButton}
-            contentStyle={styles.filterButtonContent}
-            compact
-          >
-            <View style={styles.filterButtonInner}>
-              <MaterialCommunityIcons name="tune" size={18} color={activeFilterCount > 0 ? theme.colors.onPrimary : theme.colors.primary} />
-              {activeFilterCount > 0 ? (
-                <Text variant="labelLarge" style={{ color: theme.colors.onPrimary }}>
-                  ({activeFilterCount})
-                </Text>
-              ) : null}
-            </View>
-          </Button>
+            style={styles.filterButton}>
+          </IconButton>
         </View>
 
         <View style={{ flex: 1 }}>
@@ -324,14 +395,22 @@ export function FamilyMembersView({
                   : t(K.tree.familyMembers.adjustSearchOrFilters)}
               </Text>
               {activeFilterCount > 0 ? (
-                <Button mode="outlined" onPress={() => setFilters(DEFAULT_FILTERS)} style={{ marginTop: 8 }}>
+                <Button mode="outlined" onPress={() => setFilters(DEFAULT_FILTERS)} style={[BUTTON_CHROME, { marginTop: 8 }]} contentStyle={BUTTON_CONTENT_CHROME}>
                   {t(K.tree.familyMembers.clearFilters)}
                 </Button>
               ) : null}
             </View>
           ) : (
             <>
-              <View style={[styles.resultsPill, { backgroundColor: theme.colors.surfaceVariant }]}>
+              <View style={[
+                styles.resultsPill,
+                {
+                  backgroundColor: theme.colors.surfaceVariant,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 8,
+                },
+              ]}>
                 <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
                   {t(K.tree.familyMembers.count, { count: filteredPeople.length })}
                 </Text>
@@ -348,25 +427,7 @@ export function FamilyMembersView({
                 removeClippedSubviews
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
-                ListFooterComponent={totalPages > 1 ? (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingTop: 8 }}>
-                    <IconButton
-                      icon="chevron-left"
-                      onPress={() => setCurrentPage((page) => Math.max(1, page - 1))}
-                      disabled={currentPage === 1}
-                      accessibilityLabel={t(K.tree.familyMembers.previousPage)}
-                    />
-                    <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
-                      {t(K.tree.familyMembers.pageOf, { current: currentPage, total: totalPages })}
-                    </Text>
-                    <IconButton
-                      icon="chevron-right"
-                      onPress={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
-                      disabled={currentPage === totalPages}
-                      accessibilityLabel={t(K.tree.familyMembers.nextPage)}
-                    />
-                  </View>
-                ) : null}
+                ListFooterComponent={memberListFooter}
               />
             </>
           )}
@@ -382,7 +443,7 @@ export function FamilyMembersView({
           <Dialog.Title style={dialogChrome.dialogTitle}>{t(K.tree.familyMembers.filterMembers)}</Dialog.Title>
           <Dialog.ScrollArea style={dialogChrome.scrollArea}>
             <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={dialogChrome.content}>
-              <Text variant="titleSmall" style={{ marginTop: 8, marginBottom: 4 }}>{t('Gender')}</Text>
+              <Text variant="titleSmall" style={{ marginTop: 8, marginBottom: 4 }}>{t(K.personForm.gender)}</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
                 {(['all', 'female', 'male', 'non-binary', 'other', 'unspecified'] as const).map((gender) => (
                   <Chip
@@ -457,7 +518,7 @@ export function FamilyMembersView({
       </Portal>
 
       <DatePickerModal
-        locale="en"
+        locale={language}
         mode="single"
         visible={birthDateFromPickerVisible}
         date={selectedBirthDateFrom}
@@ -473,7 +534,7 @@ export function FamilyMembersView({
       />
 
       <DatePickerModal
-        locale="en"
+        locale={language}
         mode="single"
         visible={birthDateToPickerVisible}
         date={selectedBirthDateTo}
@@ -488,27 +549,12 @@ export function FamilyMembersView({
         label={t(K.tree.familyMembers.selectLatestBirthDate)}
       />
 
-      <Portal>
-        <Dialog
-          visible={helperVisible}
-          onDismiss={() => setHelperVisible(false)}
-          style={[dialogChrome.dialog, { backgroundColor: theme.colors.surface }]}
-        >
-          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{t(K.tree.familyMembers.title)}</Dialog.Title>
-          <IconButton
-            icon="close"
-            size={20}
-            onPress={() => setHelperVisible(false)}
-            style={dialogChrome.closeButton}
-            accessibilityLabel={t(K.common.close)}
-          />
-          <Dialog.Content style={dialogChrome.content}>
-            <Text variant="bodyMedium">
-              {t(K.tree.familyMembers.helper)}
-            </Text>
-          </Dialog.Content>
-        </Dialog>
-      </Portal>
+      <InfoDialog
+        visible={helperVisible}
+        title={t(K.tree.familyMembers.title)}
+        message={t(K.tree.familyMembers.helper)}
+        onDismiss={() => setHelperVisible(false)}
+      />
     </View>
   );
 }

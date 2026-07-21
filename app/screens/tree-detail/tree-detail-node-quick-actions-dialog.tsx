@@ -1,10 +1,9 @@
 import React from 'react';
 import { Dialog, IconButton, List, Portal, Text } from 'react-native-paper';
+import { GlobalStyles } from '../../../components';
 import type { PersonRecord } from '../../../components/dto/person';
-import type { FamilyTree } from '../../../components/dto/tree';
 import { extractSurname } from '../../../components/family-tree-surname-clusters';
 import { formatPersonName } from '../../../components/person-formatting';
-import { GlobalStyles } from '../../../constants/styles';
 import { I18N_KEYS as K } from '../../../i18n/keys';
 
 const dialogChrome = GlobalStyles.dialogChrome;
@@ -17,16 +16,13 @@ export function TreeDetailNodeQuickActionsDialog({
   t,
   canEdit,
   mutating,
-  selectedTree,
-  trees,
   closeNodeQuickActions,
   openPersonProfile,
   openCreateRelativeDialog,
   crossSurnameChildIds,
   canvasActiveFamilyRef,
   canvasFamilySwitchRef,
-  findConnectedTreeForSurname,
-  navigation,
+  onOpenMaidenFamilyTree,
 }: {
   visible: boolean;
   person: PersonRecord | null;
@@ -34,16 +30,13 @@ export function TreeDetailNodeQuickActionsDialog({
   t: (message: string, params?: Record<string, string | number | null | undefined>) => string;
   canEdit: boolean;
   mutating: boolean;
-  selectedTree: FamilyTree | null;
-  trees: FamilyTree[];
   closeNodeQuickActions: () => void;
   openPersonProfile: (person: PersonRecord) => void;
   openCreateRelativeDialog: (mode: 'parent-of' | 'child-of' | 'spouse-of', person: PersonRecord) => void;
   crossSurnameChildIds: Set<string>;
   canvasActiveFamilyRef: React.MutableRefObject<string | null>;
   canvasFamilySwitchRef: React.MutableRefObject<((surname: string) => void) | null>;
-  findConnectedTreeForSurname: typeof import('../tree-screen-helpers').findConnectedTreeForSurname;
-  navigation: any;
+  onOpenMaidenFamilyTree: (person: PersonRecord, maidenSurname: string, maritalSurname: string, isViewingMaiden: boolean) => void;
 }) {
   return (
     <Portal>
@@ -52,7 +45,7 @@ export function TreeDetailNodeQuickActionsDialog({
         onDismiss={closeNodeQuickActions}
         style={[dialogChrome.dialog, styles.quickActionDialog, { backgroundColor: theme.colors.surface }]}
       >
-        <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{person ? formatPersonName(person) : 'Quick actions'}</Dialog.Title>
+        <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{person ? formatPersonName(person) : t(K.relationship.quickActions)}</Dialog.Title>
         <IconButton
           icon="close"
           size={20}
@@ -62,7 +55,7 @@ export function TreeDetailNodeQuickActionsDialog({
         />
         <Dialog.Content style={dialogChrome.content}>
           <Text variant="bodyMedium" style={[styles.quickActionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-            {t('Choose what you want to do with this family member in the tree.')}
+            {t(K.relationship.quickActionsTreeMember)}
           </Text>
           <List.Item
             title={t(K.relationship.openProfile)}
@@ -81,30 +74,19 @@ export function TreeDetailNodeQuickActionsDialog({
             const marital = extractSurname(person);
             const currentFamily = canvasActiveFamilyRef.current;
             const isViewingMaiden = currentFamily === maiden;
-            const targetSurname = isViewingMaiden ? marital : maiden;
             const label = isViewingMaiden
               ? t(K.relationship.viewMaritalFamilyTree, { surname: marital })
               : t(K.relationship.viewMaidenFamilyTree, { surname: maiden });
             const description = isViewingMaiden
               ? t(K.relationship.switchToFamilyByMarriage, { surname: marital })
               : t(K.relationship.switchToBirthFamily, { surname: maiden });
-            const linkedTree = findConnectedTreeForSurname(person, targetSurname, selectedTree, trees);
             return (
               <List.Item
                 title={label}
                 description={description}
                 left={(props) => <List.Icon {...props} icon="family-tree" />}
                 onPress={() => {
-                  closeNodeQuickActions();
-                  if (linkedTree) {
-                    navigation.push('TreeDetail', {
-                      treeId: linkedTree.id,
-                      initialTab: 'VisualisationTab',
-                      returnTreeId: selectedTree?.id,
-                    });
-                    return;
-                  }
-                  canvasFamilySwitchRef.current?.(targetSurname);
+                  onOpenMaidenFamilyTree(person, maiden, marital, isViewingMaiden);
                 }}
               />
             );

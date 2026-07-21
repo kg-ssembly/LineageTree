@@ -1,854 +1,183 @@
 import {
   collection,
-  deleteDoc,
   doc,
   getDoc,
   getDocs,
   limit,
   onSnapshot,
   query,
-  runTransaction,
   setDoc,
   updateDoc,
   where,
   writeBatch,
-  type DocumentData,
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
-import {
-  deleteObject,
-  getDownloadURL,
-  ref,
-  uploadBytes,
-} from 'firebase/storage';
-import { db, storage } from './firebase-provider';
-import { sendTreeInviteEmailNotification } from './email-service';
-import type { ApprovalRequest, ApprovalRequestPayload, ApprovalSubmissionResult } from '../components/dto/approval';
-import type { MergeApproval, MergeConflictChoice, MergeHistoryRecord, MergePreview, MergeRequestRecord, MergeRequestSnapshot, MergeReviewDecision } from '../components/dto/merge';
+import { db } from './firebase-provider';
+import type { ApprovalRequest, ApprovalSubmissionResult } from '../components/dto/approval';
+import type { MergeHistoryRecord, MergeRequestRecord } from '../components/dto/merge';
 import type { AppNotification, NotificationActivityState } from '../components/dto/notification';
-import type { NewPersonPhotoInput, PersonInput, PersonLifeEvent, PersonMutationPayload, PersonPhoto, PersonRecord } from '../components/dto/person';
-import { cropPhotoForPreferredDisplay, MAX_PHOTO_BYTES } from '../components/photo-utils';
+import type { NewPersonPhotoInput, PersonInput, PersonMutationPayload, PersonPhoto, PersonRecord } from '../components/dto/person';
 import type { ParentChildRelationshipKind, RelationshipRecord, SpouseRelationshipStatus } from '../components/dto/relationship';
 import { DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND, DEFAULT_SPOUSE_RELATIONSHIP_STATUS } from '../components/dto/relationship';
-import type { CollaboratorRole, FamilyTree, SurnameVariantGroup, TreeCollaborator, TreeMembershipHistoryEntry, TreeRole } from '../components/dto/tree';
+import type { FamilyTree, KinshipSystem, SurnameVariantGroup } from '../components/dto/tree';
 import type { UserProfile } from '../components/dto/user';
-import { normalizeRelationshipEndpoints, validateProposedRelationship } from '../components/family-tree-validation';
-import { buildMergePreview } from './merge-intelligence';
+import {
+  buildOwnerCollaborator,
+  clampApprovalWindowHours,
+  mapApprovalRequest,
+  mapMergeHistory,
+  mapMergeRequest,
+  mapNotification,
+  mapNotificationActivityState,
+  mapPerson,
+  mapRelationship,
+  mapTree,
+  mapTreeData,
+  mergeUniqueById,
+  normaliseLifeEvents,
+  asSafeString,
+  sortByNewest,
+  sortCollaborators,
+} from './family-tree-mappers';
+import {
+  applyPreferredPhotoDisplayVariant,
+  deletePhotos,
+  resolvePreferredPhotoId,
+  resolvePreferredPhotoSourceUri,
+  uploadPersonPhotos,
+  uploadPreferredPhotoDisplayVariant,
+} from './family-tree-photo-service';
+import { addCollaboratorToTree, assignTreePersonToUser, clearTreePersonAssignment, removeCollaboratorFromTree } from './family-tree-collaboration-service';
+import {
+  APPROVAL_REQUESTS_COLLECTION,
+  MERGE_HISTORY_COLLECTION,
+  MERGE_REQUESTS_COLLECTION,
+  NOTIFICATION_ACTIVITY_COLLECTION,
+  NOTIFICATIONS_COLLECTION,
+  PEOPLE_COLLECTION,
+  RELATIONSHIPS_COLLECTION,
+  TREES_COLLECTION,
+  findUserByUsernameExact,
+  getLegacyPeopleNeedingBackfill,
+  getPeopleByTreeId,
+  getRelationshipsByTreeId,
+  getTreeBundle,
+  getTreeById,
+  getUserProfileByIdOptional,
+  deleteDocumentRefs,
+} from './family-tree-data';
+import {
+  type CreatePersonApprovalResult,
+  decideApprovalRequest,
+  processExpiredApprovalRequests,
+  submitCreatePersonApproval,
+  submitCreateRelationshipApproval,
+  submitDeletePersonApproval,
+  submitDeleteRelationshipApproval,
+  submitPersonUpdateApproval,
+  submitUpdateRelationshipApproval,
+  validatePersonCreation,
+} from './family-tree-approval-service';
+import {
+  cancelTreeAccessRequest,
+  grantMergeRequesterViewerAccess,
+  markNotificationActivityActioned,
+  markNotificationOpened,
+  markNotificationSeen,
+  requestAccessFromIdentifier,
+  requestAccessToTree,
+  respondToMergeInvite,
+  respondToTreeAccessRequest,
+  sendMergeInviteByIdentifier,
+} from './family-tree-access-service';
+import { createMergeRequest, getMergePreview, reviewMergeRequest, undoMergeRequest } from './family-tree-merge-service';
+import { nowIso } from './family-tree-shared';
 
-const TREES_COLLECTION = 'trees';
-const PEOPLE_COLLECTION = 'persons';
-const RELATIONSHIPS_COLLECTION = 'relationships';
-const APPROVAL_REQUESTS_COLLECTION = 'approvalRequests';
-const MERGE_REQUESTS_COLLECTION = 'mergeRequests';
-const MERGE_HISTORY_COLLECTION = 'mergeHistory';
-const NOTIFICATIONS_COLLECTION = 'notifications';
-const NOTIFICATION_ACTIVITY_COLLECTION = 'notificationActivity';
-const USERS_COLLECTION = 'users';
-
-function nowIso() {
-  return new Date().toISOString();
+export interface DiscoverableTreeSummary {
+  id: string;
+  name: string;
+  ownerId: string;
+  ownerDisplayName: string;
+  ownerUsername: string;
+  discoverable: boolean;
+  matchedBy: 'tree-name' | 'surname' | 'username';
+  matchedLabel: string;
 }
 
-function normaliseEmail(email: string) {
-  return email.trim().toLowerCase();
-}
+const ACTIVITY_SUBSCRIPTION_LIMIT = 80;
+const NOTIFICATION_SUBSCRIPTION_LIMIT = 120;
 
-function normaliseDisplayName(displayName: string) {
-  return displayName
+export {
+  addCollaboratorToTree,
+  assignTreePersonToUser,
+  clearTreePersonAssignment,
+  removeCollaboratorFromTree,
+  decideApprovalRequest,
+  processExpiredApprovalRequests,
+  submitCreatePersonApproval,
+  submitCreateRelationshipApproval,
+  submitDeletePersonApproval,
+  submitDeleteRelationshipApproval,
+  submitPersonUpdateApproval,
+  submitUpdateRelationshipApproval,
+  cancelTreeAccessRequest,
+  grantMergeRequesterViewerAccess,
+  markNotificationActivityActioned,
+  markNotificationOpened,
+  markNotificationSeen,
+  requestAccessFromIdentifier,
+  requestAccessToTree,
+  respondToMergeInvite,
+  respondToTreeAccessRequest,
+  sendMergeInviteByIdentifier,
+  createMergeRequest,
+  getMergePreview,
+  reviewMergeRequest,
+  undoMergeRequest,
+  getTreeBundle,
+};
+
+function normaliseSearchValue(value: string) {
+  return value
     .trim()
     .toLowerCase()
-    .replace(/[._-]+/g, ' ')
+    .replace(/[^\p{L}\p{N}\s'-]+/gu, ' ')
     .replace(/\s+/g, ' ');
 }
 
-function asSafeString(value: unknown) {
-  return typeof value === 'string' ? value : '';
-}
+function buildSearchKeywordSet(values: string[]) {
+  const keywords = new Set<string>();
 
-function clampApprovalWindowHours(value: unknown) {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) {
-    return 24;
-  }
-
-  return Math.max(0, Math.min(168, Math.round(parsed)));
-}
-
-function isTreeRole(value: unknown): value is TreeRole {
-  return value === 'owner' || value === 'editor' || value === 'contributor' || value === 'viewer';
-}
-
-function buildOwnerCollaborator(user: Pick<UserProfile, 'id' | 'email' | 'displayName'>): TreeCollaborator {
-  return {
-    userId: user.id,
-    email: asSafeString(user.email),
-    displayName: asSafeString(user.displayName),
-    role: 'owner',
-  };
-}
-
-function sortCollaborators(collaborators: TreeCollaborator[]) {
-  return [...collaborators].sort((left, right) => {
-    if (left.role === 'owner') {
-      return -1;
-    }
-
-    if (right.role === 'owner') {
-      return 1;
-    }
-
-    return `${left.displayName}${left.email}`.localeCompare(`${right.displayName}${right.email}`);
-  });
-}
-
-function mapCollaborator(rawCollaborator: any): TreeCollaborator | null {
-  if (!rawCollaborator?.userId || !rawCollaborator?.email || !isTreeRole(rawCollaborator?.role)) {
-    return null;
-  }
-
-  return {
-    userId: rawCollaborator.userId,
-    email: rawCollaborator.email,
-    displayName: rawCollaborator.displayName ?? '',
-    role: rawCollaborator.role,
-  };
-}
-
-function mapPersonAssignments(rawAssignments: unknown) {
-  if (!rawAssignments || typeof rawAssignments !== 'object') {
-    return {} as Record<string, string>;
-  }
-
-  return Object.fromEntries(
-    Object.entries(rawAssignments as Record<string, unknown>)
-      .flatMap(([userId, personId]) => {
-        if (!userId || typeof personId !== 'string' || personId.trim().length === 0) {
-          return [];
-        }
-
-        return [[userId, personId.trim()] as const];
-      }),
-  );
-}
-
-function mapTreeData(id: string, data: DocumentData): FamilyTree {
-  const ownerCollaborator = buildOwnerCollaborator({
-    id: data.ownerId,
-    email: data.ownerEmail ?? '',
-    displayName: data.ownerDisplayName ?? '',
-  });
-  const collaborators = Array.isArray(data.collaborators)
-    ? data.collaborators.map(mapCollaborator).filter(Boolean) as TreeCollaborator[]
-    : [ownerCollaborator];
-  const hasOwner = collaborators.some((collaborator) => collaborator.userId === data.ownerId);
-  const normalizedCollaborators = hasOwner
-    ? collaborators
-    : [ownerCollaborator, ...collaborators];
-  const memberIds = Array.isArray(data.memberIds) ? data.memberIds : [data.ownerId];
-  const editorIds = Array.isArray(data.editorIds) ? data.editorIds : [data.ownerId];
-  const membershipHistory = Array.isArray(data.membershipHistory)
-    ? data.membershipHistory
-      .filter((entry) => entry?.id && entry?.userId && entry?.role && entry?.action && entry?.createdAt)
-      .map((entry) => entry as TreeMembershipHistoryEntry)
-    : [];
-  const surnameVariantGroups = Array.isArray(data.surnameVariantGroups)
-    ? data.surnameVariantGroups
-      .filter((entry) => entry?.id && entry?.primarySurname)
-      .map((entry) => ({
-        id: entry.id,
-        primarySurname: entry.primarySurname,
-        variants: Array.isArray(entry.variants) ? entry.variants.filter((value: unknown): value is string => typeof value === 'string') : [],
-        notes: entry.notes ?? '',
-        createdAt: entry.createdAt ?? nowIso(),
-        updatedAt: entry.updatedAt ?? entry.createdAt ?? nowIso(),
-      } satisfies SurnameVariantGroup))
-    : [];
-
-  return {
-    id,
-    ownerId: data.ownerId,
-    name: data.name,
-    memberIds,
-    editorIds,
-    collaborators: sortCollaborators(normalizedCollaborators),
-    personAssignments: mapPersonAssignments(data.personAssignments),
-    approvalWindowHours: clampApprovalWindowHours(data.approvalWindowHours),
-    surnameVariantGroups,
-    connectedTreeIds: Array.isArray(data.connectedTreeIds) ? data.connectedTreeIds.filter((value) => typeof value === 'string') : [],
-    membershipHistory,
-    createdAt: data.createdAt ?? nowIso(),
-    updatedAt: data.updatedAt ?? data.createdAt ?? nowIso(),
-  };
-}
-
-function mapTree(snapshot: QueryDocumentSnapshot): FamilyTree {
-  return mapTreeData(snapshot.id, snapshot.data());
-}
-
-function mapPhoto(photo: any, index: number): PersonPhoto {
-  return {
-    id: photo?.id ?? `${photo?.path ?? photo?.url ?? 'photo'}-${index}`,
-    url: photo?.url ?? '',
-    path: photo?.path ?? '',
-    displayUrl: photo?.displayUrl ?? '',
-    displayPath: photo?.displayPath ?? '',
-    title: photo?.title ?? '',
-    description: photo?.description ?? '',
-    createdAt: photo?.createdAt ?? nowIso(),
-  };
-}
-
-function mapLifeEvent(event: any, index: number): PersonLifeEvent {
-  return {
-    id: event?.id ?? `event-${index}`,
-    type: event?.type ?? 'custom',
-    title: event?.title ?? '',
-    date: event?.date ?? '',
-    description: event?.description ?? '',
-  };
-}
-
-function mapPerson(snapshot: QueryDocumentSnapshot): PersonRecord {
-  const data = snapshot.data();
-  return {
-    id: snapshot.id,
-    treeId: data.treeId,
-    treeMembershipIds: Array.isArray(data.treeMembershipIds) ? data.treeMembershipIds.filter((value) => typeof value === 'string') : [data.treeId].filter(Boolean),
-    treeMemberships: Array.isArray(data.treeMemberships) ? data.treeMemberships : [],
-    ownerId: data.ownerId,
-    firstName: data.firstName ?? '',
-    middleNames: data.middleNames ?? '',
-    lastName: data.lastName ?? '',
-    maidenName: data.maidenName ?? '',
-    nicknames: Array.isArray(data.nicknames) ? data.nicknames.filter((value) => typeof value === 'string') : [],
-    clanName: data.clanName ?? '',
-    familyBranch: data.familyBranch ?? '',
-    hometown: data.hometown ?? '',
-    birthPlace: data.birthPlace ?? '',
-    surnameVariantHints: Array.isArray(data.surnameVariantHints) ? data.surnameVariantHints.filter((value) => typeof value === 'string') : [],
-    canonicalPersonId: data.canonicalPersonId ?? '',
-    duplicatePersonIds: Array.isArray(data.duplicatePersonIds) ? data.duplicatePersonIds.filter((value) => typeof value === 'string') : [],
-    birthDate: data.birthDate ?? '',
-    deathDate: data.deathDate ?? '',
-    gender: data.gender ?? 'unspecified',
-    notes: data.notes ?? '',
-    lifeEvents: Array.isArray(data.lifeEvents) ? data.lifeEvents.map(mapLifeEvent) : [],
-    photos: Array.isArray(data.photos) ? data.photos.map(mapPhoto) : [],
-    preferredPhotoId: data.preferredPhotoId ?? '',
-    createdAt: data.createdAt ?? nowIso(),
-    updatedAt: data.updatedAt ?? data.createdAt ?? nowIso(),
-  };
-}
-
-function needsTreeMembershipBackfill(data: DocumentData, treeId: string) {
-  return !(Array.isArray(data.treeMembershipIds) && data.treeMembershipIds.includes(treeId));
-}
-
-function buildTreeMembershipBackfill(person: PersonRecord, treeId: string) {
-  const nextTreeMembershipIds = [...new Set([...(Array.isArray(person.treeMembershipIds) ? person.treeMembershipIds : []), treeId])];
-  const existingMemberships = Array.isArray(person.treeMemberships) ? person.treeMemberships : [];
-  const hasMembershipEntry = existingMemberships.some((membership) => membership?.treeId === treeId);
-
-  return {
-    treeMembershipIds: nextTreeMembershipIds,
-    treeMemberships: hasMembershipEntry
-      ? existingMemberships
-      : [...existingMemberships, {
-        treeId,
-        role: 'subject' as const,
-        joinedAt: person.createdAt ?? nowIso(),
-        addedByUserId: person.ownerId || undefined,
-        source: 'manual' as const,
-      }],
-  };
-}
-
-async function backfillLegacyPeopleMemberships(treeId: string, people: PersonRecord[]) {
-  if (people.length === 0) {
-    return;
-  }
-
-  for (let index = 0; index < people.length; index += 450) {
-    const batch = writeBatch(db);
-    people.slice(index, index + 450).forEach((person) => {
-      batch.update(doc(db, PEOPLE_COLLECTION, person.id), {
-        ...buildTreeMembershipBackfill(person, treeId),
-        updatedAt: person.updatedAt ?? nowIso(),
-      });
-    });
-    await batch.commit();
-  }
-}
-
-async function getLegacyPeopleNeedingBackfill(treeId: string) {
-  const snapshot = await getDocs(query(collection(db, PEOPLE_COLLECTION), where('treeId', '==', treeId)));
-  return snapshot.docs
-    .filter((docSnapshot) => needsTreeMembershipBackfill(docSnapshot.data(), treeId))
-    .map(mapPerson);
-}
-
-function formatPersonName(person: Pick<PersonRecord, 'firstName' | 'middleNames' | 'lastName'>) {
-  return [person.firstName, person.middleNames ?? '', person.lastName].join(' ').replace(/\s+/g, ' ').trim() || 'A child';
-}
-
-function normaliseLifeEvents(lifeEvents: PersonLifeEvent[]) {
-  return lifeEvents.map((event, index) => ({
-    id: event.id?.trim() || `event-${Date.now()}-${index}`,
-    type: event.type ?? 'custom',
-    title: event.title.trim(),
-    date: event.date.trim(),
-    description: event.description.trim(),
-  }));
-}
-
-function buildChildBornLifeEvent(child: Pick<PersonRecord, 'id' | 'firstName' | 'lastName' | 'birthDate'>): PersonLifeEvent | null {
-  const birthDate = child.birthDate.trim();
-  if (!birthDate) {
-    return null;
-  }
-
-  const childName = formatPersonName(child);
-  return {
-    id: `child-born-${child.id}`,
-    type: 'child-born',
-    title: `Welcomed ${childName}`,
-    date: birthDate,
-    description: `${childName} was born on ${birthDate}.`,
-  };
-}
-
-async function updateParentLifeEventsForChild(
-  parentIds: string[],
-  child: Pick<PersonRecord, 'id' | 'treeId' | 'firstName' | 'lastName' | 'birthDate'>,
-) {
-  const uniqueParentIds = [...new Set(parentIds)];
-  if (uniqueParentIds.length === 0) {
-    return;
-  }
-
-  const childBirthEvent = buildChildBornLifeEvent(child);
-  const eventId = `child-born-${child.id}`;
-  const parentSnapshots = await Promise.all(uniqueParentIds.map((parentId) => getDoc(doc(db, PEOPLE_COLLECTION, parentId))));
-
-  await Promise.all(parentSnapshots.map(async (parentSnapshot) => {
-    if (!parentSnapshot.exists()) {
+  values.forEach((value) => {
+    const normalizedValue = normaliseSearchValue(value);
+    if (!normalizedValue) {
       return;
     }
 
-    const parentData = parentSnapshot.data();
-    if (parentData.treeId !== child.treeId) {
-      return;
-    }
+    keywords.add(normalizedValue);
+    normalizedValue
+      .split(' ')
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .forEach((part) => keywords.add(part));
+  });
 
-    const currentLifeEvents = Array.isArray(parentData.lifeEvents) ? parentData.lifeEvents.map(mapLifeEvent) : [];
-    const nextLifeEvents = childBirthEvent
-      ? [...currentLifeEvents.filter((event) => event.id !== eventId), childBirthEvent]
-      : currentLifeEvents.filter((event) => event.id !== eventId);
-
-    await updateDoc(parentSnapshot.ref, {
-      lifeEvents: normaliseLifeEvents(nextLifeEvents),
-      updatedAt: nowIso(),
-    });
-  }));
+  return [...keywords];
 }
 
-async function getParentIdsForChild(treeId: string, childId: string) {
-  const relationshipSnapshot = await getDocs(query(
-    collection(db, RELATIONSHIPS_COLLECTION),
-    where('treeId', '==', treeId),
-    where('type', '==', 'parent-child'),
-    where('toPersonId', '==', childId),
-  ));
-  return relationshipSnapshot.docs
-    .map(mapRelationship)
-    .map((relationship) => relationship.fromPersonId);
-}
-
-async function getRelationshipsTouchingPerson(treeId: string, personId: string) {
-  const [outgoingSnapshot, incomingSnapshot] = await Promise.all([
-    getDocs(query(
-      collection(db, RELATIONSHIPS_COLLECTION),
-      where('treeId', '==', treeId),
-      where('fromPersonId', '==', personId),
-    )),
-    getDocs(query(
-      collection(db, RELATIONSHIPS_COLLECTION),
-      where('treeId', '==', treeId),
-      where('toPersonId', '==', personId),
-    )),
-  ]);
-
-  return mergeUniqueById([
-    ...outgoingSnapshot.docs.map(mapRelationship),
-    ...incomingSnapshot.docs.map(mapRelationship),
+function buildTreeSearchKeywords(name: string, surnameVariantGroups: SurnameVariantGroup[]) {
+  return buildSearchKeywordSet([
+    name,
+    ...surnameVariantGroups.flatMap((group) => [group.primarySurname, ...group.variants]),
   ]);
 }
 
-function resolvePreferredPhotoId(
-  preferredPhotoRef: string | undefined,
-  existingPhotos: PersonPhoto[],
-  newPhotoUris: string[],
-  uploadedPhotos: PersonPhoto[],
-) {
-  if (!preferredPhotoRef) {
-    return '';
-  }
-
-  const existingPhoto = existingPhotos.find((photo) => photo.id === preferredPhotoRef);
-  if (existingPhoto) {
-    return existingPhoto.id;
-  }
-
-  const uploadedPhotoIndex = newPhotoUris.findIndex((uri) => uri === preferredPhotoRef);
-  if (uploadedPhotoIndex >= 0) {
-    return uploadedPhotos[uploadedPhotoIndex]?.id ?? '';
-  }
-
-  return '';
+function pickPrimarySearchKeyword(value: string) {
+  return buildSearchKeywordSet([value]).sort((left, right) => right.length - left.length)[0] ?? '';
 }
 
-function mapRelationshipData(id: string, data: DocumentData): RelationshipRecord {
-  return {
-    id,
-    treeId: data.treeId,
-    ownerId: data.ownerId,
-    type: data.type,
-    fromPersonId: data.fromPersonId,
-    toPersonId: data.toPersonId,
-    relationshipStatus: data.type === 'spouse'
-      ? data.relationshipStatus ?? DEFAULT_SPOUSE_RELATIONSHIP_STATUS
-      : undefined,
-    parentChildKind: data.type === 'parent-child'
-      ? data.parentChildKind ?? DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND
-      : undefined,
-    createdAt: data.createdAt ?? nowIso(),
-  };
-}
-
-function mapRelationship(snapshot: QueryDocumentSnapshot): RelationshipRecord {
-  return mapRelationshipData(snapshot.id, snapshot.data());
-}
-
-function mapApprovalRequestData(id: string, data: DocumentData): ApprovalRequest {
-  const payload = (data.payload ?? {}) as ApprovalRequestPayload;
-
-  return {
-    id,
-    treeId: data.treeId,
-    entityType: data.entityType,
-    operation: data.operation,
-    targetId: data.targetId,
-    title: data.title ?? 'Approval request',
-    description: data.description ?? '',
-    status: data.status ?? 'pending',
-    decisionMode: data.decisionMode ?? 'manual',
-    requestedByUserId: data.requestedByUserId ?? '',
-    requestedByLabel: data.requestedByLabel ?? '',
-    eligibleApproverIds: Array.isArray(data.eligibleApproverIds) ? data.eligibleApproverIds.filter((value) => typeof value === 'string') : [],
-    payload,
-    expiresAt: data.expiresAt ?? nowIso(),
-    expiresAtMillis: Number(data.expiresAtMillis ?? 0),
-    createdAt: data.createdAt ?? nowIso(),
-    updatedAt: data.updatedAt ?? data.createdAt ?? nowIso(),
-    decidedAt: data.decidedAt ?? undefined,
-    decidedByUserId: data.decidedByUserId ?? undefined,
-    decidedByLabel: data.decidedByLabel ?? undefined,
-    appliedAt: data.appliedAt ?? undefined,
-  };
-}
-
-function mapApprovalRequest(snapshot: QueryDocumentSnapshot): ApprovalRequest {
-  return mapApprovalRequestData(snapshot.id, snapshot.data());
-}
-
-function mapMergePreview(data: any): MergePreview {
-  return {
-    sourceTree: data?.sourceTree,
-    targetTree: data?.targetTree,
-    matches: Array.isArray(data?.matches) ? data.matches : [],
-    duplicateCount: Number(data?.duplicateCount ?? 0),
-    connectedRelationshipCount: Number(data?.connectedRelationshipCount ?? 0),
-    newBranchCount: Number(data?.newBranchCount ?? 0),
-    conflicts: Array.isArray(data?.conflicts) ? data.conflicts : [],
-    combinedAssetCount: Number(data?.combinedAssetCount ?? 0),
-  };
-}
-
-function mapMergeApproval(rawApproval: any): MergeApproval | null {
-  if (!rawApproval?.treeId || !rawApproval?.editorUserId || !rawApproval?.editorLabel || !rawApproval?.decision || !rawApproval?.decidedAt) {
-    return null;
-  }
-
-  return {
-    treeId: rawApproval.treeId,
-    editorUserId: rawApproval.editorUserId,
-    editorLabel: rawApproval.editorLabel,
-    decision: rawApproval.decision,
-    comment: rawApproval.comment ?? '',
-    decidedAt: rawApproval.decidedAt,
-  };
-}
-
-function mapMergeSnapshot(rawSnapshot: any): MergeRequestSnapshot | undefined {
-  if (!rawSnapshot?.trees || !rawSnapshot?.people || !rawSnapshot?.relationships) {
-    return undefined;
-  }
-
-  return {
-    trees: Array.isArray(rawSnapshot.trees) ? rawSnapshot.trees : [],
-    people: Array.isArray(rawSnapshot.people) ? rawSnapshot.people : [],
-    relationships: Array.isArray(rawSnapshot.relationships) ? rawSnapshot.relationships : [],
-  };
-}
-
-function mapMergeRequest(snapshot: QueryDocumentSnapshot): MergeRequestRecord {
-  const data = snapshot.data();
-  return {
-    id: snapshot.id,
-    sourceTreeId: data.sourceTreeId ?? '',
-    targetTreeId: data.targetTreeId ?? '',
-    involvedTreeIds: Array.isArray(data.involvedTreeIds) ? data.involvedTreeIds.filter((value) => typeof value === 'string') : [],
-    suggestedByUserId: data.suggestedByUserId ?? '',
-    suggestedByLabel: data.suggestedByLabel ?? '',
-    status: data.status ?? 'pending',
-    preview: mapMergePreview(data.preview ?? {}),
-    selectedMatchIds: Array.isArray(data.selectedMatchIds) ? data.selectedMatchIds.filter((value) => typeof value === 'string') : [],
-    approvals: Array.isArray(data.approvals) ? data.approvals.map(mapMergeApproval).filter(Boolean) as MergeApproval[] : [],
-    reviewerComments: Array.isArray(data.reviewerComments) ? data.reviewerComments.filter((value) => typeof value === 'string') : [],
-    conflictChoices: Array.isArray(data.conflictChoices) ? data.conflictChoices as MergeConflictChoice[] : [],
-    snapshotBeforeMerge: mapMergeSnapshot(data.snapshotBeforeMerge),
-    appliedAt: data.appliedAt ?? undefined,
-    undoneAt: data.undoneAt ?? undefined,
-    createdAt: data.createdAt ?? nowIso(),
-    updatedAt: data.updatedAt ?? data.createdAt ?? nowIso(),
-  };
-}
-
-function mapMergeHistory(snapshot: QueryDocumentSnapshot): MergeHistoryRecord {
-  const data = snapshot.data();
-  return {
-    id: snapshot.id,
-    mergeRequestId: data.mergeRequestId ?? '',
-    involvedTreeIds: Array.isArray(data.involvedTreeIds) ? data.involvedTreeIds.filter((value) => typeof value === 'string') : [],
-    summary: data.summary ?? '',
-    status: data.status ?? 'pending',
-    preview: mapMergePreview(data.preview ?? {}),
-    changedPersonIds: Array.isArray(data.changedPersonIds) ? data.changedPersonIds.filter((value) => typeof value === 'string') : [],
-    approvals: Array.isArray(data.approvals) ? data.approvals.map(mapMergeApproval).filter(Boolean) as MergeApproval[] : [],
-    createdAt: data.createdAt ?? nowIso(),
-    updatedAt: data.updatedAt ?? data.createdAt ?? nowIso(),
-  };
-}
-
-function mapNotification(snapshot: QueryDocumentSnapshot): AppNotification {
-  const data = snapshot.data();
-  return {
-    id: snapshot.id,
-    userId: data.userId ?? '',
-    type: data.type ?? 'merge-invite',
-    status: data.status ?? 'pending',
-    requestedByUserId: data.requestedByUserId ?? '',
-    requestedByLabel: data.requestedByLabel ?? '',
-    sourceTreeId: data.sourceTreeId ?? '',
-    sourceTreeName: data.sourceTreeName ?? '',
-    targetIdentifier: data.targetIdentifier ?? '',
-    message: data.message ?? '',
-    createdAt: data.createdAt ?? nowIso(),
-    updatedAt: data.updatedAt ?? data.createdAt ?? nowIso(),
-    respondedAt: data.respondedAt ?? undefined,
-    seenAt: data.seenAt ?? undefined,
-    openedAt: data.openedAt ?? undefined,
-  };
-}
-
-function mapNotificationActivityState(snapshot: QueryDocumentSnapshot): NotificationActivityState {
-  const data = snapshot.data();
-  return {
-    id: snapshot.id,
-    userId: data.userId ?? '',
-    sourceKind: data.sourceKind ?? 'approval',
-    sourceId: data.sourceId ?? '',
-    actionedAt: data.actionedAt ?? undefined,
-    createdAt: data.createdAt ?? nowIso(),
-    updatedAt: data.updatedAt ?? data.createdAt ?? nowIso(),
-  };
-}
-
-function sortByNewest<T extends { updatedAt?: string; createdAt?: string }>(items: T[]) {
-  return [...items].sort((left, right) => {
-    const leftValue = left.updatedAt ?? left.createdAt ?? '';
-    const rightValue = right.updatedAt ?? right.createdAt ?? '';
-    return rightValue.localeCompare(leftValue);
-  });
-}
-
-function mergeUniqueById<T extends { id: string }>(items: T[]) {
-  return [...new Map(items.map((item) => [item.id, item])).values()];
-}
-
-function stripUndefinedDeep<T>(value: T): T {
-  if (Array.isArray(value)) {
-    return value
-      .filter((entry) => entry !== undefined)
-      .map((entry) => stripUndefinedDeep(entry)) as T;
-  }
-
-  if (value && typeof value === 'object') {
-    return Object.fromEntries(
-      Object.entries(value)
-        .filter(([, entry]) => entry !== undefined)
-        .map(([key, entry]) => [key, stripUndefinedDeep(entry)]),
-    ) as T;
-  }
-
-  return value;
-}
-
-function buildSpouseRelationshipId(personAId: string, personBId: string) {
-  const [firstId, secondId] = [personAId, personBId].sort();
-  return `spouse_${firstId}_${secondId}`;
-}
-
-function buildParentChildRelationshipId(parentId: string, childId: string) {
-  return `parent_${parentId}_${childId}`;
-}
-
-async function getRelationshipsForTree(treeId: string) {
-  const relationshipSnapshot = await getDocs(
-    query(collection(db, RELATIONSHIPS_COLLECTION), where('treeId', '==', treeId)),
-  );
-  return relationshipSnapshot.docs.map(mapRelationship);
-}
-
-async function uriToBlob(uri: string): Promise<Blob> {
-  const response = await fetch(uri);
-  return response.blob();
-}
-
-async function uploadPersonPhotos(
-  actorUserId: string,
-  treeId: string,
-  personId: string,
-  newPhotos: NewPersonPhotoInput[],
-): Promise<PersonPhoto[]> {
-  const uploadedPhotos: PersonPhoto[] = [];
-
-  for (let index = 0; index < newPhotos.length; index += 1) {
-    const photoInput = newPhotos[index];
-    const uri = photoInput.uri;
-    const extension = uri.split('.').pop()?.split('?')[0]?.toLowerCase() || 'jpg';
-    const safeExtension = extension === 'jpg' ? 'jpeg' : extension;
-    const photoId = `${Date.now()}-${index}`;
-    const path = `treePhotos/${treeId}/${personId}/${actorUserId}-${photoId}.${extension}`;
-    const blob = await uriToBlob(uri);
-    if (blob.size > MAX_PHOTO_BYTES) {
-      throw new Error('Each photo must be smaller than 2 MB before upload.');
-    }
-    const storageRef = ref(storage, path);
-    await uploadBytes(storageRef, blob, { contentType: `image/${safeExtension}` });
-    const url = await getDownloadURL(storageRef);
-
-    uploadedPhotos.push({
-      id: photoId,
-      url,
-      path,
-      title: photoInput.title?.trim() ?? '',
-      description: photoInput.description?.trim() ?? '',
-      createdAt: nowIso(),
-    });
-  }
-
-  return uploadedPhotos;
-}
-
-async function uploadPreferredPhotoDisplayVariant(
-  actorUserId: string,
-  treeId: string,
-  personId: string,
-  preferredPhotoId: string,
-  sourceUri: string,
-) {
-  const croppedPreferred = await cropPhotoForPreferredDisplay(sourceUri);
-  if (croppedPreferred.sizeBytes > MAX_PHOTO_BYTES) {
-    throw new Error('The preferred photo could not be cropped and compressed below 2 MB.');
-  }
-
-  const path = `treePhotos/${treeId}/${personId}/${actorUserId}-${preferredPhotoId}-preferred.jpeg`;
-  const blob = await uriToBlob(croppedPreferred.uri);
-  const storageRef = ref(storage, path);
-  await uploadBytes(storageRef, blob, { contentType: 'image/jpeg' });
-  const url = await getDownloadURL(storageRef);
-
-  return { url, path };
-}
-
-function applyPreferredPhotoDisplayVariant(
-  photos: PersonPhoto[],
-  preferredPhotoId: string,
-  preferredDisplayPhoto?: { url: string; path: string } | null,
-) {
-  return photos.map((photo) => {
-    if (photo.id !== preferredPhotoId) {
-      return {
-        ...photo,
-        displayUrl: '',
-        displayPath: '',
-      };
-    }
-
-    return {
-      ...photo,
-      displayUrl: preferredDisplayPhoto?.url ?? '',
-      displayPath: preferredDisplayPhoto?.path ?? '',
-    };
-  });
-}
-
-function resolvePreferredPhotoSourceUri(
-  preferredPhotoRef: string | undefined,
-  existingPhotos: PersonPhoto[],
-  newPhotos: NewPersonPhotoInput[],
-) {
-  if (!preferredPhotoRef) {
-    return '';
-  }
-
-  const existingPhoto = existingPhotos.find((photo) => photo.id === preferredPhotoRef);
-  if (existingPhoto) {
-    return existingPhoto.url;
-  }
-
-  return newPhotos.find((photo) => photo.uri === preferredPhotoRef)?.uri ?? '';
-}
-
-function normaliseNewPhotoInputs(
-  newPhotoUris: string[],
-  newPhotos?: NewPersonPhotoInput[],
-) {
-  if (Array.isArray(newPhotos) && newPhotos.length > 0) {
-    return newPhotos.map((photo) => ({
-      uri: photo.uri,
-      title: photo.title?.trim() ?? '',
-      description: photo.description?.trim() ?? '',
-    }));
-  }
-
-  return newPhotoUris.map((uri) => ({ uri, title: '', description: '' }));
-}
-
-async function deletePhotos(photos: PersonPhoto[]) {
-  await Promise.all(
-    photos
-      .flatMap((photo) => [photo.path, photo.displayPath].filter(Boolean))
-      .map(async (path) => {
-        try {
-          await deleteObject(ref(storage, path!));
-        } catch {
-          // Ignore missing objects so a partially deleted tree can still be cleaned up.
-        }
-      }),
-  );
-}
-
-async function ensurePeopleBelongToTree(treeId: string, personIds: string[]) {
-  const uniqueIds = [...new Set(personIds)];
-  const snapshots = await Promise.all(uniqueIds.map((personId) => getDoc(doc(db, PEOPLE_COLLECTION, personId))));
-
-  snapshots.forEach((snapshot) => {
-    if (!snapshot.exists()) {
-      throw new Error('One of the selected family members no longer exists.');
-    }
-
-    const membershipIds = Array.isArray(snapshot.data().treeMembershipIds)
-      ? snapshot.data().treeMembershipIds
-      : [snapshot.data().treeId].filter(Boolean);
-    if (!membershipIds.includes(treeId)) {
-      throw new Error('Family members must belong to the selected tree.');
-    }
-  });
-}
-
-async function deleteDocumentRefs(refs: Array<ReturnType<typeof doc>>) {
-  for (let index = 0; index < refs.length; index += 450) {
-    const batch = writeBatch(db);
-    refs.slice(index, index + 450).forEach((currentRef) => batch.delete(currentRef));
-    await batch.commit();
-  }
-}
-
-async function findUserByEmail(email: string) {
-  const trimmedEmail = email.trim();
-  const normalizedEmail = normaliseEmail(trimmedEmail);
-
-  let userSnapshot = await getDocs(
-    query(collection(db, USERS_COLLECTION), where('normalizedEmail', '==', normalizedEmail), limit(1)),
-  );
-
-  if (userSnapshot.empty) {
-    userSnapshot = await getDocs(
-      query(collection(db, USERS_COLLECTION), where('email', '==', trimmedEmail), limit(1)),
-    );
-  }
-
-  if (userSnapshot.empty) {
-    throw new Error('No account was found with that email address.');
-  }
-
-  const userDoc = userSnapshot.docs[0];
-  const userData = userDoc.data();
-
-  return {
-    id: userDoc.id,
-    email: userData.email,
-    displayName: userData.displayName ?? '',
-  };
-}
-
-async function findUserByIdentifier(identifier: string) {
-  const trimmedIdentifier = identifier.trim();
-  const normalizedEmail = normaliseEmail(trimmedIdentifier);
-  const normalizedDisplayName = normaliseDisplayName(trimmedIdentifier);
-  const normalizedUsername = trimmedIdentifier.trim().toLowerCase().replace(/\s+/g, '');
-
-  let userSnapshot = await getDocs(
-    query(collection(db, USERS_COLLECTION), where('normalizedEmail', '==', normalizedEmail), limit(1)),
-  );
-
-  if (!userSnapshot.empty) {
-    const userDoc = userSnapshot.docs[0];
-    const userData = userDoc.data();
-    return {
-      id: userDoc.id,
-      email: userData.email,
-      displayName: userData.displayName ?? '',
-    };
-  }
-
-  userSnapshot = await getDocs(
-    query(collection(db, USERS_COLLECTION), where('username', '==', normalizedUsername), limit(2)),
-  );
-
-  if (userSnapshot.empty) {
-    userSnapshot = await getDocs(
-      query(collection(db, USERS_COLLECTION), where('normalizedDisplayName', '==', normalizedDisplayName), limit(2)),
-    );
-  }
-
-  if (userSnapshot.empty) {
-    throw new Error('No registered account was found with that email address or username.');
-  }
-
-  if (userSnapshot.docs.length > 1) {
-    throw new Error('More than one user matches that username. Ask them for their tree ID or email address instead.');
-  }
-
-  const userDoc = userSnapshot.docs[0];
-  const userData = userDoc.data();
-  return {
-    id: userDoc.id,
-    email: userData.email,
-    displayName: userData.displayName ?? '',
-  };
+function normaliseSurnameKey(value: string | undefined | null) {
+  return value?.trim().toLowerCase() ?? '';
 }
 
 export function subscribeToTrees(
@@ -933,7 +262,11 @@ export function subscribeToApprovalRequests(
   onChange: (requests: ApprovalRequest[]) => void,
   onError?: (error: Error) => void,
 ) {
-  const approvalRequestsQuery = query(collection(db, APPROVAL_REQUESTS_COLLECTION), where('treeId', '==', treeId));
+  const approvalRequestsQuery = query(
+    collection(db, APPROVAL_REQUESTS_COLLECTION),
+    where('treeId', '==', treeId),
+    limit(ACTIVITY_SUBSCRIPTION_LIMIT),
+  );
   return onSnapshot(
     approvalRequestsQuery,
     (snapshot) => {
@@ -951,7 +284,11 @@ export function subscribeToMergeRequests(
   onChange: (requests: MergeRequestRecord[]) => void,
   onError?: (error: Error) => void,
 ) {
-  const mergeRequestsQuery = query(collection(db, MERGE_REQUESTS_COLLECTION), where('involvedTreeIds', 'array-contains', treeId));
+  const mergeRequestsQuery = query(
+    collection(db, MERGE_REQUESTS_COLLECTION),
+    where('involvedTreeIds', 'array-contains', treeId),
+    limit(ACTIVITY_SUBSCRIPTION_LIMIT),
+  );
   return onSnapshot(
     mergeRequestsQuery,
     (snapshot) => onChange(snapshot.docs.map(mapMergeRequest).sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))),
@@ -964,7 +301,11 @@ export function subscribeToMergeHistory(
   onChange: (history: MergeHistoryRecord[]) => void,
   onError?: (error: Error) => void,
 ) {
-  const mergeHistoryQuery = query(collection(db, MERGE_HISTORY_COLLECTION), where('involvedTreeIds', 'array-contains', treeId));
+  const mergeHistoryQuery = query(
+    collection(db, MERGE_HISTORY_COLLECTION),
+    where('involvedTreeIds', 'array-contains', treeId),
+    limit(ACTIVITY_SUBSCRIPTION_LIMIT),
+  );
   return onSnapshot(
     mergeHistoryQuery,
     (snapshot) => onChange(snapshot.docs.map(mapMergeHistory).sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))),
@@ -977,7 +318,11 @@ export function subscribeToNotifications(
   onChange: (notifications: AppNotification[]) => void,
   onError?: (error: Error) => void,
 ) {
-  const notificationsQuery = query(collection(db, NOTIFICATIONS_COLLECTION), where('userId', '==', userId));
+  const notificationsQuery = query(
+    collection(db, NOTIFICATIONS_COLLECTION),
+    where('userId', '==', userId),
+    limit(NOTIFICATION_SUBSCRIPTION_LIMIT),
+  );
   return onSnapshot(
     notificationsQuery,
     (snapshot) => onChange(snapshot.docs.map(mapNotification).sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))),
@@ -990,7 +335,11 @@ export function subscribeToNotificationActivityStates(
   onChange: (states: NotificationActivityState[]) => void,
   onError?: (error: Error) => void,
 ) {
-  const activityQuery = query(collection(db, NOTIFICATION_ACTIVITY_COLLECTION), where('userId', '==', userId));
+  const activityQuery = query(
+    collection(db, NOTIFICATION_ACTIVITY_COLLECTION),
+    where('userId', '==', userId),
+    limit(NOTIFICATION_SUBSCRIPTION_LIMIT),
+  );
   return onSnapshot(
     activityQuery,
     (snapshot) => onChange(snapshot.docs.map(mapNotificationActivityState).sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))),
@@ -1004,6 +353,7 @@ export async function createTree(
 ): Promise<FamilyTree> {
   const treeRef = doc(collection(db, TREES_COLLECTION));
   const timestamp = nowIso();
+  const trimmedName = name.trim();
   const ownerEmail = asSafeString(owner.email);
   const ownerDisplayName = asSafeString(owner.displayName);
   const ownerCollaborator = buildOwnerCollaborator(owner);
@@ -1011,7 +361,10 @@ export async function createTree(
     ownerId: owner.id,
     ownerEmail,
     ownerDisplayName,
-    name: name.trim(),
+    name: trimmedName,
+    kinshipSystem: 'auto',
+    discoverable: true,
+    searchKeywords: buildTreeSearchKeywords(trimmedName, []),
     memberIds: [owner.id],
     editorIds: [owner.id],
     collaborators: [ownerCollaborator],
@@ -1035,8 +388,12 @@ export async function createTree(
 }
 
 export async function updateTreeName(treeId: string, name: string) {
+  const tree = await getTreeById(treeId);
+  const trimmedName = name.trim();
+
   await updateDoc(doc(db, TREES_COLLECTION, treeId), {
-    name: name.trim(),
+    name: trimmedName,
+    searchKeywords: buildTreeSearchKeywords(trimmedName, tree.surnameVariantGroups),
     updatedAt: nowIso(),
   });
 }
@@ -1176,6 +533,7 @@ export async function createSuggestedSurnameTree(
     editorIds: copiedEditorIds,
     personAssignments: copiedAssignments,
     approvalWindowHours: sourceTree.approvalWindowHours,
+    kinshipSystem: sourceTree.kinshipSystem ?? 'auto',
     surnameVariantGroups: [{
       id: `${createdTree.id}-surname-variants`,
       primarySurname: trimmedSurname,
@@ -1263,6 +621,7 @@ export async function createSuggestedSurnameTree(
     editorIds: copiedEditorIds,
     personAssignments: copiedAssignments,
     approvalWindowHours: sourceTree.approvalWindowHours,
+    kinshipSystem: sourceTree.kinshipSystem ?? 'auto',
     surnameVariantGroups: [{
       id: `${createdTree.id}-surname-variants`,
       primarySurname: trimmedSurname,
@@ -1283,230 +642,11 @@ export async function updateTreeApprovalWindow(treeId: string, approvalWindowHou
   });
 }
 
-export async function addCollaboratorToTree(treeId: string, email: string, role: CollaboratorRole) {
-  const collaboratorUser = await findUserByEmail(email);
-  const treeRef = doc(db, TREES_COLLECTION, treeId);
-
-  await runTransaction(db, async (transaction) => {
-    const treeSnapshot = await transaction.get(treeRef);
-    if (!treeSnapshot.exists()) {
-      throw new Error('That family tree no longer exists.');
-    }
-
-    const tree = mapTreeData(treeSnapshot.id, treeSnapshot.data());
-    if (collaboratorUser.id === tree.ownerId) {
-      throw new Error('The owner already has access to this tree.');
-    }
-
-    if (tree.memberIds.includes(collaboratorUser.id)) {
-      throw new Error('That collaborator already has access to this tree.');
-    }
-
-    const collaborators = sortCollaborators([
-      ...tree.collaborators,
-      {
-        userId: collaboratorUser.id,
-        email: collaboratorUser.email,
-        displayName: collaboratorUser.displayName,
-        role,
-      },
-    ]);
-
-    transaction.update(treeRef, {
-      collaborators,
-      memberIds: [...tree.memberIds, collaboratorUser.id],
-      editorIds: role === 'editor' ? [...tree.editorIds, collaboratorUser.id] : tree.editorIds,
-      membershipHistory: [
-        ...tree.membershipHistory,
-        {
-          id: `${treeId}-${collaboratorUser.id}-${Date.now()}`,
-          userId: collaboratorUser.id,
-          role,
-          action: 'invited',
-          note: `Added as ${role}`,
-          createdAt: nowIso(),
-        },
-      ],
-      updatedAt: nowIso(),
-    });
+export async function updateTreeKinshipSystem(treeId: string, kinshipSystem: KinshipSystem) {
+  await updateDoc(doc(db, TREES_COLLECTION, treeId), {
+    kinshipSystem,
+    updatedAt: nowIso(),
   });
-
-  try {
-    await sendTreeInviteEmailNotification(treeId, collaboratorUser.id);
-  } catch (notificationError) {
-    console.warn('Tree invite email request failed', notificationError);
-  }
-}
-
-export async function removeCollaboratorFromTree(treeId: string, collaboratorUserId: string) {
-  const treeRef = doc(db, TREES_COLLECTION, treeId);
-
-  await runTransaction(db, async (transaction) => {
-    const treeSnapshot = await transaction.get(treeRef);
-    if (!treeSnapshot.exists()) {
-      throw new Error('That family tree no longer exists.');
-    }
-
-    const tree = mapTreeData(treeSnapshot.id, treeSnapshot.data());
-    if (collaboratorUserId === tree.ownerId) {
-      throw new Error('The owner cannot be removed from the tree.');
-    }
-
-    if (!tree.memberIds.includes(collaboratorUserId)) {
-      throw new Error('That collaborator is no longer on this tree.');
-    }
-
-    const nextPersonAssignments = Object.fromEntries(
-      Object.entries(tree.personAssignments).filter(([userId]) => userId !== collaboratorUserId),
-    );
-
-    transaction.update(treeRef, {
-      collaborators: tree.collaborators.filter((collaborator) => collaborator.userId !== collaboratorUserId),
-      memberIds: tree.memberIds.filter((memberId) => memberId !== collaboratorUserId),
-      editorIds: tree.editorIds.filter((editorId) => editorId !== collaboratorUserId),
-      personAssignments: nextPersonAssignments,
-      membershipHistory: [
-        ...tree.membershipHistory,
-        {
-          id: `${treeId}-${collaboratorUserId}-${Date.now()}`,
-          userId: collaboratorUserId,
-          role: 'viewer',
-          action: 'left',
-          createdAt: nowIso(),
-        },
-      ],
-      updatedAt: nowIso(),
-    });
-  });
-}
-
-export async function assignTreePersonToUser(actorUserId: string, treeId: string, userId: string, personId: string) {
-  const treeRef = doc(db, TREES_COLLECTION, treeId);
-  const personRef = doc(db, PEOPLE_COLLECTION, personId);
-
-  await runTransaction(db, async (transaction) => {
-    const [treeSnapshot, personSnapshot] = await Promise.all([
-      transaction.get(treeRef),
-      transaction.get(personRef),
-    ]);
-
-    if (!treeSnapshot.exists()) {
-      throw new Error('That family tree no longer exists.');
-    }
-
-    const tree = mapTreeData(treeSnapshot.id, treeSnapshot.data());
-    if (!tree.memberIds.includes(actorUserId)) {
-      throw new Error('You are no longer a collaborator on this tree.');
-    }
-
-    if (actorUserId !== userId && tree.ownerId !== actorUserId) {
-      throw new Error('Only the tree owner can link another collaborator to a family member.');
-    }
-
-    if (!tree.memberIds.includes(userId)) {
-      throw new Error('You are no longer a collaborator on this tree.');
-    }
-
-    if (!personSnapshot.exists()) {
-      throw new Error('That family member no longer exists.');
-    }
-
-    const personMembershipIds = Array.isArray(personSnapshot.data().treeMembershipIds)
-      ? personSnapshot.data().treeMembershipIds
-      : [personSnapshot.data().treeId].filter(Boolean);
-    if (!personMembershipIds.includes(treeId)) {
-      throw new Error('That family member belongs to a different family tree.');
-    }
-
-    const currentAssignedPersonId = tree.personAssignments[userId] ?? null;
-    if (currentAssignedPersonId === personId) {
-      return;
-    }
-
-    if (actorUserId === userId && currentAssignedPersonId) {
-      throw new Error('Unlink your current claimed profile before claiming another family member.');
-    }
-
-    const assignedUserId = Object.entries(tree.personAssignments).find(
-      ([currentUserId, currentPersonId]) => currentPersonId === personId && currentUserId !== userId,
-    )?.[0];
-    if (assignedUserId) {
-      throw new Error('That family member is already linked to another collaborator.');
-    }
-
-
-    transaction.update(treeRef, {
-      personAssignments: {
-        ...tree.personAssignments,
-        [userId]: personId,
-      },
-      updatedAt: nowIso(),
-    });
-  });
-}
-
-export async function clearTreePersonAssignment(treeId: string, userId: string) {
-  const treeRef = doc(db, TREES_COLLECTION, treeId);
-
-  await runTransaction(db, async (transaction) => {
-    const treeSnapshot = await transaction.get(treeRef);
-    if (!treeSnapshot.exists()) {
-      throw new Error('That family tree no longer exists.');
-    }
-
-    const tree = mapTreeData(treeSnapshot.id, treeSnapshot.data());
-    if (!tree.memberIds.includes(userId)) {
-      throw new Error('You are no longer a collaborator on this tree.');
-    }
-
-    if (!tree.personAssignments[userId]) {
-      return;
-    }
-
-    const nextAssignments = { ...tree.personAssignments };
-    delete nextAssignments[userId];
-
-    transaction.update(treeRef, {
-      personAssignments: nextAssignments,
-      updatedAt: nowIso(),
-    });
-  });
-}
-
-async function getTreeById(treeId: string) {
-  const treeSnapshot = await getDoc(doc(db, TREES_COLLECTION, treeId));
-  if (!treeSnapshot.exists()) {
-    throw new Error('That family tree no longer exists.');
-  }
-
-  return mapTreeData(treeSnapshot.id, treeSnapshot.data());
-}
-
-async function getPeopleByTreeId(treeId: string) {
-  const [membershipSnapshot, legacyPeople] = await Promise.all([
-    getDocs(query(collection(db, PEOPLE_COLLECTION), where('treeMembershipIds', 'array-contains', treeId))),
-    getLegacyPeopleNeedingBackfill(treeId),
-  ]);
-
-  return mergeUniqueById([
-    ...membershipSnapshot.docs.map(mapPerson),
-    ...legacyPeople,
-  ]);
-}
-
-async function getRelationshipsByTreeId(treeId: string) {
-  const relationshipSnapshot = await getDocs(query(collection(db, RELATIONSHIPS_COLLECTION), where('treeId', '==', treeId)));
-  return relationshipSnapshot.docs.map(mapRelationship);
-}
-
-export async function getTreeBundle(treeId: string) {
-  const [tree, people, relationships] = await Promise.all([
-    getTreeById(treeId),
-    getPeopleByTreeId(treeId),
-    getRelationshipsByTreeId(treeId),
-  ]);
-
-  return { tree, people, relationships };
 }
 
 export async function getTreeDeletionImpact(treeId: string) {
@@ -1536,1309 +676,104 @@ export async function getTreeDeletionImpact(treeId: string) {
   };
 }
 
-function getRequesterLabel(tree: FamilyTree, userId: string) {
-  const collaborator = tree.collaborators.find((entry) => entry.userId === userId);
-  return collaborator?.displayName || collaborator?.email || 'A collaborator';
-}
-
-function normaliseSurnameKey(value: string | undefined | null) {
-  return value?.trim().toLowerCase() ?? '';
-}
-
-function buildSurnameCanonicalLookup(tree: FamilyTree) {
-  const lookup = new Map<string, string>();
-
-  tree.surnameVariantGroups.forEach((group) => {
-    const primaryKey = normaliseSurnameKey(group.primarySurname);
-    if (!primaryKey) {
-      return;
-    }
-
-    lookup.set(primaryKey, primaryKey);
-    group.variants.forEach((variant) => {
-      const variantKey = normaliseSurnameKey(variant);
-      if (variantKey) {
-        lookup.set(variantKey, primaryKey);
-      }
-    });
-  });
-
-  return lookup;
-}
-
-function getCanonicalSurnameKeysForPerson(
-  person: Pick<PersonRecord, 'lastName'> | null | undefined,
-  surnameLookup: Map<string, string>,
-) {
-  const keys = new Set<string>();
-  [person?.lastName].forEach((value) => {
-    const rawKey = normaliseSurnameKey(value);
-    if (!rawKey) {
-      return;
-    }
-    keys.add(surnameLookup.get(rawKey) ?? rawKey);
-  });
-
-  return keys;
-}
-
-function intersectsSurnames(left: Set<string>, right: Set<string>) {
-  for (const value of left) {
-    if (right.has(value)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-function getApprovalScopeSurnames(
-  tree: FamilyTree,
-  peopleById: Map<string, PersonRecord>,
-  payload: ApprovalRequestPayload,
-) {
-  const surnameLookup = buildSurnameCanonicalLookup(tree);
-  const scope = new Set<string>();
-  const peopleToInspect = [
-    payload.beforePerson,
-    payload.afterPerson,
-    payload.deletedPerson,
-  ].filter(Boolean) as PersonRecord[];
-
-  if (payload.relationship) {
-    const fromPerson = peopleById.get(payload.relationship.fromPersonId);
-    const toPerson = peopleById.get(payload.relationship.toPersonId);
-    if (fromPerson) {
-      peopleToInspect.push(fromPerson);
-    }
-    if (toPerson) {
-      peopleToInspect.push(toPerson);
-    }
-  }
-
-  peopleToInspect.forEach((person) => {
-    getCanonicalSurnameKeysForPerson(person, surnameLookup).forEach((surname) => scope.add(surname));
-  });
-
-  return { scope, surnameLookup };
-}
-
-async function getEligibleApproverIds(
-  tree: FamilyTree,
-  requesterUserId: string,
-  payload: ApprovalRequestPayload,
-) {
-  const people = await getPeopleByTreeId(tree.id);
-  const peopleById = new Map(people.map((person) => [person.id, person]));
-  const { scope, surnameLookup } = getApprovalScopeSurnames(tree, peopleById, payload);
-
-  const nonContributorApprovers = tree.collaborators
-    .filter((collaborator) => collaborator.userId !== requesterUserId)
-    .filter((collaborator) => collaborator.role === 'owner' || collaborator.role === 'editor')
-    .map((collaborator) => collaborator.userId);
-
-  const contributorApprovers = tree.collaborators
-    .filter((collaborator) => collaborator.userId !== requesterUserId)
-    .filter((collaborator) => collaborator.role === 'contributor');
-
-  const matchingContributorIds = scope.size === 0
-    ? contributorApprovers.map((collaborator) => collaborator.userId)
-    : contributorApprovers
-      .filter((collaborator) => {
-        const assignedPersonId = tree.personAssignments[collaborator.userId];
-        const assignedPerson = assignedPersonId ? peopleById.get(assignedPersonId) ?? null : null;
-        if (!assignedPerson) {
-          return false;
-        }
-
-        const contributorSurnames = getCanonicalSurnameKeysForPerson(assignedPerson, surnameLookup);
-        return intersectsSurnames(scope, contributorSurnames);
-      })
-      .map((collaborator) => collaborator.userId);
-
-  return {
-    eligibleApproverIds: [...new Set([...nonContributorApprovers, ...matchingContributorIds])],
-    autoApproveBecauseNoSameSurnameContributor: scope.size > 0 && matchingContributorIds.length === 0,
-  };
-}
-
-function buildApprovalExpiry(tree: FamilyTree) {
-  const approvalWindowHours = clampApprovalWindowHours(tree.approvalWindowHours);
-  const expiresAtMillis = Date.now() + approvalWindowHours * 60 * 60 * 1000;
-  return {
-    expiresAtMillis,
-    expiresAt: new Date(expiresAtMillis).toISOString(),
-  };
-}
-
-function areApprovalsDisabled(tree: FamilyTree) {
-  return clampApprovalWindowHours(tree.approvalWindowHours) === 0;
-}
-
-async function preparePersonUpdatePreview(
-  actorUserId: string,
-  person: PersonRecord,
-  input: PersonMutationPayload,
-) {
-  const newPhotoInputs = normaliseNewPhotoInputs(input.newPhotoUris, input.newPhotos);
-  const uploadedPhotos = await uploadPersonPhotos(actorUserId, person.treeId, person.id, newPhotoInputs);
-  const preferredPhotoId = resolvePreferredPhotoId(
-    input.preferredPhotoRef,
-    input.existingPhotos,
-    input.newPhotoUris,
-    uploadedPhotos,
-  );
-  const preferredPhotoSourceUri = resolvePreferredPhotoSourceUri(
-    input.preferredPhotoRef,
-    input.existingPhotos,
-    newPhotoInputs,
-  );
-  const preferredDisplayPhoto = preferredPhotoId && preferredPhotoSourceUri && input.cropPreferredPhotoRef === input.preferredPhotoRef
-    ? await uploadPreferredPhotoDisplayVariant(actorUserId, person.treeId, person.id, preferredPhotoId, preferredPhotoSourceUri)
-    : null;
-  const nextPhotos = applyPreferredPhotoDisplayVariant(
-    [...input.existingPhotos, ...uploadedPhotos],
-    preferredPhotoId,
-    preferredDisplayPhoto,
-  );
-  const timestamp = nowIso();
-
-  const nextPerson: PersonRecord = {
-    ...person,
-    firstName: input.firstName.trim(),
-    middleNames: input.middleNames?.trim() ?? person.middleNames ?? '',
-    lastName: input.lastName.trim(),
-    maidenName: input.maidenName?.trim() ?? person.maidenName ?? '',
-    birthDate: input.birthDate.trim(),
-    deathDate: input.deathDate.trim(),
-    gender: input.gender,
-    notes: input.notes.trim(),
-    lifeEvents: normaliseLifeEvents(input.lifeEvents),
-    photos: nextPhotos,
-    preferredPhotoId: nextPhotos.some((photo) => photo.id === preferredPhotoId) ? preferredPhotoId : '',
-    updatedAt: timestamp,
-  };
-
-  return {
-    nextPerson,
-    uploadedPhotos,
-    removedPhotos: input.removedPhotos,
-    cleanupPhotos: input.existingPhotos
-      .filter((photo) => photo.displayPath)
-      .filter((photo) => photo.id !== preferredPhotoId)
-      .map((photo) => ({
-        ...photo,
-        url: '',
-        path: '',
-      })),
-  };
-}
-
-async function applyApprovedPersonUpdate(payload: ApprovalRequestPayload) {
-  const nextPerson = payload.afterPerson;
-  if (!nextPerson) {
-    throw new Error('The approved family member update is missing its target data.');
-  }
-
-  await updateDoc(doc(db, PEOPLE_COLLECTION, nextPerson.id), {
-    firstName: nextPerson.firstName,
-    middleNames: nextPerson.middleNames ?? '',
-    lastName: nextPerson.lastName,
-    maidenName: nextPerson.maidenName ?? '',
-    birthDate: nextPerson.birthDate,
-    deathDate: nextPerson.deathDate,
-    gender: nextPerson.gender,
-    notes: nextPerson.notes,
-    lifeEvents: normaliseLifeEvents(nextPerson.lifeEvents),
-    photos: nextPerson.photos,
-    preferredPhotoId: nextPerson.preferredPhotoId,
-    updatedAt: nowIso(),
-  });
-
-  await deletePhotos(payload.removedPhotos ?? []);
-  await deletePhotos(payload.cleanupPhotos ?? []);
-
-  const parentIds = await getParentIdsForChild(nextPerson.treeId, nextPerson.id);
-  await updateParentLifeEventsForChild(parentIds, {
-    id: nextPerson.id,
-    treeId: nextPerson.treeId,
-    firstName: nextPerson.firstName,
-    lastName: nextPerson.lastName,
-    birthDate: nextPerson.birthDate,
-  });
-}
-
-async function rejectApprovedPersonUpdate(payload: ApprovalRequestPayload) {
-  await deletePhotos(payload.uploadedPhotos ?? []);
-  await deletePhotos(payload.cleanupPhotos ?? []);
-}
-
-async function applyApprovedDeletePerson(payload: ApprovalRequestPayload) {
-  const person = payload.deletedPerson;
-  if (!person) {
-    throw new Error('The approved family member deletion is missing its target data.');
-  }
-
-  await deletePersonDirect(person);
-}
-
-async function applyApprovedCreateRelationship(payload: ApprovalRequestPayload) {
-  const relationship = payload.relationship;
-  if (!relationship) {
-    throw new Error('The approved relationship is missing its target data.');
-  }
-
-  await createRelationshipDirect(relationship);
-}
-
-async function applyApprovedUpdateRelationship(payload: ApprovalRequestPayload) {
-  const relationship = payload.relationship;
-  if (!relationship) {
-    throw new Error('The approved relationship update is missing its target data.');
-  }
-
-  await updateDoc(doc(db, RELATIONSHIPS_COLLECTION, relationship.id), {
-    relationshipStatus: relationship.type === 'spouse'
-      ? relationship.relationshipStatus ?? DEFAULT_SPOUSE_RELATIONSHIP_STATUS
-      : '',
-    parentChildKind: relationship.type === 'parent-child'
-      ? relationship.parentChildKind ?? DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND
-      : '',
-  });
-}
-
-async function applyApprovedDeleteRelationship(payload: ApprovalRequestPayload) {
-  const relationship = payload.relationship;
-  if (!relationship) {
-    throw new Error('The approved relationship deletion is missing its target data.');
-  }
-
-  await deleteRelationshipDirect(relationship.id);
-}
-
-async function applyApprovedRequest(request: ApprovalRequest) {
-  switch (request.operation) {
-    case 'update-person':
-      await applyApprovedPersonUpdate(request.payload);
-      return;
-    case 'delete-person':
-      await applyApprovedDeletePerson(request.payload);
-      return;
-    case 'create-relationship':
-      await applyApprovedCreateRelationship(request.payload);
-      return;
-    case 'update-relationship':
-      await applyApprovedUpdateRelationship(request.payload);
-      return;
-    case 'delete-relationship':
-      await applyApprovedDeleteRelationship(request.payload);
-      return;
-    default:
-      throw new Error('Unsupported approval request.');
-  }
-}
-
-async function handleRejectedRequest(request: ApprovalRequest) {
-  if (request.operation === 'update-person') {
-    await rejectApprovedPersonUpdate(request.payload);
-  }
-}
-
-async function createApprovalRequest(
-  request: Omit<ApprovalRequest, 'id'>,
-) {
-  const requestRef = doc(collection(db, APPROVAL_REQUESTS_COLLECTION));
-  await setDoc(requestRef, stripUndefinedDeep(request));
-  return requestRef.id;
-}
-
-export async function submitPersonUpdateApproval(
-  actorUserId: string,
-  person: PersonRecord,
-  input: PersonMutationPayload,
-): Promise<ApprovalSubmissionResult> {
-  const tree = await getTreeById(person.treeId);
-  const requesterLabel = getRequesterLabel(tree, actorUserId);
-  const { nextPerson, uploadedPhotos, removedPhotos, cleanupPhotos } = await preparePersonUpdatePreview(actorUserId, person, input);
-  const timestamp = nowIso();
-  const payload: ApprovalRequestPayload = {
-    beforePerson: person,
-    afterPerson: nextPerson,
-    removedPhotos,
-    uploadedPhotos,
-    cleanupPhotos,
-  };
-  const { eligibleApproverIds, autoApproveBecauseNoSameSurnameContributor } = await getEligibleApproverIds(tree, actorUserId, payload);
-
-  if (eligibleApproverIds.length === 0 || areApprovalsDisabled(tree) || autoApproveBecauseNoSameSurnameContributor) {
-    await applyApprovedPersonUpdate(payload);
-    const appliedAt = nowIso();
-    await createApprovalRequest({
-      treeId: tree.id,
-      entityType: 'person',
-      operation: 'update-person',
-      targetId: person.id,
-      title: `Updated ${formatPersonName(person)}`,
-      description: `${requesterLabel} updated this family member profile and it was applied immediately because ${autoApproveBecauseNoSameSurnameContributor ? 'no contributor linked to the same surname could review it' : eligibleApproverIds.length === 0 ? 'no other collaborator could review it' : 'approvals are turned off for this tree'}.`,
-      status: 'applied',
-      decisionMode: 'immediate',
-      requestedByUserId: actorUserId,
-      requestedByLabel: requesterLabel,
-      eligibleApproverIds: [],
-      payload,
-      expiresAt: appliedAt,
-      expiresAtMillis: Date.now(),
-      createdAt: timestamp,
-      updatedAt: appliedAt,
-      decidedAt: appliedAt,
-      decidedByUserId: actorUserId,
-      decidedByLabel: requesterLabel,
-      appliedAt,
-    });
-
-    return {
-      status: 'applied',
-      message: 'Family member changes were applied immediately.',
-    };
-  }
-
-  const expiry = buildApprovalExpiry(tree);
-  const requestId = await createApprovalRequest({
-    treeId: tree.id,
-    entityType: 'person',
-    operation: 'update-person',
-    targetId: person.id,
-    title: `Update ${formatPersonName(person)}`,
-    description: `${requesterLabel} requested changes to this family member profile.`,
-    status: 'pending',
-    decisionMode: 'manual',
-    requestedByUserId: actorUserId,
-    requestedByLabel: requesterLabel,
-    eligibleApproverIds,
-    payload,
-    expiresAt: expiry.expiresAt,
-    expiresAtMillis: expiry.expiresAtMillis,
-    createdAt: timestamp,
-    updatedAt: timestamp,
-  });
-
-  return {
-    status: 'queued',
-    requestId,
-    message: 'Family member changes were submitted for approval.',
-  };
-}
-
-export async function submitDeletePersonApproval(
-  actorUserId: string,
-  person: PersonRecord,
-): Promise<ApprovalSubmissionResult> {
-  const tree = await getTreeById(person.treeId);
-  const requesterLabel = getRequesterLabel(tree, actorUserId);
-  const timestamp = nowIso();
-  const payload: ApprovalRequestPayload = { deletedPerson: person };
-  const { eligibleApproverIds, autoApproveBecauseNoSameSurnameContributor } = await getEligibleApproverIds(tree, actorUserId, payload);
-
-  if (eligibleApproverIds.length === 0 || areApprovalsDisabled(tree) || autoApproveBecauseNoSameSurnameContributor) {
-    await applyApprovedDeletePerson(payload);
-    const appliedAt = nowIso();
-    await createApprovalRequest({
-      treeId: tree.id,
-      entityType: 'person',
-      operation: 'delete-person',
-      targetId: person.id,
-      title: `Delete ${formatPersonName(person)}`,
-      description: `${requesterLabel} deleted this family member and it was applied immediately because ${autoApproveBecauseNoSameSurnameContributor ? 'no contributor linked to the same surname could review it' : eligibleApproverIds.length === 0 ? 'no other collaborator could review it' : 'approvals are turned off for this tree'}.`,
-      status: 'applied',
-      decisionMode: 'immediate',
-      requestedByUserId: actorUserId,
-      requestedByLabel: requesterLabel,
-      eligibleApproverIds: [],
-      payload,
-      expiresAt: appliedAt,
-      expiresAtMillis: Date.now(),
-      createdAt: timestamp,
-      updatedAt: appliedAt,
-      decidedAt: appliedAt,
-      decidedByUserId: actorUserId,
-      decidedByLabel: requesterLabel,
-      appliedAt,
-    });
-
-    return { status: 'applied', message: 'The family member was deleted immediately.' };
-  }
-
-  const expiry = buildApprovalExpiry(tree);
-  const requestId = await createApprovalRequest({
-    treeId: tree.id,
-    entityType: 'person',
-    operation: 'delete-person',
-    targetId: person.id,
-    title: `Delete ${formatPersonName(person)}`,
-    description: `${requesterLabel} requested removal of this family member.`,
-    status: 'pending',
-    decisionMode: 'manual',
-    requestedByUserId: actorUserId,
-    requestedByLabel: requesterLabel,
-    eligibleApproverIds,
-    payload,
-    expiresAt: expiry.expiresAt,
-    expiresAtMillis: expiry.expiresAtMillis,
-    createdAt: timestamp,
-    updatedAt: timestamp,
-  });
-
-  return { status: 'queued', requestId, message: 'The family member deletion was submitted for approval.' };
-}
-
-export async function submitCreateRelationshipApproval(
-  actorUserId: string,
-  treeId: string,
-  type: RelationshipRecord['type'],
-  fromPersonId: string,
-  toPersonId: string,
-  options: {
-    relationshipStatus?: SpouseRelationshipStatus;
-    parentChildKind?: ParentChildRelationshipKind;
-  } = {},
-): Promise<ApprovalSubmissionResult> {
-  const tree = await getTreeById(treeId);
-  const requesterLabel = getRequesterLabel(tree, actorUserId);
-  await ensurePeopleBelongToTree(treeId, [fromPersonId, toPersonId]);
-  const existingRelationships = await getRelationshipsForTree(treeId);
-  const validationMessage = validateProposedRelationship({
-    relationships: existingRelationships,
-    type,
-    fromPersonId,
-    toPersonId,
-  });
-  if (validationMessage) {
-    throw new Error(validationMessage);
-  }
-
-  const normalizedEndpoints = normalizeRelationshipEndpoints(type, fromPersonId, toPersonId);
-  const relationshipId = type === 'spouse'
-    ? buildSpouseRelationshipId(normalizedEndpoints.fromPersonId, normalizedEndpoints.toPersonId)
-    : buildParentChildRelationshipId(normalizedEndpoints.fromPersonId, normalizedEndpoints.toPersonId);
-  const relationshipRef = doc(db, RELATIONSHIPS_COLLECTION, relationshipId);
-  const existingRelationship = await getDoc(relationshipRef);
-  if (existingRelationship.exists()) {
-    throw new Error(type === 'spouse' ? 'That spouse relationship already exists.' : 'That parent-child relationship already exists.');
-  }
-
-  const relationship: RelationshipRecord = {
-    id: relationshipId,
-    treeId,
-    ownerId: actorUserId,
-    type,
-    fromPersonId: normalizedEndpoints.fromPersonId,
-    toPersonId: normalizedEndpoints.toPersonId,
-    relationshipStatus: type === 'spouse'
-      ? options.relationshipStatus ?? DEFAULT_SPOUSE_RELATIONSHIP_STATUS
-      : undefined,
-    parentChildKind: type === 'parent-child'
-      ? options.parentChildKind ?? DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND
-      : undefined,
-    createdAt: nowIso(),
-  };
-  const timestamp = nowIso();
-  const payload: ApprovalRequestPayload = { relationship };
-  const relationLabel = type === 'spouse' ? 'spouse relationship' : 'parent-child relationship';
-  const { eligibleApproverIds, autoApproveBecauseNoSameSurnameContributor } = await getEligibleApproverIds(tree, actorUserId, payload);
-
-  if (eligibleApproverIds.length === 0 || areApprovalsDisabled(tree) || autoApproveBecauseNoSameSurnameContributor) {
-    await applyApprovedCreateRelationship(payload);
-    const appliedAt = nowIso();
-    await createApprovalRequest({
-      treeId: tree.id,
-      entityType: 'relationship',
-      operation: 'create-relationship',
-      targetId: relationship.id,
-      title: `Create ${relationLabel}`,
-      description: `${requesterLabel} added a ${relationLabel} and it was applied immediately because ${autoApproveBecauseNoSameSurnameContributor ? 'no contributor linked to the same surname could review it' : eligibleApproverIds.length === 0 ? 'no other collaborator could review it' : 'approvals are turned off for this tree'}.`,
-      status: 'applied',
-      decisionMode: 'immediate',
-      requestedByUserId: actorUserId,
-      requestedByLabel: requesterLabel,
-      eligibleApproverIds: [],
-      payload,
-      expiresAt: appliedAt,
-      expiresAtMillis: Date.now(),
-      createdAt: timestamp,
-      updatedAt: appliedAt,
-      decidedAt: appliedAt,
-      decidedByUserId: actorUserId,
-      decidedByLabel: requesterLabel,
-      appliedAt,
-    });
-
-    return { status: 'applied', message: 'The relationship was added immediately.' };
-  }
-
-  const expiry = buildApprovalExpiry(tree);
-  const requestId = await createApprovalRequest({
-    treeId: tree.id,
-    entityType: 'relationship',
-    operation: 'create-relationship',
-    targetId: relationship.id,
-    title: `Create ${relationLabel}`,
-    description: `${requesterLabel} requested a new ${relationLabel}.`,
-    status: 'pending',
-    decisionMode: 'manual',
-    requestedByUserId: actorUserId,
-    requestedByLabel: requesterLabel,
-    eligibleApproverIds,
-    payload,
-    expiresAt: expiry.expiresAt,
-    expiresAtMillis: expiry.expiresAtMillis,
-    createdAt: timestamp,
-    updatedAt: timestamp,
-  });
-
-  return { status: 'queued', requestId, message: 'The relationship was submitted for approval.' };
-}
-
-export async function submitUpdateRelationshipApproval(
-  actorUserId: string,
-  relationship: RelationshipRecord,
-  updates: {
-    relationshipStatus?: SpouseRelationshipStatus;
-    parentChildKind?: ParentChildRelationshipKind;
-  },
-): Promise<ApprovalSubmissionResult> {
-  const nextRelationship: RelationshipRecord = {
-    ...relationship,
-    relationshipStatus: relationship.type === 'spouse'
-      ? updates.relationshipStatus ?? relationship.relationshipStatus ?? DEFAULT_SPOUSE_RELATIONSHIP_STATUS
-      : undefined,
-    parentChildKind: relationship.type === 'parent-child'
-      ? updates.parentChildKind ?? relationship.parentChildKind ?? DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND
-      : undefined,
-  };
-  const tree = await getTreeById(relationship.treeId);
-  const requesterLabel = getRequesterLabel(tree, actorUserId);
-  const timestamp = nowIso();
-  const payload: ApprovalRequestPayload = { relationship: nextRelationship };
-  const relationLabel = relationship.type === 'spouse' ? 'spouse relationship' : 'parent-child relationship';
-  const { eligibleApproverIds, autoApproveBecauseNoSameSurnameContributor } = await getEligibleApproverIds(tree, actorUserId, payload);
-
-  if (eligibleApproverIds.length === 0 || areApprovalsDisabled(tree) || autoApproveBecauseNoSameSurnameContributor) {
-    await applyApprovedUpdateRelationship(payload);
-    const appliedAt = nowIso();
-    await createApprovalRequest({
-      treeId: tree.id,
-      entityType: 'relationship',
-      operation: 'update-relationship',
-      targetId: relationship.id,
-      title: `Update ${relationLabel}`,
-      description: `${requesterLabel} updated a ${relationLabel} and it was applied immediately because ${autoApproveBecauseNoSameSurnameContributor ? 'no contributor linked to the same surname could review it' : eligibleApproverIds.length === 0 ? 'no other collaborator could review it' : 'approvals are turned off for this tree'}.`,
-      status: 'applied',
-      decisionMode: 'immediate',
-      requestedByUserId: actorUserId,
-      requestedByLabel: requesterLabel,
-      eligibleApproverIds: [],
-      payload,
-      expiresAt: appliedAt,
-      expiresAtMillis: Date.now(),
-      createdAt: timestamp,
-      updatedAt: appliedAt,
-      decidedAt: appliedAt,
-      decidedByUserId: actorUserId,
-      decidedByLabel: requesterLabel,
-      appliedAt,
-    });
-
-    return { status: 'applied', message: 'The relationship was updated immediately.' };
-  }
-
-  const expiry = buildApprovalExpiry(tree);
-  const requestId = await createApprovalRequest({
-    treeId: tree.id,
-    entityType: 'relationship',
-    operation: 'update-relationship',
-    targetId: relationship.id,
-    title: `Update ${relationLabel}`,
-    description: `${requesterLabel} requested updates to a ${relationLabel}.`,
-    status: 'pending',
-    decisionMode: 'manual',
-    requestedByUserId: actorUserId,
-    requestedByLabel: requesterLabel,
-    eligibleApproverIds,
-    payload,
-    expiresAt: expiry.expiresAt,
-    expiresAtMillis: expiry.expiresAtMillis,
-    createdAt: timestamp,
-    updatedAt: timestamp,
-  });
-
-  return { status: 'queued', requestId, message: 'The relationship update was submitted for approval.' };
-}
-
-export async function submitDeleteRelationshipApproval(
-  actorUserId: string,
-  relationshipId: string,
-): Promise<ApprovalSubmissionResult> {
-  const relationshipRef = doc(db, RELATIONSHIPS_COLLECTION, relationshipId);
-  const relationshipSnapshot = await getDoc(relationshipRef);
-  if (!relationshipSnapshot.exists()) {
-    throw new Error('That relationship no longer exists.');
-  }
-
-  const relationship = mapRelationshipData(relationshipSnapshot.id, relationshipSnapshot.data());
-  const tree = await getTreeById(relationship.treeId);
-  const requesterLabel = getRequesterLabel(tree, actorUserId);
-  const timestamp = nowIso();
-  const payload: ApprovalRequestPayload = { relationship };
-  const relationLabel = relationship.type === 'spouse' ? 'spouse relationship' : 'parent-child relationship';
-  const { eligibleApproverIds, autoApproveBecauseNoSameSurnameContributor } = await getEligibleApproverIds(tree, actorUserId, payload);
-
-  if (eligibleApproverIds.length === 0 || areApprovalsDisabled(tree) || autoApproveBecauseNoSameSurnameContributor) {
-    await applyApprovedDeleteRelationship(payload);
-    const appliedAt = nowIso();
-    await createApprovalRequest({
-      treeId: tree.id,
-      entityType: 'relationship',
-      operation: 'delete-relationship',
-      targetId: relationship.id,
-      title: `Delete ${relationLabel}`,
-      description: `${requesterLabel} removed a ${relationLabel} and it was applied immediately because ${autoApproveBecauseNoSameSurnameContributor ? 'no contributor linked to the same surname could review it' : eligibleApproverIds.length === 0 ? 'no other collaborator could review it' : 'approvals are turned off for this tree'}.`,
-      status: 'applied',
-      decisionMode: 'immediate',
-      requestedByUserId: actorUserId,
-      requestedByLabel: requesterLabel,
-      eligibleApproverIds: [],
-      payload,
-      expiresAt: appliedAt,
-      expiresAtMillis: Date.now(),
-      createdAt: timestamp,
-      updatedAt: appliedAt,
-      decidedAt: appliedAt,
-      decidedByUserId: actorUserId,
-      decidedByLabel: requesterLabel,
-      appliedAt,
-    });
-
-    return { status: 'applied', message: 'The relationship was removed immediately.' };
-  }
-
-  const expiry = buildApprovalExpiry(tree);
-  const requestId = await createApprovalRequest({
-    treeId: tree.id,
-    entityType: 'relationship',
-    operation: 'delete-relationship',
-    targetId: relationship.id,
-    title: `Delete ${relationLabel}`,
-    description: `${requesterLabel} requested removal of a ${relationLabel}.`,
-    status: 'pending',
-    decisionMode: 'manual',
-    requestedByUserId: actorUserId,
-    requestedByLabel: requesterLabel,
-    eligibleApproverIds,
-    payload,
-    expiresAt: expiry.expiresAt,
-    expiresAtMillis: expiry.expiresAtMillis,
-    createdAt: timestamp,
-    updatedAt: timestamp,
-  });
-
-  return { status: 'queued', requestId, message: 'The relationship removal was submitted for approval.' };
-}
-
-export async function decideApprovalRequest(
-  actorUserId: string,
-  requestId: string,
-  decision: 'approve' | 'reject',
-  options?: { auto?: boolean },
-) {
-  const requestRef = doc(db, APPROVAL_REQUESTS_COLLECTION, requestId);
-  const requestSnapshot = await getDoc(requestRef);
-  if (!requestSnapshot.exists()) {
-    throw new Error('That approval request no longer exists.');
-  }
-
-  const request = mapApprovalRequestData(requestSnapshot.id, requestSnapshot.data());
-  if (request.status !== 'pending') {
-    return;
-  }
-
-  if (!options?.auto && !request.eligibleApproverIds.includes(actorUserId)) {
-    throw new Error('You cannot review this approval request.');
-  }
-
-  const decisionTime = nowIso();
-  if (decision === 'reject') {
-    await handleRejectedRequest(request);
-    await updateDoc(requestRef, {
-      status: 'rejected',
-      decisionMode: options?.auto ? 'auto' : 'manual',
-      decidedAt: decisionTime,
-      decidedByUserId: options?.auto ? '' : actorUserId,
-      decidedByLabel: options?.auto ? 'Automatic approval timer' : getRequesterLabel(await getTreeById(request.treeId), actorUserId),
-      updatedAt: decisionTime,
-    });
-    return;
-  }
-
-  await applyApprovedRequest(request);
-  const appliedAt = nowIso();
-  await updateDoc(requestRef, {
-    status: 'applied',
-    decisionMode: options?.auto ? 'auto' : 'manual',
-    decidedAt: decisionTime,
-    decidedByUserId: options?.auto ? '' : actorUserId,
-    decidedByLabel: options?.auto ? 'Automatic approval timer' : getRequesterLabel(await getTreeById(request.treeId), actorUserId),
-    appliedAt,
-    updatedAt: appliedAt,
-  });
-}
-
-export async function processExpiredApprovalRequests(actorUserId: string, treeId: string) {
-  const snapshot = await getDocs(query(
-    collection(db, APPROVAL_REQUESTS_COLLECTION),
-    where('treeId', '==', treeId),
-    where('status', '==', 'pending'),
-  ));
-  const requests = snapshot.docs.map(mapApprovalRequest);
-  const now = Date.now();
-
-  for (const request of requests) {
-    if (request.status === 'pending' && request.expiresAtMillis <= now) {
-      await decideApprovalRequest(actorUserId, request.id, 'approve', { auto: true });
-    }
-  }
-}
-
 export async function updateSurnameVariantGroups(treeId: string, surnameVariantGroups: SurnameVariantGroup[]) {
+  const tree = await getTreeById(treeId);
+  const normalizedGroups = surnameVariantGroups.map((group) => ({
+    id: group.id,
+    primarySurname: group.primarySurname.trim(),
+    variants: [...new Set(group.variants.map((value) => value.trim()).filter(Boolean))],
+    notes: group.notes?.trim() ?? '',
+    createdAt: group.createdAt,
+    updatedAt: nowIso(),
+  }));
+
   await updateDoc(doc(db, TREES_COLLECTION, treeId), {
-    surnameVariantGroups: surnameVariantGroups.map((group) => ({
-      id: group.id,
-      primarySurname: group.primarySurname.trim(),
-      variants: [...new Set(group.variants.map((value) => value.trim()).filter(Boolean))],
-      notes: group.notes?.trim() ?? '',
-      createdAt: group.createdAt,
-      updatedAt: nowIso(),
-    })),
+    surnameVariantGroups: normalizedGroups,
+    searchKeywords: buildTreeSearchKeywords(tree.name, normalizedGroups),
     updatedAt: nowIso(),
   });
 }
 
-export async function getMergePreview(sourceTreeId: string, targetTreeId: string) {
-  const [source, target] = await Promise.all([getTreeBundle(sourceTreeId), getTreeBundle(targetTreeId)]);
-  return buildMergePreview(source, target);
+export async function updateTreeDiscoverability(treeId: string, discoverable: boolean) {
+  const tree = await getTreeById(treeId);
+
+  await updateDoc(doc(db, TREES_COLLECTION, treeId), {
+    discoverable,
+    searchKeywords: buildTreeSearchKeywords(tree.name, tree.surnameVariantGroups),
+    updatedAt: nowIso(),
+  });
 }
 
-function buildMergeApprovalLabel(tree: FamilyTree, userId: string) {
-  const collaborator = tree.collaborators.find((entry) => entry.userId === userId);
-  return collaborator?.displayName || collaborator?.email || 'An editor';
-}
-
-function canApproveMergeForTree(tree: FamilyTree, userId: string) {
-  return tree.editorIds.includes(userId);
-}
-
-async function captureMergeSnapshot(sourceTreeId: string, targetTreeId: string, matches: MergePreview['matches']): Promise<MergeRequestSnapshot> {
-  const personIds = [...new Set(matches.flatMap((match) => [match.sourcePersonId, match.targetPersonId]))];
-  const personIdSet = new Set(personIds);
-  const relationshipIdsByTree = new Map<string, string[]>();
-
-  const [sourceRelationships, targetRelationships] = await Promise.all([
-    getRelationshipsByTreeId(sourceTreeId),
-    getRelationshipsByTreeId(targetTreeId),
-  ]);
-
-  relationshipIdsByTree.set(
-    sourceTreeId,
-    sourceRelationships
-      .filter((relationship) => personIdSet.has(relationship.fromPersonId) || personIdSet.has(relationship.toPersonId))
-      .map((relationship) => relationship.id),
-  );
-  relationshipIdsByTree.set(
-    targetTreeId,
-    targetRelationships
-      .filter((relationship) => personIdSet.has(relationship.fromPersonId) || personIdSet.has(relationship.toPersonId))
-      .map((relationship) => relationship.id),
-  );
-
-  const [treeSnapshots, personSnapshots, sourceTreeRelationshipSnapshots, targetTreeRelationshipSnapshots] = await Promise.all([
-    Promise.all([getDoc(doc(db, TREES_COLLECTION, sourceTreeId)), getDoc(doc(db, TREES_COLLECTION, targetTreeId))]),
-    Promise.all(personIds.map((personId) => getDoc(doc(db, PEOPLE_COLLECTION, personId)))),
-    Promise.all((relationshipIdsByTree.get(sourceTreeId) ?? []).map((relationshipId) => getDoc(doc(db, RELATIONSHIPS_COLLECTION, relationshipId)))),
-    Promise.all((relationshipIdsByTree.get(targetTreeId) ?? []).map((relationshipId) => getDoc(doc(db, RELATIONSHIPS_COLLECTION, relationshipId)))),
-  ]);
-
+function buildDiscoverableTreeSummary(
+  tree: FamilyTree,
+  ownerProfile: Pick<UserProfile, 'displayName' | 'username'> | null | undefined,
+  matchedBy: DiscoverableTreeSummary['matchedBy'],
+  matchedLabel: string,
+): DiscoverableTreeSummary {
   return {
-    trees: treeSnapshots.filter((snapshot) => snapshot.exists()).map((snapshot) => ({ id: snapshot.id, data: snapshot.data() })),
-    people: personSnapshots.filter((snapshot) => snapshot.exists()).map((snapshot) => ({ id: snapshot.id, data: snapshot.data() })),
-    relationships: [...sourceTreeRelationshipSnapshots, ...targetTreeRelationshipSnapshots]
-      .filter((snapshot) => snapshot.exists())
-      .map((snapshot) => ({ id: snapshot.id, data: snapshot.data() })),
+    id: tree.id,
+    name: tree.name,
+    ownerId: tree.ownerId,
+    ownerDisplayName: ownerProfile?.displayName?.trim() || tree.collaborators.find((entry) => entry.userId === tree.ownerId)?.displayName || '',
+    ownerUsername: ownerProfile?.username?.trim() || '',
+    discoverable: tree.discoverable === true,
+    matchedBy,
+    matchedLabel,
   };
 }
 
-async function applyMergeRequest(mergeRequestId: string, request: MergeRequestRecord) {
-  const timestamp = nowIso();
-  const snapshotBeforeMerge = await captureMergeSnapshot(request.sourceTreeId, request.targetTreeId, request.preview.matches);
-  const batch = writeBatch(db);
-  const changedPersonIds = new Set<string>();
-  const sourceRelationships = await getRelationshipsByTreeId(request.sourceTreeId);
-  const targetRelationships = await getRelationshipsByTreeId(request.targetTreeId);
-  const relationships = [...sourceRelationships, ...targetRelationships];
-  const snapshotPeopleById = new Map(snapshotBeforeMerge.people.map((entry) => [entry.id, entry.data] as const));
-  const relationshipsByPersonId = new Map<string, RelationshipRecord[]>();
+export async function searchDiscoverableTrees(searchTerm: string, actorUserId: string) {
+  const trimmedSearchTerm = searchTerm.trim();
+  const keyword = pickPrimarySearchKeyword(trimmedSearchTerm);
+  if (!keyword) {
+    return [] as DiscoverableTreeSummary[];
+  }
 
-  relationships.forEach((relationship) => {
-    const fromRelationships = relationshipsByPersonId.get(relationship.fromPersonId) ?? [];
-    fromRelationships.push(relationship);
-    relationshipsByPersonId.set(relationship.fromPersonId, fromRelationships);
+  const snapshot = await getDocs(query(
+    collection(db, TREES_COLLECTION),
+    where('discoverable', '==', true),
+    where('searchKeywords', 'array-contains', keyword),
+    limit(12),
+  ));
 
-    if (relationship.toPersonId !== relationship.fromPersonId) {
-      const toRelationships = relationshipsByPersonId.get(relationship.toPersonId) ?? [];
-      toRelationships.push(relationship);
-      relationshipsByPersonId.set(relationship.toPersonId, toRelationships);
-    }
-  });
+  const trees = snapshot.docs
+    .map(mapTree)
+    .filter((tree) => tree.ownerId !== actorUserId && !tree.memberIds.includes(actorUserId));
+  const owners = await Promise.all(trees.map((tree) => getUserProfileByIdOptional(tree.ownerId)));
+  const normalizedSearch = normaliseSearchValue(trimmedSearchTerm);
 
-  request.preview.matches
-    .filter((match) => request.selectedMatchIds.includes(match.id))
-    .forEach((match) => {
-      const sourcePersonRef = doc(db, PEOPLE_COLLECTION, match.sourcePersonId);
-      const targetPersonRef = doc(db, PEOPLE_COLLECTION, match.targetPersonId);
-      const sourceSnapshot = snapshotPeopleById.get(match.sourcePersonId) ?? {};
-      const targetSnapshot = snapshotPeopleById.get(match.targetPersonId) ?? {};
-      const sourceTreeMembershipIds = Array.isArray(sourceSnapshot.treeMembershipIds) ? sourceSnapshot.treeMembershipIds : [sourceSnapshot.treeId].filter(Boolean);
-      const targetTreeMembershipIds = Array.isArray(targetSnapshot.treeMembershipIds) ? targetSnapshot.treeMembershipIds : [targetSnapshot.treeId].filter(Boolean);
-      const targetDuplicatePersonIds = Array.isArray(targetSnapshot.duplicatePersonIds) ? targetSnapshot.duplicatePersonIds : [];
-      const sourceTreeMemberships = Array.isArray(sourceSnapshot.treeMemberships) ? sourceSnapshot.treeMemberships : [];
-      const targetTreeMemberships = Array.isArray(targetSnapshot.treeMemberships) ? targetSnapshot.treeMemberships : [];
-      const mergedMembershipsByTreeId = new Map<string, any>();
-      [...sourceTreeMemberships, ...targetTreeMemberships].forEach((membership) => {
-        if (membership?.treeId) {
-          mergedMembershipsByTreeId.set(membership.treeId, membership);
-        }
-      });
-      [request.sourceTreeId, request.targetTreeId].forEach((treeId) => {
-        if (!mergedMembershipsByTreeId.has(treeId)) {
-          mergedMembershipsByTreeId.set(treeId, {
-            treeId,
-            role: treeId === request.targetTreeId ? 'canonical' : 'subject',
-            joinedAt: timestamp,
-            source: 'merge',
-          });
-        }
-      });
-      changedPersonIds.add(match.sourcePersonId);
-      changedPersonIds.add(match.targetPersonId);
-
-      batch.update(sourcePersonRef, {
-        canonicalPersonId: match.targetPersonId,
-        updatedAt: timestamp,
-      });
-      batch.update(targetPersonRef, {
-        treeMembershipIds: [...new Set([...sourceTreeMembershipIds, ...targetTreeMembershipIds, request.sourceTreeId, request.targetTreeId])],
-        treeMemberships: [...mergedMembershipsByTreeId.values()],
-        duplicatePersonIds: [...new Set([...targetDuplicatePersonIds, match.sourcePersonId])],
-        updatedAt: timestamp,
-      });
-
-      (relationshipsByPersonId.get(match.sourcePersonId) ?? []).forEach((relationship) => {
-        batch.update(doc(db, RELATIONSHIPS_COLLECTION, relationship.id), {
-          fromPersonId: relationship.fromPersonId === match.sourcePersonId ? match.targetPersonId : relationship.fromPersonId,
-          toPersonId: relationship.toPersonId === match.sourcePersonId ? match.targetPersonId : relationship.toPersonId,
-        });
-      });
-    });
-
-  const sourceTreeSnapshot = snapshotBeforeMerge.trees.find((entry) => entry.id === request.sourceTreeId)?.data ?? {};
-  const targetTreeSnapshot = snapshotBeforeMerge.trees.find((entry) => entry.id === request.targetTreeId)?.data ?? {};
-  const sourceConnectedTreeIds = Array.isArray(sourceTreeSnapshot.connectedTreeIds) ? sourceTreeSnapshot.connectedTreeIds : [];
-  const targetConnectedTreeIds = Array.isArray(targetTreeSnapshot.connectedTreeIds) ? targetTreeSnapshot.connectedTreeIds : [];
-
-  batch.update(doc(db, TREES_COLLECTION, request.sourceTreeId), {
-    connectedTreeIds: [...new Set([...sourceConnectedTreeIds, request.targetTreeId])],
-    updatedAt: timestamp,
-  });
-  batch.update(doc(db, TREES_COLLECTION, request.targetTreeId), {
-    connectedTreeIds: [...new Set([...targetConnectedTreeIds, request.sourceTreeId])],
-    updatedAt: timestamp,
-  });
-  batch.update(doc(db, MERGE_REQUESTS_COLLECTION, mergeRequestId), {
-    status: 'applied',
-    selectedMatchIds: request.selectedMatchIds,
-    snapshotBeforeMerge,
-    appliedAt: timestamp,
-    updatedAt: timestamp,
-  });
-
-  const historyRef = doc(collection(db, MERGE_HISTORY_COLLECTION));
-  batch.set(historyRef, {
-    mergeRequestId,
-    involvedTreeIds: request.involvedTreeIds,
-    summary: `${request.preview.duplicateCount} duplicate relatives merged between ${request.preview.sourceTree.treeName} and ${request.preview.targetTree.treeName}.`,
-    status: 'applied',
-    preview: request.preview,
-    changedPersonIds: [...changedPersonIds],
-    approvals: request.approvals,
-    createdAt: timestamp,
-    updatedAt: timestamp,
-  });
-
-  await batch.commit();
+  return trees
+    .map((tree, index) => {
+      const candidateValues = [
+        tree.name,
+        ...tree.surnameVariantGroups.flatMap((group) => [group.primarySurname, ...group.variants]),
+      ];
+      const matchedLabel = candidateValues.find((value) => normaliseSearchValue(value).includes(normalizedSearch)) ?? tree.name;
+      const matchedBy = normaliseSearchValue(tree.name).includes(normalizedSearch) ? 'tree-name' : 'surname';
+      return buildDiscoverableTreeSummary(tree, owners[index], matchedBy, matchedLabel);
+    })
+    .sort((left, right) => left.name.localeCompare(right.name));
 }
 
-async function getUserProfileById(userId: string) {
-  const userSnapshot = await getDoc(doc(db, USERS_COLLECTION, userId));
-  if (!userSnapshot.exists()) {
-    throw new Error('That user account no longer exists.');
+export async function searchDiscoverableTreesByOwnerUsername(username: string, actorUserId: string) {
+  const trimmedUsername = username.trim().toLowerCase();
+  if (!trimmedUsername) {
+    return [] as DiscoverableTreeSummary[];
   }
 
-  const userData = userSnapshot.data();
-  return {
-    id: userSnapshot.id,
-    email: userData.email ?? '',
-    displayName: userData.displayName ?? '',
-  };
-}
+  const targetUser = await findUserByUsernameExact(trimmedUsername);
+  const treeSnapshot = await getDocs(query(
+    collection(db, TREES_COLLECTION),
+    where('ownerId', '==', targetUser.id),
+    where('discoverable', '==', true),
+    limit(12),
+  ));
 
-export async function grantMergeRequesterViewerAccess(
-  actorUserId: string,
-  requestId: string,
-  treeId: string,
-) {
-  const requestRef = doc(db, MERGE_REQUESTS_COLLECTION, requestId);
-  const requestSnapshot = await getDoc(requestRef);
-  if (!requestSnapshot.exists()) {
-    throw new Error('That merge request no longer exists.');
-  }
-
-  const request = mapMergeRequest(requestSnapshot as QueryDocumentSnapshot);
-  if (request.status !== 'applied') {
-    throw new Error('Viewer access can only be granted after a merge is applied.');
-  }
-
-  if (!request.involvedTreeIds.includes(treeId)) {
-    throw new Error('That tree was not part of the selected merge.');
-  }
-
-  const treeRef = doc(db, TREES_COLLECTION, treeId);
-  const requester = await getUserProfileById(request.suggestedByUserId);
-
-  await runTransaction(db, async (transaction) => {
-    const treeSnapshot = await transaction.get(treeRef);
-    if (!treeSnapshot.exists()) {
-      throw new Error('That family tree no longer exists.');
-    }
-
-    const tree = mapTreeData(treeSnapshot.id, treeSnapshot.data());
-    if (!canApproveMergeForTree(tree, actorUserId)) {
-      throw new Error('Only an editor from this tree can grant viewer access.');
-    }
-
-    if (requester.id === tree.ownerId) {
-      return;
-    }
-
-    if (tree.memberIds.includes(requester.id)) {
-      return;
-    }
-
-    const collaborators = sortCollaborators([
-      ...tree.collaborators,
-      {
-        userId: requester.id,
-        email: requester.email,
-        displayName: requester.displayName,
-        role: 'viewer',
-      },
-    ]);
-
-    transaction.update(treeRef, {
-      collaborators,
-      memberIds: [...tree.memberIds, requester.id],
-      membershipHistory: [
-        ...tree.membershipHistory,
-        {
-          id: `${tree.id}-${requester.id}-${Date.now()}`,
-          userId: requester.id,
-          role: 'viewer',
-          action: 'joined',
-          note: `Granted viewer access after merge ${requestId}`,
-          createdAt: nowIso(),
-        },
-      ],
-      updatedAt: nowIso(),
-    });
-  });
-}
-
-export async function sendMergeInviteByIdentifier(
-  actorUserId: string,
-  sourceTreeId: string,
-  identifier: string,
-) {
-  const [sourceTree, targetUser] = await Promise.all([
-    getTreeById(sourceTreeId),
-    findUserByIdentifier(identifier),
-  ]);
-
-  if (!sourceTree.editorIds.includes(actorUserId)) {
-    throw new Error('Only an editor can send merge invitations for this tree.');
-  }
-
-  if (targetUser.id === actorUserId) {
-    throw new Error('You already have access to this account. Use tree IDs to merge your own trees directly.');
-  }
-
-  const notificationRef = doc(collection(db, NOTIFICATIONS_COLLECTION));
-  const timestamp = nowIso();
-  const requestedByLabel = buildMergeApprovalLabel(sourceTree, actorUserId);
-
-  await setDoc(notificationRef, {
-    userId: targetUser.id,
-    type: 'merge-invite',
-    status: 'pending',
-    requestedByUserId: actorUserId,
-    requestedByLabel,
-    sourceTreeId: sourceTree.id,
-    sourceTreeName: sourceTree.name,
-    targetIdentifier: identifier.trim(),
-    message: `${requestedByLabel} asked you to review a tree merge with ${sourceTree.name}.`,
-    createdAt: timestamp,
-    updatedAt: timestamp,
-  });
-}
-
-export async function respondToMergeInvite(
-  actorUserId: string,
-  notificationId: string,
-  status: 'accepted' | 'dismissed',
-) {
-  const notificationRef = doc(db, NOTIFICATIONS_COLLECTION, notificationId);
-  const notificationSnapshot = await getDoc(notificationRef);
-  if (!notificationSnapshot.exists()) {
-    throw new Error('That merge invitation no longer exists.');
-  }
-
-  const notification = mapNotification(notificationSnapshot as QueryDocumentSnapshot);
-  if (notification.userId !== actorUserId) {
-    throw new Error('That merge invitation belongs to another user.');
-  }
-
-  await updateDoc(notificationRef, {
-    status,
-    respondedAt: nowIso(),
-    updatedAt: nowIso(),
-  });
-}
-
-export async function markNotificationSeen(actorUserId: string, notificationId: string) {
-  const notificationRef = doc(db, NOTIFICATIONS_COLLECTION, notificationId);
-  const notificationSnapshot = await getDoc(notificationRef);
-  if (!notificationSnapshot.exists()) {
-    throw new Error('That notification no longer exists.');
-  }
-
-  const notification = mapNotification(notificationSnapshot as QueryDocumentSnapshot);
-  if (notification.userId !== actorUserId) {
-    throw new Error('That notification belongs to another user.');
-  }
-
-  await updateDoc(notificationRef, {
-    seenAt: notification.seenAt ?? nowIso(),
-    updatedAt: nowIso(),
-  });
-}
-
-export async function markNotificationOpened(actorUserId: string, notificationId: string) {
-  const notificationRef = doc(db, NOTIFICATIONS_COLLECTION, notificationId);
-  const notificationSnapshot = await getDoc(notificationRef);
-  if (!notificationSnapshot.exists()) {
-    throw new Error('That notification no longer exists.');
-  }
-
-  const notification = mapNotification(notificationSnapshot as QueryDocumentSnapshot);
-  if (notification.userId !== actorUserId) {
-    throw new Error('That notification belongs to another user.');
-  }
-
-  await updateDoc(notificationRef, {
-    seenAt: notification.seenAt ?? nowIso(),
-    openedAt: notification.openedAt ?? nowIso(),
-    updatedAt: nowIso(),
-  });
-}
-
-export async function markNotificationActivityActioned(
-  actorUserId: string,
-  sourceKind: NotificationActivityState['sourceKind'],
-  sourceId: string,
-) {
-  const activityRef = doc(db, NOTIFICATION_ACTIVITY_COLLECTION, `${actorUserId}-${sourceKind}-${sourceId}`);
-  const snapshot = await getDoc(activityRef);
-  const timestamp = nowIso();
-
-  if (snapshot.exists()) {
-    await updateDoc(activityRef, {
-      actionedAt: timestamp,
-      updatedAt: timestamp,
-    });
-    return;
-  }
-
-  await setDoc(activityRef, {
-    userId: actorUserId,
-    sourceKind,
-    sourceId,
-    actionedAt: timestamp,
-    createdAt: timestamp,
-    updatedAt: timestamp,
-  });
-}
-
-export async function createMergeRequest(
-  actorUserId: string,
-  sourceTreeId: string,
-  targetTreeId: string,
-) {
-  const [source, target] = await Promise.all([getTreeBundle(sourceTreeId), getTreeBundle(targetTreeId)]);
-  const preview = buildMergePreview(source, target);
-  if (preview.matches.length === 0) {
-    throw new Error('No likely person matches were found between these trees yet.');
-  }
-
-  const mergeRequestRef = doc(collection(db, MERGE_REQUESTS_COLLECTION));
-  const timestamp = nowIso();
-  const suggestedByLabel = buildMergeApprovalLabel(source.tree, actorUserId);
-  const selectedMatchIds = preview.matches
-    .filter((match) => match.confidenceScore >= 65)
-    .map((match) => match.id);
-
-  await setDoc(mergeRequestRef, {
-    sourceTreeId,
-    targetTreeId,
-    involvedTreeIds: [sourceTreeId, targetTreeId],
-    suggestedByUserId: actorUserId,
-    suggestedByLabel,
-    status: 'pending',
-    preview,
-    selectedMatchIds,
-    approvals: [],
-    reviewerComments: [],
-    conflictChoices: [],
-    createdAt: timestamp,
-    updatedAt: timestamp,
-  });
-
-  return { id: mergeRequestRef.id, preview };
-}
-
-export async function reviewMergeRequest(
-  actorUserId: string,
-  requestId: string,
-  decision: MergeReviewDecision,
-  comment = '',
-  conflictChoices: MergeConflictChoice[] = [],
-  selectedMatchIds?: string[],
-) {
-  const requestRef = doc(db, MERGE_REQUESTS_COLLECTION, requestId);
-  const requestSnapshot = await getDoc(requestRef);
-  if (!requestSnapshot.exists()) {
-    throw new Error('That merge request no longer exists.');
-  }
-
-  const request = mapMergeRequest(requestSnapshot as QueryDocumentSnapshot);
-  const [sourceTree, targetTree] = await Promise.all([getTreeById(request.sourceTreeId), getTreeById(request.targetTreeId)]);
-  const approvableTrees = [sourceTree, targetTree].filter((tree) => canApproveMergeForTree(tree, actorUserId));
-  if (approvableTrees.length === 0) {
-    throw new Error('Only an editor from an affected tree can review this merge.');
-  }
-
-  const nextApprovals = decision === 'approve'
-    ? approvableTrees.map<MergeApproval>((tree) => ({
-      treeId: tree.id,
-      editorUserId: actorUserId,
-      editorLabel: buildMergeApprovalLabel(tree, actorUserId),
-      decision,
-      comment,
-      decidedAt: nowIso(),
-    }))
-    : [{
-      treeId: approvableTrees[0].id,
-      editorUserId: actorUserId,
-      editorLabel: buildMergeApprovalLabel(approvableTrees[0], actorUserId),
-      decision,
-      comment,
-      decidedAt: nowIso(),
-    } satisfies MergeApproval];
-
-  const approvals = [
-    ...request.approvals.filter((entry) => !nextApprovals.some((approval) => approval.treeId === entry.treeId && approval.editorUserId === entry.editorUserId)),
-    ...nextApprovals,
-  ];
-  const reviewerComments = comment.trim() ? [...request.reviewerComments, comment.trim()] : request.reviewerComments;
-  const nextSelectedMatchIds = selectedMatchIds
-    ? [...new Set(selectedMatchIds.filter((matchId) => request.preview.matches.some((match) => match.id === matchId)))]
-    : request.selectedMatchIds;
-  if (decision === 'approve' && nextSelectedMatchIds.length === 0) {
-    throw new Error('Select at least one person match before approving this merge.');
-  }
-
-  let status: MergeRequestRecord['status'] = request.status;
-  if (decision === 'reject') {
-    status = 'rejected';
-  } else if (decision === 'request-changes') {
-    status = 'changes-requested';
-  } else {
-    const approvedTreeIds = new Set(approvals.filter((entry) => entry.decision === 'approve').map((entry) => entry.treeId));
-    status = approvedTreeIds.has(sourceTree.id) && approvedTreeIds.has(targetTree.id) ? 'approved' : 'pending';
-  }
-
-  await updateDoc(requestRef, {
-    approvals,
-    reviewerComments,
-    conflictChoices,
-    selectedMatchIds: nextSelectedMatchIds,
-    status,
-    updatedAt: nowIso(),
-  });
-
-  if (status === 'approved') {
-    await applyMergeRequest(requestId, {
-      ...request,
-      approvals,
-      reviewerComments,
-      conflictChoices,
-      selectedMatchIds: nextSelectedMatchIds,
-      status,
-    });
-  }
-}
-
-export async function undoMergeRequest(actorUserId: string, requestId: string) {
-  const requestRef = doc(db, MERGE_REQUESTS_COLLECTION, requestId);
-  const requestSnapshot = await getDoc(requestRef);
-  if (!requestSnapshot.exists()) {
-    throw new Error('That merge request no longer exists.');
-  }
-
-  const request = mapMergeRequest(requestSnapshot as QueryDocumentSnapshot);
-  if (request.status !== 'applied' || !request.snapshotBeforeMerge) {
-    throw new Error('Only applied merges with snapshots can be undone.');
-  }
-
-  const [sourceTree, targetTree] = await Promise.all([getTreeById(request.sourceTreeId), getTreeById(request.targetTreeId)]);
-  if (!canApproveMergeForTree(sourceTree, actorUserId) && !canApproveMergeForTree(targetTree, actorUserId)) {
-    throw new Error('Only an editor from an affected tree can undo this merge.');
-  }
-
-  const batch = writeBatch(db);
-  request.snapshotBeforeMerge.trees.forEach((entry) => batch.set(doc(db, TREES_COLLECTION, entry.id), entry.data));
-  request.snapshotBeforeMerge.people.forEach((entry) => batch.set(doc(db, PEOPLE_COLLECTION, entry.id), entry.data));
-  request.snapshotBeforeMerge.relationships.forEach((entry) => batch.set(doc(db, RELATIONSHIPS_COLLECTION, entry.id), entry.data));
-  batch.update(requestRef, {
-    status: 'undone',
-    undoneAt: nowIso(),
-    updatedAt: nowIso(),
-  });
-  await batch.commit();
+  return treeSnapshot.docs
+    .map(mapTree)
+    .filter((tree) => tree.ownerId !== actorUserId && !tree.memberIds.includes(actorUserId))
+    .map((tree) => buildDiscoverableTreeSummary(tree, targetUser, 'username', targetUser.username?.trim() || trimmedUsername))
+    .sort((left, right) => left.name.localeCompare(right.name));
 }
 
 export async function deleteTree(tree: FamilyTree) {
@@ -2947,45 +882,92 @@ export async function createPerson(
 ): Promise<PersonRecord> {
   const personRef = doc(collection(db, PEOPLE_COLLECTION));
   const timestamp = nowIso();
-  const uploadedPhotos = await uploadPersonPhotos(actorUserId, treeId, personRef.id, newPhotos);
   const newPhotoUris = newPhotos.map((photo) => photo.uri);
-  const preferredPhotoId = resolvePreferredPhotoId(input.preferredPhotoRef, [], newPhotoUris, uploadedPhotos);
-  const preferredPhotoSourceUri = resolvePreferredPhotoSourceUri(input.preferredPhotoRef, [], newPhotos);
-  const preferredDisplayPhoto = preferredPhotoId && preferredPhotoSourceUri && input.cropPreferredPhotoRef === input.preferredPhotoRef
-    ? await uploadPreferredPhotoDisplayVariant(actorUserId, treeId, personRef.id, preferredPhotoId, preferredPhotoSourceUri)
-    : null;
-  const nextPhotos = applyPreferredPhotoDisplayVariant(uploadedPhotos, preferredPhotoId, preferredDisplayPhoto);
+  await validatePersonCreation(treeId, {
+    firstName: input.firstName,
+    middleNames: input.middleNames ?? '',
+    lastName: input.lastName,
+    maidenName: input.maidenName ?? '',
+    birthDate: input.birthDate,
+    deathDate: input.deathDate,
+    notes: input.notes,
+    lifeEvents: input.lifeEvents,
+  }, newPhotoUris);
 
-  const person: Omit<PersonRecord, 'id'> = {
-    treeId,
-    treeMembershipIds: [treeId],
-    treeMemberships: [{ treeId, role: 'subject', joinedAt: timestamp, addedByUserId: actorUserId, source: 'manual' }],
-    ownerId: actorUserId,
-    firstName: input.firstName.trim(),
-    middleNames: input.middleNames?.trim() ?? '',
-    lastName: input.lastName.trim(),
-    maidenName: input.maidenName?.trim() ?? '',
-    nicknames: [],
-    clanName: '',
-    familyBranch: '',
-    hometown: '',
-    birthPlace: '',
-    surnameVariantHints: [],
-    canonicalPersonId: '',
-    duplicatePersonIds: [],
-    birthDate: input.birthDate.trim(),
-    deathDate: input.deathDate.trim(),
-    gender: input.gender,
-    notes: input.notes.trim(),
-    lifeEvents: normaliseLifeEvents(input.lifeEvents),
-    photos: nextPhotos,
-    preferredPhotoId,
-    createdAt: timestamp,
-    updatedAt: timestamp,
-  };
+  let uploadedPhotos: PersonPhoto[] = [];
+  let preferredDisplayPhoto: { url: string; path: string } | null = null;
 
-  await setDoc(personRef, person);
-  return { id: personRef.id, ...person };
+  try {
+    uploadedPhotos = await uploadPersonPhotos(actorUserId, treeId, personRef.id, newPhotos);
+    const preferredPhotoId = resolvePreferredPhotoId(input.preferredPhotoRef, [], newPhotoUris, uploadedPhotos);
+    const preferredPhotoSourceUri = resolvePreferredPhotoSourceUri(input.preferredPhotoRef, [], newPhotos);
+    preferredDisplayPhoto = preferredPhotoId && preferredPhotoSourceUri && input.cropPreferredPhotoRef === input.preferredPhotoRef
+      ? await uploadPreferredPhotoDisplayVariant(actorUserId, treeId, personRef.id, preferredPhotoId, preferredPhotoSourceUri)
+      : null;
+    const nextPhotos = applyPreferredPhotoDisplayVariant(uploadedPhotos, preferredPhotoId, preferredDisplayPhoto);
+
+    const person: Omit<PersonRecord, 'id'> = {
+      treeId,
+      treeMembershipIds: [treeId],
+      treeMemberships: [{ treeId, role: 'subject', joinedAt: timestamp, addedByUserId: actorUserId, source: 'manual' }],
+      ownerId: actorUserId,
+      firstName: input.firstName.trim(),
+      middleNames: input.middleNames?.trim() ?? '',
+      lastName: input.lastName.trim(),
+      maidenName: input.maidenName?.trim() ?? '',
+      nicknames: [],
+      clanName: '',
+      familyBranch: '',
+      hometown: input.hometown?.trim() ?? '',
+      birthPlace: input.birthPlace?.trim() ?? '',
+      surnameVariantHints: Array.isArray(input.surnameVariantHints)
+        ? [...new Set(input.surnameVariantHints.map((value) => value.trim()).filter(Boolean))]
+        : [],
+      canonicalPersonId: '',
+      duplicatePersonIds: [],
+      birthDate: input.birthDate.trim(),
+      deathDate: input.deathDate.trim(),
+      gender: input.gender,
+      notes: input.notes.trim(),
+      lifeEvents: normaliseLifeEvents(input.lifeEvents),
+      photos: nextPhotos,
+      preferredPhotoId,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+
+    await setDoc(personRef, person);
+    return { id: personRef.id, ...person };
+  } catch (error) {
+    await deletePhotos([
+      ...uploadedPhotos,
+      ...(preferredDisplayPhoto ? [{
+        id: `${personRef.id}-preferred-cleanup`,
+        url: preferredDisplayPhoto.url,
+        path: preferredDisplayPhoto.path,
+        createdAt: timestamp,
+      } satisfies PersonPhoto] : []),
+    ]);
+    throw error;
+  }
+}
+
+export async function createPersonWithRelationships(
+  actorUserId: string,
+  treeId: string,
+  input: PersonInput,
+  newPhotos: NewPersonPhotoInput[],
+  pendingRelationships: Array<{
+    mode: 'parent-of' | 'child-of' | 'spouse-of';
+    relatedPersonId: string;
+    parentChildKind?: ParentChildRelationshipKind;
+    relationshipStatus?: SpouseRelationshipStatus;
+  }> = [],
+  options?: {
+    forceImmediateApproval?: boolean;
+  },
+): Promise<CreatePersonApprovalResult> {
+  return submitCreatePersonApproval(actorUserId, treeId, input, newPhotos, pendingRelationships, options);
 }
 
 export async function updatePerson(
@@ -2996,64 +978,8 @@ export async function updatePerson(
   return submitPersonUpdateApproval(actorUserId, person, input);
 }
 
-async function deletePersonDirect(person: PersonRecord) {
-  await deletePhotos(person.photos);
-
-  const relationships = await getRelationshipsTouchingPerson(person.treeId, person.id);
-  const parentIds = relationships
-    .filter((relationship) => relationship.type === 'parent-child' && relationship.toPersonId === person.id)
-    .map((relationship) => relationship.fromPersonId);
-
-  await updateParentLifeEventsForChild(parentIds, {
-    id: person.id,
-    treeId: person.treeId,
-    firstName: person.firstName,
-    lastName: person.lastName,
-    birthDate: '',
-  });
-
-  const refsToDelete = relationships.map((relationship) => doc(db, RELATIONSHIPS_COLLECTION, relationship.id));
-
-  refsToDelete.push(doc(db, PEOPLE_COLLECTION, person.id));
-  await deleteDocumentRefs(refsToDelete);
-}
-
 export async function deletePerson(actorUserId: string, person: PersonRecord): Promise<ApprovalSubmissionResult> {
   return submitDeletePersonApproval(actorUserId, person);
-}
-
-async function createRelationshipDirect(relationship: RelationshipRecord): Promise<RelationshipRecord> {
-  const relationshipRef = doc(db, RELATIONSHIPS_COLLECTION, relationship.id);
-  await setDoc(relationshipRef, {
-    treeId: relationship.treeId,
-    ownerId: relationship.ownerId,
-    type: relationship.type,
-    fromPersonId: relationship.fromPersonId,
-    toPersonId: relationship.toPersonId,
-    relationshipStatus: relationship.type === 'spouse'
-      ? relationship.relationshipStatus ?? DEFAULT_SPOUSE_RELATIONSHIP_STATUS
-      : '',
-    parentChildKind: relationship.type === 'parent-child'
-      ? relationship.parentChildKind ?? DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND
-      : '',
-    createdAt: relationship.createdAt,
-  });
-
-  if (relationship.type === 'parent-child') {
-    const childSnapshot = await getDoc(doc(db, PEOPLE_COLLECTION, relationship.toPersonId));
-    if (childSnapshot.exists()) {
-      const childData = childSnapshot.data();
-      await updateParentLifeEventsForChild([relationship.fromPersonId], {
-        id: childSnapshot.id,
-        treeId: relationship.treeId,
-        firstName: childData.firstName ?? '',
-        lastName: childData.lastName ?? '',
-        birthDate: childData.birthDate ?? '',
-      });
-    }
-  }
-
-  return relationship;
 }
 
 export async function createParentChildRelationship(
@@ -3085,30 +1011,6 @@ export async function updateRelationship(
   },
 ): Promise<ApprovalSubmissionResult> {
   return submitUpdateRelationshipApproval(actorUserId, relationship, updates);
-}
-
-async function deleteRelationshipDirect(relationshipId: string) {
-  const relationshipRef = doc(db, RELATIONSHIPS_COLLECTION, relationshipId);
-  const relationshipSnapshot = await getDoc(relationshipRef);
-
-  if (relationshipSnapshot.exists()) {
-    const relationshipData = relationshipSnapshot.data();
-    if (relationshipData.type === 'parent-child') {
-      const childSnapshot = await getDoc(doc(db, PEOPLE_COLLECTION, relationshipData.toPersonId));
-      if (childSnapshot.exists()) {
-        const childData = childSnapshot.data();
-        await updateParentLifeEventsForChild([relationshipData.fromPersonId], {
-          id: childSnapshot.id,
-          treeId: childData.treeId ?? relationshipData.treeId,
-          firstName: childData.firstName ?? '',
-          lastName: childData.lastName ?? '',
-          birthDate: '',
-        });
-      }
-    }
-  }
-
-  await deleteDoc(relationshipRef);
 }
 
 export async function deleteRelationship(actorUserId: string, relationshipId: string): Promise<ApprovalSubmissionResult> {

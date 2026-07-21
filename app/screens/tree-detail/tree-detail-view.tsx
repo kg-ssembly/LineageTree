@@ -1,45 +1,43 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Image, Pressable, ScrollView, View } from 'react-native';
+import { Platform, View } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   ActivityIndicator,
-  Button,
-  Chip,
-  Dialog,
-  IconButton,
-  Portal,
-  Snackbar,
-  Text,
   useTheme,
 } from 'react-native-paper';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
+  AddPersonEntryDialog,
   CollaboratorDialog,
   ConfirmDialog,
-  HorizontalTabStrip,
+  FloatingSnackbar,
+  GlobalStyles,
+  MaidenTreeSuggestionDialog,
   PersonFormDialog,
   RelationshipDialog,
+  SharedLoader,
 } from '../../../components';
-import type { PersonFormSubmission } from '../../../components/person-form-dialog';
-import type { PendingRelationshipSubmission } from '../../../components/person-form-dialog';
+import type { PersonFormSubmission, PendingRelationshipMode, PendingRelationshipSubmission } from '../../../components/person-form-dialog';
 import { useAuthStore } from '../../../stores/auth-store';
 import { useTreeStore } from '../../../stores/tree-store';
-import type { PersonPhoto, PersonRecord } from '../../../components/dto/person';
-import { formatPersonDate, getDisplayPersonPhoto, getLifeEventTypeLabel, getPersonLifeSpanLabel, getPersonPresenceLabel } from '../../../components/dto/person';
-import type { ParentChildRelationshipKind, SpouseRelationshipStatus } from '../../../components/dto/relationship';
+import type { PersonRecord } from '../../../components/dto/person';
+import { getDisplayPersonPhoto, getLifeEventTypeLabel, getPersonPresenceLabel } from '../../../components/dto/person';
+import { DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND, type ParentChildRelationshipKind, type SpouseRelationshipStatus } from '../../../components/dto/relationship';
 import type { RelationshipRecord } from '../../../components/dto/relationship';
 import type { RootStackParamList, TreeDetailTabParamList } from '../../../components/dto/navigation';
 import { getUserDisplayLabel } from '../../../components/dto/user';
 import { formatPersonName } from '../../../components/person-formatting';
-import { findCrossSurnameChildren, extractSurname } from '../../../components/family-tree-surname-clusters';
-import { canEditTreeContent, canManageTree, getAssignedPersonId, getTreeRole, type CollaboratorRole, type FamilyTree } from '../../../components/dto/tree';
+import { findCrossSurnameChildren } from '../../../components/family-tree-surname-clusters';
+import { canEditTreeContent, canManageTree, getAssignedPersonId, getTreeRole, type CollaboratorRole } from '../../../components/dto/tree';
 import { computeRelationshipInsight } from '../../../providers';
 import { getTreeBundle } from '../../../providers/family-tree-service';
-import { GlobalStyles } from '../../../constants/styles';
 import { useI18n } from '../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../i18n/keys';
+import { useShallow } from 'zustand/react/shallow';
+import { buildPeopleDirectory, buildTreeAssignmentContext, getTreeById } from '../tree-tabs/shared';
 import {
   buildSelfAssignmentSuggestions,
   PeopleRelationshipsTabContent,
@@ -51,10 +49,11 @@ import {
   buildSelfPersonInitialValues,
   createPersonFromFormSubmission,
   findConnectedTreeForSurname,
+  findMaidenTreeCandidates,
+  type MaidenTreeSuggestionCandidate,
 } from '../tree-screen-helpers';
 import { TreeDetailMaidenViewer } from './tree-detail-maiden-viewer';
-import { TreeDetailNodeQuickActionsDialog } from './tree-detail-node-quick-actions-dialog';
-const dialogChrome = GlobalStyles.dialogChrome;
+import { TreeDetailNodeQuickActionsDialog } from '../profile-shared';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'TreeDetail'>;
 
@@ -88,6 +87,13 @@ type TreeSettingsFocus = {
 type ViewerProfileTabKey = 'summary' | 'life' | 'photos';
 type TreeBundleState = Awaited<ReturnType<typeof getTreeBundle>> | null;
 
+type MaidenTreeSuggestionState = {
+  visible: boolean;
+  person: PersonRecord | null;
+  relatedTreeCandidates: MaidenTreeSuggestionCandidate[];
+  pendingRelationships: PendingRelationshipSubmission[];
+};
+
 const MAIDEN_MEMBERS_PER_PAGE = 3;
 
 const Tab = createBottomTabNavigator<TreeDetailTabParamList>();
@@ -96,6 +102,7 @@ const styles = GlobalStyles.treeDetail;
 export default function TreeDetailScreen({ navigation, route }: Props) {
   const isFocused = useIsFocused();
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const { t } = useI18n();
   const { user } = useAuthStore();
   const {
@@ -115,9 +122,11 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     error,
     notice,
     selectTree,
+    ensureTreeAuxiliaryData,
     addCollaborator,
     removeCollaborator,
     createPerson,
+    createPersonWithRelationships,
     createTreeFromSurname,
     assignPersonToUser,
     clearSelfAssignment,
@@ -127,10 +136,17 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     addSpouseRelationship,
     approveApprovalRequest,
     rejectApprovalRequest,
+    setTreeDiscoverability,
     setApprovalWindowHours,
+    setTreeKinshipSystem,
     setSurnameVariantGroups,
     createMergeRequest,
     sendMergeInvite,
+    requestTreeAccess,
+    requestTreeAccessByIdentifier,
+    respondToTreeAccessRequest,
+    searchDiscoverableTrees,
+    searchDiscoverableTreesByUsername,
     respondToMergeInvite,
     markNotificationSeen,
     markNotificationOpened,
@@ -143,7 +159,61 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     undoMerge,
     clearError,
     clearNotice,
-  } = useTreeStore();
+  } = useTreeStore(useShallow((state) => ({
+    trees: state.trees,
+    selectedTreeId: state.selectedTreeId,
+    people: state.people,
+    relationships: state.relationships,
+    approvalRequests: state.approvalRequests,
+    mergeRequests: state.mergeRequests,
+    mergeHistory: state.mergeHistory,
+    notifications: state.notifications,
+    notificationActivityStates: state.notificationActivityStates,
+    mergePreview: state.mergePreview,
+    loadingTrees: state.loadingTrees,
+    loadingTreeData: state.loadingTreeData,
+    mutating: state.mutating,
+    error: state.error,
+    notice: state.notice,
+    selectTree: state.selectTree,
+    ensureTreeAuxiliaryData: state.ensureTreeAuxiliaryData,
+    addCollaborator: state.addCollaborator,
+    removeCollaborator: state.removeCollaborator,
+    createPerson: state.createPerson,
+    createPersonWithRelationships: state.createPersonWithRelationships,
+    createTreeFromSurname: state.createTreeFromSurname,
+    assignPersonToUser: state.assignPersonToUser,
+    clearSelfAssignment: state.clearSelfAssignment,
+    updatePerson: state.updatePerson,
+    removePerson: state.removePerson,
+    addParentChildRelationship: state.addParentChildRelationship,
+    addSpouseRelationship: state.addSpouseRelationship,
+    approveApprovalRequest: state.approveApprovalRequest,
+    rejectApprovalRequest: state.rejectApprovalRequest,
+    setTreeDiscoverability: state.setTreeDiscoverability,
+    setApprovalWindowHours: state.setApprovalWindowHours,
+    setTreeKinshipSystem: state.setTreeKinshipSystem,
+    setSurnameVariantGroups: state.setSurnameVariantGroups,
+    createMergeRequest: state.createMergeRequest,
+    sendMergeInvite: state.sendMergeInvite,
+    requestTreeAccess: state.requestTreeAccess,
+    requestTreeAccessByIdentifier: state.requestTreeAccessByIdentifier,
+    respondToTreeAccessRequest: state.respondToTreeAccessRequest,
+    searchDiscoverableTrees: state.searchDiscoverableTrees,
+    searchDiscoverableTreesByUsername: state.searchDiscoverableTreesByUsername,
+    respondToMergeInvite: state.respondToMergeInvite,
+    markNotificationSeen: state.markNotificationSeen,
+    markNotificationOpened: state.markNotificationOpened,
+    markNotificationActivityActioned: state.markNotificationActivityActioned,
+    loadMergePreview: state.loadMergePreview,
+    approveMergeRequest: state.approveMergeRequest,
+    grantMergeViewerAccess: state.grantMergeViewerAccess,
+    rejectMergeRequest: state.rejectMergeRequest,
+    requestMergeChanges: state.requestMergeChanges,
+    undoMerge: state.undoMerge,
+    clearError: state.clearError,
+    clearNotice: state.clearNotice,
+  })));
 
   const [personDialog, setPersonDialog] = useState<PersonDialogState>({
     visible: false,
@@ -151,10 +221,18 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     person: null,
     initialPendingRelationships: [],
   });
+  const [addPersonChooserVisible, setAddPersonChooserVisible] = useState(false);
   const [selfPersonDialogVisible, setSelfPersonDialogVisible] = useState(false);
   const [relationshipDialogVisible, setRelationshipDialogVisible] = useState(false);
   const [collaboratorDialogVisible, setCollaboratorDialogVisible] = useState(false);
+  const [followUpTreePromptsPending, setFollowUpTreePromptsPending] = useState(false);
   const [nodeQuickActionState, setNodeQuickActionState] = useState<NodeQuickActionState>({ visible: false, person: null });
+  const [maidenTreeSuggestion, setMaidenTreeSuggestion] = useState<MaidenTreeSuggestionState>({
+    visible: false,
+    person: null,
+    relatedTreeCandidates: [],
+    pendingRelationships: [],
+  });
   const [snackVisible, setSnackVisible] = useState(false);
   const [confirmState, setConfirmState] = useState<ConfirmState>({
     visible: false,
@@ -175,25 +253,22 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
   const [maidenMembersPage, setMaidenMembersPage] = useState(1);
 
   const selectedTree = useMemo(
-    () => trees.find((tree) => tree.id === route.params.treeId) ?? null,
+    () => getTreeById(trees, route.params.treeId),
     [route.params.treeId, trees],
   );
   const returnTree = useMemo(
-    () => (route.params.returnTreeId ? trees.find((tree) => tree.id === route.params.returnTreeId) ?? null : null),
+    () => getTreeById(trees, route.params.returnTreeId),
     [route.params.returnTreeId, trees],
   );
   const isMaidenViewerMode = Boolean(route.params.returnTreeId);
   const initialTab = route.params.initialTab && route.params.initialTab !== 'HomeTab'
     ? route.params.initialTab
     : 'PeopleRelationshipsTab';
+  const bottomInset = Platform.OS === 'android' && insets.bottom < 24 ? 0 : insets.bottom;
+  const isSharedLoaderVisible = mutating;
 
-  const peopleById = useMemo(
-    () => new Map(people.map((person) => [person.id, person])),
-    [people],
-  );
-
-  const existingLastNames = useMemo(
-    () => [...new Set(people.map((person) => person.lastName.trim()).filter(Boolean))].sort((left, right) => left.localeCompare(right)),
+  const { peopleById, existingLastNames } = useMemo(
+    () => buildPeopleDirectory(people),
     [people],
   );
   const crossSurnameChildIds = useMemo(
@@ -203,28 +278,13 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
 
   const currentUserLabel = useMemo(() => getUserDisplayLabel(user), [user]);
 
-  const assignedUserIdByPersonId = useMemo(
-    () => new Map(Object.entries(selectedTree?.personAssignments ?? {}).map(([assignedUserId, personId]) => [personId, assignedUserId])),
-    [selectedTree?.personAssignments],
-  );
-
-  const assignedPersonByUserId = useMemo(
-    () => new Map(
-      Object.entries(selectedTree?.personAssignments ?? {})
-        .map(([assignedUserId, personId]) => {
-          const linkedPerson = peopleById.get(personId);
-          return linkedPerson ? [assignedUserId, linkedPerson] as const : null;
-        })
-        .filter((entry): entry is readonly [string, PersonRecord] => Boolean(entry)),
-    ),
-    [peopleById, selectedTree?.personAssignments],
-  );
-
-  const currentAssignedPersonId = selectedTree ? getAssignedPersonId(selectedTree, user?.id) : null;
-
-  const currentAssignedPerson = useMemo(
-    () => (currentAssignedPersonId ? peopleById.get(currentAssignedPersonId) ?? null : null),
-    [currentAssignedPersonId, peopleById],
+  const {
+    assignedUserIdByPersonId,
+    assignedPersonByUserId,
+    currentAssignedPerson,
+  } = useMemo(
+    () => buildTreeAssignmentContext(selectedTree, peopleById, user?.id),
+    [peopleById, selectedTree, user?.id],
   );
   const returnTreeAssignedPersonId = useMemo(
     () => (returnTreeBundle?.tree ? getAssignedPersonId(returnTreeBundle.tree, user?.id) : null),
@@ -264,9 +324,11 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
   );
   const viewerRelationshipInsight = useMemo(
     () => (returnTreeAssignedPerson && viewerPerson
-      ? computeRelationshipInsight(combinedRelationshipPeople, combinedRelationshipRecords, returnTreeAssignedPerson.id, viewerPerson.id)
+      ? computeRelationshipInsight(combinedRelationshipPeople, combinedRelationshipRecords, returnTreeAssignedPerson.id, viewerPerson.id, {
+        kinshipSystem: returnTreeBundle?.tree?.kinshipSystem,
+      })
       : null),
-    [combinedRelationshipPeople, combinedRelationshipRecords, returnTreeAssignedPerson, viewerPerson],
+    [combinedRelationshipPeople, combinedRelationshipRecords, returnTreeAssignedPerson, returnTreeBundle?.tree?.kinshipSystem, viewerPerson],
   );
   const viewerTimeline = useMemo(() => {
     if (!viewerPerson) {
@@ -438,6 +500,27 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     }
   }, [error, isFocused, notice]);
 
+  useEffect(() => {
+    if (isFocused) {
+      return;
+    }
+
+    setPersonDialog({ visible: false, mode: 'create', person: null, initialPendingRelationships: [] });
+    setSelfPersonDialogVisible(false);
+    setRelationshipDialogVisible(false);
+    setCollaboratorDialogVisible(false);
+    setNodeQuickActionState({ visible: false, person: null });
+    setConfirmState((current) => (
+      current.visible
+        ? { visible: false, title: '', message: '', confirmLabel: t(K.common.confirm), action: null }
+        : current
+    ));
+    setMaidenMembersVisible(false);
+    setViewerPerson(null);
+    setViewerProfileTab('summary');
+    setViewerPhotoIndex(null);
+  }, [isFocused, t]);
+
   const openConfirm = useCallback((title: string, message: string, confirmLabel: string, action: () => Promise<void>) => {
     setConfirmState({ visible: true, title, message, confirmLabel, action });
   }, []);
@@ -463,6 +546,10 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     setPersonDialog({ visible: false, mode: 'create', person: null, initialPendingRelationships: [] });
   }, []);
 
+  const closeAddPersonChooser = useCallback(() => {
+    setAddPersonChooserVisible(false);
+  }, []);
+
   const closeNodeQuickActions = useCallback(() => {
     setNodeQuickActionState({ visible: false, person: null });
   }, []);
@@ -475,51 +562,182 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     setMaidenMembersVisible(false);
   }, []);
 
+  const handleMaidenParentSelectionAttempt = useCallback(async (mode: PendingRelationshipMode, relatedPerson: PersonRecord) => {
+    if (mode !== 'parent-of' || !relatedPerson.maidenName?.trim() || !user?.id || !selectedTree) {
+      return true;
+    }
+
+    const relatedTreeCandidates = await findMaidenTreeCandidates(
+      relatedPerson,
+      trees,
+      (searchTerm) => searchDiscoverableTrees(searchTerm, user.id),
+      selectedTree.id,
+    );
+
+    if (relatedTreeCandidates.length > 0) {
+      setMaidenTreeSuggestion({
+        visible: true,
+        person: relatedPerson,
+        relatedTreeCandidates,
+        pendingRelationships: [{ mode, relatedPersonId: relatedPerson.id }],
+      });
+      return false;
+    }
+
+    return true;
+  }, [searchDiscoverableTrees, selectedTree, trees, user?.id]);
+
   const openCreateRelativeDialog = useCallback((mode: PendingRelationshipSubmission['mode'], relatedPerson: PersonRecord) => {
     setNodeQuickActionState({ visible: false, person: null });
-    setPersonDialog({
-      visible: true,
-      mode: 'create',
+
+    void (async () => {
+      const shouldContinue = await handleMaidenParentSelectionAttempt(mode, relatedPerson);
+      if (!shouldContinue) {
+        return;
+      }
+
+      setPersonDialog({
+        visible: true,
+        mode: 'create',
+        person: null,
+        initialPendingRelationships: [{ mode, relatedPersonId: relatedPerson.id }],
+      });
+    })();
+  }, [handleMaidenParentSelectionAttempt]);
+
+  const closeMaidenTreeSuggestion = useCallback(() => {
+    setMaidenTreeSuggestion({
+      visible: false,
       person: null,
-      initialPendingRelationships: [{ mode, relatedPersonId: relatedPerson.id }],
+      relatedTreeCandidates: [],
+      pendingRelationships: [],
     });
   }, []);
 
+  const openMaidenTreeCandidate = useCallback((treeId: string) => {
+    const targetTree = trees.find((tree) => tree.id === treeId);
+    if (!targetTree || !selectedTree) {
+      return;
+    }
+
+    closeMaidenTreeSuggestion();
+    navigation.navigate('TreeDetail', {
+      treeId: targetTree.id,
+      initialTab: 'VisualisationTab',
+      returnTreeId: selectedTree.id,
+    });
+  }, [closeMaidenTreeSuggestion, navigation, selectedTree, trees]);
+
+  const requestMaidenTreeAccess = useCallback(async (treeId: string) => {
+    if (!user?.id) {
+      return;
+    }
+
+    await requestTreeAccess(user.id, treeId);
+    closeMaidenTreeSuggestion();
+  }, [closeMaidenTreeSuggestion, requestTreeAccess, user?.id]);
+  const confirmAction = confirmState.action;
+
   const handleConfirm = useCallback(async () => {
-    if (!confirmState.action) {
+    if (!confirmAction) {
       return;
     }
 
     try {
-      await confirmState.action();
+      await confirmAction();
       closeConfirm();
     } catch {
       // surfaced by store snackbar
     }
-  }, [closeConfirm, confirmState.action]);
+  }, [closeConfirm, confirmAction]);
 
-  const handleCollaboratorSubmit = useCallback(async ({ email, role: collaboratorRole }: { email: string; role: CollaboratorRole }) => {
+  const handleOpenMaidenFamilyTree = useCallback((person: PersonRecord, maidenSurname: string, maritalSurname: string, isViewingMaiden: boolean) => {
     if (!selectedTree) {
       return;
     }
 
+    const targetSurname = isViewingMaiden ? maritalSurname : maidenSurname;
+    const linkedTree = findConnectedTreeForSurname(person, targetSurname, selectedTree, trees);
+    closeNodeQuickActions();
+
+    if (linkedTree) {
+      navigation.push('TreeDetail', {
+        treeId: linkedTree.id,
+        initialTab: 'VisualisationTab',
+        returnTreeId: selectedTree.id,
+      });
+      return;
+    }
+
+    if (isViewingMaiden) {
+      canvasFamilySwitchRef.current?.(targetSurname);
+      return;
+    }
+
+    if (!user) {
+      return;
+    }
+
+    openConfirm(
+      t(K.relationship.createMaidenFamilyTreeTitle, { surname: maidenSurname }),
+      t(K.relationship.createMaidenFamilyTreeMessage, { surname: maidenSurname }),
+      t(K.treeSettings.createTree),
+      async () => {
+        const createdTree = await createTreeFromSurname(
+          { id: user.id, email: user.email, displayName: user.displayName },
+          selectedTree.id,
+          maidenSurname,
+        );
+        navigation.push('TreeDetail', {
+          treeId: createdTree.id,
+          initialTab: 'VisualisationTab',
+          returnTreeId: selectedTree.id,
+        });
+      },
+    );
+  }, [canvasFamilySwitchRef, closeNodeQuickActions, createTreeFromSurname, navigation, openConfirm, selectedTree, t, trees, user]);
+
+  const handleCollaboratorSubmit = useCallback(async ({ email, role: collaboratorRole }: { email: string; role: CollaboratorRole }) => {
+    if (!selectedTree || !user?.id) {
+      return;
+    }
+
     try {
-      await addCollaborator(selectedTree.id, email, collaboratorRole);
+      await addCollaborator(user.id, selectedTree.id, email, collaboratorRole);
       setCollaboratorDialogVisible(false);
     } catch {
       // surfaced by store snackbar
     }
-  }, [addCollaborator, selectedTree]);
+  }, [addCollaborator, selectedTree, user?.id]);
 
   const createPersonFromPayload = useCallback(async (payload: PersonFormSubmission) => {
     return createPersonFromFormSubmission({
       addParentChildRelationship,
       addSpouseRelationship,
       createPerson,
+      createPersonWithRelationships,
+      peopleForValidation: people,
+      relationshipsForValidation: relationships,
       selectedTree,
       userId: user?.id,
     }, payload);
-  }, [addParentChildRelationship, addSpouseRelationship, createPerson, selectedTree, user?.id]);
+  }, [addParentChildRelationship, addSpouseRelationship, createPerson, createPersonWithRelationships, people, relationships, selectedTree, user?.id]);
+
+  const createSelfPersonFromPayload = useCallback(async (payload: PersonFormSubmission) => {
+    return createPersonFromFormSubmission({
+      addParentChildRelationship,
+      addSpouseRelationship,
+      createPerson,
+      createPersonWithRelationships,
+      peopleForValidation: people,
+      relationshipsForValidation: relationships,
+      selectedTree,
+      options: {
+        forceImmediateApproval: true,
+      },
+      userId: user?.id,
+    }, payload);
+  }, [addParentChildRelationship, addSpouseRelationship, createPerson, createPersonWithRelationships, people, relationships, selectedTree, user?.id]);
 
   const handlePersonSubmit = useCallback(async (payload: PersonFormSubmission) => {
     if (!user?.id || !selectedTree) {
@@ -545,15 +763,25 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     }
 
     try {
-      const createdPerson = await createPersonFromPayload(payload);
+      const createdPerson = await createSelfPersonFromPayload(payload);
       if (createdPerson) {
         await assignPersonToUser(user.id, selectedTree.id, user.id, createdPerson.id);
+        setFollowUpTreePromptsPending(true);
       }
       setSelfPersonDialogVisible(false);
     } catch {
       // surfaced by store snackbar
     }
-  }, [assignPersonToUser, createPersonFromPayload, selectedTree, user?.id]);
+  }, [assignPersonToUser, createSelfPersonFromPayload, selectedTree, user?.id]);
+
+  const selfPersonInitialValues = useMemo(
+    () => buildSelfPersonInitialValues(user),
+    [user],
+  );
+
+  const closeSelfPersonDialog = useCallback(() => {
+    setSelfPersonDialogVisible(false);
+  }, []);
 
   const handleAssignPersonToUser = useCallback(async (targetUserId: string, personId: string) => {
     if (!user?.id || !selectedTree) {
@@ -562,6 +790,9 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
 
     try {
       await assignPersonToUser(user.id, selectedTree.id, targetUserId, personId);
+      if (targetUserId === user.id) {
+        setFollowUpTreePromptsPending(true);
+      }
     } catch {
       // surfaced by store snackbar
     }
@@ -614,7 +845,46 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     [people, personDialog.person?.id],
   );
 
-  const onOpenAddPerson = useCallback(() => setPersonDialog({ visible: true, mode: 'create', person: null, initialPendingRelationships: [] }), []);
+  const openCreatePersonDialog = useCallback((initialPendingRelationships: PendingRelationshipSubmission[] = []) => setPersonDialog({
+    visible: true,
+    mode: 'create',
+    person: null,
+    initialPendingRelationships,
+  }), []);
+
+  const onOpenAddPerson = useCallback(() => {
+    if (people.length === 0) {
+      openCreatePersonDialog();
+      return;
+    }
+
+    setAddPersonChooserVisible(true);
+  }, [openCreatePersonDialog, people.length]);
+  const handleAddPersonEntrySelection = useCallback((mode: PendingRelationshipMode, relatedPerson: PersonRecord) => {
+    setAddPersonChooserVisible(false);
+    openCreatePersonDialog(
+      [{
+        mode,
+        relatedPersonId: relatedPerson.id,
+        parentChildKind: mode === 'spouse-of' ? undefined : DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND,
+        relationshipStatus: mode === 'spouse-of' ? 'partner' : undefined,
+      }],
+    );
+  }, [openCreatePersonDialog]);
+  const onOpenAddPersonForRelationship = useCallback((mode: PendingRelationshipMode, relatedPerson: PersonRecord) => {
+    openCreatePersonDialog([
+      {
+        mode,
+        relatedPersonId: relatedPerson.id,
+        parentChildKind: mode === 'spouse-of' ? undefined : DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND,
+        relationshipStatus: mode === 'spouse-of' ? 'partner' : undefined,
+      },
+    ]);
+  }, [openCreatePersonDialog]);
+  const handleAddFirstFamilyMember = useCallback(() => {
+    setAddPersonChooserVisible(false);
+    openCreatePersonDialog();
+  }, [openCreatePersonDialog]);
   const onOpenRelationshipDialog = useCallback(() => setRelationshipDialogVisible(true), []);
   const onOpenPersonQuickActions = useCallback((person: PersonRecord) => {
     if (isMaidenViewerMode) {
@@ -636,9 +906,9 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     await removePerson(user.id, person);
   }, [removePerson, user?.id]);
   const onRemoveCollaborator = useCallback(async (collaboratorUserId: string) => {
-    if (!selectedTree) return;
-    await removeCollaborator(selectedTree.id, collaboratorUserId);
-  }, [removeCollaborator, selectedTree]);
+    if (!selectedTree || !user?.id) return;
+    await removeCollaborator(user.id, selectedTree.id, collaboratorUserId);
+  }, [removeCollaborator, selectedTree, user?.id]);
   const onSetApprovalWindowHours = useCallback(async (hours: number) => {
     if (!selectedTree) return;
     await setApprovalWindowHours(selectedTree.id, hours);
@@ -651,14 +921,22 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     if (!user?.id) return;
     await rejectApprovalRequest(user.id, requestId);
   }, [rejectApprovalRequest, user?.id]);
+  const onSetTreeDiscoverability = useCallback(async (discoverable: boolean) => {
+    if (!selectedTree) return;
+    await setTreeDiscoverability(selectedTree.id, discoverable);
+  }, [selectedTree, setTreeDiscoverability]);
+  const onSetTreeKinshipSystem = useCallback(async (kinshipSystem: SharedTabProps['selectedTree']['kinshipSystem']) => {
+    if (!selectedTree || !kinshipSystem) return;
+    await setTreeKinshipSystem(selectedTree.id, kinshipSystem);
+  }, [selectedTree, setTreeKinshipSystem]);
   const onSetSurnameVariantGroups = useCallback(async (groups: SharedTabProps['selectedTree']['surnameVariantGroups']) => {
     if (!selectedTree) return;
     await setSurnameVariantGroups(selectedTree.id, groups);
   }, [selectedTree, setSurnameVariantGroups]);
-  const onCreateMergeRequest = useCallback(async (targetTreeId: string) => {
-    if (!user?.id || !selectedTree) return;
-    await createMergeRequest(user.id, selectedTree.id, targetTreeId);
-  }, [createMergeRequest, selectedTree, user?.id]);
+  const onCreateMergeRequest = useCallback(async (sourceTreeId: string, targetTreeId: string) => {
+    if (!user?.id || !sourceTreeId || !targetTreeId) return;
+    await createMergeRequest(user.id, sourceTreeId, targetTreeId);
+  }, [createMergeRequest, user?.id]);
   const onSendMergeInvite = useCallback(async (sourceTreeId: string, identifier: string) => {
     if (!user?.id || !sourceTreeId) return;
     await sendMergeInvite(user.id, sourceTreeId, identifier);
@@ -667,6 +945,26 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     if (!user?.id) return;
     await respondToMergeInvite(user.id, notificationId, status);
   }, [respondToMergeInvite, user?.id]);
+  const onRequestTreeAccess = useCallback(async (treeId: string) => {
+    if (!user?.id) return;
+    await requestTreeAccess(user.id, treeId);
+  }, [requestTreeAccess, user?.id]);
+  const onRequestTreeAccessByIdentifier = useCallback(async (identifier: string) => {
+    if (!user?.id) return;
+    await requestTreeAccessByIdentifier(user.id, identifier);
+  }, [requestTreeAccessByIdentifier, user?.id]);
+  const onRespondToTreeAccessRequest = useCallback(async (notificationId: string, status: 'accepted' | 'rejected') => {
+    if (!user?.id) return;
+    await respondToTreeAccessRequest(user.id, notificationId, status);
+  }, [respondToTreeAccessRequest, user?.id]);
+  const onSearchDiscoverableTrees = useCallback(async (searchTerm: string) => {
+    if (!user?.id) return [];
+    return searchDiscoverableTrees(searchTerm, user.id);
+  }, [searchDiscoverableTrees, user?.id]);
+  const onSearchDiscoverableTreesByUsername = useCallback(async (username: string) => {
+    if (!user?.id) return [];
+    return searchDiscoverableTreesByUsername(username, user.id);
+  }, [searchDiscoverableTreesByUsername, user?.id]);
   const onMarkNotificationSeen = useCallback(async (notificationId: string) => {
     if (!user?.id) return;
     await markNotificationSeen(user.id, notificationId);
@@ -679,10 +977,10 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     if (!user?.id) return;
     await markNotificationActivityActioned(user.id, sourceKind, sourceId);
   }, [markNotificationActivityActioned, user?.id]);
-  const onLoadTreeMergePreview = useCallback(async (targetTreeId: string) => {
-    if (!selectedTree) return;
-    await loadMergePreview(selectedTree.id, targetTreeId);
-  }, [loadMergePreview, selectedTree]);
+  const onLoadTreeMergePreview = useCallback(async (sourceTreeId: string, targetTreeId: string) => {
+    if (!sourceTreeId || !targetTreeId) return;
+    await loadMergePreview(sourceTreeId, targetTreeId);
+  }, [loadMergePreview]);
   const onApproveMergeRequest = useCallback(async (requestId: string, comment?: string, selectedMatchIds?: string[]) => {
     if (!user?.id) return;
     await approveMergeRequest(user.id, requestId, comment, selectedMatchIds);
@@ -729,6 +1027,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
       currentUserLabel,
       currentAssignedPerson,
       currentSelfAssignmentSuggestions,
+      followUpTreePromptsPending,
       availableSelfLinkPeople,
       notifications,
       notificationActivityStates,
@@ -737,13 +1036,16 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
       canCreateSelfProfile: canEdit,
       mutating,
       loadingTreeData,
+      onEnsureTreeAuxiliaryData: ensureTreeAuxiliaryData,
       openConfirm,
       openPersonProfile,
       onOpenAddPerson,
+      onOpenAddPersonForRelationship,
       onOpenRelationshipDialog,
       onOpenPersonQuickActions,
       onOpenCollaboratorDialog,
       onOpenAddSelf,
+      onConsumeFollowUpTreePrompts: () => setFollowUpTreePromptsPending(false),
       onEditPerson,
       onDeletePerson,
       onRemoveCollaborator,
@@ -751,11 +1053,18 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
       onClearSelfAssignment: handleClearSelfAssignment,
       onApproveApprovalRequest,
       onRejectApprovalRequest,
+      onSetTreeDiscoverability,
       onSetApprovalWindowHours,
+      onSetTreeKinshipSystem,
       onSetSurnameVariantGroups,
       onCreateMergeRequest,
       onSendMergeInvite,
       onRespondToMergeInvite,
+      onRequestTreeAccess,
+      onRequestTreeAccessByIdentifier,
+      onRespondToTreeAccessRequest,
+      onSearchDiscoverableTrees,
+      onSearchDiscoverableTreesByUsername,
       onMarkNotificationSeen,
       onMarkNotificationOpened,
       onMarkNotificationActivityActioned,
@@ -774,11 +1083,12 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
   }, [
     selectedTree, people, relationships, approvalRequests, mergeRequests, mergeHistory, mergePreview, peopleById, canEdit, isOwner, role,
     user?.id, currentUserLabel, currentAssignedPerson, currentSelfAssignmentSuggestions,
-    availableSelfLinkPeople, notifications, notificationActivityStates, assignedPersonByUserId, assignedUserIdByPersonId, mutating, loadingTreeData,
-    openConfirm, openPersonProfile, onOpenAddPerson, onOpenRelationshipDialog, onOpenPersonQuickActions,
+    followUpTreePromptsPending, availableSelfLinkPeople, notifications, notificationActivityStates, assignedPersonByUserId, assignedUserIdByPersonId, mutating, loadingTreeData,
+    ensureTreeAuxiliaryData,
+    openConfirm, openPersonProfile, onOpenAddPerson, onOpenAddPersonForRelationship, onOpenRelationshipDialog, onOpenPersonQuickActions,
     onOpenCollaboratorDialog, onOpenAddSelf, onEditPerson, onDeletePerson, onRemoveCollaborator,
     handleAssignPersonToUser, handleClearSelfAssignment, onApproveApprovalRequest, onRejectApprovalRequest,
-    onSetApprovalWindowHours, onSetSurnameVariantGroups, onCreateMergeRequest, onSendMergeInvite, onRespondToMergeInvite, onMarkNotificationSeen, onMarkNotificationOpened, onMarkNotificationActivityActioned, onLoadTreeMergePreview,
+    onSetTreeDiscoverability, onSetApprovalWindowHours, onSetTreeKinshipSystem, onSetSurnameVariantGroups, onCreateMergeRequest, onSendMergeInvite, onRespondToMergeInvite, onRequestTreeAccess, onRequestTreeAccessByIdentifier, onRespondToTreeAccessRequest, onSearchDiscoverableTrees, onSearchDiscoverableTreesByUsername, onMarkNotificationSeen, onMarkNotificationOpened, onMarkNotificationActivityActioned, onLoadTreeMergePreview,
     onApproveMergeRequest, onRejectMergeRequest, onRequestMergeChanges, onUndoMerge, onGrantMergeViewerAccess, onCreateSurnameTree, treeSettingsFocus, onOpenTreeSettingsTarget,
     canvasFamilySwitchRef, canvasActiveFamilyRef,
   ]);
@@ -837,7 +1147,15 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
           tabBarActiveTintColor: theme.colors.primary,
           tabBarInactiveTintColor: theme.colors.onSurfaceVariant,
           tabBarShowIcon: true,
-          tabBarStyle: [styles.tabBar, { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.outlineVariant }],
+          tabBarStyle: [
+            styles.tabBar,
+            {
+              backgroundColor: theme.colors.surface,
+              borderTopColor: theme.colors.outlineVariant,
+              paddingBottom: bottomInset,
+              height: styles.tabBar.height + bottomInset,
+            },
+          ],
           tabBarLabelStyle: styles.tabLabel,
           tabBarItemStyle: styles.tabItem,
           sceneStyle: [styles.tabScene, { backgroundColor: theme.colors.background }],
@@ -864,7 +1182,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
         </Tab.Screen>
         <Tab.Screen
           name="HomeTab"
-          options={{ title: t('Home') }}
+          options={{ title: t(K.navigation.home) }}
           listeners={() => ({
             tabPress: (event) => {
               event.preventDefault();
@@ -880,14 +1198,26 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
       </Tab.Navigator>
 
       <CollaboratorDialog
-        visible={collaboratorDialogVisible}
+        visible={collaboratorDialogVisible && !isSharedLoaderVisible}
         loading={mutating}
         onDismiss={() => setCollaboratorDialogVisible(false)}
         onSubmit={handleCollaboratorSubmit}
       />
 
+      <AddPersonEntryDialog
+        visible={addPersonChooserVisible && !isSharedLoaderVisible}
+        hasExistingFamilyMembers={people.length > 0}
+        relationshipCandidates={people}
+        relationships={relationships}
+        perspective="new-person"
+        onDismiss={closeAddPersonChooser}
+        onSelectRelationship={handleAddPersonEntrySelection}
+        onSelectRelationshipAttempt={handleMaidenParentSelectionAttempt}
+        onAddFirstFamilyMember={handleAddFirstFamilyMember}
+      />
+
       <PersonFormDialog
-        visible={personDialog.visible}
+        visible={personDialog.visible && !isSharedLoaderVisible}
         mode={personDialog.mode}
         person={personDialog.person}
         initialPendingRelationships={personDialog.initialPendingRelationships}
@@ -905,21 +1235,22 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
           await onDeletePerson(person);
           closePersonDialog();
         } : undefined}
+        onSelectRelationshipAttempt={handleMaidenParentSelectionAttempt}
       />
 
       <PersonFormDialog
-        visible={selfPersonDialogVisible}
+        visible={selfPersonDialogVisible && !isSharedLoaderVisible}
         mode="create"
-        initialValues={useMemo(() => buildSelfPersonInitialValues(user), [user])}
+        initialValues={selfPersonInitialValues}
         loading={mutating}
         existingLastNames={existingLastNames}
         relationshipCandidates={people}
-        onDismiss={useCallback(() => setSelfPersonDialogVisible(false), [])}
+        onDismiss={closeSelfPersonDialog}
         onSubmit={handleSelfPersonSubmit}
       />
 
       <RelationshipDialog
-        visible={relationshipDialogVisible}
+        visible={relationshipDialogVisible && !isSharedLoaderVisible}
         people={people}
         relationships={relationships}
         loading={mutating}
@@ -928,26 +1259,34 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
       />
 
       <TreeDetailNodeQuickActionsDialog
-        visible={nodeQuickActionState.visible}
+        visible={nodeQuickActionState.visible && !isSharedLoaderVisible}
         person={nodeQuickActionState.person}
         theme={theme}
         t={t}
         canEdit={canEdit}
         mutating={mutating}
-        selectedTree={selectedTree}
-        trees={trees}
         closeNodeQuickActions={closeNodeQuickActions}
         openPersonProfile={openPersonProfile}
         openCreateRelativeDialog={openCreateRelativeDialog}
         crossSurnameChildIds={crossSurnameChildIds}
         canvasActiveFamilyRef={canvasActiveFamilyRef}
         canvasFamilySwitchRef={canvasFamilySwitchRef}
-        findConnectedTreeForSurname={findConnectedTreeForSurname}
-        navigation={navigation}
+        onOpenMaidenFamilyTree={handleOpenMaidenFamilyTree}
+      />
+
+      <MaidenTreeSuggestionDialog
+        visible={maidenTreeSuggestion.visible && !isSharedLoaderVisible}
+        surname={maidenTreeSuggestion.person?.maidenName?.trim() ?? ''}
+        candidates={maidenTreeSuggestion.relatedTreeCandidates}
+        theme={theme}
+        t={t}
+        onDismiss={closeMaidenTreeSuggestion}
+        onOpenTree={openMaidenTreeCandidate}
+        onRequestAccess={requestMaidenTreeAccess}
       />
 
       <ConfirmDialog
-        visible={confirmState.visible}
+        visible={confirmState.visible && !isSharedLoaderVisible}
         title={confirmState.title}
         message={confirmState.message}
         confirmLabel={confirmState.confirmLabel}
@@ -956,7 +1295,9 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
         onConfirm={handleConfirm}
       />
 
-      <Snackbar
+      <SharedLoader visible={isSharedLoaderVisible} />
+
+      <FloatingSnackbar
         visible={snackVisible}
         onDismiss={() => {
           setSnackVisible(false);
@@ -974,7 +1315,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
         }}
       >
         {error ?? notice}
-      </Snackbar>
+      </FloatingSnackbar>
     </View>
   );
 }

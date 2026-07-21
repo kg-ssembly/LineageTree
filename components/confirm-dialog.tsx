@@ -1,6 +1,7 @@
 import React from 'react';
 import { Button, Dialog, IconButton, Portal, Text, useTheme } from 'react-native-paper';
 import { useI18n } from '../hooks/use-i18n';
+import { I18N_KEYS as K } from '../i18n/keys';
 import { GlobalStyles } from '../constants/styles';
 
 const styles = GlobalStyles.confirmDialog;
@@ -21,8 +22,8 @@ export default function ConfirmDialog({
   visible,
   title,
   message,
-  confirmLabel = 'Confirm',
-  cancelLabel = 'Cancel',
+  confirmLabel = K.common.confirm,
+  cancelLabel = K.common.cancel,
   loading = false,
   onDismiss,
   onConfirm,

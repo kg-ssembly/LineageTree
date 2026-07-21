@@ -1,12 +1,12 @@
 import React from 'react';
 import { View } from 'react-native';
-import { Button, Chip, IconButton, Surface, Text, useTheme } from 'react-native-paper';
-import { HorizontalTabStrip, RelationshipInsightCard } from '../../../../components';
+import { Button, Chip, IconButton, Text, useTheme } from 'react-native-paper';
+import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, GlobalStyles, HorizontalTabStrip, RelationshipInsightCard, Reveal, SectionCard, TabStripCard } from '../../../../components';
 import type { PersonRelationshipMode } from '../../../../components/person-relationship-dialog';
 import type { PersonRecord } from '../../../../components/dto/person';
 import type { RelationshipRecord } from '../../../../components/dto/relationship';
+import type { KinshipSystem } from '../../../../components/dto/tree';
 import { formatPersonName } from '../../../../components/person-formatting';
-import { GlobalStyles } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
 
@@ -29,6 +29,7 @@ export function PersonRelationshipsSection({
   onOpenHelperDialog,
   onAddRelationship,
   onEditRelationship,
+  kinshipSystem,
 }: {
   person: PersonRecord;
   people: PersonRecord[];
@@ -50,12 +51,14 @@ export function PersonRelationshipsSection({
   onOpenHelperDialog: () => void;
   onAddRelationship: () => void;
   onEditRelationship: (relationship: RelationshipRecord) => void;
+  kinshipSystem?: KinshipSystem;
 }) {
   const theme = useTheme();
   const { t } = useI18n();
 
   return (
-    <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]} elevation={1}>
+    <Reveal delay={110}>
+    <SectionCard variant="person">
       <View style={styles.sectionHeader}>
         <View style={styles.sectionHeaderText}>
           <View style={styles.titleWithHelperRow}>
@@ -70,23 +73,24 @@ export function PersonRelationshipsSection({
           </View>
         </View>
         {canEdit ? (
-          <Button mode="contained" icon="family-tree" onPress={onAddRelationship}>
+          <Button mode="contained" icon="family-tree" onPress={onAddRelationship} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>
             {t(K.personProfile.addRelationship)}
           </Button>
         ) : null}
       </View>
 
-      <HorizontalTabStrip
-        items={[
-          { key: 'insight', label: t(K.personProfile.howRelated) },
-          { key: 'list', label: t('All relationships') },
-        ]}
-        activeKey={relationshipSectionTab}
-        onChange={(value) => setRelationshipSectionTab(value as PersonRelationshipSectionTabKey)}
-        containerStyle={[styles.tabStripCard, styles.relationshipTabStripCard, { backgroundColor: theme.colors.surface }]}
-        contentContainerStyle={styles.tabStripContent}
-        itemStyle={styles.tabStripItem}
-      />
+      <TabStripCard nested style={styles.relationshipTabStripCard}>
+        <HorizontalTabStrip
+          items={[
+            { key: 'insight', label: t(K.personProfile.howRelated) },
+            { key: 'list', label: t(K.personProfile.allRelationships) },
+          ]}
+          activeKey={relationshipSectionTab}
+          onChange={(value) => setRelationshipSectionTab(value as PersonRelationshipSectionTabKey)}
+          contentContainerStyle={styles.tabStripContent}
+          itemStyle={styles.tabStripItem}
+        />
+      </TabStripCard>
 
       {relationshipSectionTab === 'insight' ? (
         <RelationshipInsightCard
@@ -94,12 +98,14 @@ export function PersonRelationshipsSection({
           relationships={relationships}
           lockedFromPersonId={person.id}
           title={t(K.personProfile.howDoesPersonRelate, { name: formatPersonName(person) })}
+          kinshipSystem={kinshipSystem}
         />
       ) : paginatedRelationships.length > 0 ? (
         <>
           <View style={styles.relationshipList}>
-            {paginatedRelationships.map((entry) => (
-              <View key={entry.relationship.id} style={[styles.relationshipCard, { backgroundColor: theme.colors.surface }]}>
+            {paginatedRelationships.map((entry, index) => (
+              <Reveal key={entry.relationship.id} delay={140 + index * 35}>
+              <View style={[styles.relationshipCard, { backgroundColor: theme.colors.surface }]}>
                 <View style={styles.relationshipRow}>
                   <View style={styles.relationshipTextWrap}>
                     <Chip compact style={styles.relationshipChip}>
@@ -115,6 +121,7 @@ export function PersonRelationshipsSection({
                   ) : null}
                 </View>
               </View>
+              </Reveal>
             ))}
           </View>
 
@@ -130,10 +137,11 @@ export function PersonRelationshipsSection({
         <View style={styles.emptyState}>
           <Text variant="titleMedium">{t(K.personProfile.noRelationshipsYet)}</Text>
           <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
-            {t(K.relationship.manageConnectionsDirectly, { name: formatPersonName(person) })}
+            Start by connecting a parent, child, or partner so this story can branch outward from {formatPersonName(person)}.
           </Text>
         </View>
       )}
-    </Surface>
+    </SectionCard>
+    </Reveal>
   );
 }

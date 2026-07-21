@@ -6,12 +6,12 @@
 //   3. Viewport culling                                  → unlimited nodes.
 //   4. Per-node `Pressable`                              → reliable taps at
 //      any zoom level (no manual hit-testing math).
-//   5. Two-finger pinch + drag pan via PanResponder      → mobile zoom.
+//   5. Gesture Handler + Reanimated pan/pinch            → smooth mobile zoom.
 //   6. Cursor / pinch-anchored zoom                      → focus stays put.
-//   7. CSS transform on web                              → 60fps pan/zoom.
+//   7. Viewport culling + large-tree mode                → lower memory use.
 //
-// No new dependencies required — uses only react-native + react-native-svg
-// + react-native-paper which are already in the project.
+// Uses react-native-svg/react-native-paper plus Gesture Handler, Reanimated,
+// and expo-image for the high-traffic rendering paths.
 // ---------------------------------------------------------------------------
 
 import React, {
@@ -23,19 +23,20 @@ import React, {
   useState,
 } from 'react';
 import {
-  Animated,
-  GestureResponderEvent,
-  Image,
   LayoutChangeEvent,
   Modal,
-  PanResponder,
-  PanResponderGestureState,
   Platform,
   Pressable,
   StyleSheet,
   useWindowDimensions,
   View,
 } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, {
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+} from 'react-native-reanimated';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Button, Chip, IconButton, Text, useTheme } from 'react-native-paper';
 import { translate } from '../i18n';
@@ -64,12 +65,11 @@ import {
   extractSurname,
   filterForActiveSurnames,
   findCrossSurnameChildren,
-  findFamilyBridges,
   findMaidenNameMembers,
-  getConnectedSurnames,
   getSortedSurnames,
 } from './family-tree-surname-clusters';
 import { useI18n } from '../hooks/use-i18n';
+import CachedImage from './cached-image';
 
 const styles = GlobalStyles.familyTreeCanvas;
 
@@ -85,6 +85,8 @@ const VIEWPORT_PADDING = 24;
 const CONTENT_BOUNDARY_PADDING = 80; // canvas px of extra pan room around the tree
 const CULL_PADDING = 320; // px around viewport in canvas-space
 const VIEWPORT_COMMIT_INTERVAL_MS = 48;
+const LARGE_TREE_NODE_THRESHOLD = 140;
+const LARGE_TREE_CONNECTOR_THRESHOLD = 220;
 // ------------------
 
 interface FamilyTreeCanvasProps {
@@ -101,6 +103,9 @@ interface FamilyTreeCanvasProps {
   allowFullscreen?: boolean;
   floatingControls?: boolean;
   fillAvailableSpace?: boolean;
+  showControls?: boolean;
+  disableSurnameClustering?: boolean;
+  inlineViewportHeight?: number;
   /**
    * Optional ref that gets populated with the canvas's internal
    * navigateToSurname function, allowing a parent dialog to trigger
@@ -125,7 +130,7 @@ function formatPersonNodeTitle(person: PersonRecord, showMaidenFamilyInNodeTitle
     return name;
   }
 
-  return `${name} (${person.maidenName.trim()})`;
+  return name ? `${name} (${person.maidenName.trim()})` : `(${person.maidenName.trim()})`;
 }
 
 type PositionedPerson = {
@@ -135,9 +140,20 @@ type PositionedPerson = {
   bounds: { x: number; y: number; w: number; h: number };
 };
 
+type CanvasBounds = {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+  width: number;
+  height: number;
+};
+
 const MAX_TREE_CACHE_ENTRIES = 12;
 const layoutCache = new Map<string, ReturnType<typeof layoutFamilyTree>>();
 const connectorCache = new Map<string, ReturnType<typeof buildConnectors>>();
+const objectIdentityMap = new WeakMap<object, number>();
+let nextObjectIdentity = 1;
 
 function getCachedValue<T>(cache: Map<string, T>, key: string, compute: () => T) {
   const existing = cache.get(key);
@@ -158,24 +174,48 @@ function getCachedValue<T>(cache: Map<string, T>, key: string, compute: () => T)
   return nextValue;
 }
 
-function buildLayoutCacheKey(people: PersonRecord[], relationships: RelationshipRecord[]) {
-  const peopleKey = [...people]
-    .sort((left, right) => left.id.localeCompare(right.id))
-    .map((person) => `${person.id}:${person.updatedAt}:${person.lastName}:${person.maidenName}`)
-    .join('|');
-  const relationshipKey = [...relationships]
-    .sort((left, right) => left.id.localeCompare(right.id))
-    .map((relationship) => [
-      relationship.id,
-      relationship.type,
-      relationship.fromPersonId,
-      relationship.toPersonId,
-      relationship.relationshipStatus ?? '',
-      relationship.parentChildKind ?? '',
-    ].join(':'))
-    .join('|');
+function getObjectIdentity(value: object) {
+  const existingIdentity = objectIdentityMap.get(value);
+  if (existingIdentity) {
+    return existingIdentity;
+  }
 
-  return `${peopleKey}::${relationshipKey}`;
+  const nextIdentity = nextObjectIdentity;
+  nextObjectIdentity += 1;
+  objectIdentityMap.set(value, nextIdentity);
+  return nextIdentity;
+}
+
+function clampCanvasPan(
+  panX: number,
+  panY: number,
+  scaleValue: number,
+  viewportWidth: number,
+  viewportHeight: number,
+  bounds: CanvasBounds,
+  boundaryPadding = 0,
+) {
+  'worklet';
+  if (viewportWidth <= 0 || viewportHeight <= 0 || scaleValue <= 0) {
+    return { x: panX, y: panY };
+  }
+
+  const viewportWidthInCanvas = viewportWidth / scaleValue;
+  const viewportHeightInCanvas = viewportHeight / scaleValue;
+
+  const minPanX = viewportWidthInCanvas - bounds.maxX - boundaryPadding;
+  const maxPanX = -bounds.minX + boundaryPadding;
+  const minPanY = viewportHeightInCanvas - bounds.maxY - boundaryPadding;
+  const maxPanY = -bounds.minY + boundaryPadding;
+
+  const clampedX = minPanX > maxPanX
+    ? (viewportWidthInCanvas - (bounds.minX + bounds.maxX)) / 2
+    : Math.min(maxPanX, Math.max(minPanX, panX));
+  const clampedY = minPanY > maxPanY
+    ? (viewportHeightInCanvas - (bounds.minY + bounds.maxY)) / 2
+    : Math.min(maxPanY, Math.max(minPanY, panY));
+
+  return { x: clampedX, y: clampedY };
 }
 
 // ---------------------------------------------------------------------------
@@ -209,8 +249,8 @@ function buildLineageSubtree(
 
   const lineage = new Set<string>([rootPersonId]);
   const queue = [rootPersonId];
-  while (queue.length) {
-    const cur = queue.shift()!;
+  for (let queueIndex = 0; queueIndex < queue.length; queueIndex += 1) {
+    const cur = queue[queueIndex];
     (linkMap.get(cur) ?? new Set()).forEach((next) => {
       if (peopleById.has(next) && !lineage.has(next)) {
         lineage.add(next);
@@ -230,6 +270,50 @@ function buildLineageSubtree(
       return direction === 'descendant' ? lineage.has(r.toPersonId) : lineage.has(r.fromPersonId);
     }),
   };
+}
+
+function countLineageGenerations(
+  people: PersonRecord[],
+  relationships: RelationshipRecord[],
+  rootPersonId: string | undefined,
+  direction: 'descendant' | 'ascendant',
+) {
+  if (!rootPersonId) {
+    return 0;
+  }
+
+  const peopleById = new Map(people.map((person) => [person.id, person]));
+  if (!peopleById.has(rootPersonId)) {
+    return 0;
+  }
+
+  const linkMap = new Map<string, Set<string>>();
+  relationships.forEach((relationship) => {
+    if (relationship.type !== 'parent-child') {
+      return;
+    }
+
+    const from = direction === 'descendant' ? relationship.fromPersonId : relationship.toPersonId;
+    const to = direction === 'descendant' ? relationship.toPersonId : relationship.fromPersonId;
+    if (!linkMap.has(from)) {
+      linkMap.set(from, new Set());
+    }
+    linkMap.get(from)!.add(to);
+  });
+
+  const lineage = new Set<string>([rootPersonId]);
+  const queue = [rootPersonId];
+  for (let queueIndex = 0; queueIndex < queue.length; queueIndex += 1) {
+    const current = queue[queueIndex];
+    (linkMap.get(current) ?? new Set()).forEach((next) => {
+      if (peopleById.has(next) && !lineage.has(next)) {
+        lineage.add(next);
+        queue.push(next);
+      }
+    });
+  }
+
+  return Math.max(0, lineage.size - 1);
 }
 
 // ---------------------------------------------------------------------------
@@ -253,6 +337,8 @@ type PersonNodeProps = {
   variantSurface: string;
   variantOnSurface: string;
   onPrimaryColor: string;
+  deferPhoto: boolean;
+  compactDetails: boolean;
   onPress: (person: PersonRecord) => void;
 };
 const PersonNode = React.memo(function PersonNode(props: PersonNodeProps) {
@@ -260,6 +346,7 @@ const PersonNode = React.memo(function PersonNode(props: PersonNodeProps) {
     person, x, y, showMaidenFamilyInNodeTitle, isCurrentUser, isFocusedPerson, isGhost, isCrossSurnameChild, isMaidenNameMember,
     surfaceColor, outlineColor, primaryColor, tertiaryColor, onTertiaryColor,
     variantSurface, variantOnSurface, onPrimaryColor,
+    deferPhoto, compactDetails,
     onPress,
   } = props;
   const photo = getDisplayPersonPhoto(person);
@@ -306,11 +393,11 @@ const PersonNode = React.memo(function PersonNode(props: PersonNodeProps) {
       >
         {isCurrentUser ? (
             <View style={[styles.nodeBadge, { backgroundColor: primaryColor }]}>
-              <Text variant="labelSmall" style={[styles.nodeBadgeText, { color: onPrimaryColor }]}>{translate('You')}</Text>
+              <Text variant="labelSmall" style={[styles.nodeBadgeText, { color: onPrimaryColor }]}>{translate(K.common.you)}</Text>
             </View>
         ) : isFocusedPerson ? (
             <View style={[styles.nodeBadge, { backgroundColor: primaryColor }]}>
-              <Text variant="labelSmall" style={[styles.nodeBadgeText, { color: onPrimaryColor }]}>{translate('Open')}</Text>
+              <Text variant="labelSmall" style={[styles.nodeBadgeText, { color: onPrimaryColor }]}>{translate(K.common.open)}</Text>
             </View>
         ) : badgeLabel ? (
             <View style={[styles.nodeBadge, { backgroundColor: tertiaryColor }]}>
@@ -320,8 +407,13 @@ const PersonNode = React.memo(function PersonNode(props: PersonNodeProps) {
         <View style={styles.nodeInnerRow}>
           <View style={styles.nodeAvatarColumn}>
             <View style={styles.nodeAvatarWrap}>
-              {photo ? (
-                <Image source={{ uri: photo.url }} style={styles.nodeAvatar} />
+              {photo && !deferPhoto ? (
+                <CachedImage
+                  uri={photo.url}
+                  style={styles.nodeAvatar}
+                  priority="low"
+                  recyclingKey={`${person.id}:${photo.id}`}
+                />
               ) : (
                 <View style={[styles.nodeAvatarFallback, { borderColor: outlineColor, backgroundColor: variantSurface }]}>
                   <MaterialCommunityIcons name={getPersonFallbackAvatarIcon(person)} size={28} color={isHighlighted ? tertiaryColor : primaryColor} />
@@ -333,8 +425,12 @@ const PersonNode = React.memo(function PersonNode(props: PersonNodeProps) {
             <Text variant="titleSmall" style={styles.nodeTitle} numberOfLines={2}>
               {formatPersonNodeTitle(person, showMaidenFamilyInNodeTitle)}
             </Text>
-            <Text variant="bodySmall" style={[styles.nodeMeta, { color: variantOnSurface }]} numberOfLines={1}>{getPersonLifeSpanLabel(person)}</Text>
-            <Text variant="bodySmall" style={[styles.nodeMeta, { color: variantOnSurface }]} numberOfLines={1}>{getPersonPresenceLabel(person)}</Text>
+            {compactDetails ? null : (
+              <>
+                <Text variant="bodySmall" style={[styles.nodeMeta, { color: variantOnSurface }]} numberOfLines={1}>{getPersonLifeSpanLabel(person)}</Text>
+                <Text variant="bodySmall" style={[styles.nodeMeta, { color: variantOnSurface }]} numberOfLines={1}>{getPersonPresenceLabel(person)}</Text>
+              </>
+            )}
           </View>
         </View>
       </Pressable>
@@ -358,13 +454,16 @@ function FamilyTreeCanvas({
                             allowFullscreen = true,
                             floatingControls = false,
                             fillAvailableSpace = false,
+                            showControls = true,
+                            disableSurnameClustering = false,
+                            inlineViewportHeight: inlineViewportHeightOverride,
                             familySwitchRef,
                             activeFamilyRef,
 }: FamilyTreeCanvasProps) {
   const theme = useTheme();
   const { t } = useI18n();
   const { height: windowHeight } = useWindowDimensions();
-  const inlineViewportHeight = Math.max(420, windowHeight - 360);
+  const inlineViewportHeight = inlineViewportHeightOverride ?? Math.max(420, windowHeight - 360);
 
   const [scale, setScale] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -378,11 +477,15 @@ function FamilyTreeCanvas({
   const panRef = useRef(pan);
   scaleRef.current = scale;
   panRef.current = pan;
-  const scaleAnim = useRef(new Animated.Value(scale)).current;
-  const panXAnim = useRef(new Animated.Value(pan.x)).current;
-  const panYAnim = useRef(new Animated.Value(pan.y)).current;
+  const scaleShared = useSharedValue(scale);
+  const panXShared = useSharedValue(pan.x);
+  const panYShared = useSharedValue(pan.y);
+  const gestureStartPanX = useSharedValue(0);
+  const gestureStartPanY = useSharedValue(0);
+  const gestureStartScale = useSharedValue(1);
   const pendingViewportRef = useRef<{ scale: number; pan: { x: number; y: number } } | null>(null);
   const viewportCommitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [interactionActive, setInteractionActive] = useState(false);
 
   const commitViewportState = useCallback(() => {
     viewportCommitTimerRef.current = null;
@@ -400,13 +503,21 @@ function FamilyTreeCanvas({
   const scheduleViewportState = useCallback((nextPan: { x: number; y: number }, nextScale: number) => {
     panRef.current = nextPan;
     scaleRef.current = nextScale;
-    panXAnim.setValue(nextPan.x * nextScale);
-    panYAnim.setValue(nextPan.y * nextScale);
-    scaleAnim.setValue(nextScale);
+    panXShared.value = nextPan.x;
+    panYShared.value = nextPan.y;
+    scaleShared.value = nextScale;
     pendingViewportRef.current = { pan: nextPan, scale: nextScale };
     if (viewportCommitTimerRef.current !== null) return;
     viewportCommitTimerRef.current = setTimeout(commitViewportState, VIEWPORT_COMMIT_INTERVAL_MS);
-  }, [commitViewportState, panXAnim, panYAnim, scaleAnim]);
+  }, [commitViewportState, panXShared, panYShared, scaleShared]);
+
+  const scheduleGestureViewportState = useCallback((nextPanX: number, nextPanY: number, nextScale: number) => {
+    panRef.current = { x: nextPanX, y: nextPanY };
+    scaleRef.current = nextScale;
+    pendingViewportRef.current = { pan: { x: nextPanX, y: nextPanY }, scale: nextScale };
+    if (viewportCommitTimerRef.current !== null) return;
+    viewportCommitTimerRef.current = setTimeout(commitViewportState, VIEWPORT_COMMIT_INTERVAL_MS);
+  }, [commitViewportState]);
 
   const flushViewportState = useCallback(() => {
     if (viewportCommitTimerRef.current !== null) {
@@ -439,10 +550,6 @@ function FamilyTreeCanvas({
     () => getSortedSurnames(surnameClusters),
     [surnameClusters],
   );
-  const allBridges = useMemo(
-    () => findFamilyBridges(renderedPeople, renderedRelationships, currentTreeId),
-    [currentTreeId, renderedPeople, renderedRelationships],
-  );
 
   // Determine the "seed" person for initial surname selection (doesn't depend on layout).
   const seedFocusPersonId = initialFocusPersonId ?? ascendantRootPersonId ?? descendantRootPersonId ?? renderedPeople[0]?.id;
@@ -473,7 +580,7 @@ function FamilyTreeCanvas({
   }, [currentTreeId, sortedSurnames, seedFocusPersonId, renderedPeopleById, surnameClusters]);
 
   // Determine if clustering is active (more than 1 surname in the data → show one family at a time).
-  const clusteringActive = sortedSurnames.length >= 2;
+  const clusteringActive = !disableSurnameClustering && sortedSurnames.length >= 2;
 
   // Filter people/relationships to active surnames.
   const {
@@ -516,10 +623,7 @@ function FamilyTreeCanvas({
     }
   }, [activeFamilyRef, activeSurnames]);
 
-  const layoutCacheKey = useMemo(
-    () => buildLayoutCacheKey(clusterPeople, clusterRelationships),
-    [clusterPeople, clusterRelationships],
-  );
+  const layoutCacheKey = `${getObjectIdentity(clusterPeople)}:${getObjectIdentity(clusterRelationships)}`;
 
   // ---- Layout (tidy tree) ----
   const layout = useMemo(
@@ -579,7 +683,8 @@ function FamilyTreeCanvas({
 
   // ---- Connectors (lane-allocated) ----
   const connectorCacheKey = useMemo(() => [
-    layoutCacheKey,
+    getObjectIdentity(layout),
+    getObjectIdentity(clusterRelationships),
     [...ghostPersonIds].sort().join('|'),
     theme.colors.primary,
     theme.colors.secondary,
@@ -587,7 +692,7 @@ function FamilyTreeCanvas({
     '#B7791F',
     '#2E7D6B',
     theme.colors.outline,
-  ].join('::'), [ghostPersonIds, layoutCacheKey, theme.colors.outline, theme.colors.primary, theme.colors.secondary, theme.colors.tertiary]);
+  ].join('::'), [clusterRelationships, ghostPersonIds, layout, theme.colors.outline, theme.colors.primary, theme.colors.secondary, theme.colors.tertiary]);
   const { spouseConnectors, parentChildConnectors } = useMemo(
       () => getCachedValue(connectorCache, connectorCacheKey, () => buildConnectors(clusterRelationships, layout, C, {
         parentChild: theme.colors.primary,
@@ -600,6 +705,8 @@ function FamilyTreeCanvas({
       [clusterRelationships, connectorCacheKey, ghostPersonIds, layout, theme.colors.outline, theme.colors.primary, theme.colors.secondary, theme.colors.tertiary],
   );
   const allConnectors = useMemo(() => [...parentChildConnectors, ...spouseConnectors], [parentChildConnectors, spouseConnectors]);
+  const isLargeTreeMode = clusterPeople.length >= LARGE_TREE_NODE_THRESHOLD
+    || allConnectors.length >= LARGE_TREE_CONNECTOR_THRESHOLD;
 
   // ---- Cross-surname children ----
   // Detect children whose parents have different surnames (full pre-cluster dataset).
@@ -624,26 +731,7 @@ function FamilyTreeCanvas({
     viewportHeight: number,
     boundaryPadding: number = 0,
   ) => {
-    if (viewportWidth <= 0 || viewportHeight <= 0 || nextScale <= 0) {
-      return nextPan;
-    }
-
-    const viewportWidthInCanvas = viewportWidth / nextScale;
-    const viewportHeightInCanvas = viewportHeight / nextScale;
-
-    const minPanX = viewportWidthInCanvas - contentBounds.maxX - boundaryPadding;
-    const maxPanX = -contentBounds.minX + boundaryPadding;
-    const minPanY = viewportHeightInCanvas - contentBounds.maxY - boundaryPadding;
-    const maxPanY = -contentBounds.minY + boundaryPadding;
-
-    const clampedX = minPanX > maxPanX
-      ? (viewportWidthInCanvas - (contentBounds.minX + contentBounds.maxX)) / 2
-      : Math.min(maxPanX, Math.max(minPanX, nextPan.x));
-    const clampedY = minPanY > maxPanY
-      ? (viewportHeightInCanvas - (contentBounds.minY + contentBounds.maxY)) / 2
-      : Math.min(maxPanY, Math.max(minPanY, nextPan.y));
-
-    return { x: clampedX, y: clampedY };
+    return clampCanvasPan(nextPan.x, nextPan.y, nextScale, viewportWidth, viewportHeight, contentBounds, boundaryPadding);
   }, [contentBounds]);
 
   // ---- Auto-fit on first layout / when canvas size or focus changes ----
@@ -712,6 +800,10 @@ function FamilyTreeCanvas({
     zoomAt(vw / 2, vh / 2, scaleRef.current * (1 + delta));
   }, [zoomAt, isFullscreen, fullscreenViewportSize, inlineViewportSize]);
 
+  const handlePersonPress = useCallback((pressedPerson: PersonRecord) => {
+    onPressPerson(pressedPerson);
+  }, [onPressPerson]);
+
   // ---- Web wheel: scroll = pan, ctrl/⌘+wheel = zoom ----
   const handleWheel = useCallback((e: any) => {
     if (Platform.OS !== 'web') return;
@@ -735,96 +827,103 @@ function FamilyTreeCanvas({
     );
   }, [activeViewportSize.width, activeViewportSize.height, clampPanToViewport, scheduleViewportState, zoomAt]);
 
-  // ---- Pan + pinch via PanResponder (mobile + web touch) ----
-  const gestureMovedRef = useRef(false);
-  const dragStartPanRef = useRef({ x: 0, y: 0 });
-  const pinchStateRef = useRef<{ startDist: number; startScale: number; focal: { x: number; y: number } } | null>(null);
+  // ---- Pan + pinch via Gesture Handler + Reanimated ----
+  const setInteractionActiveOnJS = useCallback((active: boolean) => {
+    setInteractionActive(active);
+  }, []);
 
-  const distanceBetweenTouches = (e: GestureResponderEvent) => {
-    const ts = e.nativeEvent.touches;
-    if (ts.length < 2) return 0;
-    return Math.hypot(ts[0].pageX - ts[1].pageX, ts[0].pageY - ts[1].pageY);
-  };
+  const commitGestureOnJS = useCallback((nextPanX: number, nextPanY: number, nextScale: number) => {
+    scheduleGestureViewportState(nextPanX, nextPanY, nextScale);
+  }, [scheduleGestureViewportState]);
 
-  const focalOfTouches = (e: GestureResponderEvent) => {
-    const ts = e.nativeEvent.touches;
-    if (ts.length < 2) return { x: 0, y: 0 };
-    // PanResponder gives us pageX; we need the focal in viewport-local coords.
-    // We approximate using the average of the two touches relative to the
-    // viewport origin, assuming the gesture layer covers it.
-    return {
-      x: (ts[0].locationX + ts[1].locationX) / 2,
-      y: (ts[0].locationY + ts[1].locationY) / 2,
+  const flushGestureOnJS = useCallback((nextPanX: number, nextPanY: number, nextScale: number) => {
+    scheduleGestureViewportState(nextPanX, nextPanY, nextScale);
+    flushViewportState();
+    setInteractionActive(false);
+  }, [flushViewportState, scheduleGestureViewportState]);
+
+  const treeGesture = useMemo(() => {
+    const clampForGesture = (panXValue: number, panYValue: number, scaleValue: number) => {
+      'worklet';
+      return clampCanvasPan(
+        panXValue,
+        panYValue,
+        scaleValue,
+        activeViewportSize.width,
+        activeViewportSize.height,
+        contentBounds,
+        CONTENT_BOUNDARY_PADDING,
+      );
     };
-  };
 
-  const panResponder = useMemo(
-      () => PanResponder.create({
-        // Don't capture taps — let the underlying Pressable receive them.
-        onStartShouldSetPanResponder: () => false,
-        onStartShouldSetPanResponderCapture: () => false,
-        onMoveShouldSetPanResponder: (e, g: PanResponderGestureState) => {
-          if (e.nativeEvent.touches.length >= 2) return true;
-          return Math.hypot(g.dx, g.dy) > DRAG_ACTIVATION_DISTANCE;
-        },
-        onMoveShouldSetPanResponderCapture: (e, g) => {
-          if (e.nativeEvent.touches.length >= 2) return true;
-          return Math.hypot(g.dx, g.dy) > DRAG_ACTIVATION_DISTANCE;
-        },
-        onPanResponderGrant: (e) => {
-          gestureMovedRef.current = false;
-          dragStartPanRef.current = panRef.current;
-          if (e.nativeEvent.touches.length >= 2) {
-            pinchStateRef.current = {
-              startDist: distanceBetweenTouches(e),
-              startScale: scaleRef.current,
-              focal: focalOfTouches(e),
-            };
-          } else {
-            pinchStateRef.current = null;
-          }
-        },
-        onPanResponderMove: (e, g) => {
-          if (!gestureMovedRef.current) {
-            gestureMovedRef.current = Math.hypot(g.dx, g.dy) > DRAG_ACTIVATION_DISTANCE;
-          }
+    const panGesture = Gesture.Pan()
+      .minDistance(DRAG_ACTIVATION_DISTANCE)
+      .onBegin(() => {
+        gestureStartPanX.value = panXShared.value;
+        gestureStartPanY.value = panYShared.value;
+        runOnJS(setInteractionActiveOnJS)(true);
+      })
+      .onUpdate((event) => {
+        const nextScale = scaleShared.value;
+        const clamped = clampForGesture(
+          gestureStartPanX.value + event.translationX / nextScale,
+          gestureStartPanY.value + event.translationY / nextScale,
+          nextScale,
+        );
+        panXShared.value = clamped.x;
+        panYShared.value = clamped.y;
+        runOnJS(commitGestureOnJS)(clamped.x, clamped.y, nextScale);
+      })
+      .onFinalize(() => {
+        const clamped = clampForGesture(panXShared.value, panYShared.value, scaleShared.value);
+        panXShared.value = clamped.x;
+        panYShared.value = clamped.y;
+        runOnJS(flushGestureOnJS)(clamped.x, clamped.y, scaleShared.value);
+      });
 
-          // Pinch?
-          if (e.nativeEvent.touches.length >= 2) {
-            if (!pinchStateRef.current) {
-              pinchStateRef.current = {
-                startDist: distanceBetweenTouches(e),
-                startScale: scaleRef.current,
-                focal: focalOfTouches(e),
-              };
-              return;
-            }
-            const dist = distanceBetweenTouches(e);
-            if (dist <= 0 || pinchStateRef.current.startDist <= 0) return;
-            const next = pinchStateRef.current.startScale * (dist / pinchStateRef.current.startDist);
-            zoomAt(pinchStateRef.current.focal.x, pinchStateRef.current.focal.y, next);
-            return;
-          }
+    const pinchGesture = Gesture.Pinch()
+      .onBegin(() => {
+        gestureStartScale.value = scaleShared.value;
+        gestureStartPanX.value = panXShared.value;
+        gestureStartPanY.value = panYShared.value;
+        runOnJS(setInteractionActiveOnJS)(true);
+      })
+      .onUpdate((event) => {
+        const nextScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, gestureStartScale.value * event.scale));
+        const canvasFocalX = event.focalX / gestureStartScale.value - gestureStartPanX.value;
+        const canvasFocalY = event.focalY / gestureStartScale.value - gestureStartPanY.value;
+        const clamped = clampForGesture(
+          event.focalX / nextScale - canvasFocalX,
+          event.focalY / nextScale - canvasFocalY,
+          nextScale,
+        );
+        scaleShared.value = nextScale;
+        panXShared.value = clamped.x;
+        panYShared.value = clamped.y;
+        runOnJS(commitGestureOnJS)(clamped.x, clamped.y, nextScale);
+      })
+      .onFinalize(() => {
+        const clamped = clampForGesture(panXShared.value, panYShared.value, scaleShared.value);
+        panXShared.value = clamped.x;
+        panYShared.value = clamped.y;
+        runOnJS(flushGestureOnJS)(clamped.x, clamped.y, scaleShared.value);
+      });
 
-          // Single-finger drag → pan in canvas space.
-          pinchStateRef.current = null;
-          scheduleViewportState(clampPanToViewport({
-            x: dragStartPanRef.current.x + g.dx / scaleRef.current,
-            y: dragStartPanRef.current.y + g.dy / scaleRef.current,
-          }, scaleRef.current, activeViewportSize.width, activeViewportSize.height, CONTENT_BOUNDARY_PADDING), scaleRef.current);
-        },
-        onPanResponderRelease: () => {
-          pinchStateRef.current = null;
-          flushViewportState();
-        },
-        onPanResponderTerminate: () => {
-          pinchStateRef.current = null;
-          flushViewportState();
-        },
-        onPanResponderTerminationRequest: () => false,
-      }),
-      [activeViewportSize.height, activeViewportSize.width, clampPanToViewport, flushViewportState, scheduleViewportState, zoomAt],
-  );
+    return Gesture.Simultaneous(panGesture, pinchGesture);
+  }, [
+    activeViewportSize.height,
+    activeViewportSize.width,
+    commitGestureOnJS,
+    contentBounds,
+    flushGestureOnJS,
+    gestureStartPanX,
+    gestureStartPanY,
+    gestureStartScale,
+    panXShared,
+    panYShared,
+    scaleShared,
+    setInteractionActiveOnJS,
+  ]);
 
   // ---- Viewport culling ----
   // Compute the visible canvas-space rect to skip off-screen nodes/connectors.
@@ -842,21 +941,21 @@ function FamilyTreeCanvas({
     };
   }, [deferredPan.x, deferredPan.y, deferredScale, activeViewportSize.width, activeViewportSize.height]);
 
-  const intersects = (b: { x: number; y: number; w: number; h: number }) => (
+  const intersects = useCallback((b: { x: number; y: number; w: number; h: number }) => (
       b.x + b.w >= viewportRect.x &&
       b.x <= viewportRect.x + viewportRect.w &&
       b.y + b.h >= viewportRect.y &&
       b.y <= viewportRect.y + viewportRect.h
-  );
+  ), [viewportRect]);
 
   const visiblePeople = useMemo(
     () => positionedPeople.filter(({ bounds }) => intersects(bounds)),
-    [positionedPeople, viewportRect],
+    [intersects, positionedPeople],
   );
 
   const visibleConnectors = useMemo(
       () => allConnectors.filter((c: Connector) => intersects(c.bounds)),
-      [allConnectors, viewportRect],
+      [allConnectors, intersects],
   );
 
   // ---- Layout handlers ----
@@ -870,7 +969,26 @@ function FamilyTreeCanvas({
   }, []);
 
   // ---- Labels ----
-  const controlsLabel = lineageMode === 'ascendant'
+  const lineageCounts = useMemo(() => {
+    if (ascendantRootPersonId) {
+      return {
+        descendants: 0,
+        ancestors: countLineageGenerations(renderedPeople, renderedRelationships, ascendantRootPersonId, 'ascendant'),
+      };
+    }
+
+    if (descendantRootPersonId) {
+      return {
+        descendants: countLineageGenerations(renderedPeople, renderedRelationships, descendantRootPersonId, 'descendant'),
+        ancestors: 0,
+      };
+    }
+
+    return null;
+  }, [ascendantRootPersonId, descendantRootPersonId, renderedPeople, renderedRelationships]);
+  const controlsLabel = lineageCounts
+    ? `${lineageCounts.descendants} ${t(K.lineage.descendants)}, ${lineageCounts.ancestors} ${t(K.lineage.ancestors)}`
+    : lineageMode === 'ascendant'
       ? t(K.lineage.canvasControlsAscendants)
       : lineageMode === 'descendant'
           ? t(K.lineage.canvasControlsDescendants)
@@ -879,21 +997,21 @@ function FamilyTreeCanvas({
       : lineageMode === 'descendant' ? t(K.lineage.fullScreenDescendantTree) : t(K.lineage.fullScreenFamilyTree);
 
   // ---- Render helpers ----
-  const transformStyle = {
+  const transformStyle = useAnimatedStyle(() => ({
     transform: [
-      { translateX: panXAnim },
-      { translateY: panYAnim },
-      { scale: scaleAnim },
+      { translateX: panXShared.value * scaleShared.value },
+      { translateY: panYShared.value * scaleShared.value },
+      { scale: scaleShared.value },
     ],
     transformOrigin: '0 0' as const,
-  };
+  }), [panXShared, panYShared, scaleShared]);
 
   const renderFloatingControls = (mode: 'inline' | 'fullscreen') => (
       <View pointerEvents="box-none" style={styles.viewportOverlay}>
         <View style={[styles.floatingHintCard, { backgroundColor: theme.colors.backdrop }]}>
           <Text variant="bodySmall" style={[styles.floatingHintText, { color: theme.colors.onPrimary }]}>{controlsLabel}</Text>
         </View>
-        <View style={[styles.floatingControlsCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant }]}>
+        <View style={[styles.floatingControlsCard, { backgroundColor: theme.colors.primaryContainer, borderColor: theme.colors.primary }]}>
           <Chip compact icon="magnify">{scale.toFixed(2)}x</Chip>
           <IconButton icon="minus" size={18} mode="contained-tonal" onPress={() => zoomBy(-0.15)} />
           <IconButton icon="plus" size={18} mode="contained-tonal" onPress={() => zoomBy(0.15)} />
@@ -907,12 +1025,12 @@ function FamilyTreeCanvas({
   );
 
   const renderViewport = (mode: 'inline' | 'fullscreen', viewportStyle?: object) => (
+    <GestureDetector gesture={treeGesture}>
       <View
-          {...panResponder.panHandlers}
           {...(Platform.OS === 'web' ? ({ onWheel: handleWheel } as any) : {})}
           style={[
             styles.viewport,
-            { borderColor: theme.colors.outlineVariant, backgroundColor: theme.colors.elevation.level1, overflow: 'hidden' },
+            { borderColor: theme.colors.primary, backgroundColor: theme.colors.primaryContainer, overflow: 'hidden' },
             Platform.OS === 'web'
                 ? ({ cursor: 'grab', touchAction: 'none', userSelect: 'none' } as any)
                 : null,
@@ -928,13 +1046,13 @@ function FamilyTreeCanvas({
               {
                 width: contentWidth,
                 height: contentHeight,
-                backgroundColor: theme.colors.elevation.level1,
+                backgroundColor: theme.colors.primaryContainer,
               },
               transformStyle,
             ]}
             pointerEvents="box-none"
-            renderToHardwareTextureAndroid
-            shouldRasterizeIOS
+            renderToHardwareTextureAndroid={!isLargeTreeMode}
+            shouldRasterizeIOS={!isLargeTreeMode}
         >
           <Svg
               width={contentWidth}
@@ -953,7 +1071,7 @@ function FamilyTreeCanvas({
                       strokeLinejoin="round"
                       {...(c.dashArray ? { strokeDasharray: c.dashArray } : {})}
                   />
-                  {c.label && c.labelPosition ? (
+                  {!isLargeTreeMode && c.label && c.labelPosition ? (
                     <SvgText
                       x={c.labelPosition.x}
                       y={c.labelPosition.y - 6}
@@ -990,7 +1108,9 @@ function FamilyTreeCanvas({
                     variantSurface={theme.colors.surfaceVariant}
                     variantOnSurface={theme.colors.onSurfaceVariant}
                     onPrimaryColor={theme.colors.onPrimary}
-                    onPress={onPressPerson}
+                    deferPhoto={interactionActive || isLargeTreeMode}
+                    compactDetails={isLargeTreeMode}
+                    onPress={handlePersonPress}
                 />
             );
           })}
@@ -999,11 +1119,12 @@ function FamilyTreeCanvas({
 
         {floatingControls ? renderFloatingControls(mode) : null}
       </View>
+    </GestureDetector>
   );
 
   return (
       <View style={[styles.container, fillAvailableSpace ? styles.containerFill : null]}>
-        {!floatingControls ? (
+        {!floatingControls && showControls ? (
             <View style={styles.controlsRow}>
               <Text variant="bodyMedium">{controlsLabel}</Text>
               <View style={styles.zoomButtonsRow}>

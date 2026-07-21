@@ -8,6 +8,7 @@ import { translate } from '../i18n';
 import { I18N_KEYS as K } from '../i18n/keys';
 import { computeRelationshipInsight } from '../providers';
 import { GlobalStyles } from '../constants/styles';
+import type { KinshipSystem } from './dto/tree';
 
 const styles = GlobalStyles.relationshipInsightCard;
 const dialogChrome = GlobalStyles.dialogChrome;
@@ -19,6 +20,7 @@ interface RelationshipInsightCardProps {
   lockedFromPersonId?: string;
   title?: string;
   subtitle?: string;
+  kinshipSystem?: KinshipSystem;
 }
 
 function formatPersonName(person?: PersonRecord | null) {
@@ -31,17 +33,17 @@ function formatPersonName(person?: PersonRecord | null) {
 
 function formatPersonMeta(person: PersonRecord) {
   const lifespan = getPersonLifeSpanLabel(person);
-  return lifespan === 'Unknown lifespan' ? translate(K.common.unknown) : lifespan;
+  return lifespan === translate(K.personProfile.unknownLifespan) ? translate(K.common.unknown) : lifespan;
 }
 
 function getPathRelationLabel(relation: 'parent' | 'child' | 'spouse') {
   switch (relation) {
     case 'parent':
-      return translate('parent');
+      return translate(K.relationship.parent);
     case 'child':
-      return translate('child');
+      return translate(K.relationship.child);
     default:
-      return translate('spouse');
+      return translate(K.relationship.spouse);
   }
 }
 
@@ -51,6 +53,7 @@ export default function RelationshipInsightCard({
   lockedFromPersonId,
   title = translate(K.relationshipInsight.title),
   subtitle,
+  kinshipSystem,
 }: RelationshipInsightCardProps) {
   const theme = useTheme();
   const { t } = useI18n();
@@ -127,8 +130,8 @@ export default function RelationshipInsightCard({
       return null;
     }
 
-    return computeRelationshipInsight(people, relationships, fromPersonId, toPersonId);
-  }, [fromPersonId, people, relationships, toPersonId]);
+    return computeRelationshipInsight(people, relationships, fromPersonId, toPersonId, { kinshipSystem });
+  }, [fromPersonId, kinshipSystem, people, relationships, toPersonId]);
 
   const pathLabel = insight
     ? insight.pathPersonIds
@@ -179,7 +182,13 @@ export default function RelationshipInsightCard({
 
         {!lockedFromPersonId ? (
           <View style={styles.section}>
-            <Button mode="outlined" icon="account-search" onPress={() => openPicker('from')}>
+            <Button
+              mode="outlined"
+              icon="share-variant"
+              buttonColor={theme.colors.surface}
+              textColor={theme.colors.primary}
+              onPress={() => openPicker('from')}
+            >
               {fromPerson ? formatPersonName(fromPerson) : t(K.common.selectFamilyMember)}
             </Button>
           </View>
@@ -187,8 +196,10 @@ export default function RelationshipInsightCard({
 
         <View style={styles.section}>
           <Button
-            mode="contained-tonal"
-            icon="account-search"
+            mode="outlined"
+            icon="share-variant"
+            buttonColor={theme.colors.surface}
+            textColor={theme.colors.primary}
             onPress={() => openPicker('to')}
             disabled={!fromPersonId}
           >
@@ -208,7 +219,7 @@ export default function RelationshipInsightCard({
                 setToPersonId(nextTo);
               }}
               disabled={!fromPersonId || !toPersonId}
-              accessibilityLabel={t('Swap')}
+              accessibilityLabel={t(K.common.swap)}
             />
           ) : null}
         </View>
@@ -223,14 +234,11 @@ export default function RelationshipInsightCard({
           insight ? (
             <View style={[styles.resultBox, { backgroundColor: theme.colors.surfaceVariant }]}>
               <Text variant="titleMedium">
-                {t('{person} is {relative}’s {relationship}', {
+                {t(K.relationshipInsight.personIsRelativesRelationship, {
                   person: formatPersonName(toPerson),
                   relative: formatPersonName(fromPerson),
                   relationship: insight.relationship.toLowerCase(),
                 })}
-              </Text>
-              <Text variant="bodyMedium" style={[styles.pathText, { color: theme.colors.onSurfaceVariant }]}>
-                {t(K.relationshipInsight.connectionFound)}
               </Text>
               <View style={styles.summaryRow}>
                 <Chip compact icon="account">{formatPersonName(fromPerson)}</Chip>
@@ -318,7 +326,7 @@ export default function RelationshipInsightCard({
                   >
                     <Text variant="titleSmall" style={styles.resultRowTitle}>{formatPersonName(person)}</Text>
                     <Text variant="bodySmall" style={styles.resultRowMeta}>
-                      {formatPersonMeta(person) === 'No dates recorded yet' ? t('No dates recorded yet') : formatPersonMeta(person)}
+                      {formatPersonMeta(person)}
                     </Text>
                   </Pressable>
                 ))}
@@ -329,7 +337,7 @@ export default function RelationshipInsightCard({
               </View>
             )}
 
-            {filteredPickerCandidates.length > 0 ? (
+            {totalPickerPages > 1 ? (
               <View style={styles.paginationRow}>
                 <IconButton
                   icon="chevron-left"

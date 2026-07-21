@@ -7,11 +7,24 @@ import {
   updateProfile,
   User as FirebaseUser,
 } from 'firebase/auth';
-import { deleteField, doc, getDoc, setDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
+import {
+  collection,
+  deleteField,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  setDoc,
+  serverTimestamp,
+  updateDoc,
+  where,
+} from 'firebase/firestore';
 import { auth, db } from '../providers/firebase-provider';
 import { sendPasswordResetEmailNotification, sendWelcomeEmailNotification } from '../providers/email-service';
 import type { UserProfile } from '../components/dto/user';
 import type { TreeRole } from '../components/dto/tree';
+import type { AppLanguage } from '../i18n';
+import { CURRENT_APP_VERSION } from '../constants/app-metadata';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -27,6 +40,9 @@ export interface AuthState {
   signOut: () => Promise<void>;
   setDefaultTreeId: (treeId: string | null) => Promise<void>;
   updateDisplayName: (displayName: string) => Promise<void>;
+  updatePreferredLanguage: (language: AppLanguage) => Promise<void>;
+  markAppVersionSeen: (version: string) => Promise<void>;
+  markDiscoverabilityPromptSeen: () => Promise<void>;
   clearError: () => void;
   /** Call once on app mount to listen for auth state changes */
   init: () => () => void;
@@ -71,6 +87,25 @@ function deriveUsername(email: string) {
   return email.split('@')[0]?.trim().toLowerCase() ?? '';
 }
 
+function isAppLanguage(value: unknown): value is AppLanguage {
+  return value === 'en'
+    || value === 'af'
+    || value === 'zu'
+    || value === 'xh'
+    || value === 'nso'
+    || value === 'st'
+    || value === 'tn'
+    || value === 'ts'
+    || value === 'ss'
+    || value === 've'
+    || value === 'nr'
+    || value === 'it'
+    || value === 'es'
+    || value === 'fr'
+    || value === 'de'
+    || value === 'pt';
+}
+
 function buildUserProfileDocument(user: Pick<FirebaseUser, 'uid' | 'email' | 'displayName'>, createdAt?: string) {
   const email = user.email ?? '';
   const displayName = user.displayName ?? '';
@@ -82,6 +117,7 @@ function buildUserProfileDocument(user: Pick<FirebaseUser, 'uid' | 'email' | 'di
     displayName,
     normalizedDisplayName: normaliseDisplayName(displayName),
     username: deriveUsername(email),
+    lastSeenAppVersion: CURRENT_APP_VERSION,
     ...(createdAt ? { createdAt } : {}),
   };
 }
@@ -134,6 +170,13 @@ async function ensureUserProfileDocument(fbUser: Pick<FirebaseUser, 'uid' | 'ema
     normalizedDisplayName,
     username,
     defaultTreeId: typeof data.defaultTreeId === 'string' && data.defaultTreeId.trim() ? data.defaultTreeId.trim() : undefined,
+    preferredLanguage: isAppLanguage(data.preferredLanguage) ? data.preferredLanguage : undefined,
+    lastSeenAppVersion: typeof data.lastSeenAppVersion === 'string' && data.lastSeenAppVersion.trim()
+      ? data.lastSeenAppVersion.trim()
+      : undefined,
+    discoverabilityPromptSeenAt: typeof data.discoverabilityPromptSeenAt === 'string' && data.discoverabilityPromptSeenAt.trim()
+      ? data.discoverabilityPromptSeenAt.trim()
+      : undefined,
     createdAt: data.createdAt?.toDate?.().toISOString() ?? data.createdAt ?? fallbackProfile.createdAt,
   };
 }
@@ -158,6 +201,13 @@ async function fetchUserProfile(uid: string, fallbackUser?: FirebaseUser | null)
     normalizedDisplayName: data.normalizedDisplayName ?? normaliseDisplayName(displayName),
     username: data.username ?? deriveUsername(email),
     defaultTreeId: typeof data.defaultTreeId === 'string' && data.defaultTreeId.trim() ? data.defaultTreeId.trim() : undefined,
+    preferredLanguage: isAppLanguage(data.preferredLanguage) ? data.preferredLanguage : undefined,
+    lastSeenAppVersion: typeof data.lastSeenAppVersion === 'string' && data.lastSeenAppVersion.trim()
+      ? data.lastSeenAppVersion.trim()
+      : undefined,
+    discoverabilityPromptSeenAt: typeof data.discoverabilityPromptSeenAt === 'string' && data.discoverabilityPromptSeenAt.trim()
+      ? data.discoverabilityPromptSeenAt.trim()
+      : undefined,
     createdAt: data.createdAt?.toDate?.().toISOString() ?? data.createdAt,
   };
 }
@@ -173,6 +223,31 @@ function getTreeRoleForUser(data: Record<string, any>, userId: string): TreeRole
 
   const collaborator = data.collaborators.find((entry: any) => entry?.userId === userId && typeof entry?.role === 'string');
   return collaborator?.role ?? null;
+}
+
+async function findOtherLinkedTreeForUser(userId: string, excludedTreeId?: string | null) {
+  const snapshot = await getDocs(query(collection(db, 'trees'), where('memberIds', 'array-contains', userId)));
+
+  for (const treeSnapshot of snapshot.docs) {
+    if (excludedTreeId && treeSnapshot.id === excludedTreeId) {
+      continue;
+    }
+
+    const treeData = treeSnapshot.data() as Record<string, any>;
+    const assignedPersonId = typeof treeData.personAssignments?.[userId] === 'string'
+      ? treeData.personAssignments[userId].trim()
+      : '';
+    if (!assignedPersonId) {
+      continue;
+    }
+
+    return {
+      id: treeSnapshot.id,
+      name: typeof treeData.name === 'string' && treeData.name.trim() ? treeData.name.trim() : 'your other family tree',
+    };
+  }
+
+  return null;
 }
 
 // ─── Store ────────────────────────────────────────────────────────────────────
@@ -259,6 +334,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     const trimmedTreeId = treeId?.trim();
     if (trimmedTreeId) {
+      const otherLinkedTree = await findOtherLinkedTreeForUser(currentUser.id, trimmedTreeId);
+      if (otherLinkedTree) {
+        throw new Error(`Unlink your profile from "${otherLinkedTree.name}" before making another tree your default.`);
+      }
+
       const treeSnapshot = await getDoc(doc(db, 'trees', trimmedTreeId));
       if (!treeSnapshot.exists()) {
         throw new Error('That family tree no longer exists.');
@@ -319,6 +399,52 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     set((state) => ({
       user: state.user ? { ...state.user, displayName: trimmed, normalizedDisplayName: normaliseDisplayName(trimmed) } : null,
+    }));
+  },
+
+  updatePreferredLanguage: async (language) => {
+    const { user } = get();
+    if (!user) {
+      return;
+    }
+
+    await setDoc(doc(db, 'users', user.id), {
+      preferredLanguage: language,
+    }, { merge: true });
+
+    set((state) => ({
+      user: state.user ? { ...state.user, preferredLanguage: language } : null,
+    }));
+  },
+
+  markAppVersionSeen: async (version) => {
+    const { user } = get();
+    if (!user || !version.trim()) {
+      return;
+    }
+
+    await setDoc(doc(db, 'users', user.id), {
+      lastSeenAppVersion: version.trim(),
+    }, { merge: true });
+
+    set((state) => ({
+      user: state.user ? { ...state.user, lastSeenAppVersion: version.trim() } : null,
+    }));
+  },
+
+  markDiscoverabilityPromptSeen: async () => {
+    const { user } = get();
+    if (!user) {
+      return;
+    }
+
+    const timestamp = new Date().toISOString();
+    await setDoc(doc(db, 'users', user.id), {
+      discoverabilityPromptSeenAt: timestamp,
+    }, { merge: true });
+
+    set((state) => ({
+      user: state.user ? { ...state.user, discoverabilityPromptSeenAt: timestamp } : null,
     }));
   },
 }));
