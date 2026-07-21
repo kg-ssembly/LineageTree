@@ -54,6 +54,8 @@ type AuthFormViewProps = {
   snackbarMessage: string | null;
   onDismissSnackbar: () => void;
   dismissLabel: string;
+  tertiaryActionLabel?: string;
+  onTertiaryAction?: () => void;
 };
 
 export function AuthFormView({
@@ -74,6 +76,8 @@ export function AuthFormView({
   snackbarMessage,
   onDismissSnackbar,
   dismissLabel,
+  tertiaryActionLabel,
+  onTertiaryAction,
 }: AuthFormViewProps) {
   const theme = useTheme();
   const styles = variant === 'login' ? loginStyles : signUpStyles;
@@ -144,6 +148,12 @@ export function AuthFormView({
               ? <ActivityIndicator color={theme.colors.onPrimary} size="small" />
               : submitLabel}
           </Button>
+
+          {tertiaryActionLabel && onTertiaryAction ? (
+            <Button mode="text" onPress={onTertiaryAction} style={styles.linkButton}>
+              {tertiaryActionLabel}
+            </Button>
+          ) : null}
 
           <Button mode="text" onPress={onSecondaryAction} style={styles.linkButton}>
             {secondaryActionLabel}
