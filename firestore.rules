@@ -41,5 +41,10 @@ service cloud.firestore {
     match /approvalRequests/{requestId} {
       allow read, write: if signedIn();
     }
+
+    match /emailDeliveries/{deliveryId} {
+      allow read: if false;
+      allow write: if false;
+    }
   }
 }

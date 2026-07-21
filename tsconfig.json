@@ -5,6 +5,7 @@
   },
   "exclude": [
     "dist",
-    ".test-dist"
+    ".test-dist",
+    "functions"
   ]
 }

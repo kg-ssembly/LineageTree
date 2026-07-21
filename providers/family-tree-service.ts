@@ -22,6 +22,7 @@ import {
   uploadBytes,
 } from 'firebase/storage';
 import { db, storage } from './firebase-provider';
+import { sendTreeInviteEmailNotification } from './email-service';
 import type { ApprovalRequest, ApprovalRequestPayload, ApprovalSubmissionResult } from '../components/dto/approval';
 import type { MergeApproval, MergeConflictChoice, MergeHistoryRecord, MergePreview, MergeRequestRecord, MergeRequestSnapshot, MergeReviewDecision } from '../components/dto/merge';
 import type { AppNotification, NotificationActivityState } from '../components/dto/notification';
@@ -1329,6 +1330,12 @@ export async function addCollaboratorToTree(treeId: string, email: string, role:
       updatedAt: nowIso(),
     });
   });
+
+  try {
+    await sendTreeInviteEmailNotification(treeId, collaboratorUser.id);
+  } catch (notificationError) {
+    console.warn('Tree invite email request failed', notificationError);
+  }
 }
 
 export async function removeCollaboratorFromTree(treeId: string, collaboratorUserId: string) {
