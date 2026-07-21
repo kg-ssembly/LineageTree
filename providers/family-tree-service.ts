@@ -12,7 +12,9 @@ import {
   writeBatch,
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
 import { db } from './firebase-provider';
+import { functionsApi } from './firebase-provider';
 import type { ApprovalRequest, ApprovalSubmissionResult } from '../components/dto/approval';
 import type { MergeHistoryRecord, MergeRequestRecord } from '../components/dto/merge';
 import type { AppNotification, NotificationActivityState } from '../components/dto/notification';
@@ -777,101 +779,10 @@ export async function searchDiscoverableTreesByOwnerUsername(username: string, a
 }
 
 export async function deleteTree(tree: FamilyTree) {
-  const people = await getPeopleByTreeId(tree.id);
-  const relationshipSnapshot = await getDocs(query(collection(db, RELATIONSHIPS_COLLECTION), where('treeId', '==', tree.id)));
-  const approvalRequestsSnapshot = await getDocs(query(collection(db, APPROVAL_REQUESTS_COLLECTION), where('treeId', '==', tree.id)));
-  const mergeRequestsSnapshot = await getDocs(query(collection(db, MERGE_REQUESTS_COLLECTION), where('involvedTreeIds', 'array-contains', tree.id)));
-  const mergeHistorySnapshot = await getDocs(query(collection(db, MERGE_HISTORY_COLLECTION), where('involvedTreeIds', 'array-contains', tree.id)));
-
-  const peopleToDelete = people.filter((person) => person.treeMembershipIds.length <= 1);
-  await deletePhotos(peopleToDelete.flatMap((person) => person.photos));
-
-  await Promise.all(
-    people
-      .filter((person) => person.treeMembershipIds.length > 1)
-      .map((person) => updateDoc(doc(db, PEOPLE_COLLECTION, person.id), {
-        treeMembershipIds: person.treeMembershipIds.filter((membershipTreeId) => membershipTreeId !== tree.id),
-        treeMemberships: person.treeMemberships.filter((membership) => membership.treeId !== tree.id),
-        updatedAt: nowIso(),
-      })),
-  );
-
-  const treeDeletionTimestamp = nowIso();
-  await Promise.all(
-    mergeRequestsSnapshot.docs.map(async (snapshot) => {
-      const request = mapMergeRequest(snapshot as QueryDocumentSnapshot);
-      const remainingTreeIds = request.involvedTreeIds.filter((treeId) => treeId !== tree.id);
-
-      if (remainingTreeIds.length === 0) {
-        return;
-      }
-
-      await updateDoc(snapshot.ref, {
-        involvedTreeIds: remainingTreeIds,
-        status: request.status === 'pending' || request.status === 'changes-requested' || request.status === 'approved'
-          ? 'rejected'
-          : request.status,
-        reviewerComments: [
-          ...request.reviewerComments,
-          `${tree.name} was deleted on ${treeDeletionTimestamp}.`,
-        ],
-        updatedAt: treeDeletionTimestamp,
-      });
-    }),
-  );
-
-  await Promise.all(
-    mergeHistorySnapshot.docs.map(async (snapshot) => {
-      const history = mapMergeHistory(snapshot as QueryDocumentSnapshot);
-      const remainingTreeIds = history.involvedTreeIds.filter((treeId) => treeId !== tree.id);
-
-      if (remainingTreeIds.length === 0) {
-        return;
-      }
-
-      await updateDoc(snapshot.ref, {
-        involvedTreeIds: remainingTreeIds,
-        updatedAt: treeDeletionTimestamp,
-      });
-    }),
-  );
-
-  await Promise.all(
-    tree.connectedTreeIds.map(async (connectedTreeId) => {
-      const connectedTreeRef = doc(db, TREES_COLLECTION, connectedTreeId);
-      const connectedTreeSnapshot = await getDoc(connectedTreeRef);
-      if (!connectedTreeSnapshot.exists()) {
-        return;
-      }
-
-      const connectedTree = mapTreeData(connectedTreeSnapshot.id, connectedTreeSnapshot.data());
-      await updateDoc(connectedTreeRef, {
-        connectedTreeIds: connectedTree.connectedTreeIds.filter((treeId) => treeId !== tree.id),
-        updatedAt: treeDeletionTimestamp,
-      });
-    }),
-  );
-
-  const refsToDelete = [
-    ...peopleToDelete.map((person) => doc(db, PEOPLE_COLLECTION, person.id)),
-    ...relationshipSnapshot.docs.map((snapshot) => snapshot.ref),
-    ...approvalRequestsSnapshot.docs.map((snapshot) => snapshot.ref),
-    ...mergeRequestsSnapshot.docs
-      .filter((snapshot) => {
-        const request = mapMergeRequest(snapshot as QueryDocumentSnapshot);
-        return request.involvedTreeIds.filter((treeId) => treeId !== tree.id).length === 0;
-      })
-      .map((snapshot) => snapshot.ref),
-    ...mergeHistorySnapshot.docs
-      .filter((snapshot) => {
-        const history = mapMergeHistory(snapshot as QueryDocumentSnapshot);
-        return history.involvedTreeIds.filter((treeId) => treeId !== tree.id).length === 0;
-      })
-      .map((snapshot) => snapshot.ref),
-    doc(db, TREES_COLLECTION, tree.id),
-  ];
-
-  await deleteDocumentRefs(refsToDelete);
+  await httpsCallable<{ treeId: string }, { ok: boolean }>(
+    functionsApi,
+    'deleteTreeServer',
+  )({ treeId: tree.id });
 }
 
 export async function createPerson(

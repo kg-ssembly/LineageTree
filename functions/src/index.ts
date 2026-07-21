@@ -11,11 +11,17 @@ import {
   buildPasswordResetEmailTemplate,
   buildAccountCreatedEmailTemplate,
 } from '../../constants/email-templates';
+import { ApprovalDecisionFunction } from './services/approval-decision-function';
+import { MergeReviewFunction } from './services/merge-review-function';
+import { TreeDeletionFunction } from './services/tree-deletion-function';
 
 initializeApp();
 
 const db = getFirestore();
 const adminAuth = getAuth();
+const approvalDecisionFunction = new ApprovalDecisionFunction(db);
+const mergeReviewFunction = new MergeReviewFunction(db);
+const treeDeletionFunction = new TreeDeletionFunction(db);
 
 const SENDGRID_API_KEY = defineSecret('SENDGRID_API_KEY');
 const SENDGRID_FROM_EMAIL = defineString('SENDGRID_FROM_EMAIL');
@@ -343,5 +349,85 @@ export const sendNotificationEmailOnCreate = onDocumentCreated(
       text: template.text,
       category: 'notification',
     });
+  },
+);
+
+export const reviewMergeRequestServer = onCall(
+  {
+    region: 'us-central1',
+  },
+  async (request) => {
+    assertAuthenticated(request.auth?.uid);
+
+    const requestId = typeof request.data?.requestId === 'string' ? request.data.requestId.trim() : '';
+    const decision = request.data?.decision;
+    const comment = typeof request.data?.comment === 'string' ? request.data.comment : '';
+    const conflictChoices = Array.isArray(request.data?.conflictChoices) ? request.data.conflictChoices : [];
+    const selectedMatchIds = Array.isArray(request.data?.selectedMatchIds)
+      ? request.data.selectedMatchIds.filter((value: unknown): value is string => typeof value === 'string')
+      : undefined;
+
+    if (!requestId || (decision !== 'approve' && decision !== 'reject' && decision !== 'request-changes')) {
+      throw new HttpsError('invalid-argument', 'A valid merge review payload is required.');
+    }
+
+    return mergeReviewFunction.review(request.auth!.uid, {
+      requestId,
+      decision,
+      comment,
+      conflictChoices,
+      selectedMatchIds,
+    });
+  },
+);
+
+export const decideApprovalRequestServer = onCall(
+  {
+    region: 'us-central1',
+  },
+  async (request) => {
+    assertAuthenticated(request.auth?.uid);
+
+    const requestId = typeof request.data?.requestId === 'string' ? request.data.requestId.trim() : '';
+    const decision = request.data?.decision;
+    const auto = request.data?.auto === true;
+
+    if (!requestId || (decision !== 'approve' && decision !== 'reject')) {
+      throw new HttpsError('invalid-argument', 'A valid approval decision payload is required.');
+    }
+
+    return approvalDecisionFunction.decide(request.auth!.uid, requestId, decision, auto);
+  },
+);
+
+export const processExpiredApprovalRequestsServer = onCall(
+  {
+    region: 'us-central1',
+  },
+  async (request) => {
+    assertAuthenticated(request.auth?.uid);
+
+    const treeId = typeof request.data?.treeId === 'string' ? request.data.treeId.trim() : '';
+    if (!treeId) {
+      throw new HttpsError('invalid-argument', 'treeId is required.');
+    }
+
+    return approvalDecisionFunction.processExpired(request.auth!.uid, treeId);
+  },
+);
+
+export const deleteTreeServer = onCall(
+  {
+    region: 'us-central1',
+  },
+  async (request) => {
+    assertAuthenticated(request.auth?.uid);
+
+    const treeId = typeof request.data?.treeId === 'string' ? request.data.treeId.trim() : '';
+    if (!treeId) {
+      throw new HttpsError('invalid-argument', 'treeId is required.');
+    }
+
+    return treeDeletionFunction.deleteTree(request.auth!.uid, treeId);
   },
 );

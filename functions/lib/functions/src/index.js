@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.sendNotificationEmailOnCreate = exports.sendPasswordResetEmail = exports.sendTreeInviteEmail = exports.sendWelcomeEmail = void 0;
+exports.deleteTreeServer = exports.processExpiredApprovalRequestsServer = exports.decideApprovalRequestServer = exports.reviewMergeRequestServer = exports.sendNotificationEmailOnCreate = exports.sendPasswordResetEmail = exports.sendTreeInviteEmail = exports.sendWelcomeEmail = void 0;
 const app_1 = require("firebase-admin/app");
 const auth_1 = require("firebase-admin/auth");
 const firestore_1 = require("firebase-admin/firestore");
@@ -12,9 +12,15 @@ const firestore_2 = require("firebase-functions/v2/firestore");
 const https_1 = require("firebase-functions/v2/https");
 const params_1 = require("firebase-functions/params");
 const email_templates_1 = require("../../constants/email-templates");
+const approval_decision_function_1 = require("./services/approval-decision-function");
+const merge_review_function_1 = require("./services/merge-review-function");
+const tree_deletion_function_1 = require("./services/tree-deletion-function");
 (0, app_1.initializeApp)();
 const db = (0, firestore_1.getFirestore)();
 const adminAuth = (0, auth_1.getAuth)();
+const approvalDecisionFunction = new approval_decision_function_1.ApprovalDecisionFunction(db);
+const mergeReviewFunction = new merge_review_function_1.MergeReviewFunction(db);
+const treeDeletionFunction = new tree_deletion_function_1.TreeDeletionFunction(db);
 const SENDGRID_API_KEY = (0, params_1.defineSecret)('SENDGRID_API_KEY');
 const SENDGRID_FROM_EMAIL = (0, params_1.defineString)('SENDGRID_FROM_EMAIL');
 const SENDGRID_FROM_NAME = (0, params_1.defineString)('SENDGRID_FROM_NAME');
@@ -254,4 +260,58 @@ exports.sendNotificationEmailOnCreate = (0, firestore_2.onDocumentCreated)({
         text: template.text,
         category: 'notification',
     });
+});
+exports.reviewMergeRequestServer = (0, https_1.onCall)({
+    region: 'us-central1',
+}, async (request) => {
+    assertAuthenticated(request.auth?.uid);
+    const requestId = typeof request.data?.requestId === 'string' ? request.data.requestId.trim() : '';
+    const decision = request.data?.decision;
+    const comment = typeof request.data?.comment === 'string' ? request.data.comment : '';
+    const conflictChoices = Array.isArray(request.data?.conflictChoices) ? request.data.conflictChoices : [];
+    const selectedMatchIds = Array.isArray(request.data?.selectedMatchIds)
+        ? request.data.selectedMatchIds.filter((value) => typeof value === 'string')
+        : undefined;
+    if (!requestId || (decision !== 'approve' && decision !== 'reject' && decision !== 'request-changes')) {
+        throw new https_1.HttpsError('invalid-argument', 'A valid merge review payload is required.');
+    }
+    return mergeReviewFunction.review(request.auth.uid, {
+        requestId,
+        decision,
+        comment,
+        conflictChoices,
+        selectedMatchIds,
+    });
+});
+exports.decideApprovalRequestServer = (0, https_1.onCall)({
+    region: 'us-central1',
+}, async (request) => {
+    assertAuthenticated(request.auth?.uid);
+    const requestId = typeof request.data?.requestId === 'string' ? request.data.requestId.trim() : '';
+    const decision = request.data?.decision;
+    const auto = request.data?.auto === true;
+    if (!requestId || (decision !== 'approve' && decision !== 'reject')) {
+        throw new https_1.HttpsError('invalid-argument', 'A valid approval decision payload is required.');
+    }
+    return approvalDecisionFunction.decide(request.auth.uid, requestId, decision, auto);
+});
+exports.processExpiredApprovalRequestsServer = (0, https_1.onCall)({
+    region: 'us-central1',
+}, async (request) => {
+    assertAuthenticated(request.auth?.uid);
+    const treeId = typeof request.data?.treeId === 'string' ? request.data.treeId.trim() : '';
+    if (!treeId) {
+        throw new https_1.HttpsError('invalid-argument', 'treeId is required.');
+    }
+    return approvalDecisionFunction.processExpired(request.auth.uid, treeId);
+});
+exports.deleteTreeServer = (0, https_1.onCall)({
+    region: 'us-central1',
+}, async (request) => {
+    assertAuthenticated(request.auth?.uid);
+    const treeId = typeof request.data?.treeId === 'string' ? request.data.treeId.trim() : '';
+    if (!treeId) {
+        throw new https_1.HttpsError('invalid-argument', 'treeId is required.');
+    }
+    return treeDeletionFunction.deleteTree(request.auth.uid, treeId);
 });
