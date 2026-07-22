@@ -39,14 +39,14 @@ export function FamilyTreeView({
           activeFamilyRef={activeFamilyRef}
         />
       ) : loadingTreeData ? (
-        <View style={[styles.visualisationEmptyState, { backgroundColor: theme.colors.primaryContainer }]}>
+        <View style={[styles.visualisationEmptyState, { backgroundColor: 'transparent', borderWidth: 0, borderColor: 'transparent' }]}>
           <ActivityIndicator color={theme.colors.primary} />
           <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant, marginTop: 14 }]}>
             {t(K.tree.familyMembers.loading)}
           </Text>
         </View>
       ) : (
-        <View style={[styles.visualisationEmptyState, { backgroundColor: theme.colors.primaryContainer }]}>
+        <View style={[styles.visualisationEmptyState, { backgroundColor: 'transparent', borderWidth: 0, borderColor: 'transparent' }]}>
           <View style={{
             width: 84,
             height: 84,
