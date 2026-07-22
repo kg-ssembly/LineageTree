@@ -84,12 +84,6 @@ type OverviewPriorityItem = {
   tone: 'default' | 'attention';
 };
 
-type TreeProgressChecklistItem = {
-  id: string;
-  label: string;
-  done: boolean;
-};
-
 const localStyles = StyleSheet.create({
   strengthCard: {
     marginTop: 6,
@@ -165,18 +159,6 @@ const localStyles = StyleSheet.create({
     borderRadius: 22,
     padding: 14,
     borderWidth: StyleSheet.hairlineWidth,
-  },
-  checklistWrap: {
-    marginTop: 14,
-    gap: 8,
-  },
-  checklistRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-  },
-  checklistCopy: {
-    flex: 1,
   },
   actionPanel: {
     marginTop: 14,
@@ -582,8 +564,7 @@ export function HomeDashboardView(props: SharedTabProps) {
   const [overviewActionsExpanded, setOverviewActionsExpanded] = useState(false);
   const [buildInfoVisible, setBuildInfoVisible] = useState(false);
   const [heroInfoVisible, setHeroInfoVisible] = useState(false);
-  const [progressIncludesExpanded, setProgressIncludesExpanded] = useState(false);
-  const [progressIncludesDialogExpanded, setProgressIncludesDialogExpanded] = useState(false);
+  const [missingDetailsExpanded, setMissingDetailsExpanded] = useState(false);
   const [dashboardTab, setDashboardTab] = useState<DashboardTabKey>(needsAttentionCount > 0 ? 'activity' : 'overview');
   const hasUserSelectedDashboardTabRef = useRef(false);
   const previousFocusRef = useRef(isFocused);
@@ -1056,38 +1037,6 @@ export function HomeDashboardView(props: SharedTabProps) {
       percent: Math.round((completed / checks.length) * 100),
     };
   }, [currentAssignedPerson, missingMemberDetails.length, people.length, relationships.length, treeTasks]);
-  const treeProgressChecklist = useMemo<TreeProgressChecklistItem[]>(() => {
-    const remainingObjectiveTreeTasks = treeTasks.filter((task) => !task.done).length;
-
-    return [
-      {
-        id: 'linked-profile',
-        label: t(K.home.treePriorityLinkedProfile),
-        done: Boolean(currentAssignedPerson),
-      },
-      {
-        id: 'two-people',
-        label: t(K.home.treePriorityTwoMembers),
-        done: people.length >= MIN_TREE_MEMBERS_FOR_PROGRESS,
-      },
-      {
-        id: 'relationships',
-        label: t(K.home.treePriorityRelationships),
-        done: relationships.length > 0,
-      },
-      {
-        id: 'details',
-        label: t(K.home.treePriorityMissingDetails),
-        done: missingMemberDetails.length === 0,
-      },
-      {
-        id: 'steps',
-        label: t(K.home.treePriorityBuildSteps),
-        done: remainingObjectiveTreeTasks === 0,
-      },
-    ];
-  }, [currentAssignedPerson, missingMemberDetails.length, people.length, relationships.length, t, treeTasks]);
-
   const overviewStats = useMemo(() => ([
     { id: 'people', label: t(K.home.familyMembersMetric), value: String(people.length) },
     { id: 'connections', label: t(K.home.connectFamily), value: String(relationships.length) },
@@ -1223,20 +1172,6 @@ export function HomeDashboardView(props: SharedTabProps) {
         contentContainerStyle={[styles.content, { paddingBottom: 72 }]}
         showsVerticalScrollIndicator={false}
       >
-        <Reveal delay={50}>
-          <SectionCard elevation={2}>
-          <View style={styles.sectionHeader}>
-            <View style={styles.titleWrap}>
-              <Text variant="headlineSmall">
-                {currentAssignedPerson ? t(K.home.welcomeBackName, { name: currentAssignedPerson.firstName }) : t(K.home.welcomeToYourFamilyHome)}
-              </Text>
-            </View>
-            <Chip icon="home-heart">{selectedTree.name}</Chip>
-          </View>
-
-          </SectionCard>
-        </Reveal>
-
         <Reveal delay={60}>
           <TabStripCard>
             <HorizontalTabStrip
@@ -1363,50 +1298,41 @@ export function HomeDashboardView(props: SharedTabProps) {
                   },
                 ]}
               >
-                <Text variant="titleMedium">
-                  {missingMemberDetails.length > 0 ? t(K.home.membersMissingDetails) : t(K.home.connectFamilyRelationships)}
-                </Text>
-                <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 6 }}>
-                  {missingMemberDetails.length > 0
-                    ? t(K.home.missingImportantDetailsSummary, { count: missingMemberDetails.length })
-                    : relationships.length === 0
-                      ? t(K.home.linkPeopleTogetherSoTheTreeBecomesAConnectedFamilyInsteadOfSeparatePages)
-                      : t(K.home.theseStepsGrowTheFamilyBeyondOnePersonAndStrengthenTheBranchStructure)}
-                </Text>
-                <View style={localStyles.strengthChipRow}>
-                  {missingMemberDetails.slice(0, 3).map((item) => (
-                    <Chip key={item.personId} compact icon="account-alert-outline" onPress={item.action}>
-                      {item.name}
-                    </Chip>
-                  ))}
-                  {missingMemberDetails.length === 0 && relationships.length > 0 ? (
-                    <Chip compact icon="source-branch-check">{t(K.home.yourEssentialsAreInPlace)}</Chip>
-                  ) : null}
+                <View style={localStyles.actionPanelHeader}>
+                  <Text variant="titleMedium">
+                    {missingMemberDetails.length > 0 ? t(K.home.membersMissingDetails) : t(K.home.connectFamilyRelationships)}
+                  </Text>
+                  <Button
+                    mode="text"
+                    icon={missingDetailsExpanded ? 'chevron-up' : 'chevron-down'}
+                    onPress={() => setMissingDetailsExpanded((current) => !current)}
+                    style={BUTTON_CHROME}
+                    contentStyle={BUTTON_CONTENT_CHROME}
+                  >
+                    {missingDetailsExpanded ? t(K.common.close) : t(K.common.open)}
+                  </Button>
                 </View>
-                <View style={localStyles.checklistWrap}>
-                  <View style={localStyles.actionPanelHeader}>
-                    <Text variant="labelLarge">{t(K.home.progressIncludes)}</Text>
-                    <Button
-                      mode="text"
-                      icon={progressIncludesExpanded ? 'chevron-up' : 'chevron-down'}
-                      onPress={() => setProgressIncludesExpanded((current) => !current)}
-                      style={BUTTON_CHROME}
-                      contentStyle={BUTTON_CONTENT_CHROME}
-                    >
-                      {progressIncludesExpanded ? t(K.common.close) : t(K.common.open)}
-                    </Button>
-                  </View>
-                  {progressIncludesExpanded ? treeProgressChecklist.map((item) => (
-                    <View key={item.id} style={localStyles.checklistRow}>
-                      <Chip compact icon={item.done ? 'check-circle-outline' : 'circle-outline'}>
-                        {item.done ? t(K.common.done) : t(K.home.doThis)}
-                      </Chip>
-                      <Text variant="bodyMedium" style={localStyles.checklistCopy}>
-                        {item.label}
-                      </Text>
+                {missingDetailsExpanded ? (
+                  <>
+                    <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 6 }}>
+                      {missingMemberDetails.length > 0
+                        ? t(K.home.missingImportantDetailsSummary, { count: missingMemberDetails.length })
+                        : relationships.length === 0
+                          ? t(K.home.linkPeopleTogetherSoTheTreeBecomesAConnectedFamilyInsteadOfSeparatePages)
+                          : t(K.home.theseStepsGrowTheFamilyBeyondOnePersonAndStrengthenTheBranchStructure)}
+                    </Text>
+                    <View style={localStyles.strengthChipRow}>
+                      {missingMemberDetails.slice(0, 3).map((item) => (
+                        <Chip key={item.personId} compact icon="account-alert-outline" onPress={item.action}>
+                          {item.name}
+                        </Chip>
+                      ))}
+                      {missingMemberDetails.length === 0 && relationships.length > 0 ? (
+                        <Chip compact icon="source-branch-check">{t(K.home.yourEssentialsAreInPlace)}</Chip>
+                      ) : null}
                     </View>
-                  )) : null}
-                </View>
+                  </>
+                ) : null}
               </View>
 
               <View
@@ -1506,9 +1432,6 @@ export function HomeDashboardView(props: SharedTabProps) {
                           accessibilityLabel={t(K.home.aboutBuildYourFamily)}
                         />
                       </View>
-                      <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
-                        {t(K.home.buildOverviewHelper)}
-                      </Text>
                     </View>
                     <IconButton
                       icon={deeperExpanded ? 'chevron-up' : 'chevron-down'}
@@ -1696,30 +1619,6 @@ export function HomeDashboardView(props: SharedTabProps) {
             <Text variant="bodyMedium" style={{ marginTop: 12 }}>
               {lensSubtitle}
             </Text>
-            <View style={localStyles.checklistWrap}>
-              <View style={localStyles.actionPanelHeader}>
-                <Text variant="labelLarge">{t(K.home.progressIncludes)}</Text>
-                <Button
-                  mode="text"
-                  icon={progressIncludesDialogExpanded ? 'chevron-up' : 'chevron-down'}
-                  onPress={() => setProgressIncludesDialogExpanded((current) => !current)}
-                  style={BUTTON_CHROME}
-                  contentStyle={BUTTON_CONTENT_CHROME}
-                >
-                  {progressIncludesDialogExpanded ? t(K.common.close) : t(K.common.open)}
-                </Button>
-              </View>
-              {progressIncludesDialogExpanded ? treeProgressChecklist.map((item) => (
-                <View key={item.id} style={localStyles.checklistRow}>
-                  <Chip compact icon={item.done ? 'check-circle-outline' : 'circle-outline'}>
-                    {item.done ? t(K.common.done) : t(K.home.doThis)}
-                  </Chip>
-                  <Text variant="bodyMedium" style={localStyles.checklistCopy}>
-                    {item.label}
-                  </Text>
-                </View>
-              )) : null}
-            </View>
           </>
         )}
         onDismiss={() => setHeroInfoVisible(false)}

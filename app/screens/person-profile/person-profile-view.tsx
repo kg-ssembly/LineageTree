@@ -1056,7 +1056,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
           buttonColor={theme.colors.surface}
           textColor={theme.colors.primary}
         >
-          {null}
+          {t(K.personProfile.backToMemberSearch)}
         </Button>
       </View>
       <ScrollView contentContainerStyle={styles.content}>
