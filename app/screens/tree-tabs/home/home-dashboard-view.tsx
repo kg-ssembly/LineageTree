@@ -1239,7 +1239,7 @@ export function HomeDashboardView(props: SharedTabProps) {
 
       {dashboardTab === 'overview' && !isEmptyTree ? (
         <Reveal delay={70}>
-          <SectionCard>
+          <View>
             <View
               style={[
                 localStyles.strengthCard,
@@ -1585,7 +1585,7 @@ export function HomeDashboardView(props: SharedTabProps) {
                 </View>
               ) : null}
             </View>
-          </SectionCard>
+          </View>
         </Reveal>
       ) : null}
 

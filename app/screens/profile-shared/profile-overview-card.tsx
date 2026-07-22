@@ -400,33 +400,7 @@ export function ProfileOverviewCard({
 
   return (
     <Reveal delay={delay}>
-      <SectionCard
-        variant="person"
-        backgroundColor={chrome.primaryCardBackground}
-        style={getFamilyMemberCardStyle(theme, chrome.primaryCardBackground)}
-      >
-        <View style={styles.sectionHeader}>
-          <View style={styles.sectionHeaderText}>
-            <View style={styles.titleWithHelperRow}>
-              <Text variant="titleLarge">{t(K.personProfile.biography)}</Text>
-              {onOpenHelperDialog ? (
-                <IconButton
-                  icon="information-outline"
-                  size={20}
-                  style={styles.helperIconButton}
-                  onPress={onOpenHelperDialog}
-                  accessibilityLabel={t(K.personProfile.aboutMemberProfile)}
-                />
-              ) : null}
-            </View>
-          </View>
-          {canEdit && onEdit ? (
-            <Button mode="contained" icon="pencil" onPress={onEdit} buttonColor={theme.colors.primary} textColor={theme.colors.onPrimary}>
-              {t(K.personProfile.editProfile)}
-            </Button>
-          ) : null}
-        </View>
-
+      <View>
         <View
           style={[
             styles.spotlightCard,
@@ -596,7 +570,7 @@ export function ProfileOverviewCard({
           </View>
         </View>
 
-      </SectionCard>
+      </View>
     </Reveal>
   );
 }
