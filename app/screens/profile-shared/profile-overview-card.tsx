@@ -10,6 +10,7 @@ import { formatPersonGender } from '../../../components/person-formatting';
 import { getThemeChrome } from '../../../constants/styles';
 import { useI18n } from '../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../i18n/keys';
+import { getFamilyMemberCardStyle } from './profile-card-shared';
 import { buildProfileSuggestions, getPersonRelationshipCounts, getProfileCompletionChecks } from './suggestions';
 
 const styles = StyleSheet.create({
@@ -56,8 +57,8 @@ const styles = StyleSheet.create({
   },
   spotlightCard: {
     marginTop: 16,
-    borderRadius: 24,
-    padding: 18,
+    borderRadius: 22,
+    padding: 14,
     borderWidth: StyleSheet.hairlineWidth,
   },
   spotlightTopRow: {
@@ -100,9 +101,9 @@ const styles = StyleSheet.create({
     minWidth: 110,
     flexGrow: 1,
     flexBasis: 110,
-    borderRadius: 18,
+    borderRadius: 22,
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderWidth: StyleSheet.hairlineWidth,
     gap: 4,
   },
@@ -120,7 +121,7 @@ const styles = StyleSheet.create({
   },
   spotlightConnectionSummary: {
     marginTop: 14,
-    borderRadius: 18,
+    borderRadius: 22,
     padding: 14,
     borderWidth: StyleSheet.hairlineWidth,
   },
@@ -151,8 +152,8 @@ const styles = StyleSheet.create({
   },
   biographyBlock: {
     marginTop: 16,
-    padding: 18,
-    borderRadius: 20,
+    padding: 14,
+    borderRadius: 22,
     borderWidth: StyleSheet.hairlineWidth,
   },
   biographyFactRow: {
@@ -162,7 +163,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   biographyFactCard: {
-    borderRadius: 18,
+    borderRadius: 22,
     padding: 14,
     minWidth: 140,
     flexGrow: 1,
@@ -200,7 +201,7 @@ const styles = StyleSheet.create({
   },
   actionPanel: {
     marginTop: 14,
-    borderRadius: 18,
+    borderRadius: 22,
     padding: 14,
     borderWidth: StyleSheet.hairlineWidth,
   },
@@ -208,7 +209,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   nextStepCard: {
-    borderRadius: 18,
+    borderRadius: 22,
     padding: 14,
     borderWidth: StyleSheet.hairlineWidth,
   },
@@ -236,8 +237,8 @@ const styles = StyleSheet.create({
   },
   notesBox: {
     marginTop: 16,
-    padding: 18,
-    borderRadius: 20,
+    padding: 14,
+    borderRadius: 22,
   },
   notesText: {
     marginTop: 8,
@@ -399,7 +400,11 @@ export function ProfileOverviewCard({
 
   return (
     <Reveal delay={delay}>
-      <SectionCard variant="person" backgroundColor={chrome.primaryCardBackground}>
+      <SectionCard
+        variant="person"
+        backgroundColor={chrome.primaryCardBackground}
+        style={getFamilyMemberCardStyle(theme, chrome.primaryCardBackground)}
+      >
         <View style={styles.sectionHeader}>
           <View style={styles.sectionHeaderText}>
             <View style={styles.titleWithHelperRow}>

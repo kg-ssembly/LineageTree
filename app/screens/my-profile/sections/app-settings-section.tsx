@@ -7,6 +7,7 @@ import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
 import { useAuthStore } from '../../../../stores/auth-store';
 import { useThemeStore } from '../../../../stores/theme-store';
+import { getFamilyMemberCardStyle } from '../../profile-shared/profile-card-shared';
 
 export type UserProfileTabProps = {
   onSignOut: () => void;
@@ -94,7 +95,7 @@ export function AppSettingsSection({ onSignOut, authLoading }: UserProfileTabPro
   return (
     <>
       <Reveal delay={80}>
-        <SectionCard variant="tree">
+        <SectionCard variant="tree" style={getFamilyMemberCardStyle(theme)}>
         <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>{t(K.settings.editProfile)}</Text>
         <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
           {t(K.settings.changeDisplayName)}
@@ -121,7 +122,7 @@ export function AppSettingsSection({ onSignOut, authLoading }: UserProfileTabPro
       </Reveal>
 
       <Reveal delay={100}>
-        <SectionCard variant="tree">
+        <SectionCard variant="tree" style={getFamilyMemberCardStyle(theme)}>
         <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>{t(K.settings.appearance)}</Text>
         <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
           {t(K.settings.switchLightDarkModes)}
@@ -143,7 +144,7 @@ export function AppSettingsSection({ onSignOut, authLoading }: UserProfileTabPro
       </Reveal>
 
       <Reveal delay={120}>
-        <SectionCard variant="tree">
+        <SectionCard variant="tree" style={getFamilyMemberCardStyle(theme)}>
         <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>{t(K.settings.appLanguage)}</Text>
         <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
           {t(K.settings.chooseLanguage)}

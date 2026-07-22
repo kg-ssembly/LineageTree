@@ -47,6 +47,7 @@ import {
   type PersonMemorySectionTabKey,
   type PersonRelationshipSectionTabKey,
 } from '../profile-shared';
+import { getFamilyMemberCardStyle } from '../profile-shared/profile-card-shared';
 import { MemberProfileSection } from './sections/member-profile-section';
 const dialogChrome = GlobalStyles.dialogChrome;
 const treeDetailStyles = GlobalStyles.treeDetail;
@@ -1060,7 +1061,10 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
       </View>
       <ScrollView contentContainerStyle={styles.content}>
         <Reveal delay={60}>
-          <PanelSurface style={[styles.heroCard, { backgroundColor: chrome.primaryCardBackground }]} elevation={1}>
+          <PanelSurface
+            style={[getFamilyMemberCardStyle(theme, chrome.primaryCardBackground), styles.heroCard]}
+            elevation={0}
+          >
           {canEdit ? (
             <IconButton
               icon="pencil"

@@ -6,6 +6,7 @@ import { canUserReviewApprovalRequest, isApprovalExpired } from '../../../../com
 import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
 import type { ApprovalsSectionProps } from './tree-settings-shared';
+import { getTreeSettingsFamilyMemberCardStyle } from './tree-settings-shared';
 
 const styles = GlobalStyles.treeDetail;
 
@@ -29,7 +30,7 @@ export function ApprovalsSection({
   return (
     <Reveal delay={80}>
     <View style={styles.collaboratorSectionWrap}>
-      <SectionCard>
+      <SectionCard style={getTreeSettingsFamilyMemberCardStyle(theme)}>
         <View style={styles.sectionHeader}>
           <View style={styles.titleWrap}>
             <View style={styles.titleWithHelperRow}>
@@ -70,7 +71,7 @@ export function ApprovalsSection({
         />
       </SectionCard>
 
-      <SectionCard>
+      <SectionCard style={getTreeSettingsFamilyMemberCardStyle(theme)}>
         <View style={styles.sectionHeader}>
           <View style={styles.titleWrap}>
             <View style={styles.titleWithHelperRow}>
@@ -94,7 +95,7 @@ export function ApprovalsSection({
 
               return (
                 <Reveal key={request.id} delay={120 + index * 25}>
-                  <SectionCard nested style={[styles.collaboratorCard, { backgroundColor: canReview ? theme.colors.surfaceVariant : theme.colors.surface, paddingVertical: 14, paddingHorizontal: 14 }]}>
+                  <SectionCard nested style={[styles.collaboratorCard, getTreeSettingsFamilyMemberCardStyle(theme, canReview ? theme.colors.surfaceVariant : theme.colors.surface)]}>
                     <View style={styles.approvalRequestHeader}>
                       <View style={styles.collaboratorTextWrap}>
                         <View style={styles.collaboratorChipRow}>

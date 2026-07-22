@@ -6,6 +6,7 @@ import type { NewPersonPhotoInput, PersonLifeEvent, PersonPhoto, PersonRecord } 
 import { formatPersonDate } from '../../../../components/dto/person';
 import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
+import { getFamilyMemberCardStyle } from '../../profile-shared/profile-card-shared';
 
 const styles = GlobalStyles.personProfile;
 const dialogChrome = GlobalStyles.dialogChrome;
@@ -90,7 +91,7 @@ export function PersonMemoriesSection({
 
   return (
     <Reveal delay={130}>
-      <SectionCard variant="person">
+      <SectionCard variant="person" style={getFamilyMemberCardStyle(theme)}>
       <View style={styles.titleWithHelperRow}>
         <Text variant="titleLarge">{t(K.memories.memoriesAndGallery)}</Text>
         <IconButton

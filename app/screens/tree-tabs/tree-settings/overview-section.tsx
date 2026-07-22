@@ -9,7 +9,7 @@ import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
 import { LANGUAGE_OPTIONS } from '../../../../i18n';
 import type { OverviewSectionProps } from './tree-settings-shared';
-import { formatRole } from './tree-settings-shared';
+import { formatRole, getTreeSettingsFamilyMemberCardStyle } from './tree-settings-shared';
 
 const styles = GlobalStyles.treeDetail;
 const LINK_PAGE_SIZE = 5;
@@ -112,7 +112,7 @@ export function OverviewSection({
       </View>
 
       <Reveal delay={80}>
-        <SectionCard style={[styles.selfAssignmentCard, { marginBottom: 12 }]}>
+        <SectionCard style={[styles.selfAssignmentCard, getTreeSettingsFamilyMemberCardStyle(theme), { marginBottom: 12 }]}>
             <View style={styles.sectionHeader}>
               <View style={styles.titleWrap}>
                 <Text variant="titleLarge">{t(K.treeSettings.treeDiscoverability)}</Text>
@@ -151,7 +151,7 @@ export function OverviewSection({
       </Reveal>
 
       <Reveal delay={85}>
-        <SectionCard style={[styles.selfAssignmentCard, { marginBottom: 12 }]}>
+        <SectionCard style={[styles.selfAssignmentCard, getTreeSettingsFamilyMemberCardStyle(theme), { marginBottom: 12 }]}>
           <View style={styles.sectionHeader}>
             <View style={styles.titleWrap}>
               <Text variant="titleLarge">{t(K.treeSettings.kinshipTerms)}</Text>
@@ -199,7 +199,7 @@ export function OverviewSection({
       </Reveal>
 
       <Reveal delay={90}>
-        <SectionCard style={[styles.selfAssignmentCard, { marginBottom: 8 }]}>
+        <SectionCard style={[styles.selfAssignmentCard, getTreeSettingsFamilyMemberCardStyle(theme), { marginBottom: 8 }]}>
           <View style={styles.sectionHeader}>
             <View style={styles.titleWrap}>
               <View style={styles.titleWithHelperRow}>
@@ -233,7 +233,7 @@ export function OverviewSection({
 
       <View style={styles.selfAssignmentSectionWrap}>
         <Reveal delay={110}>
-          <SectionCard style={styles.selfAssignmentCard}>
+          <SectionCard style={[styles.selfAssignmentCard, getTreeSettingsFamilyMemberCardStyle(theme)]}>
               <View style={styles.sectionHeader}>
                 <View style={styles.titleWrap}>
                   <View style={styles.titleWithHelperRow}>
@@ -299,7 +299,7 @@ export function OverviewSection({
                     <View style={styles.assignmentSuggestionList}>
                       {currentSelfAssignmentSuggestions.slice(0, 3).map((suggestion, index) => (
                         <Reveal key={`suggestion-${suggestion.person.id}`} delay={120 + index * 20}>
-                          <SectionCard nested style={[styles.assignmentSuggestionCard, { backgroundColor: theme.colors.surface }]}>
+                          <SectionCard nested style={[styles.assignmentSuggestionCard, getTreeSettingsFamilyMemberCardStyle(theme)]}>
                               <View style={styles.assignmentSuggestionRow}>
                                 <View style={styles.assignmentSuggestionTextWrap}>
                                   <View style={styles.collaboratorChipRow}>
@@ -337,7 +337,7 @@ export function OverviewSection({
                       <View style={styles.assignmentSuggestionList}>
                         {paginatedLinkPeople.map((person, index) => (
                           <Reveal key={`assignable-${person.id}`} delay={140 + index * 15}>
-                            <SectionCard nested style={[styles.assignmentSuggestionCard, { backgroundColor: theme.colors.surface }]}>
+                            <SectionCard nested style={[styles.assignmentSuggestionCard, getTreeSettingsFamilyMemberCardStyle(theme)]}>
                                 <View style={styles.assignmentSuggestionRow}>
                                   <View style={styles.assignmentSuggestionTextWrap}>
                                     <Text variant="titleMedium">{formatPersonName(person)}</Text>

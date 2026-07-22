@@ -23,6 +23,7 @@ import {
   buildPersonApprovalPreviewFields,
   buildRelationshipApprovalPreviewFields,
   getApprovalOperationLabel,
+  getTreeSettingsFamilyMemberCardStyle,
   TREE_HELPER_COPY,
   TREE_MANAGEMENT_TABS,
   type TreeHelperDialogKey,
@@ -451,7 +452,7 @@ function TreeSettingsContent({
     return (
       <Reveal delay={80 + index * 20}>
         <View style={{ marginBottom: 12 }}>
-          <View style={[styles.collaboratorCard, { backgroundColor: theme.colors.surface, borderRadius: 18, padding: 16 }]}>
+          <View style={[styles.collaboratorCard, getTreeSettingsFamilyMemberCardStyle(theme)]}>
             <Text variant="titleMedium">{entry.summary}</Text>
             <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>
               {t(K.treeSettings.mergeHistorySummary, {

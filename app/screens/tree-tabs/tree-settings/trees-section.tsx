@@ -6,7 +6,7 @@ import { getTreeRole } from '../../../../components/dto/tree';
 import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
 import type { TreesSectionProps } from './tree-settings-shared';
-import { formatRole } from './tree-settings-shared';
+import { formatRole, getTreeSettingsFamilyMemberCardStyle } from './tree-settings-shared';
 
 const styles = GlobalStyles.treeDetail;
 
@@ -37,7 +37,7 @@ export function TreesSection({
     <View>
       {maidenSurnameSuggestions.length > 0 ? (
         <Reveal delay={80}>
-          <SectionCard style={[styles.collaboratorCard, { marginBottom: 16 }]}>
+          <SectionCard style={[styles.collaboratorCard, getTreeSettingsFamilyMemberCardStyle(theme), { marginBottom: 16 }]}>
             <View style={styles.titleWithHelperRow}>
               <Text variant="titleMedium">{t(K.treeSettings.suggestedMaidenSurnameTrees)}</Text>
               <IconButton
@@ -51,7 +51,7 @@ export function TreesSection({
             <View style={{ marginTop: 8 }}>
               {maidenSurnameSuggestions.map((suggestion, index) => (
                 <Reveal key={suggestion.surname} delay={100 + index * 20}>
-                  <SectionCard nested style={{ marginTop: 8, borderRadius: 22, paddingVertical: 14, paddingHorizontal: 14 }}>
+                  <SectionCard nested style={[getTreeSettingsFamilyMemberCardStyle(theme), { marginTop: 8 }]}>
                     <Text variant="titleSmall">{suggestion.surname}</Text>
                     <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
                       {t(K.treeSettings.maidenSurnameReferenceCount, { count: suggestion.count })}
@@ -109,7 +109,7 @@ export function TreesSection({
 
           return (
             <Reveal key={tree.id} delay={100 + index * 25}>
-              <SectionCard nested style={[styles.personCard, { backgroundColor: isSelected ? theme.colors.primaryContainer : theme.colors.surface, paddingVertical: 14, paddingHorizontal: 14 }]}>
+              <SectionCard nested style={[styles.personCard, getTreeSettingsFamilyMemberCardStyle(theme, isSelected ? theme.colors.primaryContainer : theme.colors.surface)]}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                   <View style={{ flex: 1 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>

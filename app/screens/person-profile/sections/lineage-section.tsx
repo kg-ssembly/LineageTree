@@ -4,6 +4,7 @@ import { IconButton, Text, useTheme } from 'react-native-paper';
 import { FamilyTreeCanvas, GlobalStyles, Reveal, SectionCard } from '../../../../components';
 import type { PersonRecord } from '../../../../components/dto/person';
 import type { RelationshipRecord } from '../../../../components/dto/relationship';
+import { getFamilyMemberCardStyle } from '../../profile-shared/profile-card-shared';
 
 const styles = GlobalStyles.personProfile;
 
@@ -33,7 +34,7 @@ export function PersonLineageSection({
   const theme = useTheme();
   return (
     <Reveal delay={120}>
-      <SectionCard variant="person">
+      <SectionCard variant="person" style={getFamilyMemberCardStyle(theme)}>
       <View style={styles.sectionHeader}>
         <View style={styles.sectionHeaderText}>
           <View style={styles.titleWithHelperRow}>

@@ -1,3 +1,4 @@
+import { StyleSheet } from 'react-native';
 import type { ApprovalRequest } from '../../../../components/dto/approval';
 import type { PersonRecord } from '../../../../components/dto/person';
 import type { RelationshipRecord } from '../../../../components/dto/relationship';
@@ -70,6 +71,25 @@ export const TREE_HELPER_COPY: Record<TreeHelperDialogKey, { title: string; mess
     message: K.treeSettings.myFamilyTreesMessage,
   },
 };
+
+export function getTreeSettingsFamilyMemberCardStyle(
+  theme: { colors: { outlineVariant: string; surface: string } },
+  backgroundColor?: string,
+) {
+  return {
+    borderRadius: 22,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: theme.colors.outlineVariant,
+    backgroundColor: backgroundColor ?? theme.colors.surface,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    shadowColor: 'transparent',
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 0,
+  } as const;
+}
 
 export function formatRole(role: string | null | undefined) {
   if (!role) {

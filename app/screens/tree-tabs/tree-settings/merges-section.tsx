@@ -5,6 +5,7 @@ import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, GlobalStyles, HorizontalTabStrip,
 import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
 import type { MergesSectionProps } from './tree-settings-shared';
+import { getTreeSettingsFamilyMemberCardStyle } from './tree-settings-shared';
 
 const styles = GlobalStyles.treeDetail;
 const RESULTS_PER_PAGE = 5;
@@ -131,7 +132,7 @@ export function MergesSection({
 
         {pendingMergeInvites.length > 0 ? (
           <Reveal delay={90}>
-            <SectionCard style={[styles.collaboratorCard, { marginBottom: 16 }]}>
+            <SectionCard style={[styles.collaboratorCard, getTreeSettingsFamilyMemberCardStyle(theme), { marginBottom: 16 }]}>
               <View style={styles.titleWithHelperRow}>
                 <Text variant="titleMedium">{t(K.treeSettings.mergeInvitations)}</Text>
                 <IconButton
@@ -145,7 +146,7 @@ export function MergesSection({
               <View style={{ marginTop: 8 }}>
                 {pendingMergeInvites.map((notification, index) => (
                   <Reveal key={notification.id} delay={110 + index * 20}>
-                    <SectionCard nested style={{ marginTop: 8 }}>
+                    <SectionCard nested style={[getTreeSettingsFamilyMemberCardStyle(theme), { marginTop: 8 }]}>
                       <Text variant="titleSmall">{notification.sourceTreeName}</Text>
                       <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>{notification.message}</Text>
                       <View style={[styles.collaboratorChipRow, { marginTop: 8 }]}>
@@ -184,7 +185,7 @@ export function MergesSection({
         ) : null}
 
         <Reveal delay={110}>
-          <SectionCard style={[styles.selfAssignmentCard, { marginBottom: 16 }]}>
+          <SectionCard style={[styles.selfAssignmentCard, getTreeSettingsFamilyMemberCardStyle(theme), { marginBottom: 16 }]}>
             <View style={styles.titleWithHelperRow}>
               <Text variant="titleMedium" style={{ marginBottom: 8 }}>{t(K.treeSettings.mergeAnotherTree)}</Text>
               <IconButton
@@ -331,7 +332,7 @@ export function MergesSection({
 
                   return (
                     <Reveal key={result.id} delay={130 + index * 15}>
-                      <SectionCard nested style={{ marginTop: index === 0 ? 0 : 10 }}>
+                      <SectionCard nested style={[getTreeSettingsFamilyMemberCardStyle(theme), { marginTop: index === 0 ? 0 : 10 }]}>
                         <Text variant="titleSmall">{result.name}</Text>
                         <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
                           {t(K.app.discoverableTreeOwnedBy, { name: result.ownerDisplayName || result.ownerUsername || t(K.common.unknown) })}
@@ -385,7 +386,7 @@ export function MergesSection({
           </Button>
         ) : null}
 
-        <SectionCard>
+        <SectionCard style={getTreeSettingsFamilyMemberCardStyle(theme)}>
           <View style={styles.sectionHeader}>
             <View style={styles.titleWrap}>
               <View style={styles.titleWithHelperRow}>
@@ -408,7 +409,7 @@ export function MergesSection({
 
                 return (
                   <Reveal key={request.id} delay={130 + index * 25}>
-                    <SectionCard nested style={[styles.collaboratorCard, { backgroundColor: request.id === highlightedMergeRequestId ? theme.colors.surfaceVariant : theme.colors.surface, paddingVertical: 14, paddingHorizontal: 14 }]}>
+                    <SectionCard nested style={[styles.collaboratorCard, getTreeSettingsFamilyMemberCardStyle(theme, request.id === highlightedMergeRequestId ? theme.colors.surfaceVariant : theme.colors.surface)]}>
                       <Text variant="titleMedium">{request.preview.sourceTree.treeName} ↔ {request.preview.targetTree.treeName}</Text>
                       <Text variant="bodySmall" style={[styles.collaboratorMeta, { color: theme.colors.onSurfaceVariant }]}>
                         {t(K.treeSettings.suggestedMergeSummary, {
