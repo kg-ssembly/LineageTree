@@ -11,17 +11,7 @@ const linking: LinkingOptions<RootStackParamList> = {
     screens: {
       Login: 'login',
       SignUp: 'signup',
-      Main: {
-        path: '',
-        screens: {
-          home: '',
-          tree: 'tree',
-          members: 'members',
-          treeSettings: 'settings',
-          myProfile: 'profile',
-        },
-      },
-      TreeDetail: 'trees/:treeId',
+      Main: '',
       PersonProfile: 'trees/:treeId/family-members/:personId',
     },
   },
