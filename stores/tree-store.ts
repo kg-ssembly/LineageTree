@@ -23,6 +23,9 @@ import {
   createTree,
   decideApprovalRequest,
   deletePerson,
+  deleteAllNotifications,
+  deleteNotification,
+  deleteNotificationActivity,
   deleteRelationship,
   deleteTree,
   getMergePreview,
@@ -201,6 +204,13 @@ interface TreeState {
   markNotificationSeen: (actorUserId: string, notificationId: string) => Promise<void>;
   markNotificationOpened: (actorUserId: string, notificationId: string) => Promise<void>;
   markNotificationActivityActioned: (actorUserId: string, sourceKind: NotificationActivityState['sourceKind'], sourceId: string) => Promise<void>;
+  deleteNotification: (actorUserId: string, notificationId: string) => Promise<void>;
+  deleteNotificationActivity: (actorUserId: string, sourceKind: NotificationActivityState['sourceKind'], sourceId: string) => Promise<void>;
+  deleteAllNotifications: (
+    actorUserId: string,
+    notificationIds: string[],
+    activityTargets: Array<{ sourceKind: NotificationActivityState['sourceKind']; sourceId: string }>,
+  ) => Promise<void>;
   loadMergePreview: (sourceTreeId: string, targetTreeId: string) => Promise<void>;
   approveMergeRequest: (actorUserId: string, requestId: string, comment?: string, selectedMatchIds?: string[], conflictChoices?: MergeConflictChoice[]) => Promise<void>;
   rejectMergeRequest: (actorUserId: string, requestId: string, comment?: string) => Promise<void>;
@@ -837,6 +847,39 @@ export const useTreeStore = create<TreeState>()(persist((set, get) => {
       try {
         await markNotificationActivityActioned(actorUserId, sourceKind, sourceId);
         set({ mutating: false });
+      } catch (error) {
+        set({ mutating: false, error: normaliseError(error) });
+        throw error;
+      }
+    },
+
+    deleteNotification: async (actorUserId, notificationId) => {
+      set({ mutating: true, error: null });
+      try {
+        await deleteNotification(actorUserId, notificationId);
+        set({ mutating: false, notice: 'Notification deleted.' });
+      } catch (error) {
+        set({ mutating: false, error: normaliseError(error) });
+        throw error;
+      }
+    },
+
+    deleteNotificationActivity: async (actorUserId, sourceKind, sourceId) => {
+      set({ mutating: true, error: null });
+      try {
+        await deleteNotificationActivity(actorUserId, sourceKind, sourceId);
+        set({ mutating: false, notice: 'Notification deleted.' });
+      } catch (error) {
+        set({ mutating: false, error: normaliseError(error) });
+        throw error;
+      }
+    },
+
+    deleteAllNotifications: async (actorUserId, notificationIds, activityTargets) => {
+      set({ mutating: true, error: null });
+      try {
+        await deleteAllNotifications(actorUserId, notificationIds, activityTargets);
+        set({ mutating: false, notice: 'Notifications deleted.' });
       } catch (error) {
         set({ mutating: false, error: normaliseError(error) });
         throw error;

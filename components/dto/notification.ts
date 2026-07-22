@@ -25,6 +25,7 @@ export interface NotificationActivityState {
   sourceKind: 'approval' | 'merge-request' | 'merge-history' | 'membership';
   sourceId: string;
   actionedAt?: string;
+  deletedAt?: string;
   createdAt: string;
   updatedAt: string;
 }

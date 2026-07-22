@@ -103,11 +103,15 @@ export function NotificationsView({
   trees,
   userId,
   mutating,
+  openConfirm,
   onRespondToMergeInvite,
   onRespondToTreeAccessRequest,
   onMarkNotificationSeen,
   onMarkNotificationOpened,
   onMarkNotificationActivityActioned,
+  onDeleteNotification,
+  onDeleteNotificationActivity,
+  onDeleteAllNotifications,
   onOpenTreeSettingsTarget,
   embedded = false,
   scrollable = !embedded,
@@ -147,7 +151,9 @@ export function NotificationsView({
       opened: Boolean(notification.openedAt),
     }));
 
-    const approvalNotifications = approvalRequests.map<NotificationFeedItem>((request) => ({
+    const approvalNotifications = approvalRequests
+      .filter((request) => !activityStateByKey.get(`approval:${request.id}`)?.deletedAt)
+      .map<NotificationFeedItem>((request) => ({
       id: `approval-${request.id}`,
       kind: 'approval',
       title: request.status === 'pending' ? t(K.notifications.approvalRequest) : t(K.notifications.approvalUpdate),
@@ -159,9 +165,11 @@ export function NotificationsView({
       sourceKind: 'approval',
       sourceId: request.id,
       actioned: Boolean(activityStateByKey.get(`approval:${request.id}`)?.actionedAt),
-    }));
+      }));
 
-    const mergeRequestNotifications = mergeRequests.map<NotificationFeedItem>((request) => ({
+    const mergeRequestNotifications = mergeRequests
+      .filter((request) => !activityStateByKey.get(`merge-request:${request.id}`)?.deletedAt)
+      .map<NotificationFeedItem>((request) => ({
       id: `merge-request-${request.id}`,
       kind: 'merge-request',
       title: t(K.notifications.mergeRequest),
@@ -173,9 +181,11 @@ export function NotificationsView({
       sourceKind: 'merge-request',
       sourceId: request.id,
       actioned: Boolean(activityStateByKey.get(`merge-request:${request.id}`)?.actionedAt),
-    }));
+      }));
 
-    const mergeHistoryNotifications = mergeHistory.map<NotificationFeedItem>((entry) => ({
+    const mergeHistoryNotifications = mergeHistory
+      .filter((entry) => !activityStateByKey.get(`merge-history:${entry.id}`)?.deletedAt)
+      .map<NotificationFeedItem>((entry) => ({
       id: `merge-history-${entry.id}`,
       kind: 'merge-history',
       title: t(K.notifications.mergeActivity),
@@ -187,11 +197,12 @@ export function NotificationsView({
       sourceKind: 'merge-history',
       sourceId: entry.id,
       actioned: Boolean(activityStateByKey.get(`merge-history:${entry.id}`)?.actionedAt),
-    }));
+      }));
 
     const membershipNotifications = (trees ?? [])
       .flatMap((tree) => tree.membershipHistory.map((entry) => ({ tree, entry })))
       .filter(({ entry }) => !userId || entry.userId === userId || entry.action === 'invited' || entry.action === 'role-changed')
+      .filter(({ tree, entry }) => !activityStateByKey.get(`membership:${tree.id}-${entry.id}`)?.deletedAt)
       .map<NotificationFeedItem>(({ tree, entry }) => ({
         id: `membership-${tree.id}-${entry.id}`,
         kind: 'membership',
@@ -318,6 +329,27 @@ export function NotificationsView({
     await onMarkNotificationActivityActioned(item.sourceKind, item.sourceId);
   };
 
+  const handleDeleteItem = async (item: NotificationFeedItem) => {
+    if (item.notificationId) {
+      await onDeleteNotification(item.notificationId);
+    } else if (item.sourceKind && item.sourceId) {
+      await onDeleteNotificationActivity(item.sourceKind, item.sourceId);
+    }
+    setSelectedNotification((current) => (current?.id === item.id ? null : current));
+  };
+
+  const handleDeleteAll = async () => {
+    await onDeleteAllNotifications(
+      notificationFeed.flatMap((item) => item.notificationId ? [item.notificationId] : []),
+      notificationFeed.flatMap((item) => (
+        item.sourceKind && item.sourceId
+          ? [{ sourceKind: item.sourceKind, sourceId: item.sourceId }]
+          : []
+      )),
+    );
+    setSelectedNotification(null);
+  };
+
   const handleOpenTarget = async (item: NotificationFeedItem) => {
     if (!onOpenTreeSettingsTarget) {
       return;
@@ -390,15 +422,25 @@ export function NotificationsView({
                   {categoryLabel}{item.treeName ? ` · ${item.treeName}` : ''}
                 </Text>
               </View>
-              {!complete && canOpenTarget ? (
-                <Button compact mode="text" onPress={() => { void handleOpenTarget(item); }} disabled={mutating}>
-                  {primaryActionLabel}
-                </Button>
-              ) : null}
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                  {!complete && canOpenTarget ? (
+                    <Button compact mode="text" onPress={() => { void handleOpenTarget(item); }} disabled={mutating}>
+                      {primaryActionLabel}
+                    </Button>
+                  ) : null}
+                  <IconButton
+                    icon="delete-outline"
+                    size={18}
+                    onPress={() => openConfirm('Delete notification?', 'This removes this item from your notifications feed.', t(K.common.delete), async () => handleDeleteItem(item))}
+                    disabled={mutating}
+                    accessibilityLabel={t(K.common.delete)}
+                    style={{ margin: 0 }}
+                  />
+                </View>
+              </View>
             </View>
           </View>
-        </View>
-      </Pressable>
+        </Pressable>
     );
   };
 
@@ -571,6 +613,9 @@ export function NotificationsView({
                 <Chip compact icon="check-decagram-outline">{feedMetrics.unactionedDerivedItems.length} to follow up</Chip>
               </View>
               <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                <Button mode="outlined" onPress={() => openConfirm('Delete all notifications?', 'This will remove direct notifications and hide the rest of the current activity feed.', 'Delete all', handleDeleteAll)} disabled={mutating || notificationFeed.length === 0} style={BUTTON_CHROME} buttonColor={theme.colors.surface} textColor={theme.colors.primary} contentStyle={BUTTON_CONTENT_CHROME}>
+                  Delete all
+                </Button>
                 <Button mode="outlined" onPress={() => { void handleMarkAllSeen(); }} disabled={mutating || feedMetrics.unseenDirectIds.length === 0} style={BUTTON_CHROME} buttonColor={theme.colors.surface} textColor={theme.colors.primary} contentStyle={BUTTON_CONTENT_CHROME}>
                   {t('Quiet new alerts')}
                 </Button>
@@ -610,11 +655,21 @@ export function NotificationsView({
                           {item.message}
                         </Text>
                       </View>
-                      <View style={[styles.collaboratorChipRow, { justifyContent: 'flex-end', maxWidth: '42%' }]}>
-                        {item.notificationId && !item.opened && !item.seen ? <Chip compact>{t(K.notifications.new)}</Chip> : null}
-                        {item.notificationId && item.seen && !item.opened ? <Chip compact>{t(K.notifications.seen)}</Chip> : null}
-                        {item.actioned ? <Chip compact>{t(K.notifications.actioned)}</Chip> : null}
-                        {item.status ? <Chip compact>{item.status}</Chip> : null}
+                      <View style={{ alignItems: 'flex-end', gap: 6, maxWidth: '42%' }}>
+                        <IconButton
+                          icon="delete-outline"
+                          size={18}
+                          onPress={() => openConfirm('Delete notification?', 'This removes this item from your notifications feed.', t(K.common.delete), async () => handleDeleteItem(item))}
+                          disabled={mutating}
+                          accessibilityLabel={t(K.common.delete)}
+                          style={{ margin: 0 }}
+                        />
+                        <View style={[styles.collaboratorChipRow, { justifyContent: 'flex-end' }]}>
+                          {item.notificationId && !item.opened && !item.seen ? <Chip compact>{t(K.notifications.new)}</Chip> : null}
+                          {item.notificationId && item.seen && !item.opened ? <Chip compact>{t(K.notifications.seen)}</Chip> : null}
+                          {item.actioned ? <Chip compact>{t(K.notifications.actioned)}</Chip> : null}
+                          {item.status ? <Chip compact>{item.status}</Chip> : null}
+                        </View>
                       </View>
                     </View>
                   </Pressable>
@@ -736,6 +791,11 @@ export function NotificationsView({
             {selectedNotification?.sourceKind && selectedNotification.sourceId && !selectedNotification.actioned ? (
               <Button mode="outlined" onPress={() => { void handleMarkActioned(selectedNotification); }} disabled={mutating} style={BUTTON_CHROME} buttonColor={theme.colors.surface} textColor={theme.colors.primary} contentStyle={BUTTON_CONTENT_CHROME}>
                 {t(K.notifications.markActioned)}
+              </Button>
+            ) : null}
+            {selectedNotification ? (
+              <Button mode="outlined" onPress={() => openConfirm('Delete notification?', 'This removes this item from your notifications feed.', t(K.common.delete), async () => handleDeleteItem(selectedNotification))} disabled={mutating} style={BUTTON_CHROME} buttonColor={theme.colors.surface} textColor={theme.colors.primary} contentStyle={BUTTON_CONTENT_CHROME}>
+                {t(K.common.delete)}
               </Button>
             ) : null}
             {selectedNotification?.kind === 'merge-invite' && selectedNotification.notificationId && selectedNotification.status === 'pending' ? (

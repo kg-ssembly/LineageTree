@@ -23,6 +23,7 @@ type UserProfileComponent = ComponentType<{
 
 const TAB_ICONS: Record<keyof MainTabParamList, string> = {
   home: 'home-heart',
+  notifications: 'bell-outline',
   tree: 'family-tree',
   members: 'account-group-outline',
   treeSettings: 'cog-outline',
@@ -31,6 +32,7 @@ const TAB_ICONS: Record<keyof MainTabParamList, string> = {
 
 const TAB_LABELS: Record<keyof MainTabParamList, string> = {
   home: K.navigation.home,
+  notifications: K.notifications.notifications,
   tree: K.navigation.tree,
   members: K.navigation.members,
   treeSettings: K.navigation.settings,
@@ -45,6 +47,26 @@ function WebMainTabBar({
 }: BottomTabBarProps & {
   controller: ReturnType<typeof useMainScreenController>;
 }) {
+  const notificationsRouteIndex = state.routes.findIndex((route) => route.name === 'notifications');
+  const isNotificationsFocused = notificationsRouteIndex >= 0 && state.index === notificationsRouteIndex;
+
+  const handleNotificationsPress = () => {
+    const notificationsRoute = state.routes[notificationsRouteIndex];
+    if (!notificationsRoute) {
+      return;
+    }
+
+    const event = navigation.emit({
+      type: 'tabPress',
+      target: notificationsRoute.key,
+      canPreventDefault: true,
+    });
+
+    if (!isNotificationsFocused && !event.defaultPrevented) {
+      navigation.navigate(notificationsRoute.name, notificationsRoute.params);
+    }
+  };
+
   return (
     <View
       style={[
@@ -68,13 +90,39 @@ function WebMainTabBar({
       </View>
 
       <View style={webTabBarStyles.menuRow}>
-        {state.routes.map((route, index) => {
+        <Pressable
+          onPress={handleNotificationsPress}
+          accessibilityRole="button"
+          accessibilityLabel={controller.t(K.notifications.notifications)}
+          accessibilityState={isNotificationsFocused ? { selected: true } : {}}
+          style={[
+            webTabBarStyles.iconChip,
+            {
+              backgroundColor: isNotificationsFocused ? controller.theme.colors.secondaryContainer : controller.theme.colors.surface,
+            },
+          ]}
+        >
+          <MaterialCommunityIcons
+            name="bell-outline"
+            size={18}
+            color={isNotificationsFocused ? controller.theme.colors.primary : controller.theme.colors.onSurfaceVariant}
+          />
+          {controller.notificationBadgeCount > 0 ? (
+            <View style={[webTabBarStyles.badge, webTabBarStyles.iconBadge, { backgroundColor: controller.theme.colors.primary }]}>
+              <Text variant="labelSmall" style={{ color: controller.theme.colors.onPrimary }}>
+                {controller.notificationBadgeCount > 99 ? '99+' : controller.notificationBadgeCount}
+              </Text>
+            </View>
+          ) : null}
+        </Pressable>
+
+        {state.routes.filter((route) => route.name !== 'notifications').map((route) => {
+          const index = state.routes.findIndex((entry) => entry.key === route.key);
           const isFocused = state.index === index;
           const descriptor = descriptors[route.key];
           const routeName = route.name as keyof MainTabParamList;
           const label = controller.t(TAB_LABELS[routeName]);
           const icon = TAB_ICONS[routeName];
-          const badgeCount = routeName === 'home' ? controller.notificationBadgeCount : 0;
 
           const onPress = () => {
             const event = navigation.emit({
@@ -115,13 +163,6 @@ function WebMainTabBar({
               >
                 {label}
               </Text>
-              {badgeCount > 0 ? (
-                <View style={[webTabBarStyles.badge, { backgroundColor: controller.theme.colors.primary }]}>
-                  <Text variant="labelSmall" style={{ color: controller.theme.colors.onPrimary }}>
-                    {badgeCount > 99 ? '99+' : badgeCount}
-                  </Text>
-                </View>
-              ) : null}
             </Pressable>
           );
         })}
@@ -167,6 +208,14 @@ const webTabBarStyles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
+  iconChip: {
+    minWidth: 42,
+    height: 42,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
   badge: {
     minWidth: 22,
     height: 22,
@@ -174,6 +223,11 @@ const webTabBarStyles = StyleSheet.create({
     borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  iconBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
   },
 });
 
@@ -187,6 +241,10 @@ function getVisualisationTabContent(): TabContentComponent {
 
 function getPeopleRelationshipsTabContent(): TabContentComponent {
   return require('../tree-tabs/family-members').PeopleRelationshipsTabContent;
+}
+
+function getNotificationsTabContent(): TabContentComponent {
+  return require('../tree-tabs/notifications').NotificationsTabContent;
 }
 
 function getTreeSettingsTabContent(): TabContentComponent {
@@ -251,7 +309,6 @@ export function MainTabNavigator({
         name="home"
         options={{
           title: controller.t(K.navigation.home),
-          tabBarBadge: controller.notificationBadgeCount > 0 ? controller.notificationBadgeCount : undefined,
         }}
       >
         {() => {
@@ -261,6 +318,23 @@ export function MainTabNavigator({
 
           const HomeTabContent = getHomeTabContent();
           return <HomeTabContent {...controller.sharedTabProps} />;
+        }}
+      </Tab.Screen>
+
+      <Tab.Screen
+        name="notifications"
+        options={{
+          title: controller.t(K.notifications.notifications),
+          tabBarButton: () => null,
+        }}
+      >
+        {() => {
+          if (!controller.sharedTabProps) {
+            return noTreeGate;
+          }
+
+          const NotificationsTabContent = getNotificationsTabContent();
+          return <NotificationsTabContent {...controller.sharedTabProps} />;
         }}
       </Tab.Screen>
 

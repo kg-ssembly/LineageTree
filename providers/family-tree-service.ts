@@ -82,6 +82,9 @@ import {
 } from './family-tree-approval-service';
 import {
   cancelTreeAccessRequest,
+  deleteAllNotifications,
+  deleteNotification,
+  deleteNotificationActivity,
   grantMergeRequesterViewerAccess,
   markNotificationActivityActioned,
   markNotificationOpened,
@@ -123,6 +126,9 @@ export {
   submitPersonUpdateApproval,
   submitUpdateRelationshipApproval,
   cancelTreeAccessRequest,
+  deleteAllNotifications,
+  deleteNotification,
+  deleteNotificationActivity,
   grantMergeRequesterViewerAccess,
   markNotificationActivityActioned,
   markNotificationOpened,

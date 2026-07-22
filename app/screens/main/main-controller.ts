@@ -115,7 +115,7 @@ type MemberProfileParams = {
   initialMemorySectionTab?: PersonProfileRouteMemorySection;
 };
 
-const MAIN_TAB_NAMES = ['home', 'tree', 'members', 'treeSettings', 'myProfile'] as const;
+const MAIN_TAB_NAMES = ['home', 'notifications', 'tree', 'members', 'treeSettings', 'myProfile'] as const;
 
 function isMainTabName(name: string): name is typeof MAIN_TAB_NAMES[number] {
   return (MAIN_TAB_NAMES as readonly string[]).includes(name);
@@ -184,6 +184,9 @@ export function useMainScreenController({ navigation }: Props) {
     searchDiscoverableTrees,
     searchDiscoverableTreesByUsername,
     respondToMergeInvite,
+    deleteNotification,
+    deleteNotificationActivity,
+    deleteAllNotifications,
     markNotificationSeen,
     markNotificationOpened,
     markNotificationActivityActioned,
@@ -239,12 +242,15 @@ export function useMainScreenController({ navigation }: Props) {
     requestTreeAccessByIdentifier: state.requestTreeAccessByIdentifier,
     cancelTreeAccessRequest: state.cancelTreeAccessRequest,
     respondToTreeAccessRequest: state.respondToTreeAccessRequest,
-    searchDiscoverableTrees: state.searchDiscoverableTrees,
-    searchDiscoverableTreesByUsername: state.searchDiscoverableTreesByUsername,
-    respondToMergeInvite: state.respondToMergeInvite,
-    markNotificationSeen: state.markNotificationSeen,
-    markNotificationOpened: state.markNotificationOpened,
-    markNotificationActivityActioned: state.markNotificationActivityActioned,
+      searchDiscoverableTrees: state.searchDiscoverableTrees,
+      searchDiscoverableTreesByUsername: state.searchDiscoverableTreesByUsername,
+      respondToMergeInvite: state.respondToMergeInvite,
+      deleteNotification: state.deleteNotification,
+      deleteNotificationActivity: state.deleteNotificationActivity,
+      deleteAllNotifications: state.deleteAllNotifications,
+      markNotificationSeen: state.markNotificationSeen,
+      markNotificationOpened: state.markNotificationOpened,
+      markNotificationActivityActioned: state.markNotificationActivityActioned,
     loadMergePreview: state.loadMergePreview,
     approveMergeRequest: state.approveMergeRequest,
     grantMergeViewerAccess: state.grantMergeViewerAccess,
@@ -1213,6 +1219,33 @@ export function useMainScreenController({ navigation }: Props) {
     await markNotificationActivityActioned(user.id, sourceKind, sourceId);
   }, [markNotificationActivityActioned, user?.id]);
 
+  const onDeleteNotification = useCallback(async (notificationId: string) => {
+    if (!user?.id) {
+      return;
+    }
+
+    await deleteNotification(user.id, notificationId);
+  }, [deleteNotification, user?.id]);
+
+  const onDeleteNotificationActivity = useCallback(async (sourceKind: 'approval' | 'merge-request' | 'merge-history' | 'membership', sourceId: string) => {
+    if (!user?.id) {
+      return;
+    }
+
+    await deleteNotificationActivity(user.id, sourceKind, sourceId);
+  }, [deleteNotificationActivity, user?.id]);
+
+  const onDeleteAllNotifications = useCallback(async (
+    notificationIds: string[],
+    activityTargets: Array<{ sourceKind: 'approval' | 'merge-request' | 'merge-history' | 'membership'; sourceId: string }>,
+  ) => {
+    if (!user?.id) {
+      return;
+    }
+
+    await deleteAllNotifications(user.id, notificationIds, activityTargets);
+  }, [deleteAllNotifications, user?.id]);
+
   const onLoadTreeMergePreview = useCallback(async (sourceTreeId: string, targetTreeId: string) => {
     if (!sourceTreeId || !targetTreeId) {
       return;
@@ -1443,10 +1476,13 @@ export function useMainScreenController({ navigation }: Props) {
       onRespondToTreeAccessRequest,
       onSearchDiscoverableTrees,
       onSearchDiscoverableTreesByUsername,
-      onMarkNotificationSeen,
-      onMarkNotificationOpened,
-      onMarkNotificationActivityActioned,
-      onLoadMergePreview: onLoadTreeMergePreview,
+        onMarkNotificationSeen,
+        onMarkNotificationOpened,
+        onMarkNotificationActivityActioned,
+        onDeleteNotification,
+        onDeleteNotificationActivity,
+        onDeleteAllNotifications,
+        onLoadMergePreview: onLoadTreeMergePreview,
       onApproveMergeRequest,
       onRejectMergeRequest,
       onRequestMergeChanges,
@@ -1499,9 +1535,12 @@ export function useMainScreenController({ navigation }: Props) {
     ensureTreeAuxiliaryData,
     onGrantMergeViewerAccess,
     onLoadTreeMergePreview,
-    onMarkNotificationActivityActioned,
-    onMarkNotificationOpened,
-    onMarkNotificationSeen,
+      onMarkNotificationActivityActioned,
+      onDeleteNotification,
+      onDeleteNotificationActivity,
+      onDeleteAllNotifications,
+      onMarkNotificationOpened,
+      onMarkNotificationSeen,
     onOpenAddPerson,
     onOpenAddPersonForRelationship,
     onOpenAddSelf,
