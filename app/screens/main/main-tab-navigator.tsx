@@ -1,5 +1,5 @@
 import React, { type ComponentType } from 'react';
-import { Image, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Image, Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { createBottomTabNavigator, type BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,6 +10,7 @@ import type { useMainScreenController } from './main-controller';
 import type { SharedTabProps } from '../tree-tabs/shared';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
+const WEB_DESKTOP_BREAKPOINT = 900;
 const APP_LOGO = require('../../../assets/logo-transparent.png');
 type TabContentComponent = ComponentType<SharedTabProps>;
 type PersonProfileComponent = ComponentType<{
@@ -275,30 +276,32 @@ export function MainTabNavigator({
   };
 }) {
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const isDesktopWeb = Platform.OS === 'web' && width >= WEB_DESKTOP_BREAKPOINT;
   const bottomInset = Platform.OS === 'android' && insets.bottom < 24 ? 0 : insets.bottom;
 
   return (
     <Tab.Navigator
-      tabBar={Platform.OS === 'web' ? (props) => <WebMainTabBar {...props} controller={controller} /> : undefined}
+      tabBar={isDesktopWeb ? (props) => <WebMainTabBar {...props} controller={controller} /> : undefined}
       screenOptions={({ route }) => ({
         lazy: true,
         headerShown: false,
-        tabBarPosition: Platform.OS === 'web' ? 'top' : 'bottom',
+        tabBarPosition: isDesktopWeb ? 'top' : 'bottom',
         tabBarActiveTintColor: controller.theme.colors.primary,
         tabBarInactiveTintColor: controller.theme.colors.onSurfaceVariant,
         tabBarActiveBackgroundColor: controller.theme.colors.elevation.level2,
         tabBarShowIcon: true,
-        tabBarShowLabel: Platform.OS !== 'web',
+        tabBarShowLabel: !isDesktopWeb,
         tabBarStyle: [
           styles.tabBar,
           {
             backgroundColor: controller.theme.colors.surface,
             borderTopColor: controller.theme.colors.outlineVariant,
             paddingBottom: bottomInset,
-            height: Platform.OS === 'web' ? undefined : styles.tabBar.height + bottomInset,
+            height: isDesktopWeb ? undefined : styles.tabBar.height + bottomInset,
           },
         ],
-        tabBarItemStyle: styles.tabItem,
+        tabBarItemStyle: route.name === 'notifications' ? { display: 'none' } : styles.tabItem,
         sceneStyle: [styles.tabScene, { backgroundColor: controller.theme.colors.background }],
         tabBarIcon: ({ color, size }) => (
           <MaterialCommunityIcons name={(TAB_ICONS[route.name as keyof MainTabParamList] ?? 'circle') as never} size={size} color={color} />
