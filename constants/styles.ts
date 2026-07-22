@@ -923,9 +923,9 @@ export class GlobalStyles {
             paddingVertical: 4,
         },
         tabStripItem: {
-            paddingHorizontal: 16,
-            paddingVertical: 12,
-            marginHorizontal: 2,
+            paddingHorizontal: 10,
+            paddingVertical: 8,
+            marginHorizontal: 0,
         },
         sectionHeader: {
             flexDirection: 'row',

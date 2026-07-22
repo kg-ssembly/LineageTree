@@ -243,12 +243,12 @@ const helperDialogCopy: Record<HelperDialogKey, { title: string; message: string
 
 const styles = GlobalStyles.personProfile;
 
-const PROFILE_TABS: Array<{ key: PersonProfileTabKey; label: string }> = [
-  { key: 'biography', label: K.personProfile.biography },
-  { key: 'relationships', label: K.personProfile.relationships },
-  { key: 'memories-gallery', label: K.memories.memories },
-  { key: 'descendant-tree', label: K.lineage.descendants },
-  { key: 'ascendant-tree', label: K.lineage.ascendants },
+const PROFILE_TABS: Array<{ key: PersonProfileTabKey; label: string; icon: string }> = [
+  { key: 'biography', label: K.personProfile.biography, icon: 'book-open-page-variant-outline' },
+  { key: 'relationships', label: K.personProfile.relationships, icon: 'account-multiple-outline' },
+  { key: 'memories-gallery', label: K.memories.memories, icon: 'image-multiple-outline' },
+  { key: 'descendant-tree', label: K.lineage.descendants, icon: 'family-tree' },
+  { key: 'ascendant-tree', label: K.lineage.ascendants, icon: 'arrow-up-bold' },
 ];
 
 const APP_TAB_ROUTES: Array<{

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Text, useTheme } from 'react-native-paper';
 import { useI18n } from '../hooks/use-i18n';
@@ -7,6 +7,7 @@ import { useI18n } from '../hooks/use-i18n';
 type TabItem<Key extends string> = {
   key: Key;
   label: string;
+  icon?: string;
 };
 
 interface HorizontalTabStripProps<Key extends string> {
@@ -41,44 +42,58 @@ export default function HorizontalTabStrip<Key extends string>({
     [theme.dark],
   );
 
+  const tabItems = items.map((tab) => {
+    const isActive = activeKey === tab.key;
+    return (
+      <Pressable
+        key={tab.key}
+        onPress={() => onChange(tab.key)}
+        style={[
+          styles.item,
+          itemStyle,
+          Platform.OS === 'web' ? styles.webItem : null,
+          {
+            backgroundColor: isActive ? theme.colors.primaryContainer : theme.colors.surface,
+            borderColor: isActive ? theme.colors.primary : theme.colors.outlineVariant,
+          },
+        ]}
+        accessibilityRole="tab"
+        accessibilityState={{ selected: isActive }}
+      >
+        <View style={[styles.activeBar, { backgroundColor: isActive ? theme.colors.primary : 'transparent' }]} />
+        {tab.icon ? <MaterialCommunityIcons name={tab.icon as never} size={18} color={isActive ? theme.colors.primary : theme.colors.onSurfaceVariant} /> : null}
+        <Text variant="labelMedium" style={{ flex: 1, color: isActive ? theme.colors.primary : theme.colors.onSurfaceVariant }}>
+          {tab.label}
+        </Text>
+      </Pressable>
+    );
+  });
+
   return (
     <View style={[styles.container, containerStyle]}>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={[styles.content, contentContainerStyle]}
-        onLayout={(event) => setViewportWidth(event.nativeEvent.layout.width)}
-        onContentSizeChange={(width) => setContentWidth(width)}
-        onScroll={(event) => setScrollOffset(event.nativeEvent.contentOffset.x)}
-        scrollEventThrottle={16}
-      >
-        {items.map((tab) => {
-          const isActive = activeKey === tab.key;
-          return (
-            <Pressable
-              key={tab.key}
-              onPress={() => onChange(tab.key)}
-              style={[
-                styles.item,
-                itemStyle,
-                isActive && { borderBottomColor: theme.colors.primary, borderBottomWidth: 2 },
-              ]}
-            >
-              <Text variant="labelLarge" style={{ color: isActive ? theme.colors.primary : theme.colors.onSurfaceVariant }}>
-                {tab.label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </ScrollView>
+      {Platform.OS === 'web' ? (
+        <View style={[styles.content, styles.webContent, contentContainerStyle]}>{tabItems}</View>
+      ) : (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={[styles.content, contentContainerStyle]}
+          onLayout={(event) => setViewportWidth(event.nativeEvent.layout.width)}
+          onContentSizeChange={(width) => setContentWidth(width)}
+          onScroll={(event) => setScrollOffset(event.nativeEvent.contentOffset.x)}
+          scrollEventThrottle={16}
+        >
+          {tabItems}
+        </ScrollView>
+      )}
 
-      {showLeftHint ? (
+      {Platform.OS !== 'web' && showLeftHint ? (
         <View pointerEvents="none" style={[styles.hint, styles.leftHint, { backgroundColor: hintBackground }]}>
           <MaterialCommunityIcons name="chevron-left" size={16} color={theme.colors.onSurfaceVariant} />
         </View>
       ) : null}
 
-      {showRightHint ? (
+      {Platform.OS !== 'web' && showRightHint ? (
         <View pointerEvents="none" style={[styles.hint, styles.rightHint, { backgroundColor: hintBackground, borderColor: theme.colors.outlineVariant }]}>
           <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>
             {t('More')}
@@ -98,11 +113,32 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 8,
     paddingVertical: 4,
+    gap: 8,
+  },
+  webContent: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    width: '100%',
   },
   item: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginHorizontal: 2,
+    minHeight: 46,
+    minWidth: 120,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: 16,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  webItem: {
+    flex: 1,
+    flexBasis: 0,
+  },
+  activeBar: {
+    width: 3,
+    height: 20,
+    borderRadius: 2,
   },
   hint: {
     position: 'absolute',

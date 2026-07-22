@@ -70,9 +70,9 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   tabStripItem: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginHorizontal: 2,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    marginHorizontal: 0,
   },
 });
 
@@ -102,13 +102,13 @@ type MaidenTreeSuggestionState = {
 
 type ProfileTabKey = 'biography' | 'relationships' | 'memories' | 'descendants' | 'ascendants' | 'app-settings';
 
-const PROFILE_TABS: Array<{ key: ProfileTabKey; label: string }> = [
-  { key: 'biography', label: K.personProfile.biography },
-  { key: 'relationships', label: K.personProfile.relationships },
-  { key: 'memories', label: K.memories.memories },
-  { key: 'descendants', label: K.lineage.descendants },
-  { key: 'ascendants', label: K.lineage.ascendants },
-  { key: 'app-settings', label: K.personProfile.appSettings },
+const PROFILE_TABS: Array<{ key: ProfileTabKey; label: string; icon: string }> = [
+  { key: 'biography', label: K.personProfile.biography, icon: 'book-open-page-variant-outline' },
+  { key: 'relationships', label: K.personProfile.relationships, icon: 'account-multiple-outline' },
+  { key: 'memories', label: K.memories.memories, icon: 'image-multiple-outline' },
+  { key: 'descendants', label: K.lineage.descendants, icon: 'family-tree' },
+  { key: 'ascendants', label: K.lineage.ascendants, icon: 'arrow-up-bold' },
+  { key: 'app-settings', label: K.personProfile.appSettings, icon: 'cog-outline' },
 ];
 
 function getRelationshipModeForPerson(personId: string, relationship: RelationshipRecord): PersonRelationshipMode {

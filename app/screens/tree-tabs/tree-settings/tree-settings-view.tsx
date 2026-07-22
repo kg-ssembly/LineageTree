@@ -1,7 +1,8 @@
 import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
-import { FlatList, ScrollView, Share, View } from 'react-native';
+import { FlatList, Platform, Pressable, ScrollView, Share, StyleSheet, View } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Button, Chip, Dialog, IconButton, Portal, ProgressBar, Text, TextInput, useTheme } from 'react-native-paper';
-import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, FloatingSnackbar, GlobalStyles, HorizontalTabStrip, InfoDialog, Reveal, ScreenBackground, TabStripCard } from '../../../../components';
+import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, FloatingSnackbar, GlobalStyles, InfoDialog, Reveal, ScreenBackground } from '../../../../components';
 import type { ApprovalRequest } from '../../../../components/dto/approval';
 import type { PersonRecord } from '../../../../components/dto/person';
 import {
@@ -34,6 +35,58 @@ const dialogChrome = GlobalStyles.dialogChrome;
 const styles = GlobalStyles.treeDetail;
 
 const OWNER_LINK_PAGE_SIZE = 3;
+
+const settingsTabIcons: Record<TreeManagementTabKey, keyof typeof MaterialCommunityIcons.glyphMap> = {
+  overview: 'view-dashboard-outline',
+  collaborators: 'account-multiple-outline',
+  approvals: 'clipboard-check-outline',
+  merges: 'merge',
+  trees: 'source-branch',
+};
+
+const tabStyles = StyleSheet.create({
+  rail: {
+    marginTop: 14,
+    marginBottom: 16,
+    borderRadius: 22,
+    padding: 8,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  content: {
+    gap: 8,
+  },
+  webContent: {
+    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    width: '100%',
+  },
+  item: {
+    width: 136,
+    minHeight: 46,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: 16,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  webItem: {
+    flex: 1,
+    flexBasis: 0,
+    width: undefined,
+    minWidth: 120,
+  },
+  activeBar: {
+    width: 3,
+    height: 20,
+    borderRadius: 2,
+  },
+  itemLabel: {
+    flex: 1,
+  },
+});
 
 function TreeSettingsContent({
   selectedTree,
@@ -479,6 +532,29 @@ function TreeSettingsContent({
     );
   };
 
+  const managementTabItems = TREE_MANAGEMENT_TABS.map((tab) => {
+    const isActive = activeManagementTab === tab.key;
+    return (
+      <Pressable
+        key={tab.key}
+        onPress={() => setActiveManagementTab(tab.key)}
+        style={[tabStyles.item, Platform.OS === 'web' ? tabStyles.webItem : null, { backgroundColor: isActive ? theme.colors.primaryContainer : theme.colors.surface, borderColor: isActive ? theme.colors.primary : theme.colors.outlineVariant }]}
+        accessibilityRole="tab"
+        accessibilityState={{ selected: isActive }}
+      >
+        <View style={[tabStyles.activeBar, { backgroundColor: isActive ? theme.colors.primary : 'transparent' }]} />
+        <MaterialCommunityIcons
+          name={settingsTabIcons[tab.key]}
+          size={20}
+          color={isActive ? theme.colors.primary : theme.colors.onSurfaceVariant}
+        />
+        <Text variant="labelMedium" style={[tabStyles.itemLabel, { color: isActive ? theme.colors.primary : theme.colors.onSurfaceVariant }]}>
+          {t(tab.label)}
+        </Text>
+      </Pressable>
+    );
+  });
+
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <ScreenBackground />
@@ -496,13 +572,15 @@ function TreeSettingsContent({
         </View>
 
         <Reveal delay={70}>
-          <TabStripCard>
-            <HorizontalTabStrip
-              items={TREE_MANAGEMENT_TABS.map((tab) => ({ ...tab, label: t(tab.label) }))}
-              activeKey={activeManagementTab}
-              onChange={setActiveManagementTab}
-            />
-          </TabStripCard>
+          <View style={[tabStyles.rail, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant }]}>
+            {Platform.OS === 'web' ? (
+              <View style={[tabStyles.content, tabStyles.webContent]}>{managementTabItems}</View>
+            ) : (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={tabStyles.content}>
+                {managementTabItems}
+              </ScrollView>
+            )}
+          </View>
         </Reveal>
 
         {activeManagementTab === 'overview' ? (

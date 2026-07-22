@@ -800,11 +800,11 @@ export function HomeDashboardView(props: SharedTabProps) {
     ? 'activity'
     : 'focus';
 
-  const dashboardTabs = useMemo<Array<{ key: DashboardTabKey; label: string }>>(
+  const dashboardTabs = useMemo<Array<{ key: DashboardTabKey; label: string; icon: string }>>(
     () => [
-      { key: 'overview', label: t(K.home.overview) },
-      { key: 'highlights', label: t(K.home.highlights) },
-      { key: 'activity', label: activityNotificationCount > 0 ? t(K.home.activityCount, { count: activityNotificationCount }) : t(K.home.activity) },
+      { key: 'overview', label: t(K.home.overview), icon: 'view-dashboard-outline' },
+      { key: 'highlights', label: t(K.home.highlights), icon: 'sparkles-outline' },
+      { key: 'activity', label: activityNotificationCount > 0 ? t(K.home.activityCount, { count: activityNotificationCount }) : t(K.home.activity), icon: 'bell-outline' },
     ],
     [activityNotificationCount, t],
   );
