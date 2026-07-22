@@ -10,8 +10,13 @@ type SendPasswordResetEmailPayload = {
   email: string;
 };
 
-function callFunction<TPayload extends object>(name: string) {
-  return httpsCallable<TPayload, { ok: boolean }>(functionsApi, name);
+type SendPasswordResetEmailResult = {
+  ok: boolean;
+  emailRegistered: boolean;
+};
+
+function callFunction<TPayload extends object, TResult extends object = { ok: boolean }>(name: string) {
+  return httpsCallable<TPayload, TResult>(functionsApi, name);
 }
 
 export async function sendWelcomeEmailNotification() {
@@ -26,7 +31,9 @@ export async function sendTreeInviteEmailNotification(treeId: string, collaborat
 }
 
 export async function sendPasswordResetEmailNotification(email: string) {
-  await callFunction<SendPasswordResetEmailPayload>('sendPasswordResetEmail')({
+  const result = await callFunction<SendPasswordResetEmailPayload, SendPasswordResetEmailResult>('sendPasswordResetEmail')({
     email,
   });
+
+  return result.data;
 }

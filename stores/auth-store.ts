@@ -36,7 +36,7 @@ export interface AuthState {
 
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, displayName: string) => Promise<void>;
-  requestPasswordReset: (email: string) => Promise<void>;
+  requestPasswordReset: (email: string) => Promise<{ emailRegistered: boolean }>;
   signOut: () => Promise<void>;
   setDefaultTreeId: (treeId: string | null) => Promise<void>;
   updateDisplayName: (displayName: string) => Promise<void>;
@@ -318,7 +318,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   requestPasswordReset: async (email) => {
     set({ error: null });
     try {
-      await sendPasswordResetEmailNotification(email);
+      const result = await sendPasswordResetEmailNotification(email);
+      return { emailRegistered: result.emailRegistered };
     } catch (err: any) {
       set({ error: humaniseError(err.code ?? '') });
       throw err;

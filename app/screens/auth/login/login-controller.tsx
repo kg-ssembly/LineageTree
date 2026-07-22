@@ -63,10 +63,12 @@ export function useLoginScreenController(navigation: LoginNavigation) {
     }
 
     try {
-      await requestPasswordReset(email.trim());
-      const successMessage = t(K.auth.passwordResetEmailSent);
-      setInlineNoticeMessage(successMessage);
-      setSnackbarMessage(successMessage);
+      const result = await requestPasswordReset(email.trim());
+      const nextMessage = result.emailRegistered
+        ? t(K.auth.passwordResetEmailSent)
+        : t(K.auth.passwordResetEmailNotRegistered);
+      setInlineNoticeMessage(nextMessage);
+      setSnackbarMessage(nextMessage);
       setSnackVisible(true);
     } catch {
       // surfaced via store snackbar

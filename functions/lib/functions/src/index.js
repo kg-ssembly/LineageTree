@@ -214,14 +214,15 @@ exports.sendPasswordResetEmail = (0, https_1.onCall)({
             text: template.text,
             category: 'password-reset',
         });
+        return { ok: true, emailRegistered: true };
     }
     catch (error) {
         const authCode = typeof error?.code === 'string' ? error.code : '';
-        if (authCode !== 'auth/user-not-found') {
-            throw error;
+        if (authCode === 'auth/user-not-found') {
+            return { ok: true, emailRegistered: false };
         }
+        throw error;
     }
-    return { ok: true };
 });
 exports.sendNotificationEmailOnCreate = (0, firestore_2.onDocumentCreated)({
     document: 'notifications/{notificationId}',

@@ -295,14 +295,16 @@ export const sendPasswordResetEmail = onCall(
         text: template.text,
         category: 'password-reset',
       });
+
+      return { ok: true, emailRegistered: true };
     } catch (error: any) {
       const authCode = typeof error?.code === 'string' ? error.code : '';
-      if (authCode !== 'auth/user-not-found') {
-        throw error;
+      if (authCode === 'auth/user-not-found') {
+        return { ok: true, emailRegistered: false };
       }
-    }
 
-    return { ok: true };
+      throw error;
+    }
   },
 );
 

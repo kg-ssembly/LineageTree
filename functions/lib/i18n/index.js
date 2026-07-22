@@ -2430,6 +2430,18 @@ const SUPPLEMENTAL_TRANSLATIONS_BY_PHRASE = {
         ve: 'Arali imeili yeneyo yo redzhisithiwa, ho rumelwa vhuṱumani ha u dzudzanya phasiwede hafhu.',
         nr: 'Nangabe i-imeyili leyo ibhalisiwe, kuthunyelwe isixhumanisi sokubuyisela iphasiwedi.',
     },
+    'No account was found for that email address.': {
+        af: 'Geen rekening is vir daardie e-posadres gevind nie.',
+        zu: 'Ayikho i-akhawunti etholakele ngalelo kheli le-imeyili.',
+        xh: 'Akukho akhawunti ifunyenweyo ngelo dilesi ye-imeyile.',
+        nso: 'Ga go akhaonte ye e hweditÅ¡wego ka aterese yeo ya imeile.',
+        st: 'Ha ho akhaonto e fumanoeng bakeng sa aterese eo ya imeile.',
+        tn: 'Ga go na akhaonto e e bonweng ka aterese eo ya imeile.',
+        ts: 'A ku na akhawunti leyi kumekeke eka adirese yoleyo ya imeyili.',
+        ss: 'Kute i-akhawunti letfolakele ngalelo kheli le-imeyili.',
+        ve: 'A hu na akhaunthu yo wanalaho kha address yeneyo ya imeili.',
+        nr: 'Akuna akhawunti etholakeleko ngalelo kheli le-imeyili.',
+    },
     'Password is required.': {
         af: 'Wagwoord is nodig.',
         zu: 'Iphasiwedi iyadingeka.',
