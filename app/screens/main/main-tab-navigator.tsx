@@ -1,14 +1,16 @@
 import React, { type ComponentType } from 'react';
-import { Platform } from 'react-native';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { Image, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { createBottomTabNavigator, type BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Text } from 'react-native-paper';
 import type { MainTabParamList, RootStackParamList } from '../../../components/dto/navigation';
 import { I18N_KEYS as K } from '../../../i18n/keys';
 import type { useMainScreenController } from './main-controller';
 import type { SharedTabProps } from '../tree-tabs/shared';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
+const APP_LOGO = require('../../../assets/logo-transparent.png');
 type TabContentComponent = ComponentType<SharedTabProps>;
 type PersonProfileComponent = ComponentType<{
   navigation: ReturnType<typeof useMainScreenController>['memberProfileNavigation'];
@@ -26,6 +28,154 @@ const TAB_ICONS: Record<keyof MainTabParamList, string> = {
   treeSettings: 'cog-outline',
   myProfile: 'account-circle-outline',
 };
+
+const TAB_LABELS: Record<keyof MainTabParamList, string> = {
+  home: K.navigation.home,
+  tree: K.navigation.tree,
+  members: K.navigation.members,
+  treeSettings: K.navigation.settings,
+  myProfile: K.navigation.profile,
+};
+
+function WebMainTabBar({
+  state,
+  descriptors,
+  navigation,
+  controller,
+}: BottomTabBarProps & {
+  controller: ReturnType<typeof useMainScreenController>;
+}) {
+  return (
+    <View
+      style={[
+        webTabBarStyles.shell,
+        {
+          backgroundColor: controller.theme.colors.surface,
+          borderBottomColor: controller.theme.colors.outlineVariant,
+        },
+      ]}
+    >
+      <View style={webTabBarStyles.brandBlock}>
+        <Image source={APP_LOGO} style={webTabBarStyles.logo} resizeMode="contain" />
+        <View>
+          <Text variant="titleMedium" style={{ color: controller.theme.colors.onSurface }}>
+            Lineage Tree
+          </Text>
+          <Text variant="bodySmall" style={{ color: controller.theme.colors.onSurfaceVariant }}>
+            {controller.selectedTree?.name ?? controller.t(K.navigation.home)}
+          </Text>
+        </View>
+      </View>
+
+      <View style={webTabBarStyles.menuRow}>
+        {state.routes.map((route, index) => {
+          const isFocused = state.index === index;
+          const descriptor = descriptors[route.key];
+          const routeName = route.name as keyof MainTabParamList;
+          const label = controller.t(TAB_LABELS[routeName]);
+          const icon = TAB_ICONS[routeName];
+          const badgeCount = routeName === 'home' ? controller.notificationBadgeCount : 0;
+
+          const onPress = () => {
+            const event = navigation.emit({
+              type: 'tabPress',
+              target: route.key,
+              canPreventDefault: true,
+            });
+
+            if (!isFocused && !event.defaultPrevented) {
+              navigation.navigate(route.name, route.params);
+            }
+          };
+
+          return (
+            <Pressable
+              key={route.key}
+              onPress={onPress}
+              accessibilityRole="button"
+              accessibilityState={isFocused ? { selected: true } : {}}
+              accessibilityLabel={descriptor.options.tabBarAccessibilityLabel}
+              style={[
+                webTabBarStyles.menuChip,
+                {
+                  backgroundColor: isFocused ? controller.theme.colors.secondaryContainer : controller.theme.colors.surface,
+                },
+              ]}
+            >
+              <MaterialCommunityIcons
+                name={icon as never}
+                size={18}
+                color={isFocused ? controller.theme.colors.primary : controller.theme.colors.onSurfaceVariant}
+              />
+              <Text
+                variant="labelLarge"
+                style={{
+                  color: isFocused ? controller.theme.colors.primary : controller.theme.colors.onSurfaceVariant,
+                }}
+              >
+                {label}
+              </Text>
+              {badgeCount > 0 ? (
+                <View style={[webTabBarStyles.badge, { backgroundColor: controller.theme.colors.primary }]}>
+                  <Text variant="labelSmall" style={{ color: controller.theme.colors.onPrimary }}>
+                    {badgeCount > 99 ? '99+' : badgeCount}
+                  </Text>
+                </View>
+              ) : null}
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+const webTabBarStyles = StyleSheet.create({
+  shell: {
+    paddingHorizontal: 20,
+    paddingTop: 18,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    gap: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+  },
+  brandBlock: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    flexShrink: 0,
+  },
+  logo: {
+    width: 52,
+    height: 52,
+  },
+  menuRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    justifyContent: 'flex-end',
+    flex: 1,
+  },
+  menuChip: {
+    minHeight: 42,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  badge: {
+    minWidth: 22,
+    height: 22,
+    paddingHorizontal: 6,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});
 
 function getHomeTabContent(): TabContentComponent {
   return require('../tree-tabs/home').HomeTabContent;
@@ -71,21 +221,23 @@ export function MainTabNavigator({
 
   return (
     <Tab.Navigator
+      tabBar={Platform.OS === 'web' ? (props) => <WebMainTabBar {...props} controller={controller} /> : undefined}
       screenOptions={({ route }) => ({
         lazy: true,
         headerShown: false,
+        tabBarPosition: Platform.OS === 'web' ? 'top' : 'bottom',
         tabBarActiveTintColor: controller.theme.colors.primary,
         tabBarInactiveTintColor: controller.theme.colors.onSurfaceVariant,
         tabBarActiveBackgroundColor: controller.theme.colors.elevation.level2,
         tabBarShowIcon: true,
-        tabBarShowLabel: false,
+        tabBarShowLabel: Platform.OS !== 'web',
         tabBarStyle: [
           styles.tabBar,
           {
             backgroundColor: controller.theme.colors.surface,
             borderTopColor: controller.theme.colors.outlineVariant,
             paddingBottom: bottomInset,
-            height: styles.tabBar.height + bottomInset,
+            height: Platform.OS === 'web' ? undefined : styles.tabBar.height + bottomInset,
           },
         ],
         tabBarItemStyle: styles.tabItem,

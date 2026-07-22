@@ -19,4 +19,4 @@ export { default as StartupModal } from './startup-modal';
 export { MaidenTreeSuggestionDialog } from './maiden-tree-suggestion-dialog';
 export { default as TreeFormDialog } from './tree-form-dialog';
 export { BUTTON_CHROME, BUTTON_CONTENT_CHROME, getThemeChrome, GlobalStyles } from '../constants/styles';
-export { PanelSurface, ScreenBackground, SectionCard, TabStripCard } from './ui';
+export { PanelSurface, ScreenBackground, SectionCard, TabStripCard, type ScreenBackgroundVariant } from './ui';

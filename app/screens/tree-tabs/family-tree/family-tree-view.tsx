@@ -24,7 +24,7 @@ export function FamilyTreeView({
 
   return (
     <View style={[styles.visualisationTabContainer, { backgroundColor: theme.colors.background }]}>
-      <ScreenBackground />
+      <ScreenBackground variant="soft-circles" />
       {people.length > 0 ? (
         <FamilyTreeCanvas
           people={people}
