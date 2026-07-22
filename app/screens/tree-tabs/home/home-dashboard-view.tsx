@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ScrollView, StyleSheet, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
-import { ActivityIndicator, Button, Chip, Dialog, IconButton, Portal, Text, useTheme } from 'react-native-paper';
+import { ActivityIndicator, Button, Chip, Dialog, Icon, IconButton, Portal, Text, useTheme } from 'react-native-paper';
 import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, FloatingSnackbar, GlobalStyles, HorizontalTabStrip, InfoDialog, Reveal, ScreenBackground, SectionCard, SuggestionList, TabStripCard, type SuggestionActionTarget } from '../../../../components';
 import type { MainTabParamList } from '../../../../components/dto/navigation';
 import { getThemeChrome } from '../../../../constants/styles';
@@ -92,10 +92,23 @@ type TreeProgressChecklistItem = {
 
 const localStyles = StyleSheet.create({
   strengthCard: {
-    marginTop: 4,
-    borderRadius: 24,
-    padding: 18,
+    marginTop: 6,
+    borderRadius: 28,
+    padding: 20,
     borderWidth: StyleSheet.hairlineWidth,
+  },
+  strengthEyebrow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  strengthIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   strengthTopRow: {
     flexDirection: 'row',
@@ -109,8 +122,11 @@ const localStyles = StyleSheet.create({
     minWidth: 220,
   },
   strengthMetricWrap: {
-    minWidth: 74,
+    minWidth: 84,
     alignItems: 'flex-end',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 18,
   },
   strengthProgressTrack: {
     height: 10,
@@ -138,7 +154,7 @@ const localStyles = StyleSheet.create({
     minWidth: 110,
     flexGrow: 1,
     flexBasis: 110,
-    borderRadius: 18,
+    borderRadius: 22,
     paddingHorizontal: 14,
     paddingVertical: 12,
     borderWidth: StyleSheet.hairlineWidth,
@@ -146,7 +162,7 @@ const localStyles = StyleSheet.create({
   },
   strengthSummaryCard: {
     marginTop: 14,
-    borderRadius: 18,
+    borderRadius: 22,
     padding: 14,
     borderWidth: StyleSheet.hairlineWidth,
   },
@@ -164,7 +180,7 @@ const localStyles = StyleSheet.create({
   },
   actionPanel: {
     marginTop: 14,
-    borderRadius: 18,
+    borderRadius: 22,
     padding: 14,
     borderWidth: StyleSheet.hairlineWidth,
   },
@@ -1245,12 +1261,20 @@ export function HomeDashboardView(props: SharedTabProps) {
                 localStyles.strengthCard,
                 {
                   backgroundColor: theme.colors.primaryContainer,
-                  borderColor: theme.colors.primary,
+                  borderColor: theme.colors.outlineVariant,
                 },
               ]}
             >
               <View style={localStyles.strengthTopRow}>
                 <View style={localStyles.strengthCopy}>
+                  <View style={localStyles.strengthEyebrow}>
+                    <View style={[localStyles.strengthIcon, { backgroundColor: theme.colors.primary }]}>
+                      <Icon source="source-branch" size={18} color={theme.colors.onPrimary} />
+                    </View>
+                    <Text variant="labelLarge" style={{ color: spotlightSubtextColor }}>
+                      {t(K.home.progressLabel)}
+                    </Text>
+                  </View>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                     <Text variant="titleLarge">{t(K.home.completeYourTree)}</Text>
                     <IconButton
@@ -1266,7 +1290,7 @@ export function HomeDashboardView(props: SharedTabProps) {
                   </Text>
                 </View>
 
-                <View style={localStyles.strengthMetricWrap}>
+                <View style={[localStyles.strengthMetricWrap, { backgroundColor: chrome.primaryCardBackground }]}>
                   <Text variant="headlineMedium" style={{ color: spotlightTextColor }}>
                     {treeStrengthChecks.percent}%
                   </Text>
@@ -1276,7 +1300,7 @@ export function HomeDashboardView(props: SharedTabProps) {
                 </View>
               </View>
 
-              <View style={[localStyles.strengthProgressTrack, { backgroundColor: theme.dark ? theme.colors.elevation.level2 : '#D5E6DC' }]}>
+              <View style={[localStyles.strengthProgressTrack, { backgroundColor: theme.colors.outlineVariant }]}>
                 <View
                   style={[
                     localStyles.strengthProgressFill,
@@ -1318,7 +1342,7 @@ export function HomeDashboardView(props: SharedTabProps) {
                       localStyles.strengthStatCard,
                       {
                         backgroundColor: chrome.primaryCardBackground,
-                        borderColor: theme.colors.primary,
+                        borderColor: theme.colors.outlineVariant,
                       },
                     ]}
                   >
@@ -1335,7 +1359,7 @@ export function HomeDashboardView(props: SharedTabProps) {
                   localStyles.strengthSummaryCard,
                   {
                     backgroundColor: chrome.primaryCardBackground,
-                    borderColor: theme.colors.primary,
+                    borderColor: theme.colors.outlineVariant,
                   },
                 ]}
               >
@@ -1390,7 +1414,7 @@ export function HomeDashboardView(props: SharedTabProps) {
                   localStyles.actionPanel,
                   {
                     backgroundColor: chrome.primaryCardBackground,
-                    borderColor: theme.colors.primary,
+                    borderColor: theme.colors.outlineVariant,
                   },
                 ]}
               >

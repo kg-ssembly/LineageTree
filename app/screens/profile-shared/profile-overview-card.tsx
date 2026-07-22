@@ -57,9 +57,15 @@ const styles = StyleSheet.create({
   },
   spotlightCard: {
     marginTop: 16,
-    borderRadius: 22,
-    padding: 14,
+    borderRadius: 28,
+    padding: 20,
     borderWidth: StyleSheet.hairlineWidth,
+  },
+  spotlightEyebrow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
   },
   spotlightTopRow: {
     flexDirection: 'row',
@@ -75,8 +81,11 @@ const styles = StyleSheet.create({
   },
   spotlightMetricWrap: {
     alignItems: 'flex-end',
-    minWidth: 74,
+    minWidth: 84,
     flexShrink: 0,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 18,
   },
   spotlightMetricLabel: {
     marginTop: 2,
@@ -406,15 +415,20 @@ export function ProfileOverviewCard({
             styles.spotlightCard,
             {
               backgroundColor: theme.colors.primaryContainer,
-              borderColor: theme.colors.primary,
+              borderColor: theme.colors.outlineVariant,
             },
           ]}
         >
           <View style={styles.spotlightTopRow}>
             <View style={styles.spotlightCopy}>
-              <Text variant="labelLarge" style={{ color: spotlightSubtextColor }}>
-                {t(K.common.summary)}
-              </Text>
+              <View style={styles.spotlightEyebrow}>
+                <View style={[styles.sectionBadge, { backgroundColor: theme.colors.primary }]}>
+                  <MaterialCommunityIcons name="source-branch" size={18} color={theme.colors.onPrimary} />
+                </View>
+                <Text variant="labelLarge" style={{ color: spotlightSubtextColor }}>
+                  {t(K.common.summary)}
+                </Text>
+              </View>
               <Text variant="headlineSmall" style={{ color: spotlightTextColor }}>
                 {t(K.personProfile.profileStrength)}
               </Text>
@@ -422,14 +436,14 @@ export function ProfileOverviewCard({
                 {t(K.personProfile.essentialsRecorded, { filled: completedCount, total: checks.length })}
               </Text>
             </View>
-            <View style={styles.spotlightMetricWrap}>
+            <View style={[styles.spotlightMetricWrap, { backgroundColor: chrome.primaryCardBackground }]}>
               <Text variant="headlineMedium" style={{ color: spotlightTextColor }}>{Math.round(completionProgress * 100)}%</Text>
               <Text variant="labelMedium" style={[styles.spotlightMetricLabel, { color: spotlightSubtextColor }]}>
                 {t(K.common.done)}
               </Text>
             </View>
           </View>
-          <View style={[styles.progressTrack, { backgroundColor: theme.dark ? theme.colors.elevation.level2 : '#D5E6DC' }]}>
+          <View style={[styles.progressTrack, { backgroundColor: theme.colors.outlineVariant }]}>
             <View
               style={[
                 styles.progressFill,
@@ -456,7 +470,7 @@ export function ProfileOverviewCard({
             {spotlightStats.map((item) => (
               <View
                 key={item.key}
-                style={[styles.spotlightStatCard, { backgroundColor: chrome.primaryCardBackground, borderColor: theme.colors.primary }]}
+                style={[styles.spotlightStatCard, { backgroundColor: chrome.primaryCardBackground, borderColor: theme.colors.outlineVariant }]}
               >
                 <View style={styles.spotlightStatLabelRow}>
                   <MaterialCommunityIcons name={item.icon as never} size={16} color={theme.colors.primary} />
@@ -473,7 +487,7 @@ export function ProfileOverviewCard({
               styles.spotlightConnectionSummary,
               {
                 backgroundColor: chrome.primaryCardBackground,
-                borderColor: theme.colors.primary,
+                borderColor: theme.colors.outlineVariant,
               },
             ]}
           >
@@ -485,7 +499,7 @@ export function ProfileOverviewCard({
             </Text>
           </View>
 
-          <View style={[styles.actionPanel, { backgroundColor: chrome.primaryCardBackground, borderColor: theme.colors.primary }]}>
+          <View style={[styles.actionPanel, { backgroundColor: chrome.primaryCardBackground, borderColor: theme.colors.outlineVariant }]}>
             <View style={styles.actionHeaderRow}>
               <Pressable
                 onPress={() => setNextStepsCollapsed((current) => !current)}
