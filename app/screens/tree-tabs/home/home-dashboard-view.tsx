@@ -564,7 +564,6 @@ export function HomeDashboardView(props: SharedTabProps) {
   }, [approvalRequests, mergeHistory, mergeRequests, notificationActivityStates, notifications, trees, userId]);
   const [deeperExpanded, setDeeperExpanded] = useState(false);
   const [overviewActionsExpanded, setOverviewActionsExpanded] = useState(false);
-  const [activityModalVisible, setActivityModalVisible] = useState(false);
   const [buildInfoVisible, setBuildInfoVisible] = useState(false);
   const [heroInfoVisible, setHeroInfoVisible] = useState(false);
   const [progressIncludesExpanded, setProgressIncludesExpanded] = useState(false);
@@ -815,7 +814,6 @@ export function HomeDashboardView(props: SharedTabProps) {
 
   const openFamilyActivity = useCallback(() => {
     setDashboardTab('activity');
-    setActivityModalVisible(true);
   }, []);
 
   const openApprovals = useCallback(() => {
@@ -1239,7 +1237,7 @@ export function HomeDashboardView(props: SharedTabProps) {
           </TabStripCard>
         </Reveal>
 
-      {dashboardTab !== 'highlights' && !isEmptyTree ? (
+      {dashboardTab === 'overview' && !isEmptyTree ? (
         <Reveal delay={70}>
           <SectionCard>
             <View
@@ -1264,9 +1262,7 @@ export function HomeDashboardView(props: SharedTabProps) {
                     />
                   </View>
                   <Text variant="bodyMedium" style={{ color: spotlightSubtextColor, marginTop: 6 }}>
-                    {dashboardTab === 'activity'
-                      ? t(K.home.reviewWhatChangedWhatIsWaitingAndWhereSharedWorkNeedsADecision)
-                      : t(K.home.hereIsTheBestNextStepToMakeYourProfileFeelFullerAndYourBranchMoreConnected)}
+                    {t(K.home.hereIsTheBestNextStepToMakeYourProfileFeelFullerAndYourBranchMoreConnected)}
                   </Text>
                 </View>
 
@@ -1650,48 +1646,16 @@ export function HomeDashboardView(props: SharedTabProps) {
             </Reveal>
           ) : null}
 
-          {needsAttentionCount > 0 ? (
-            <Reveal delay={120}>
-              <SectionCard>
-                <Text variant="titleLarge">{t(K.notifications.needsAttention)}</Text>
-                <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-                  {t(K.home.sharedActivityThatCouldUseALookBeforeItSlipsOutOfView)}
-                </Text>
-                <View style={[styles.dashboardActionRow, { marginTop: 14 }]}>
-                  {pendingApprovals > 0 ? (
-                    <Chip
-                      icon="clipboard-check-outline"
-                      onPress={openApprovals}
-                      style={{ backgroundColor: approvalsTone.backgroundColor, borderColor: approvalsTone.borderColor, borderWidth: 1 }}
-                      textStyle={{ color: approvalsTone.textColor }}
-                    >
-                      {t(K.home.approvalsWaitingCount, { count: pendingApprovals })}
-                    </Chip>
-                  ) : null}
-                  {pendingInvites > 0 ? (
-                    <Chip
-                      icon="source-merge"
-                      onPress={openMergeInvites}
-                      style={{ backgroundColor: invitesTone.backgroundColor, borderColor: invitesTone.borderColor, borderWidth: 1 }}
-                      textStyle={{ color: invitesTone.textColor }}
-                    >
-                      {t(K.home.mergeInvitesWaitingCount, { count: pendingInvites })}
-                    </Chip>
-                  ) : null}
-                  {activeMergeReviews > 0 ? (
-                    <Chip
-                      icon="timeline-clock-outline"
-                      onPress={openMergeReviews}
-                      style={{ backgroundColor: mergeTone.backgroundColor, borderColor: mergeTone.borderColor, borderWidth: 1 }}
-                      textStyle={{ color: mergeTone.textColor }}
-                    >
-                      {t(K.home.mergeReviewsWaitingCount, { count: activeMergeReviews })}
-                    </Chip>
-                  ) : null}
-                </View>
-              </SectionCard>
-            </Reveal>
-          ) : null}
+          <Reveal delay={115}>
+            <NotificationsView
+              {...props}
+              embedded
+              scrollable={false}
+              navigation={{
+                navigate: (name) => navigation.navigate(name),
+              }}
+            />
+          </Reveal>
 
         </>
       ) : null}
@@ -1736,35 +1700,6 @@ export function HomeDashboardView(props: SharedTabProps) {
         )}
         onDismiss={() => setHeroInfoVisible(false)}
       />
-      <Portal>
-        <Dialog
-          visible={activityModalVisible}
-          onDismiss={() => setActivityModalVisible(false)}
-          style={[dialogChrome.dialog, { backgroundColor: theme.colors.surface, maxHeight: '88%' }]}
-        >
-          <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>{t(K.home.activity)}</Dialog.Title>
-          <IconButton
-            icon="close"
-            size={20}
-            onPress={() => setActivityModalVisible(false)}
-            style={dialogChrome.closeButton}
-            accessibilityLabel={t(K.common.close)}
-          />
-          <Dialog.ScrollArea style={dialogChrome.scrollArea}>
-            {activityModalVisible ? (
-              <ScrollView contentContainerStyle={{ paddingBottom: 8 }}>
-                <NotificationsView
-                  {...props}
-                  embedded
-                  navigation={{
-                    navigate: (name) => navigation.navigate(name),
-                  }}
-                />
-              </ScrollView>
-            ) : null}
-          </Dialog.ScrollArea>
-        </Dialog>
-      </Portal>
       <InfoDialog
         visible={buildInfoVisible}
         title={isSetupMode ? t(K.home.aboutSetupWizard) : t(K.home.aboutBuildYourFamily)}

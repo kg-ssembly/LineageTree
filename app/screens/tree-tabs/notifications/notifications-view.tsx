@@ -110,13 +110,15 @@ export function NotificationsView({
   onMarkNotificationActivityActioned,
   onOpenTreeSettingsTarget,
   embedded = false,
+  scrollable = !embedded,
   navigation,
-}: SharedTabProps & { embedded?: boolean; navigation: { navigate: (name: keyof MainTabParamList) => void } }) {
+}: SharedTabProps & { embedded?: boolean; scrollable?: boolean; navigation: { navigate: (name: keyof MainTabParamList) => void } }) {
   const theme = useTheme();
   const { t } = useI18n();
   const [selectedNotification, setSelectedNotification] = useState<NotificationFeedItem | null>(null);
   const [helperVisible, setHelperVisible] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [embeddedFilter, setEmbeddedFilter] = useState<'attention' | 'done'>('attention');
 
   const activityStateByKey = useMemo(
     () => new Map(notificationActivityStates.map((state) => [`${state.sourceKind}:${state.sourceId}`, state])),
@@ -277,6 +279,19 @@ export function NotificationsView({
     return notificationFeed.slice(startIndex, startIndex + ACTIVITY_PAGE_SIZE);
   }, [currentPage, notificationFeed]);
 
+  useEffect(() => {
+    if (!embedded) {
+      return;
+    }
+
+    if (feedMetrics.attentionItems.length > 0) {
+      setEmbeddedFilter('attention');
+      return;
+    }
+
+    setEmbeddedFilter('done');
+  }, [embedded, feedMetrics.attentionItems.length]);
+
   const handleMarkAllSeen = async () => {
     for (const notificationId of feedMetrics.unseenDirectIds) {
       await onMarkNotificationSeen(notificationId);
@@ -430,6 +445,49 @@ export function NotificationsView({
         {embedded ? (
           notificationFeed.length > 0 ? (
             <View style={{ gap: 12, paddingBottom: 8 }}>
+              <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                <Chip
+                  compact
+                  selected={embeddedFilter === 'attention'}
+                  onPress={() => setEmbeddedFilter('attention')}
+                  style={embeddedFilter === 'attention' ? { backgroundColor: theme.colors.secondaryContainer } : undefined}
+                  textStyle={embeddedFilter === 'attention' ? { color: theme.colors.onSecondaryContainer } : undefined}
+                >
+                  {t(K.notifications.needsAttention)} ({feedMetrics.attentionItems.length})
+                </Chip>
+                <Chip
+                  compact
+                  selected={embeddedFilter === 'done'}
+                  onPress={() => setEmbeddedFilter('done')}
+                  style={embeddedFilter === 'done' ? { backgroundColor: theme.colors.tertiaryContainer } : undefined}
+                  textStyle={embeddedFilter === 'done' ? { color: theme.colors.onTertiaryContainer } : undefined}
+                >
+                  {t(K.common.done)} ({feedMetrics.completedItems.length})
+                </Chip>
+              </View>
+              {(embeddedFilter === 'attention' ? feedMetrics.embeddedAttentionItems : feedMetrics.embeddedCompletedItems).length > 0 ? (
+                <View style={{ gap: 8 }}>
+                  {(embeddedFilter === 'attention' ? feedMetrics.embeddedAttentionItems : feedMetrics.embeddedCompletedItems).map(renderCompactRow)}
+                  {embeddedFilter === 'attention' && feedMetrics.attentionItems.length > feedMetrics.embeddedAttentionItems.length ? (
+                    <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                      {t('Showing the latest {count} items first.', { count: feedMetrics.embeddedAttentionItems.length })}
+                    </Text>
+                  ) : null}
+                  {embeddedFilter === 'done' && feedMetrics.completedItems.length > feedMetrics.embeddedCompletedItems.length ? (
+                    <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                      {t('Showing the latest {count} items first.', { count: feedMetrics.embeddedCompletedItems.length })}
+                    </Text>
+                  ) : null}
+                </View>
+              ) : (
+                <View style={{ borderWidth: 1, borderColor: theme.colors.outlineVariant, borderRadius: 14, padding: 14 }}>
+                  <Text variant="bodyMedium">
+                    {embeddedFilter === 'attention' ? t(K.notifications.everythingCaughtUp) : t('No completed notifications yet.')}
+                  </Text>
+                </View>
+              )}
+              {false ? (
+                <>
               <View
                 style={{
                   borderWidth: 1,
@@ -486,6 +544,8 @@ export function NotificationsView({
                     </Text>
                   ) : null}
                 </View>
+              ) : null}
+                </>
               ) : null}
             </View>
           ) : (
@@ -709,7 +769,7 @@ export function NotificationsView({
     </>
   );
 
-  if (embedded) {
+  if (!scrollable) {
     return content;
   }
 
