@@ -88,6 +88,7 @@ export type PriorityAlertState = {
   createdAt: string;
   status?: string;
   notificationId?: string;
+  sourceTreeId?: string;
   sourceKind?: 'merge-request' | 'merge-history';
   sourceId?: string;
   requestId?: string;
@@ -1363,6 +1364,7 @@ export function useMainScreenController({ navigation }: Props) {
           createdAt: notification.createdAt,
           status: notification.status,
           notificationId: notification.id,
+          sourceTreeId: notification.sourceTreeId,
           seen: Boolean(notification.seenAt),
           opened: Boolean(notification.openedAt),
         }];
@@ -1377,6 +1379,7 @@ export function useMainScreenController({ navigation }: Props) {
           createdAt: notification.createdAt,
           status: notification.status,
           notificationId: notification.id,
+          sourceTreeId: notification.sourceTreeId,
           seen: Boolean(notification.seenAt),
           opened: Boolean(notification.openedAt),
         }];
@@ -1633,6 +1636,14 @@ export function useMainScreenController({ navigation }: Props) {
       await onMarkNotificationOpened(priorityAlert.notificationId);
     }
 
+    if (priorityAlert.kind === 'tree-access-response' && priorityAlert.status === 'accepted' && priorityAlert.sourceTreeId) {
+      const grantedTree = trees.find((tree) => tree.id === priorityAlert.sourceTreeId);
+      if (grantedTree) {
+        selectTree(grantedTree.id);
+        navigation.navigate('Main', { screen: 'tree' });
+      }
+    }
+
     if ((priorityAlert.kind === 'merge-request' || priorityAlert.kind === 'merge-history') && priorityAlert.requestId && priorityAlert.sourceKind && priorityAlert.sourceId) {
       await onMarkNotificationActivityActioned(priorityAlert.sourceKind, priorityAlert.sourceId);
       onOpenTreeSettingsTarget({
@@ -1644,7 +1655,7 @@ export function useMainScreenController({ navigation }: Props) {
     }
 
     setPriorityAlert(null);
-  }, [navigation, onMarkNotificationActivityActioned, onMarkNotificationOpened, onOpenTreeSettingsTarget, priorityAlert]);
+  }, [navigation, onMarkNotificationActivityActioned, onMarkNotificationOpened, onOpenTreeSettingsTarget, priorityAlert, selectTree, trees]);
 
   const respondToPriorityMergeInvite = useCallback(async (status: 'accepted' | 'dismissed') => {
     if (!priorityAlert?.notificationId || priorityAlert.kind !== 'merge-invite') {
@@ -1652,9 +1663,17 @@ export function useMainScreenController({ navigation }: Props) {
     }
 
     dismissedPriorityAlertIdsRef.current.add(priorityAlert.id);
+    if (status === 'accepted' && priorityAlert.sourceTreeId && selectedTree?.id) {
+      await onLoadTreeMergePreview(priorityAlert.sourceTreeId, selectedTree.id);
+      await onRespondToMergeInvite(priorityAlert.notificationId, status);
+      navigation.navigate('Main', { screen: 'treeSettings' });
+      setPriorityAlert(null);
+      return;
+    }
+
     await onRespondToMergeInvite(priorityAlert.notificationId, status);
     setPriorityAlert(null);
-  }, [onRespondToMergeInvite, priorityAlert]);
+  }, [navigation, onLoadTreeMergePreview, onRespondToMergeInvite, priorityAlert, selectedTree?.id]);
 
   const respondToPriorityTreeAccess = useCallback(async (status: 'accepted' | 'rejected') => {
     if (!priorityAlert?.notificationId || priorityAlert.kind !== 'tree-access-request') {

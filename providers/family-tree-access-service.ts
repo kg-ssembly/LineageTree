@@ -50,11 +50,11 @@ async function resolveDirectAccessTreeForUser(targetUser: ResolvedUserAccount) {
     throw new Error('That user does not have a tree available for direct access requests.');
   }
 
-  const defaultOwnedTree = targetUser.defaultTreeId
-    ? ownedTrees.find((tree) => tree.id === targetUser.defaultTreeId)
-    : null;
+  if (ownedTrees.length > 1) {
+    throw new Error('That user has more than one family tree. Ask them for the exact tree ID instead.');
+  }
 
-  return defaultOwnedTree ?? ownedTrees.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))[0];
+  return ownedTrees[0];
 }
 
 async function ensureNoPendingTreeAccessRequest(actorUserId: string, treeId: string) {
@@ -69,6 +69,26 @@ async function ensureNoPendingTreeAccessRequest(actorUserId: string, treeId: str
 
   if (!existingPendingRequestSnapshot.empty) {
     throw new Error('You already have a pending access request for this tree.');
+  }
+}
+
+async function ensureNoPendingMergeInvite(
+  actorUserId: string,
+  sourceTreeId: string,
+  targetUserId: string,
+) {
+  const existingPendingInviteSnapshot = await getDocs(query(
+    collection(db, NOTIFICATIONS_COLLECTION),
+    where('userId', '==', targetUserId),
+    where('type', '==', 'merge-invite'),
+    where('requestedByUserId', '==', actorUserId),
+    where('sourceTreeId', '==', sourceTreeId),
+    where('status', '==', 'pending'),
+    limit(1),
+  ));
+
+  if (!existingPendingInviteSnapshot.empty) {
+    throw new Error('A pending merge invitation already exists for this tree and user.');
   }
 }
 
@@ -208,6 +228,10 @@ export async function requestAccessFromIdentifier(
 
   try {
     const targetTree = await getTreeById(trimmedIdentifier);
+    if (targetTree.discoverable !== true) {
+      throw new Error('That tree is not accepting public access requests right now.');
+    }
+
     if (targetTree.memberIds.includes(actorUserId)) {
       throw new Error('You already have access to that tree.');
     }
@@ -497,6 +521,8 @@ export async function sendMergeInviteByIdentifier(
   if (targetUser.id === actorUserId) {
     throw new Error('You already have access to this account. Use tree IDs to merge your own trees directly.');
   }
+
+  await ensureNoPendingMergeInvite(actorUserId, sourceTree.id, targetUser.id);
 
   const notificationRef = doc(collection(db, NOTIFICATIONS_COLLECTION));
   const timestamp = nowIso();

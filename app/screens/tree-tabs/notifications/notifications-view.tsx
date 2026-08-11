@@ -34,6 +34,7 @@ type NotificationFeedItem = {
   createdAt: string;
   status?: string;
   treeName?: string;
+  sourceTreeId?: string;
   notificationId?: string;
   sourceKind?: NotificationActivityState['sourceKind'];
   sourceId?: string;
@@ -113,7 +114,9 @@ export function NotificationsView({
   onDeleteNotification,
   onDeleteNotificationActivity,
   onDeleteAllNotifications,
+  onLoadMergePreview,
   onOpenTreeSettingsTarget,
+  onSwitchTree,
   embedded = false,
   scrollable = !embedded,
   navigation,
@@ -148,6 +151,7 @@ export function NotificationsView({
       createdAt: notification.createdAt,
       status: notification.status,
       treeName: notification.sourceTreeName,
+      sourceTreeId: notification.sourceTreeId,
       notificationId: notification.id,
       seen: Boolean(notification.seenAt),
       opened: Boolean(notification.openedAt),
@@ -379,11 +383,45 @@ export function NotificationsView({
     }
   };
 
+  const canOpenApprovedTree = (item: NotificationFeedItem) => (
+    item.kind === 'tree-access-response'
+    && item.status === 'accepted'
+    && Boolean(item.sourceTreeId)
+    && Boolean(trees?.some((tree) => tree.id === item.sourceTreeId))
+    && Boolean(onSwitchTree)
+  );
+
+  const handleOpenApprovedTree = async (item: NotificationFeedItem) => {
+    if (!canOpenApprovedTree(item) || !item.sourceTreeId || !onSwitchTree) {
+      return;
+    }
+
+    const grantedTree = trees?.find((tree) => tree.id === item.sourceTreeId);
+    if (!grantedTree) {
+      return;
+    }
+
+    await onSwitchTree(grantedTree);
+    navigation.navigate('tree' satisfies keyof MainTabParamList);
+    setSelectedNotification(null);
+  };
+
+  const handleAcceptMergeInvite = async (item: NotificationFeedItem) => {
+    if (!item.notificationId || !item.sourceTreeId) {
+      return;
+    }
+
+    await onLoadMergePreview(item.sourceTreeId, selectedTree.id);
+    await onRespondToMergeInvite(item.notificationId, 'accepted');
+    navigation.navigate('treeSettings' satisfies keyof MainTabParamList);
+    setSelectedNotification(null);
+  };
+
   const renderCompactRow = (item: NotificationFeedItem) => {
     const categoryLabel = getItemCategoryLabel(item, t);
     const complete = isItemComplete(item);
     const primaryActionLabel = item.kind === 'approval' ? t('Review') : t(K.common.open);
-    const canOpenTarget = item.kind === 'approval' || item.kind === 'merge-request' || item.kind === 'merge-history';
+    const canOpenTarget = item.kind === 'approval' || item.kind === 'merge-request' || item.kind === 'merge-history' || canOpenApprovedTree(item);
 
     return (
       <Pressable
@@ -431,7 +469,7 @@ export function NotificationsView({
               </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
                   {!complete && canOpenTarget ? (
-                    <Button compact mode="text" onPress={() => { void handleOpenTarget(item); }} disabled={mutating}>
+                    <Button compact mode="text" onPress={() => { void (canOpenApprovedTree(item) ? handleOpenApprovedTree(item) : handleOpenTarget(item)); }} disabled={mutating}>
                       {primaryActionLabel}
                     </Button>
                   ) : null}
@@ -660,8 +698,8 @@ export function NotificationsView({
                         {t(K.common.done)}
                       </Button>
                     ) : null}
-                    {(item.kind === 'approval' || item.kind === 'merge-request' || item.kind === 'merge-history') ? (
-                      <Button compact mode="contained" onPress={() => { void handleOpenTarget(item); }} disabled={mutating} style={BUTTON_CHROME} buttonColor={theme.colors.primary} textColor={theme.colors.onPrimary} contentStyle={BUTTON_CONTENT_CHROME}>
+                    {(item.kind === 'approval' || item.kind === 'merge-request' || item.kind === 'merge-history' || canOpenApprovedTree(item)) ? (
+                      <Button compact mode="contained" onPress={() => { void (canOpenApprovedTree(item) ? handleOpenApprovedTree(item) : handleOpenTarget(item)); }} disabled={mutating} style={BUTTON_CHROME} buttonColor={theme.colors.primary} textColor={theme.colors.onPrimary} contentStyle={BUTTON_CONTENT_CHROME}>
                         {item.kind === 'approval' ? t('Review') : t(K.common.open)}
                       </Button>
                     ) : null}
@@ -770,7 +808,7 @@ export function NotificationsView({
               </Button>
             ) : null}
             {selectedNotification?.kind === 'merge-invite' && selectedNotification.notificationId && selectedNotification.status === 'pending' ? (
-              <Button mode="contained" onPress={() => onRespondToMergeInvite(selectedNotification.notificationId!, 'accepted')} disabled={mutating} style={BUTTON_CHROME} buttonColor={theme.colors.primary} textColor={theme.colors.onPrimary} contentStyle={BUTTON_CONTENT_CHROME}>
+              <Button mode="contained" onPress={() => { void handleAcceptMergeInvite(selectedNotification); }} disabled={mutating} style={BUTTON_CHROME} buttonColor={theme.colors.primary} textColor={theme.colors.onPrimary} contentStyle={BUTTON_CONTENT_CHROME}>
                 {t(K.notifications.accept)}
               </Button>
             ) : null}
@@ -792,6 +830,11 @@ export function NotificationsView({
             {selectedNotification && (selectedNotification.kind === 'approval' || selectedNotification.kind === 'merge-request' || selectedNotification.kind === 'merge-history') ? (
               <Button mode="contained" onPress={() => { void handleOpenTarget(selectedNotification); }} disabled={mutating} style={BUTTON_CHROME} buttonColor={theme.colors.primary} textColor={theme.colors.onPrimary} contentStyle={BUTTON_CONTENT_CHROME}>
                 {selectedNotification.kind === 'approval' ? t(K.notifications.openApproval) : t(K.notifications.openMerge)}
+              </Button>
+            ) : null}
+            {selectedNotification && canOpenApprovedTree(selectedNotification) ? (
+              <Button mode="contained" onPress={() => { void handleOpenApprovedTree(selectedNotification); }} disabled={mutating} style={BUTTON_CHROME} buttonColor={theme.colors.primary} textColor={theme.colors.onPrimary} contentStyle={BUTTON_CONTENT_CHROME}>
+                {t(K.common.open)}
               </Button>
             ) : null}
           </Dialog.Actions>

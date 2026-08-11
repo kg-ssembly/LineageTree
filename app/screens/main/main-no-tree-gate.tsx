@@ -173,6 +173,7 @@ export function MainNoTreeGate({
   const [searching, setSearching] = useState(false);
   const [resultsPage, setResultsPage] = useState(1);
   const [activeTab, setActiveTab] = useState<RequestAccessTabKey>('search');
+  const [selectedPendingRequestId, setSelectedPendingRequestId] = useState<string | null>(null);
 
   const requestAccessTabs: Array<{ key: RequestAccessTabKey; label: string }> = [
     { key: 'search', label: controller.t(K.app.requestAccessSearchTab) },
@@ -208,34 +209,49 @@ export function MainNoTreeGate({
     setUsernameQuery('');
   };
 
-  const handleCancelPendingRequest = async () => {
-    if (!controller.pendingTreeAccessRequest) {
+  const handleCancelPendingRequest = async (notificationId: string | null | undefined) => {
+    if (!notificationId) {
       return;
     }
 
-    await controller.onCancelTreeAccessRequest(controller.pendingTreeAccessRequest.id);
+    await controller.onCancelTreeAccessRequest(notificationId);
     setPendingRequestDialogVisible(false);
+    setSelectedPendingRequestId(null);
   };
 
   const totalPages = Math.max(1, Math.ceil(results.length / RESULTS_PER_PAGE));
   const pagedResults = results.slice((resultsPage - 1) * RESULTS_PER_PAGE, resultsPage * RESULTS_PER_PAGE);
   const pendingTreeAccessRequests = controller.pendingTreeAccessRequests ?? [];
   const pendingRequestTreeIds = new Set(pendingTreeAccessRequests.map((notification) => notification.sourceTreeId));
-  const pendingRequestTreeName = controller.pendingTreeAccessRequest?.sourceTreeName?.trim() || controller.t(K.common.unknown);
-  const pendingRequestIdentifier = controller.pendingTreeAccessRequest?.targetIdentifier?.trim() || '';
-  const pendingRequestMessage = controller.pendingTreeAccessRequest?.message?.trim() || '';
   const pendingIdentifierKeys = new Set(
     pendingTreeAccessRequests
       .map((notification) => notification.targetIdentifier.trim().toLowerCase())
       .filter(Boolean),
   );
-  const hasRenderablePendingRequest = Boolean(
-    controller.pendingTreeAccessRequest
-    && (
-      pendingRequestMessage
-      || controller.pendingTreeAccessRequest.sourceTreeName?.trim()
-      || pendingRequestIdentifier
-    ),
+  const renderablePendingRequests = pendingTreeAccessRequests.filter((notification) => (
+    Boolean(
+      notification.message?.trim()
+      || notification.sourceTreeName?.trim()
+      || notification.targetIdentifier?.trim(),
+    )
+  ));
+  const selectedPendingRequest = renderablePendingRequests.find((notification) => notification.id === selectedPendingRequestId)
+    ?? renderablePendingRequests[0]
+    ?? null;
+  const selectedPendingRequestTreeName = selectedPendingRequest?.sourceTreeName?.trim() || controller.t(K.common.unknown);
+  const selectedPendingRequestIdentifier = selectedPendingRequest?.targetIdentifier?.trim() || '';
+  const selectedPendingRequestMessage = selectedPendingRequest?.message?.trim() || '';
+  const hasRenderablePendingRequests = renderablePendingRequests.length > 0;
+
+  const openPendingRequest = (notificationId: string) => {
+    setSelectedPendingRequestId(notificationId);
+    setPendingRequestDialogVisible(true);
+  };
+
+  const formatPendingRequestLabel = (notification: typeof pendingTreeAccessRequests[number]) => (
+    notification.targetIdentifier?.trim()
+      ? `${notification.sourceTreeName} • ${notification.targetIdentifier.trim()}`
+      : notification.sourceTreeName
   );
 
   return (
@@ -259,40 +275,56 @@ export function MainNoTreeGate({
             <Chip compact icon="image-outline">{controller.t(K.memories.memories)}</Chip>
           </View>
 
-          {hasRenderablePendingRequest ? (
-            <View
-              style={[
-                localStyles.pendingRequestNotice,
-                {
-                  backgroundColor: controller.theme.colors.elevation.level1,
-                  borderColor: controller.theme.colors.outlineVariant,
-                  borderWidth: StyleSheet.hairlineWidth,
-                },
-              ]}
-            >
-              <View style={localStyles.pendingRequestNoticeHeader}>
-                <MaterialCommunityIcons name="clock-check-outline" size={22} color={controller.theme.colors.primary} />
-                <Text variant="titleMedium" style={{ color: controller.theme.colors.onSurface }}>
-                  {controller.t(K.app.requestedAccessPending)}
+          {hasRenderablePendingRequests ? (
+            <View style={localStyles.dialogSection}>
+              <View
+                style={[
+                  localStyles.pendingRequestNotice,
+                  {
+                    backgroundColor: controller.theme.colors.elevation.level1,
+                    borderColor: controller.theme.colors.outlineVariant,
+                    borderWidth: StyleSheet.hairlineWidth,
+                  },
+                ]}
+              >
+                <View style={localStyles.pendingRequestNoticeHeader}>
+                  <MaterialCommunityIcons name="clock-check-outline" size={22} color={controller.theme.colors.primary} />
+                  <Text variant="titleMedium" style={{ color: controller.theme.colors.onSurface }}>
+                    {controller.t(K.app.requestedAccessPending)}
+                  </Text>
+                </View>
+                <Text
+                  variant="bodyMedium"
+                  style={[localStyles.pendingRequestNoticeText, { color: controller.theme.colors.onSurfaceVariant }]}
+                >
+                  {controller.t(K.app.requestedAccessPendingMessage, { treeName: selectedPendingRequestTreeName })}
                 </Text>
               </View>
-              <Text
-                variant="bodyMedium"
-                style={[localStyles.pendingRequestNoticeText, { color: controller.theme.colors.onSurfaceVariant }]}
-              >
-                {controller.t(K.app.requestedAccessPendingMessage, { treeName: pendingRequestTreeName })}
-              </Text>
-              <Text variant="labelMedium" style={[localStyles.pendingRequestMeta, { color: controller.theme.colors.onSurface }]}>
-                {pendingRequestIdentifier ? `${pendingRequestTreeName} • ${pendingRequestIdentifier}` : pendingRequestTreeName}
-              </Text>
-              <View style={localStyles.pendingRequestActions}>
-                <Button mode="outlined" onPress={() => setPendingRequestDialogVisible(true)} buttonColor={controller.theme.colors.surface} textColor={controller.theme.colors.primary}>
-                  {controller.t(K.common.open)}
-                </Button>
-                <Button mode="outlined" onPress={() => { void handleCancelPendingRequest(); }} disabled={controller.mutating} buttonColor={controller.theme.colors.surface} textColor={controller.theme.colors.primary}>
-                  {controller.t(K.app.requestedAccessCancel)}
-                </Button>
-              </View>
+
+              {renderablePendingRequests.map((notification) => (
+                <SectionCard
+                  key={notification.id}
+                  elevation={1}
+                  backgroundColor={controller.theme.colors.surfaceVariant}
+                  style={localStyles.pendingRequestCard}
+                >
+                  <Text variant="titleMedium">{notification.sourceTreeName?.trim() || controller.t(K.common.unknown)}</Text>
+                  <Text variant="bodySmall" style={[localStyles.pendingRequestMeta, { color: controller.theme.colors.onSurfaceVariant }]}>
+                    {notification.message?.trim() || controller.t(K.app.requestedAccessPendingMessage, { treeName: notification.sourceTreeName || controller.t(K.common.unknown) })}
+                  </Text>
+                  <Text variant="labelMedium" style={[localStyles.pendingRequestMeta, { color: controller.theme.colors.onSurface }]}>
+                    {formatPendingRequestLabel(notification)}
+                  </Text>
+                  <View style={localStyles.pendingRequestActions}>
+                    <Button mode="outlined" onPress={() => openPendingRequest(notification.id)} buttonColor={controller.theme.colors.surface} textColor={controller.theme.colors.primary}>
+                      {controller.t(K.common.open)}
+                    </Button>
+                    <Button mode="outlined" onPress={() => { void handleCancelPendingRequest(notification.id); }} disabled={controller.mutating} buttonColor={controller.theme.colors.surface} textColor={controller.theme.colors.primary}>
+                      {controller.t(K.app.requestedAccessCancel)}
+                    </Button>
+                  </View>
+                </SectionCard>
+              ))}
             </View>
           ) : (
             <>
@@ -342,16 +374,16 @@ export function MainNoTreeGate({
             style={localStyles.closeButton}
           />
           <Dialog.Content>
-            {hasRenderablePendingRequest ? (
+            {selectedPendingRequest ? (
               <View style={localStyles.dialogSection}>
-                <Text variant="titleMedium">{pendingRequestTreeName}</Text>
+                <Text variant="titleMedium">{selectedPendingRequestTreeName}</Text>
                 <Text variant="bodyMedium" style={{ color: controller.theme.colors.onSurfaceVariant }}>
-                  {pendingRequestMessage || controller.t(K.app.requestedAccessPendingMessage, { treeName: pendingRequestTreeName })}
+                  {selectedPendingRequestMessage || controller.t(K.app.requestedAccessPendingMessage, { treeName: selectedPendingRequestTreeName })}
                 </Text>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                  {pendingRequestIdentifier ? <Chip compact icon="account-arrow-right-outline">{pendingRequestIdentifier}</Chip> : null}
+                  {selectedPendingRequestIdentifier ? <Chip compact icon="account-arrow-right-outline">{selectedPendingRequestIdentifier}</Chip> : null}
                   <Chip compact icon="calendar-clock">
-                    {new Date(controller.pendingTreeAccessRequest.createdAt).toLocaleDateString()}
+                    {selectedPendingRequest ? new Date(selectedPendingRequest.createdAt).toLocaleDateString() : ''}
                   </Chip>
                 </View>
               </View>
@@ -359,8 +391,8 @@ export function MainNoTreeGate({
           </Dialog.Content>
           <Dialog.Actions style={[localStyles.dialogActions, { borderTopColor: controller.theme.colors.outlineVariant }]}>
             <Button onPress={() => setPendingRequestDialogVisible(false)}>{controller.t(K.common.close)}</Button>
-            {hasRenderablePendingRequest ? (
-              <Button mode="outlined" onPress={() => { void handleCancelPendingRequest(); }} disabled={controller.mutating} buttonColor={controller.theme.colors.surface} textColor={controller.theme.colors.primary}>
+            {selectedPendingRequest ? (
+              <Button mode="outlined" onPress={() => { void handleCancelPendingRequest(selectedPendingRequest.id); }} disabled={controller.mutating} buttonColor={controller.theme.colors.surface} textColor={controller.theme.colors.primary}>
                 {controller.t(K.app.requestedAccessCancel)}
               </Button>
             ) : null}
