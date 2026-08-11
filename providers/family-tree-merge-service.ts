@@ -7,6 +7,7 @@ import {
   writeBatch,
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
 import type { MergeApproval, MergeConflictChoice, MergePreview, MergeRequestRecord, MergeRequestSnapshot, MergeReviewDecision } from '../components/dto/merge';
 import type { FamilyTree } from '../components/dto/tree';
 import { normalizeRelationshipEndpoints } from '../components/family-tree-validation';
@@ -20,7 +21,7 @@ import {
   getTreeBundle,
   getTreeById,
 } from './family-tree-data';
-import { db } from './firebase-provider';
+import { db, functionsApi } from './firebase-provider';
 import {
   buildMergedTargetPersonUpdate,
   getMergeSelectedMatches,
@@ -282,89 +283,22 @@ export async function reviewMergeRequest(
   conflictChoices: MergeConflictChoice[] = [],
   selectedMatchIds?: string[],
 ) {
-  const requestRef = doc(db, MERGE_REQUESTS_COLLECTION, requestId);
-  const requestSnapshot = await getDoc(requestRef);
-  if (!requestSnapshot.exists()) {
-    throw new Error('That merge request no longer exists.');
-  }
-
-  const request = mapMergeRequest(requestSnapshot as QueryDocumentSnapshot);
-  if (request.status !== 'pending' && request.status !== 'changes-requested') {
-    throw new Error('Only pending merge requests can be reviewed.');
-  }
-
-  const [sourceTree, targetTree] = await Promise.all([getTreeById(request.sourceTreeId), getTreeById(request.targetTreeId)]);
-  const approvableTrees = [sourceTree, targetTree].filter((tree) => canApproveMergeForTree(tree, actorUserId));
-  if (approvableTrees.length === 0) {
-    throw new Error('Only an editor from an affected tree can review this merge.');
-  }
-
-  const nextApprovals = decision === 'approve'
-    ? approvableTrees.map<MergeApproval>((tree) => ({
-      treeId: tree.id,
-      editorUserId: actorUserId,
-      editorLabel: buildMergeApprovalLabel(tree, actorUserId),
-      decision,
-      comment,
-      decidedAt: nowIso(),
-    }))
-    : [{
-      treeId: approvableTrees[0].id,
-      editorUserId: actorUserId,
-      editorLabel: buildMergeApprovalLabel(approvableTrees[0], actorUserId),
-      decision,
-      comment,
-      decidedAt: nowIso(),
-    } satisfies MergeApproval];
-
-  const nextSelectedMatchIds = selectedMatchIds
-    ? [...new Set(selectedMatchIds.filter((matchId) => request.preview.matches.some((match) => match.id === matchId)))]
-    : request.selectedMatchIds;
-
-  const transactionResult = await runTransaction(db, async (transaction) => {
-    const latestSnapshot = await transaction.get(requestRef);
-    if (!latestSnapshot.exists()) {
-      throw new Error('That merge request no longer exists.');
-    }
-
-    const latestRequest = mapMergeRequest(latestSnapshot as QueryDocumentSnapshot);
-    if (latestRequest.status !== 'pending' && latestRequest.status !== 'changes-requested') {
-      throw new Error('Only pending merge requests can be reviewed.');
-    }
-
-    const update = buildMergeReviewUpdate({
-      currentRequest: latestRequest,
-      decision,
-      nextApprovals,
-      comment,
-      conflictChoices,
-      selectedMatchIds: nextSelectedMatchIds,
-      sourceTreeId: sourceTree.id,
-      targetTreeId: targetTree.id,
-    });
-
-    transaction.update(requestRef, {
-      approvals: update.approvals,
-      reviewerComments: update.reviewerComments,
-      conflictChoices: update.conflictChoices,
-      selectedMatchIds: update.selectedMatchIds,
-      status: update.status,
-      updatedAt: nowIso(),
-    });
-
-    return update;
+  await httpsCallable<
+    {
+      requestId: string;
+      decision: MergeReviewDecision;
+      comment?: string;
+      conflictChoices?: MergeConflictChoice[];
+      selectedMatchIds?: string[];
+    },
+    { ok: boolean }
+  >(functionsApi, 'reviewMergeRequestServer')({
+    requestId,
+    decision,
+    comment,
+    conflictChoices,
+    selectedMatchIds,
   });
-
-  if (transactionResult.shouldApply) {
-    await applyMergeRequest(requestId, {
-      ...request,
-      approvals: transactionResult.approvals,
-      reviewerComments: transactionResult.reviewerComments,
-      conflictChoices: transactionResult.conflictChoices,
-      selectedMatchIds: transactionResult.selectedMatchIds,
-      status: transactionResult.status,
-    });
-  }
 }
 
 export async function undoMergeRequest(actorUserId: string, requestId: string) {

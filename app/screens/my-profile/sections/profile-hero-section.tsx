@@ -9,18 +9,12 @@ import { formatPersonName } from '../../../../components/person-formatting';
 import { getThemeChrome } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
+import { getFamilyMemberCardStyle } from '../../profile-shared/profile-card-shared';
 
 const styles = StyleSheet.create({
   heroCard: {
-    borderRadius: 28,
-    padding: 22,
     marginBottom: 16,
     position: 'relative',
-    shadowColor: '#2A1C14',
-    shadowOpacity: 0.12,
-    shadowRadius: 26,
-    shadowOffset: { width: 0, height: 12 },
-    elevation: 5,
   },
   heroFloatingButton: {
     position: 'absolute',
@@ -106,7 +100,11 @@ export function ProfileHeroSection({
   if (shouldShowLinkedProfileTabs) {
     return (
       <Reveal delay={60}>
-        <SectionCard variant="person" backgroundColor={chrome.primaryCardBackground} style={styles.heroCard}>
+        <SectionCard
+          variant="person"
+          backgroundColor={chrome.primaryCardBackground}
+          style={[getFamilyMemberCardStyle(theme, chrome.primaryCardBackground), styles.heroCard]}
+        >
           {canEditLinkedProfile ? (
             <IconButton
               icon="pencil"
@@ -156,7 +154,11 @@ export function ProfileHeroSection({
 
   return (
     <Reveal delay={60}>
-      <SectionCard variant="person" backgroundColor={chrome.secondaryCardBackground} style={styles.heroCard}>
+      <SectionCard
+        variant="person"
+        backgroundColor={chrome.secondaryCardBackground}
+        style={[getFamilyMemberCardStyle(theme, chrome.secondaryCardBackground), styles.heroCard]}
+      >
         <View style={styles.heroHeader}>
           <View style={styles.heroAvatarRow}>
             <Avatar.Text

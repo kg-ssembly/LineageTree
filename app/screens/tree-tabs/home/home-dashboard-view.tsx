@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ScrollView, StyleSheet, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
-import { ActivityIndicator, Button, Chip, IconButton, Text, useTheme } from 'react-native-paper';
+import { ActivityIndicator, Button, Chip, Icon, IconButton, Text, useTheme } from 'react-native-paper';
 import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, FloatingSnackbar, GlobalStyles, HorizontalTabStrip, InfoDialog, Reveal, ScreenBackground, SectionCard, SuggestionList, TabStripCard, type SuggestionActionTarget } from '../../../../components';
 import type { MainTabParamList } from '../../../../components/dto/navigation';
 import { getThemeChrome } from '../../../../constants/styles';
@@ -83,18 +83,25 @@ type OverviewPriorityItem = {
   tone: 'default' | 'attention';
 };
 
-type TreeProgressChecklistItem = {
-  id: string;
-  label: string;
-  done: boolean;
-};
-
 const localStyles = StyleSheet.create({
   strengthCard: {
-    marginTop: 4,
-    borderRadius: 24,
-    padding: 18,
+    marginTop: 6,
+    borderRadius: 28,
+    padding: 20,
     borderWidth: StyleSheet.hairlineWidth,
+  },
+  strengthEyebrow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  strengthIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   strengthTopRow: {
     flexDirection: 'row',
@@ -108,8 +115,11 @@ const localStyles = StyleSheet.create({
     minWidth: 220,
   },
   strengthMetricWrap: {
-    minWidth: 74,
+    minWidth: 84,
     alignItems: 'flex-end',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 18,
   },
   strengthProgressTrack: {
     height: 10,
@@ -137,7 +147,7 @@ const localStyles = StyleSheet.create({
     minWidth: 110,
     flexGrow: 1,
     flexBasis: 110,
-    borderRadius: 18,
+    borderRadius: 22,
     paddingHorizontal: 14,
     paddingVertical: 12,
     borderWidth: StyleSheet.hairlineWidth,
@@ -145,25 +155,13 @@ const localStyles = StyleSheet.create({
   },
   strengthSummaryCard: {
     marginTop: 14,
-    borderRadius: 18,
+    borderRadius: 22,
     padding: 14,
     borderWidth: StyleSheet.hairlineWidth,
   },
-  checklistWrap: {
-    marginTop: 14,
-    gap: 8,
-  },
-  checklistRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-  },
-  checklistCopy: {
-    flex: 1,
-  },
   actionPanel: {
     marginTop: 14,
-    borderRadius: 18,
+    borderRadius: 22,
     padding: 14,
     borderWidth: StyleSheet.hairlineWidth,
   },
@@ -554,8 +552,7 @@ export function HomeDashboardView(props: SharedTabProps) {
   const [overviewActionsExpanded, setOverviewActionsExpanded] = useState(false);
   const [buildInfoVisible, setBuildInfoVisible] = useState(false);
   const [heroInfoVisible, setHeroInfoVisible] = useState(false);
-  const [progressIncludesExpanded, setProgressIncludesExpanded] = useState(false);
-  const [progressIncludesDialogExpanded, setProgressIncludesDialogExpanded] = useState(false);
+  const [missingDetailsExpanded, setMissingDetailsExpanded] = useState(false);
   const [dashboardTab, setDashboardTab] = useState<DashboardTabKey>(needsAttentionCount > 0 ? 'activity' : 'overview');
   const hasUserSelectedDashboardTabRef = useRef(false);
   const previousFocusRef = useRef(isFocused);
@@ -791,17 +788,16 @@ export function HomeDashboardView(props: SharedTabProps) {
     ? 'activity'
     : 'focus';
 
-  const dashboardTabs = useMemo<Array<{ key: DashboardTabKey; label: string }>>(
+  const dashboardTabs = useMemo<Array<{ key: DashboardTabKey; label: string; icon: string }>>(
     () => [
-      { key: 'overview', label: t(K.home.overview) },
-      { key: 'highlights', label: t(K.home.highlights) },
-      { key: 'activity', label: activityNotificationCount > 0 ? t(K.home.activityCount, { count: activityNotificationCount }) : t(K.home.activity) },
+      { key: 'overview', label: t(K.home.overview), icon: 'view-dashboard-outline' },
+      { key: 'highlights', label: t(K.home.highlights), icon: 'sparkles-outline' },
+      { key: 'activity', label: activityNotificationCount > 0 ? t(K.home.activityCount, { count: activityNotificationCount }) : t(K.home.activity), icon: 'bell-outline' },
     ],
     [activityNotificationCount, t],
   );
   const isOverviewTab = dashboardTab === 'overview';
   const isActivityTab = dashboardTab === 'activity';
-  const shouldBuildProgressChecklist = progressIncludesExpanded || progressIncludesDialogExpanded;
 
   const openFamilyActivity = useCallback(() => {
     setDashboardTab('activity');
@@ -1031,42 +1027,6 @@ export function HomeDashboardView(props: SharedTabProps) {
       percent: Math.round((completed / checks.length) * 100),
     };
   }, [currentAssignedPerson, missingMemberDetails.length, people.length, relationships.length, treeTasks]);
-  const treeProgressChecklist = useMemo<TreeProgressChecklistItem[]>(() => {
-    if (!shouldBuildProgressChecklist) {
-      return [];
-    }
-
-    const remainingObjectiveTreeTasks = treeTasks.filter((task) => !task.done).length;
-
-    return [
-      {
-        id: 'linked-profile',
-        label: t(K.home.treePriorityLinkedProfile),
-        done: Boolean(currentAssignedPerson),
-      },
-      {
-        id: 'two-people',
-        label: t(K.home.treePriorityTwoMembers),
-        done: people.length >= MIN_TREE_MEMBERS_FOR_PROGRESS,
-      },
-      {
-        id: 'relationships',
-        label: t(K.home.treePriorityRelationships),
-        done: relationships.length > 0,
-      },
-      {
-        id: 'details',
-        label: t(K.home.treePriorityMissingDetails),
-        done: missingMemberDetails.length === 0,
-      },
-      {
-        id: 'steps',
-        label: t(K.home.treePriorityBuildSteps),
-        done: remainingObjectiveTreeTasks === 0,
-      },
-    ];
-  }, [currentAssignedPerson, missingMemberDetails.length, people.length, relationships.length, shouldBuildProgressChecklist, t, treeTasks]);
-
   const overviewStats = useMemo(() => ([
     { id: 'people', label: t(K.home.familyMembersMetric), value: String(people.length) },
     { id: 'connections', label: t(K.home.connectFamily), value: String(relationships.length) },
@@ -1202,20 +1162,6 @@ export function HomeDashboardView(props: SharedTabProps) {
         contentContainerStyle={[styles.content, { paddingBottom: 72 }]}
         showsVerticalScrollIndicator={false}
       >
-        <Reveal delay={50}>
-          <SectionCard elevation={2}>
-          <View style={styles.sectionHeader}>
-            <View style={styles.titleWrap}>
-              <Text variant="headlineSmall">
-                {currentAssignedPerson ? t(K.home.welcomeBackName, { name: currentAssignedPerson.firstName }) : t(K.home.welcomeToYourFamilyHome)}
-              </Text>
-            </View>
-            <Chip icon="home-heart">{selectedTree.name}</Chip>
-          </View>
-
-          </SectionCard>
-        </Reveal>
-
         <Reveal delay={60}>
           <TabStripCard>
             <HorizontalTabStrip
@@ -1232,20 +1178,28 @@ export function HomeDashboardView(props: SharedTabProps) {
           </TabStripCard>
         </Reveal>
 
-      {dashboardTab !== 'highlights' && dashboardTab !== 'activity' && !isEmptyTree ? (
+      {dashboardTab === 'overview' && !isEmptyTree ? (
         <Reveal delay={70}>
-          <SectionCard>
+          <View>
             <View
               style={[
                 localStyles.strengthCard,
                 {
                   backgroundColor: theme.colors.primaryContainer,
-                  borderColor: theme.colors.primary,
+                  borderColor: theme.colors.outlineVariant,
                 },
               ]}
             >
               <View style={localStyles.strengthTopRow}>
                 <View style={localStyles.strengthCopy}>
+                  <View style={localStyles.strengthEyebrow}>
+                    <View style={[localStyles.strengthIcon, { backgroundColor: theme.colors.primary }]}>
+                      <Icon source="source-branch" size={18} color={theme.colors.onPrimary} />
+                    </View>
+                    <Text variant="labelLarge" style={{ color: spotlightSubtextColor }}>
+                      {t(K.home.progressLabel)}
+                    </Text>
+                  </View>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                     <Text variant="titleLarge">{t(K.home.completeYourTree)}</Text>
                     <IconButton
@@ -1261,7 +1215,7 @@ export function HomeDashboardView(props: SharedTabProps) {
                   </Text>
                 </View>
 
-                <View style={localStyles.strengthMetricWrap}>
+                <View style={[localStyles.strengthMetricWrap, { backgroundColor: chrome.primaryCardBackground }]}>
                   <Text variant="headlineMedium" style={{ color: spotlightTextColor }}>
                     {treeStrengthChecks.percent}%
                   </Text>
@@ -1271,7 +1225,7 @@ export function HomeDashboardView(props: SharedTabProps) {
                 </View>
               </View>
 
-              <View style={[localStyles.strengthProgressTrack, { backgroundColor: theme.dark ? theme.colors.elevation.level2 : '#D5E6DC' }]}>
+              <View style={[localStyles.strengthProgressTrack, { backgroundColor: theme.colors.outlineVariant }]}>
                 <View
                   style={[
                     localStyles.strengthProgressFill,
@@ -1313,7 +1267,7 @@ export function HomeDashboardView(props: SharedTabProps) {
                       localStyles.strengthStatCard,
                       {
                         backgroundColor: chrome.primaryCardBackground,
-                        borderColor: theme.colors.primary,
+                        borderColor: theme.colors.outlineVariant,
                       },
                     ]}
                   >
@@ -1330,54 +1284,45 @@ export function HomeDashboardView(props: SharedTabProps) {
                   localStyles.strengthSummaryCard,
                   {
                     backgroundColor: chrome.primaryCardBackground,
-                    borderColor: theme.colors.primary,
+                    borderColor: theme.colors.outlineVariant,
                   },
                 ]}
               >
-                <Text variant="titleMedium">
-                  {missingMemberDetails.length > 0 ? t(K.home.membersMissingDetails) : t(K.home.connectFamilyRelationships)}
-                </Text>
-                <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 6 }}>
-                  {missingMemberDetails.length > 0
-                    ? t(K.home.missingImportantDetailsSummary, { count: missingMemberDetails.length })
-                    : relationships.length === 0
-                      ? t(K.home.linkPeopleTogetherSoTheTreeBecomesAConnectedFamilyInsteadOfSeparatePages)
-                      : t(K.home.theseStepsGrowTheFamilyBeyondOnePersonAndStrengthenTheBranchStructure)}
-                </Text>
-                <View style={localStyles.strengthChipRow}>
-                  {missingMemberDetails.slice(0, 3).map((item) => (
-                    <Chip key={item.personId} compact icon="account-alert-outline" onPress={item.action}>
-                      {item.name}
-                    </Chip>
-                  ))}
-                  {missingMemberDetails.length === 0 && relationships.length > 0 ? (
-                    <Chip compact icon="source-branch-check">{t(K.home.yourEssentialsAreInPlace)}</Chip>
-                  ) : null}
+                <View style={localStyles.actionPanelHeader}>
+                  <Text variant="titleMedium">
+                    {missingMemberDetails.length > 0 ? t(K.home.membersMissingDetails) : t(K.home.connectFamilyRelationships)}
+                  </Text>
+                  <Button
+                    mode="text"
+                    icon={missingDetailsExpanded ? 'chevron-up' : 'chevron-down'}
+                    onPress={() => setMissingDetailsExpanded((current) => !current)}
+                    style={BUTTON_CHROME}
+                    contentStyle={BUTTON_CONTENT_CHROME}
+                  >
+                    {missingDetailsExpanded ? t(K.common.close) : t(K.common.open)}
+                  </Button>
                 </View>
-                <View style={localStyles.checklistWrap}>
-                  <View style={localStyles.actionPanelHeader}>
-                    <Text variant="labelLarge">{t(K.home.progressIncludes)}</Text>
-                    <Button
-                      mode="text"
-                      icon={progressIncludesExpanded ? 'chevron-up' : 'chevron-down'}
-                      onPress={() => setProgressIncludesExpanded((current) => !current)}
-                      style={BUTTON_CHROME}
-                      contentStyle={BUTTON_CONTENT_CHROME}
-                    >
-                      {progressIncludesExpanded ? t(K.common.close) : t(K.common.open)}
-                    </Button>
-                  </View>
-                  {progressIncludesExpanded ? treeProgressChecklist.map((item) => (
-                    <View key={item.id} style={localStyles.checklistRow}>
-                      <Chip compact icon={item.done ? 'check-circle-outline' : 'circle-outline'}>
-                        {item.done ? t(K.common.done) : t(K.home.doThis)}
-                      </Chip>
-                      <Text variant="bodyMedium" style={localStyles.checklistCopy}>
-                        {item.label}
-                      </Text>
+                {missingDetailsExpanded ? (
+                  <>
+                    <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 6 }}>
+                      {missingMemberDetails.length > 0
+                        ? t(K.home.missingImportantDetailsSummary, { count: missingMemberDetails.length })
+                        : relationships.length === 0
+                          ? t(K.home.linkPeopleTogetherSoTheTreeBecomesAConnectedFamilyInsteadOfSeparatePages)
+                          : t(K.home.theseStepsGrowTheFamilyBeyondOnePersonAndStrengthenTheBranchStructure)}
+                    </Text>
+                    <View style={localStyles.strengthChipRow}>
+                      {missingMemberDetails.slice(0, 3).map((item) => (
+                        <Chip key={item.personId} compact icon="account-alert-outline" onPress={item.action}>
+                          {item.name}
+                        </Chip>
+                      ))}
+                      {missingMemberDetails.length === 0 && relationships.length > 0 ? (
+                        <Chip compact icon="source-branch-check">{t(K.home.yourEssentialsAreInPlace)}</Chip>
+                      ) : null}
                     </View>
-                  )) : null}
-                </View>
+                  </>
+                ) : null}
               </View>
 
               <View
@@ -1385,7 +1330,7 @@ export function HomeDashboardView(props: SharedTabProps) {
                   localStyles.actionPanel,
                   {
                     backgroundColor: chrome.primaryCardBackground,
-                    borderColor: theme.colors.primary,
+                    borderColor: theme.colors.outlineVariant,
                   },
                 ]}
               >
@@ -1477,9 +1422,6 @@ export function HomeDashboardView(props: SharedTabProps) {
                           accessibilityLabel={t(K.home.aboutBuildYourFamily)}
                         />
                       </View>
-                      <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
-                        {t(K.home.buildOverviewHelper)}
-                      </Text>
                     </View>
                     <IconButton
                       icon={deeperExpanded ? 'chevron-up' : 'chevron-down'}
@@ -1580,7 +1522,7 @@ export function HomeDashboardView(props: SharedTabProps) {
                 </View>
               ) : null}
             </View>
-          </SectionCard>
+          </View>
         </Reveal>
       ) : null}
 
@@ -1641,48 +1583,16 @@ export function HomeDashboardView(props: SharedTabProps) {
             </Reveal>
           ) : null}
 
-          {needsAttentionCount > 0 ? (
-            <Reveal delay={120}>
-              <SectionCard>
-                <Text variant="titleLarge">{t(K.notifications.needsAttention)}</Text>
-                <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-                  {t(K.home.sharedActivityThatCouldUseALookBeforeItSlipsOutOfView)}
-                </Text>
-                <View style={[styles.dashboardActionRow, { marginTop: 14 }]}>
-                  {pendingApprovals > 0 ? (
-                    <Chip
-                      icon="clipboard-check-outline"
-                      onPress={openApprovals}
-                      style={{ backgroundColor: approvalsTone.backgroundColor, borderColor: approvalsTone.borderColor, borderWidth: 1 }}
-                      textStyle={{ color: approvalsTone.textColor }}
-                    >
-                      {t(K.home.approvalsWaitingCount, { count: pendingApprovals })}
-                    </Chip>
-                  ) : null}
-                  {pendingInvites > 0 ? (
-                    <Chip
-                      icon="source-merge"
-                      onPress={openMergeInvites}
-                      style={{ backgroundColor: invitesTone.backgroundColor, borderColor: invitesTone.borderColor, borderWidth: 1 }}
-                      textStyle={{ color: invitesTone.textColor }}
-                    >
-                      {t(K.home.mergeInvitesWaitingCount, { count: pendingInvites })}
-                    </Chip>
-                  ) : null}
-                  {activeMergeReviews > 0 ? (
-                    <Chip
-                      icon="timeline-clock-outline"
-                      onPress={openMergeReviews}
-                      style={{ backgroundColor: mergeTone.backgroundColor, borderColor: mergeTone.borderColor, borderWidth: 1 }}
-                      textStyle={{ color: mergeTone.textColor }}
-                    >
-                      {t(K.home.mergeReviewsWaitingCount, { count: activeMergeReviews })}
-                    </Chip>
-                  ) : null}
-                </View>
-              </SectionCard>
-            </Reveal>
-          ) : null}
+          <Reveal delay={115}>
+            <NotificationsView
+              {...props}
+              embedded
+              scrollable={false}
+              navigation={{
+                navigate: (name) => navigation.navigate(name),
+              }}
+            />
+          </Reveal>
 
           <Reveal delay={135}>
             <NotificationsView
@@ -1709,30 +1619,6 @@ export function HomeDashboardView(props: SharedTabProps) {
             <Text variant="bodyMedium" style={{ marginTop: 12 }}>
               {lensSubtitle}
             </Text>
-            <View style={localStyles.checklistWrap}>
-              <View style={localStyles.actionPanelHeader}>
-                <Text variant="labelLarge">{t(K.home.progressIncludes)}</Text>
-                <Button
-                  mode="text"
-                  icon={progressIncludesDialogExpanded ? 'chevron-up' : 'chevron-down'}
-                  onPress={() => setProgressIncludesDialogExpanded((current) => !current)}
-                  style={BUTTON_CHROME}
-                  contentStyle={BUTTON_CONTENT_CHROME}
-                >
-                  {progressIncludesDialogExpanded ? t(K.common.close) : t(K.common.open)}
-                </Button>
-              </View>
-              {progressIncludesDialogExpanded ? treeProgressChecklist.map((item) => (
-                <View key={item.id} style={localStyles.checklistRow}>
-                  <Chip compact icon={item.done ? 'check-circle-outline' : 'circle-outline'}>
-                    {item.done ? t(K.common.done) : t(K.home.doThis)}
-                  </Chip>
-                  <Text variant="bodyMedium" style={localStyles.checklistCopy}>
-                    {item.label}
-                  </Text>
-                </View>
-              )) : null}
-            </View>
           </>
         )}
         onDismiss={() => setHeroInfoVisible(false)}

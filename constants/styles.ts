@@ -883,8 +883,8 @@ export class GlobalStyles {
         },
         claimBox: {
             marginTop: 16,
-            padding: 18,
-            borderRadius: 20,
+            padding: 14,
+            borderRadius: 22,
         },
         claimRow: {
             gap: 12,
@@ -923,9 +923,9 @@ export class GlobalStyles {
             paddingVertical: 4,
         },
         tabStripItem: {
-            paddingHorizontal: 16,
-            paddingVertical: 12,
-            marginHorizontal: 2,
+            paddingHorizontal: 10,
+            paddingVertical: 8,
+            marginHorizontal: 0,
         },
         sectionHeader: {
             flexDirection: 'row',
@@ -962,8 +962,8 @@ export class GlobalStyles {
             minWidth: 160,
             flexGrow: 1,
             flexBasis: 160,
-            borderRadius: 18,
-            padding: 16,
+            borderRadius: 22,
+            padding: 14,
             borderWidth: StyleSheet.hairlineWidth,
             borderColor: F.outlineVariant,
         },
@@ -976,8 +976,8 @@ export class GlobalStyles {
         },
         relationshipCard: {
             marginBottom: 12,
-            borderRadius: 18,
-            padding: 16,
+            borderRadius: 22,
+            padding: 14,
             borderWidth: StyleSheet.hairlineWidth,
             borderColor: F.outlineVariant,
         },
@@ -1017,8 +1017,8 @@ export class GlobalStyles {
         },
         notesBox: {
             marginTop: 16,
-            padding: 18,
-            borderRadius: 20,
+            padding: 14,
+            borderRadius: 22,
             backgroundColor: F.hintBg,
         },
         biographyLead: {
@@ -1028,8 +1028,8 @@ export class GlobalStyles {
         },
         biographyBlock: {
             marginTop: 16,
-            padding: 18,
-            borderRadius: 20,
+            padding: 14,
+            borderRadius: 22,
             borderWidth: StyleSheet.hairlineWidth,
             borderColor: F.outlineVariant,
         },
@@ -1040,7 +1040,7 @@ export class GlobalStyles {
             marginTop: 12,
         },
         biographyFactCard: {
-            borderRadius: 18,
+            borderRadius: 22,
             padding: 14,
             minWidth: 140,
             flexGrow: 1,
@@ -1053,7 +1053,7 @@ export class GlobalStyles {
             gap: 10,
         },
         suggestionCard: {
-            borderRadius: 18,
+            borderRadius: 22,
             padding: 14,
             borderWidth: StyleSheet.hairlineWidth,
             borderColor: F.outlineVariant,
@@ -1146,7 +1146,7 @@ export class GlobalStyles {
             ...CARD_CHROME,
             marginRight: 12,
             overflow: 'hidden',
-            borderRadius: 20,
+            borderRadius: 22,
         },
         photoGridCard: {
             width: '48%',
@@ -1213,7 +1213,7 @@ export class GlobalStyles {
         timelineStoryCard: {
             flex: 1,
             borderRadius: 22,
-            padding: 16,
+            padding: 14,
             borderWidth: StyleSheet.hairlineWidth,
             borderColor: F.outlineVariant,
         },

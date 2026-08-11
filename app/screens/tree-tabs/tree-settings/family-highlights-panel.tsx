@@ -8,6 +8,7 @@ import { formatPersonName } from '../../../../components/person-formatting';
 import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
 import { buildBranchGrowth } from './family-highlights-helpers';
+import { getTreeSettingsFamilyMemberCardStyle } from './tree-settings-shared';
 
 const styles = GlobalStyles.treeDetail;
 
@@ -193,7 +194,7 @@ export function FamilyHighlightsPanel({
 
   return (
     <Reveal delay={80}>
-      <SectionCard style={[styles.sectionCard, { backgroundColor: theme.colors.surface, marginBottom: 18 }]}>
+      <SectionCard style={[styles.sectionCard, getTreeSettingsFamilyMemberCardStyle(theme), { marginBottom: 18 }]}>
         <View style={styles.sectionHeader}>
           <View style={styles.titleWrap}>
             <View style={styles.titleWithHelperRow}>
@@ -210,7 +211,7 @@ export function FamilyHighlightsPanel({
         </View>
 
         {suggestedHighlight ? (
-          <SectionCard nested style={[styles.dashboardAccentCard, { marginTop: 16 }]}>
+          <SectionCard nested style={[styles.dashboardAccentCard, getTreeSettingsFamilyMemberCardStyle(theme), { marginTop: 16 }]}>
             <Text variant="labelLarge">{t(K.home.suggestedForYou)}</Text>
             <Text variant="titleMedium" style={{ marginTop: 8 }}>{suggestedHighlight.title}</Text>
             <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 6 }}>
@@ -223,7 +224,7 @@ export function FamilyHighlightsPanel({
         ) : null}
 
         {!hasHighlights ? (
-          <SectionCard nested style={[styles.dashboardAccentCard, { marginTop: 16 }]}>
+          <SectionCard nested style={[styles.dashboardAccentCard, getTreeSettingsFamilyMemberCardStyle(theme), { marginTop: 16 }]}>
             <Text variant="titleMedium">{t(K.home.familyHighlights)}</Text>
             <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 6 }}>
               {t(K.home.thisTabWillComeAliveAsSoonAsYouAddPeopleDatesOrMemoriesToTheTree)}
@@ -250,7 +251,7 @@ export function FamilyHighlightsPanel({
             </View>
             {recentExpanded && recentAdditions.length > 0 ? recentPageItems.map((person, index) => (
               <Reveal key={person.id} delay={140 + index * 60}>
-                <SectionCard nested style={styles.highlightStoryCard}>
+                <SectionCard nested style={[styles.highlightStoryCard, getTreeSettingsFamilyMemberCardStyle(theme)]}>
                   <Text variant="titleSmall">{formatPersonName(person)}</Text>
                   <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
                     {t('Added {date}', { date: formatPersonDate(person.createdAt.slice(0, 10)) })}
@@ -308,7 +309,7 @@ export function FamilyHighlightsPanel({
             </View>
             {anniversaryExpanded && anniversaries.length > 0 ? anniversaryPageItems.map((item, index) => (
               <Reveal key={item.id} delay={180 + index * 60}>
-                <SectionCard nested style={styles.highlightStoryCard}>
+                <SectionCard nested style={[styles.highlightStoryCard, getTreeSettingsFamilyMemberCardStyle(theme)]}>
                   <Text variant="titleSmall">{item.title}</Text>
                   <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
                     {formatPersonDate(item.date.slice(0, 10))}
@@ -371,7 +372,7 @@ export function FamilyHighlightsPanel({
 
               return (
                 <Reveal key={branch.surname} delay={220 + index * 60}>
-                  <SectionCard nested style={styles.highlightStoryCard}>
+                  <SectionCard nested style={[styles.highlightStoryCard, getTreeSettingsFamilyMemberCardStyle(theme)]}>
                     <Text variant="titleSmall">{branch.surname}</Text>
                     <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
                       {t(K.treeSettings.familyMembersCount, { count: branch.total })}
@@ -410,7 +411,7 @@ export function FamilyHighlightsPanel({
               </View>
             ) : null}
             {growthExpanded && currentAssignedPerson ? (
-              <SectionCard nested style={styles.highlightAside}>
+              <SectionCard nested style={[styles.highlightAside, getTreeSettingsFamilyMemberCardStyle(theme)]}>
                 <Text variant="labelLarge">{t(K.home.yourPlaceInTheStory)}</Text>
                 <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
                   {t('{name} is linked to your account, so you can jump back into your branch anytime.', { name: formatPersonName(currentAssignedPerson) })}

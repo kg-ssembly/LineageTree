@@ -84,6 +84,12 @@ export interface SharedTabProps {
   onMarkNotificationSeen: (notificationId: string) => Promise<void>;
   onMarkNotificationOpened: (notificationId: string) => Promise<void>;
   onMarkNotificationActivityActioned: (sourceKind: NotificationActivityState['sourceKind'], sourceId: string) => Promise<void>;
+  onDeleteNotification: (notificationId: string) => Promise<void>;
+  onDeleteNotificationActivity: (sourceKind: NotificationActivityState['sourceKind'], sourceId: string) => Promise<void>;
+  onDeleteAllNotifications: (
+    notificationIds: string[],
+    activityTargets: Array<{ sourceKind: NotificationActivityState['sourceKind']; sourceId: string }>,
+  ) => Promise<void>;
   onLoadMergePreview: (sourceTreeId: string, targetTreeId: string) => Promise<void>;
   onApproveMergeRequest: (requestId: string, comment?: string, selectedMatchIds?: string[]) => Promise<void>;
   onRejectMergeRequest: (requestId: string, comment?: string) => Promise<void>;
@@ -168,7 +174,12 @@ export function getActivityNotificationCount({
 }: ActivityNotificationCountInput) {
   const actionedStateKeys = new Set(
     notificationActivityStates
-      .filter((state) => Boolean(state.actionedAt))
+      .filter((state) => Boolean(state.actionedAt) && !state.deletedAt)
+      .map((state) => `${state.sourceKind}:${state.sourceId}`),
+  );
+  const deletedStateKeys = new Set(
+    notificationActivityStates
+      .filter((state) => Boolean(state.deletedAt))
       .map((state) => `${state.sourceKind}:${state.sourceId}`),
   );
 
@@ -182,6 +193,9 @@ export function getActivityNotificationCount({
   let unactionedApprovalCount = 0;
   for (const request of approvalRequests) {
     if (!actionedStateKeys.has(`approval:${request.id}`)) {
+      if (deletedStateKeys.has(`approval:${request.id}`)) {
+        continue;
+      }
       unactionedApprovalCount += 1;
     }
   }
@@ -189,6 +203,9 @@ export function getActivityNotificationCount({
   let unactionedMergeRequestCount = 0;
   for (const request of mergeRequests) {
     if (!actionedStateKeys.has(`merge-request:${request.id}`)) {
+      if (deletedStateKeys.has(`merge-request:${request.id}`)) {
+        continue;
+      }
       unactionedMergeRequestCount += 1;
     }
   }
@@ -196,6 +213,9 @@ export function getActivityNotificationCount({
   let unactionedMergeHistoryCount = 0;
   for (const entry of mergeHistory) {
     if (!actionedStateKeys.has(`merge-history:${entry.id}`)) {
+      if (deletedStateKeys.has(`merge-history:${entry.id}`)) {
+        continue;
+      }
       unactionedMergeHistoryCount += 1;
     }
   }
@@ -205,6 +225,10 @@ export function getActivityNotificationCount({
     for (const entry of tree.membershipHistory) {
       const canSeeEntry = !userId || entry.userId === userId || entry.action === 'invited' || entry.action === 'role-changed';
       if (!canSeeEntry) {
+        continue;
+      }
+
+      if (deletedStateKeys.has(`membership:${tree.id}-${entry.id}`)) {
         continue;
       }
 

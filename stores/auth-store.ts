@@ -20,6 +20,7 @@ import {
   where,
 } from 'firebase/firestore';
 import { auth, db } from '../providers/firebase-provider';
+import { sendPasswordResetEmailNotification, sendWelcomeEmailNotification } from '../providers/email-service';
 import type { UserProfile } from '../components/dto/user';
 import type { TreeRole } from '../components/dto/tree';
 import type { AppLanguage } from '../i18n';
@@ -35,6 +36,7 @@ export interface AuthState {
 
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, displayName: string) => Promise<void>;
+  requestPasswordReset: (email: string) => Promise<{ emailRegistered: boolean }>;
   signOut: () => Promise<void>;
   setDefaultTreeId: (treeId: string | null) => Promise<void>;
   updateDisplayName: (displayName: string) => Promise<void>;
@@ -301,9 +303,25 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         displayName,
         email,
       });
+      try {
+        await sendWelcomeEmailNotification();
+      } catch (notificationError) {
+        console.warn('Welcome email request failed', notificationError);
+      }
       set({ firebaseUser: fbUser, user: profile, loading: false });
     } catch (err: any) {
       set({ loading: false, error: humaniseError(err.code ?? '') });
+      throw err;
+    }
+  },
+
+  requestPasswordReset: async (email) => {
+    set({ error: null });
+    try {
+      const result = await sendPasswordResetEmailNotification(email);
+      return { emailRegistered: result.emailRegistered };
+    } catch (err: any) {
+      set({ error: humaniseError(err.code ?? '') });
       throw err;
     }
   },

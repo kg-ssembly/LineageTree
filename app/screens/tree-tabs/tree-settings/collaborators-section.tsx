@@ -7,7 +7,7 @@ import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
 import { buildSelfAssignmentSuggestions } from '../shared';
 import type { CollaboratorsSectionProps } from './tree-settings-shared';
-import { formatRole } from './tree-settings-shared';
+import { formatRole, getTreeSettingsFamilyMemberCardStyle } from './tree-settings-shared';
 
 const styles = GlobalStyles.treeDetail;
 
@@ -77,7 +77,7 @@ export function CollaboratorsSection({
 
             return (
               <Reveal key={collaborator.userId} delay={90 + collaboratorIndex * 25}>
-              <SectionCard nested style={[styles.collaboratorCard, { backgroundColor: theme.colors.surface, paddingVertical: 14, paddingHorizontal: 14 }]}>
+              <SectionCard nested style={[styles.collaboratorCard, getTreeSettingsFamilyMemberCardStyle(theme)]}>
                 <View style={styles.collaboratorRow}>
                   <View style={styles.collaboratorTextWrap}>
                     <Text variant="titleMedium">{collaborator.displayName || collaborator.email}</Text>
@@ -114,7 +114,7 @@ export function CollaboratorsSection({
                       <View style={styles.assignmentSuggestionList}>
                         {collaboratorSuggestions.map((suggestion, suggestionIndex) => (
                           <Reveal key={`owner-suggestion-${collaborator.userId}-${suggestion.person.id}`} delay={120 + suggestionIndex * 20}>
-                            <SectionCard nested style={[styles.assignmentSuggestionCard, { backgroundColor: theme.colors.surface }]}>
+                            <SectionCard nested style={[styles.assignmentSuggestionCard, getTreeSettingsFamilyMemberCardStyle(theme)]}>
                               <View style={styles.assignmentSuggestionRow}>
                                 <View style={styles.assignmentSuggestionTextWrap}>
                                   <View style={styles.collaboratorChipRow}>
@@ -157,7 +157,7 @@ export function CollaboratorsSection({
                           <View style={styles.assignmentSuggestionList}>
                             {filteredOwnerLinkPeople.map((person, personIndex) => (
                               <Reveal key={`owner-link-${collaborator.userId}-${person.id}`} delay={140 + personIndex * 15}>
-                                <SectionCard nested style={[styles.assignmentSuggestionCard, { backgroundColor: theme.colors.surface }]}>
+                                <SectionCard nested style={[styles.assignmentSuggestionCard, getTreeSettingsFamilyMemberCardStyle(theme)]}>
                                   <View style={styles.assignmentSuggestionRow}>
                                     <View style={styles.assignmentSuggestionTextWrap}>
                                       <Text variant="titleMedium">{formatPersonName(person)}</Text>

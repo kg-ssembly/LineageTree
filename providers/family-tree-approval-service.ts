@@ -10,6 +10,7 @@ import {
   writeBatch,
   where,
 } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
 import type { ApprovalRequest, ApprovalRequestPayload, ApprovalSubmissionResult } from '../components/dto/approval';
 import type { NewPersonPhotoInput, PersonInput, PersonMutationPayload, PersonPhoto, PersonRecord } from '../components/dto/person';
 import type { ParentChildRelationshipKind, RelationshipRecord, SpouseRelationshipStatus } from '../components/dto/relationship';
@@ -32,7 +33,7 @@ import {
   getTreeById,
   updateParentLifeEventsForChild,
 } from './family-tree-data';
-import { db } from './firebase-provider';
+import { db, functionsApi } from './firebase-provider';
 import {
   formatPersonName,
   clampApprovalWindowHours,
@@ -1265,62 +1266,21 @@ export async function decideApprovalRequest(
   decision: 'approve' | 'reject',
   options?: { auto?: boolean },
 ) {
-  const requestRef = doc(db, APPROVAL_REQUESTS_COLLECTION, requestId);
-  const requestSnapshot = await getDoc(requestRef);
-  if (!requestSnapshot.exists()) {
-    throw new Error('That approval request no longer exists.');
-  }
-
-  const request = mapApprovalRequestData(requestSnapshot.id, requestSnapshot.data());
-  if (request.status !== 'pending') {
-    return;
-  }
-
-  if (!options?.auto && !request.eligibleApproverIds.includes(actorUserId)) {
-    throw new Error('You cannot review this approval request.');
-  }
-
-  const decisionTime = nowIso();
-  if (decision === 'reject') {
-    await handleRejectedRequest(request);
-    await updateDoc(requestRef, {
-      status: 'rejected',
-      decisionMode: options?.auto ? 'auto' : 'manual',
-      decidedAt: decisionTime,
-      decidedByUserId: options?.auto ? '' : actorUserId,
-      decidedByLabel: options?.auto ? 'Automatic approval timer' : getRequesterLabel(await getTreeById(request.treeId), actorUserId),
-      updatedAt: decisionTime,
-    });
-    return;
-  }
-
-  await applyApprovedRequest(request);
-  const appliedAt = nowIso();
-  await updateDoc(requestRef, {
-    status: 'applied',
-    decisionMode: options?.auto ? 'auto' : 'manual',
-    decidedAt: decisionTime,
-    decidedByUserId: options?.auto ? '' : actorUserId,
-    decidedByLabel: options?.auto ? 'Automatic approval timer' : getRequesterLabel(await getTreeById(request.treeId), actorUserId),
-    appliedAt,
-    updatedAt: appliedAt,
+  await httpsCallable<
+    { requestId: string; decision: 'approve' | 'reject'; auto?: boolean },
+    { ok: boolean }
+  >(functionsApi, 'decideApprovalRequestServer')({
+    requestId,
+    decision,
+    auto: options?.auto === true,
   });
 }
 
 export async function processExpiredApprovalRequests(actorUserId: string, treeId: string) {
-  const snapshot = await getDocs(query(
-    collection(db, APPROVAL_REQUESTS_COLLECTION),
-    where('treeId', '==', treeId),
-    where('status', '==', 'pending'),
-  ));
-  const requests = snapshot.docs.map(mapApprovalRequest);
-  const now = Date.now();
-
-  for (const request of requests) {
-    if (request.status === 'pending' && request.expiresAtMillis <= now) {
-      await decideApprovalRequest(actorUserId, request.id, 'approve', { auto: true });
-    }
-  }
+  await httpsCallable<{ treeId: string }, { ok: boolean }>(
+    functionsApi,
+    'processExpiredApprovalRequestsServer',
+  )({ treeId });
 }
 
 export async function validatePersonCreation(treeId: string, person: {

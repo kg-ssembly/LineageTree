@@ -10,6 +10,7 @@ import { formatPersonGender } from '../../../components/person-formatting';
 import { getThemeChrome } from '../../../constants/styles';
 import { useI18n } from '../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../i18n/keys';
+import { getFamilyMemberCardStyle } from './profile-card-shared';
 import { buildProfileSuggestions, getPersonRelationshipCounts, getProfileCompletionChecks } from './suggestions';
 
 const styles = StyleSheet.create({
@@ -56,9 +57,15 @@ const styles = StyleSheet.create({
   },
   spotlightCard: {
     marginTop: 16,
-    borderRadius: 24,
-    padding: 18,
+    borderRadius: 28,
+    padding: 20,
     borderWidth: StyleSheet.hairlineWidth,
+  },
+  spotlightEyebrow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
   },
   spotlightTopRow: {
     flexDirection: 'row',
@@ -74,8 +81,11 @@ const styles = StyleSheet.create({
   },
   spotlightMetricWrap: {
     alignItems: 'flex-end',
-    minWidth: 74,
+    minWidth: 84,
     flexShrink: 0,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 18,
   },
   spotlightMetricLabel: {
     marginTop: 2,
@@ -100,9 +110,9 @@ const styles = StyleSheet.create({
     minWidth: 110,
     flexGrow: 1,
     flexBasis: 110,
-    borderRadius: 18,
+    borderRadius: 22,
     paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderWidth: StyleSheet.hairlineWidth,
     gap: 4,
   },
@@ -120,7 +130,7 @@ const styles = StyleSheet.create({
   },
   spotlightConnectionSummary: {
     marginTop: 14,
-    borderRadius: 18,
+    borderRadius: 22,
     padding: 14,
     borderWidth: StyleSheet.hairlineWidth,
   },
@@ -151,8 +161,8 @@ const styles = StyleSheet.create({
   },
   biographyBlock: {
     marginTop: 16,
-    padding: 18,
-    borderRadius: 20,
+    padding: 14,
+    borderRadius: 22,
     borderWidth: StyleSheet.hairlineWidth,
   },
   biographyFactRow: {
@@ -162,7 +172,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   biographyFactCard: {
-    borderRadius: 18,
+    borderRadius: 22,
     padding: 14,
     minWidth: 140,
     flexGrow: 1,
@@ -200,7 +210,7 @@ const styles = StyleSheet.create({
   },
   actionPanel: {
     marginTop: 14,
-    borderRadius: 18,
+    borderRadius: 22,
     padding: 14,
     borderWidth: StyleSheet.hairlineWidth,
   },
@@ -208,7 +218,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   nextStepCard: {
-    borderRadius: 18,
+    borderRadius: 22,
     padding: 14,
     borderWidth: StyleSheet.hairlineWidth,
   },
@@ -236,8 +246,8 @@ const styles = StyleSheet.create({
   },
   notesBox: {
     marginTop: 16,
-    padding: 18,
-    borderRadius: 20,
+    padding: 14,
+    borderRadius: 22,
   },
   notesText: {
     marginTop: 8,
@@ -399,43 +409,26 @@ export function ProfileOverviewCard({
 
   return (
     <Reveal delay={delay}>
-      <SectionCard variant="person" backgroundColor={chrome.primaryCardBackground}>
-        <View style={styles.sectionHeader}>
-          <View style={styles.sectionHeaderText}>
-            <View style={styles.titleWithHelperRow}>
-              <Text variant="titleLarge">{t(K.personProfile.biography)}</Text>
-              {onOpenHelperDialog ? (
-                <IconButton
-                  icon="information-outline"
-                  size={20}
-                  style={styles.helperIconButton}
-                  onPress={onOpenHelperDialog}
-                  accessibilityLabel={t(K.personProfile.aboutMemberProfile)}
-                />
-              ) : null}
-            </View>
-          </View>
-          {canEdit && onEdit ? (
-            <Button mode="contained" icon="pencil" onPress={onEdit} buttonColor={theme.colors.primary} textColor={theme.colors.onPrimary}>
-              {t(K.personProfile.editProfile)}
-            </Button>
-          ) : null}
-        </View>
-
+      <View>
         <View
           style={[
             styles.spotlightCard,
             {
               backgroundColor: theme.colors.primaryContainer,
-              borderColor: theme.colors.primary,
+              borderColor: theme.colors.outlineVariant,
             },
           ]}
         >
           <View style={styles.spotlightTopRow}>
             <View style={styles.spotlightCopy}>
-              <Text variant="labelLarge" style={{ color: spotlightSubtextColor }}>
-                {t(K.common.summary)}
-              </Text>
+              <View style={styles.spotlightEyebrow}>
+                <View style={[styles.sectionBadge, { backgroundColor: theme.colors.primary }]}>
+                  <MaterialCommunityIcons name="source-branch" size={18} color={theme.colors.onPrimary} />
+                </View>
+                <Text variant="labelLarge" style={{ color: spotlightSubtextColor }}>
+                  {t(K.common.summary)}
+                </Text>
+              </View>
               <Text variant="headlineSmall" style={{ color: spotlightTextColor }}>
                 {t(K.personProfile.profileStrength)}
               </Text>
@@ -443,14 +436,14 @@ export function ProfileOverviewCard({
                 {t(K.personProfile.essentialsRecorded, { filled: completedCount, total: checks.length })}
               </Text>
             </View>
-            <View style={styles.spotlightMetricWrap}>
+            <View style={[styles.spotlightMetricWrap, { backgroundColor: chrome.primaryCardBackground }]}>
               <Text variant="headlineMedium" style={{ color: spotlightTextColor }}>{Math.round(completionProgress * 100)}%</Text>
               <Text variant="labelMedium" style={[styles.spotlightMetricLabel, { color: spotlightSubtextColor }]}>
                 {t(K.common.done)}
               </Text>
             </View>
           </View>
-          <View style={[styles.progressTrack, { backgroundColor: theme.dark ? theme.colors.elevation.level2 : '#D5E6DC' }]}>
+          <View style={[styles.progressTrack, { backgroundColor: theme.colors.outlineVariant }]}>
             <View
               style={[
                 styles.progressFill,
@@ -477,7 +470,7 @@ export function ProfileOverviewCard({
             {spotlightStats.map((item) => (
               <View
                 key={item.key}
-                style={[styles.spotlightStatCard, { backgroundColor: chrome.primaryCardBackground, borderColor: theme.colors.primary }]}
+                style={[styles.spotlightStatCard, { backgroundColor: chrome.primaryCardBackground, borderColor: theme.colors.outlineVariant }]}
               >
                 <View style={styles.spotlightStatLabelRow}>
                   <MaterialCommunityIcons name={item.icon as never} size={16} color={theme.colors.primary} />
@@ -494,7 +487,7 @@ export function ProfileOverviewCard({
               styles.spotlightConnectionSummary,
               {
                 backgroundColor: chrome.primaryCardBackground,
-                borderColor: theme.colors.primary,
+                borderColor: theme.colors.outlineVariant,
               },
             ]}
           >
@@ -506,7 +499,7 @@ export function ProfileOverviewCard({
             </Text>
           </View>
 
-          <View style={[styles.actionPanel, { backgroundColor: chrome.primaryCardBackground, borderColor: theme.colors.primary }]}>
+          <View style={[styles.actionPanel, { backgroundColor: chrome.primaryCardBackground, borderColor: theme.colors.outlineVariant }]}>
             <View style={styles.actionHeaderRow}>
               <Pressable
                 onPress={() => setNextStepsCollapsed((current) => !current)}
@@ -591,7 +584,7 @@ export function ProfileOverviewCard({
           </View>
         </View>
 
-      </SectionCard>
+      </View>
     </Reveal>
   );
 }

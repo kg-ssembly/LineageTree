@@ -468,6 +468,7 @@ export function mapNotificationActivityState(snapshot: QueryDocumentSnapshot): N
     sourceKind: data.sourceKind ?? 'approval',
     sourceId: data.sourceId ?? '',
     actionedAt: data.actionedAt ?? undefined,
+    deletedAt: data.deletedAt ?? undefined,
     createdAt: data.createdAt ?? nowIso(),
     updatedAt: data.updatedAt ?? data.createdAt ?? nowIso(),
   };

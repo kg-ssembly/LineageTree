@@ -148,6 +148,9 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     searchDiscoverableTrees,
     searchDiscoverableTreesByUsername,
     respondToMergeInvite,
+    deleteNotification,
+    deleteNotificationActivity,
+    deleteAllNotifications,
     markNotificationSeen,
     markNotificationOpened,
     markNotificationActivityActioned,
@@ -202,6 +205,9 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     searchDiscoverableTrees: state.searchDiscoverableTrees,
     searchDiscoverableTreesByUsername: state.searchDiscoverableTreesByUsername,
     respondToMergeInvite: state.respondToMergeInvite,
+    deleteNotification: state.deleteNotification,
+    deleteNotificationActivity: state.deleteNotificationActivity,
+    deleteAllNotifications: state.deleteAllNotifications,
     markNotificationSeen: state.markNotificationSeen,
     markNotificationOpened: state.markNotificationOpened,
     markNotificationActivityActioned: state.markNotificationActivityActioned,
@@ -977,6 +983,21 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     if (!user?.id) return;
     await markNotificationActivityActioned(user.id, sourceKind, sourceId);
   }, [markNotificationActivityActioned, user?.id]);
+  const onDeleteNotification = useCallback(async (notificationId: string) => {
+    if (!user?.id) return;
+    await deleteNotification(user.id, notificationId);
+  }, [deleteNotification, user?.id]);
+  const onDeleteNotificationActivity = useCallback(async (sourceKind: 'approval' | 'merge-request' | 'merge-history' | 'membership', sourceId: string) => {
+    if (!user?.id) return;
+    await deleteNotificationActivity(user.id, sourceKind, sourceId);
+  }, [deleteNotificationActivity, user?.id]);
+  const onDeleteAllNotifications = useCallback(async (
+    notificationIds: string[],
+    activityTargets: Array<{ sourceKind: 'approval' | 'merge-request' | 'merge-history' | 'membership'; sourceId: string }>,
+  ) => {
+    if (!user?.id) return;
+    await deleteAllNotifications(user.id, notificationIds, activityTargets);
+  }, [deleteAllNotifications, user?.id]);
   const onLoadTreeMergePreview = useCallback(async (sourceTreeId: string, targetTreeId: string) => {
     if (!sourceTreeId || !targetTreeId) return;
     await loadMergePreview(sourceTreeId, targetTreeId);
@@ -1068,6 +1089,9 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
       onMarkNotificationSeen,
       onMarkNotificationOpened,
       onMarkNotificationActivityActioned,
+      onDeleteNotification,
+      onDeleteNotificationActivity,
+      onDeleteAllNotifications,
       onLoadMergePreview: onLoadTreeMergePreview,
       onApproveMergeRequest,
       onRejectMergeRequest,
@@ -1088,7 +1112,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     openConfirm, openPersonProfile, onOpenAddPerson, onOpenAddPersonForRelationship, onOpenRelationshipDialog, onOpenPersonQuickActions,
     onOpenCollaboratorDialog, onOpenAddSelf, onEditPerson, onDeletePerson, onRemoveCollaborator,
     handleAssignPersonToUser, handleClearSelfAssignment, onApproveApprovalRequest, onRejectApprovalRequest,
-    onSetTreeDiscoverability, onSetApprovalWindowHours, onSetTreeKinshipSystem, onSetSurnameVariantGroups, onCreateMergeRequest, onSendMergeInvite, onRespondToMergeInvite, onRequestTreeAccess, onRequestTreeAccessByIdentifier, onRespondToTreeAccessRequest, onSearchDiscoverableTrees, onSearchDiscoverableTreesByUsername, onMarkNotificationSeen, onMarkNotificationOpened, onMarkNotificationActivityActioned, onLoadTreeMergePreview,
+    onSetTreeDiscoverability, onSetApprovalWindowHours, onSetTreeKinshipSystem, onSetSurnameVariantGroups, onCreateMergeRequest, onSendMergeInvite, onRespondToMergeInvite, onRequestTreeAccess, onRequestTreeAccessByIdentifier, onRespondToTreeAccessRequest, onSearchDiscoverableTrees, onSearchDiscoverableTreesByUsername, onMarkNotificationSeen, onMarkNotificationOpened, onMarkNotificationActivityActioned, onDeleteNotification, onDeleteNotificationActivity, onDeleteAllNotifications, onLoadTreeMergePreview,
     onApproveMergeRequest, onRejectMergeRequest, onRequestMergeChanges, onUndoMerge, onGrantMergeViewerAccess, onCreateSurnameTree, treeSettingsFocus, onOpenTreeSettingsTarget,
     canvasFamilySwitchRef, canvasActiveFamilyRef,
   ]);

@@ -211,5 +211,10 @@ service cloud.firestore {
         );
       allow delete: if isTreeOwnerById(resource.data.treeId);
     }
+
+    match /emailDeliveries/{deliveryId} {
+      allow read: if false;
+      allow write: if false;
+    }
   }
 }

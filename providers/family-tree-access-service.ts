@@ -1,5 +1,6 @@
 import {
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -9,6 +10,7 @@ import {
   setDoc,
   updateDoc,
   where,
+  writeBatch,
   type QueryDocumentSnapshot,
 } from 'firebase/firestore';
 import type { AppNotification, NotificationActivityState } from '../components/dto/notification';
@@ -24,7 +26,7 @@ import {
   getUserProfileById,
 } from './family-tree-data';
 import { db } from './firebase-provider';
-import { mapMergeRequest, mapNotification, mapTree, mapTreeData, sortCollaborators } from './family-tree-mappers';
+import { mapMergeRequest, mapNotification, mapNotificationActivityState, mapTree, mapTreeData, sortCollaborators } from './family-tree-mappers';
 import { nowIso } from './family-tree-shared';
 
 function buildMergeApprovalLabel(tree: FamilyTree, userId: string) {
@@ -600,4 +602,129 @@ export async function markNotificationActivityActioned(
     createdAt: timestamp,
     updatedAt: timestamp,
   });
+}
+
+export async function deleteNotification(
+  actorUserId: string,
+  notificationId: string,
+) {
+  const notificationRef = doc(db, NOTIFICATIONS_COLLECTION, notificationId);
+  const notificationSnapshot = await getDoc(notificationRef);
+  if (!notificationSnapshot.exists()) {
+    throw new Error('That notification no longer exists.');
+  }
+
+  const notification = mapNotification(notificationSnapshot as QueryDocumentSnapshot);
+  if (notification.userId !== actorUserId) {
+    throw new Error('That notification belongs to another user.');
+  }
+
+  await deleteDoc(notificationRef);
+}
+
+export async function deleteNotificationActivity(
+  actorUserId: string,
+  sourceKind: NotificationActivityState['sourceKind'],
+  sourceId: string,
+) {
+  const activityRef = doc(db, NOTIFICATION_ACTIVITY_COLLECTION, `${actorUserId}-${sourceKind}-${sourceId}`);
+  const snapshot = await getDoc(activityRef);
+  const timestamp = nowIso();
+
+  if (snapshot.exists()) {
+    const existing = mapNotificationActivityState(snapshot as QueryDocumentSnapshot);
+    if (existing.userId !== actorUserId) {
+      throw new Error('That notification activity belongs to another user.');
+    }
+
+    await updateDoc(activityRef, {
+      deletedAt: timestamp,
+      updatedAt: timestamp,
+    });
+    return;
+  }
+
+  await setDoc(activityRef, {
+    userId: actorUserId,
+    sourceKind,
+    sourceId,
+    deletedAt: timestamp,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+  });
+}
+
+export async function deleteAllNotifications(
+  actorUserId: string,
+  notificationIds: string[],
+  activityTargets: Array<{
+    sourceKind: NotificationActivityState['sourceKind'];
+    sourceId: string;
+  }>,
+) {
+  const uniqueNotificationIds = [...new Set(notificationIds.filter(Boolean))];
+  const uniqueActivityTargets = activityTargets.filter((target, index, array) => (
+    Boolean(target.sourceId)
+    && array.findIndex((entry) => entry.sourceKind === target.sourceKind && entry.sourceId === target.sourceId) === index
+  ));
+  const timestamp = nowIso();
+
+  const notificationSnapshots = await Promise.all(
+    uniqueNotificationIds.map((notificationId) => getDoc(doc(db, NOTIFICATIONS_COLLECTION, notificationId))),
+  );
+
+  notificationSnapshots.forEach((snapshot) => {
+    if (!snapshot.exists()) {
+      return;
+    }
+
+    const notification = mapNotification(snapshot as QueryDocumentSnapshot);
+    if (notification.userId !== actorUserId) {
+      throw new Error('One of these notifications belongs to another user.');
+    }
+  });
+
+  const activitySnapshots = await Promise.all(
+    uniqueActivityTargets.map((target) => getDoc(doc(db, NOTIFICATION_ACTIVITY_COLLECTION, `${actorUserId}-${target.sourceKind}-${target.sourceId}`))),
+  );
+
+  activitySnapshots.forEach((snapshot) => {
+    if (!snapshot.exists()) {
+      return;
+    }
+
+    const activityState = mapNotificationActivityState(snapshot as QueryDocumentSnapshot);
+    if (activityState.userId !== actorUserId) {
+      throw new Error('One of these notification activity items belongs to another user.');
+    }
+  });
+
+  const batch = writeBatch(db);
+
+  uniqueNotificationIds.forEach((notificationId) => {
+    batch.delete(doc(db, NOTIFICATIONS_COLLECTION, notificationId));
+  });
+
+  uniqueActivityTargets.forEach((target, index) => {
+    const activityRef = doc(db, NOTIFICATION_ACTIVITY_COLLECTION, `${actorUserId}-${target.sourceKind}-${target.sourceId}`);
+    const snapshot = activitySnapshots[index];
+    if (snapshot?.exists()) {
+      batch.update(activityRef, {
+        deletedAt: timestamp,
+        updatedAt: timestamp,
+      });
+      return;
+    }
+
+    batch.set(activityRef, {
+      userId: actorUserId,
+      sourceKind: target.sourceKind,
+      sourceId: target.sourceId,
+      deletedAt: timestamp,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    });
+  });
+
+  await batch.commit();
 }

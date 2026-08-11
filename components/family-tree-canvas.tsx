@@ -991,7 +991,7 @@ function FamilyTreeCanvas({
         <View style={[styles.floatingHintCard, { backgroundColor: theme.colors.backdrop }]}>
           <Text variant="bodySmall" style={[styles.floatingHintText, { color: theme.colors.onPrimary }]}>{controlsLabel}</Text>
         </View>
-        <View style={[styles.floatingControlsCard, { backgroundColor: theme.colors.primaryContainer, borderColor: theme.colors.primary }]}>
+        <View style={[styles.floatingControlsCard, { backgroundColor: 'transparent', borderColor: 'transparent', borderWidth: 0 }]}>
           <Chip compact icon="magnify">{scale.toFixed(2)}x</Chip>
           <IconButton icon="minus" size={18} mode="contained-tonal" onPress={() => zoomBy(-0.15)} />
           <IconButton icon="plus" size={18} mode="contained-tonal" onPress={() => zoomBy(0.15)} />
@@ -1010,7 +1010,7 @@ function FamilyTreeCanvas({
           {...(Platform.OS === 'web' ? ({ onWheel: handleWheel } as any) : {})}
           style={[
             styles.viewport,
-            { borderColor: theme.colors.primary, backgroundColor: theme.colors.primaryContainer, overflow: 'hidden' },
+            { borderColor: 'transparent', borderWidth: 0, backgroundColor: 'transparent', overflow: 'hidden' },
             Platform.OS === 'web'
                 ? ({ cursor: 'grab', touchAction: 'none', userSelect: 'none' } as any)
                 : null,
@@ -1026,7 +1026,7 @@ function FamilyTreeCanvas({
               {
                 width: contentWidth,
                 height: contentHeight,
-                backgroundColor: theme.colors.primaryContainer,
+                backgroundColor: 'transparent',
               },
               transformStyle,
             ]}

@@ -12,11 +12,13 @@ type LoginNavigation = {
 
 export function useLoginScreenController(navigation: LoginNavigation) {
   const { t } = useI18n();
-  const { signIn, loading, error, clearError } = useAuthStore();
+  const { signIn, requestPasswordReset, loading, error, clearError } = useAuthStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [snackVisible, setSnackVisible] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
+  const [inlineNoticeMessage, setInlineNoticeMessage] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState({
     email: null as string | null,
     password: null as string | null,
@@ -24,12 +26,14 @@ export function useLoginScreenController(navigation: LoginNavigation) {
 
   useEffect(() => {
     if (error) {
+      setSnackbarMessage(error);
       setSnackVisible(true);
     }
   }, [error]);
 
   const dismissSnackbar = () => {
     setSnackVisible(false);
+    setSnackbarMessage(null);
     clearError();
   };
 
@@ -51,6 +55,26 @@ export function useLoginScreenController(navigation: LoginNavigation) {
     }
   };
 
+  const handleForgotPassword = async () => {
+    const emailError = validateEmail(email, t);
+    setFieldErrors((current) => ({ ...current, email: emailError }));
+    if (emailError) {
+      return;
+    }
+
+    try {
+      const result = await requestPasswordReset(email.trim());
+      const nextMessage = result.emailRegistered
+        ? t(K.auth.passwordResetEmailSent)
+        : t(K.auth.passwordResetEmailNotRegistered);
+      setInlineNoticeMessage(nextMessage);
+      setSnackbarMessage(nextMessage);
+      setSnackVisible(true);
+    } catch {
+      // surfaced via store snackbar
+    }
+  };
+
   const fields = useMemo<AuthFieldConfig[]>(() => [
     {
       key: 'email',
@@ -58,6 +82,7 @@ export function useLoginScreenController(navigation: LoginNavigation) {
       value: email,
       onChangeText: (value) => {
         setEmail(value);
+        setInlineNoticeMessage(null);
         setFieldErrors((current) => ({ ...current, email: null }));
       },
       error: fieldErrors.email,
@@ -72,6 +97,7 @@ export function useLoginScreenController(navigation: LoginNavigation) {
       value: password,
       onChangeText: (value) => {
         setPassword(value);
+        setInlineNoticeMessage(null);
         setFieldErrors((current) => ({ ...current, password: null }));
       },
       error: fieldErrors.password,
@@ -103,10 +129,13 @@ export function useLoginScreenController(navigation: LoginNavigation) {
     submitLoading: loading,
     fields,
     snackbarVisible: snackVisible,
-    snackbarMessage: error,
+    snackbarMessage,
     onDismissSnackbar: dismissSnackbar,
     dismissLabel: t(K.common.dismiss),
     onSubmit: handleSignIn,
+    tertiaryActionLabel: t(K.auth.forgotPassword),
+    onTertiaryAction: handleForgotPassword,
+    inlineNoticeMessage,
     onSecondaryAction: () => navigation.navigate('SignUp'),
   };
 }
