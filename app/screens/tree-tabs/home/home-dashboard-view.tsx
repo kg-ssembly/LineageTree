@@ -1593,16 +1593,6 @@ export function HomeDashboardView(props: SharedTabProps) {
             />
           </Reveal>
 
-          <Reveal delay={135}>
-            <NotificationsView
-              {...props}
-              embedded
-              navigation={{
-                navigate: (name) => navigation.navigate(name),
-              }}
-            />
-          </Reveal>
-
         </>
       ) : null}
 
