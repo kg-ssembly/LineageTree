@@ -107,6 +107,9 @@ export class GlobalStyles {
         content: {
             padding: 20,
             paddingBottom: 48,
+            width: '100%',
+            maxWidth: 1200,
+            alignSelf: 'center',
         },
         profileCard: {
             ...CARD_CHROME,
@@ -327,6 +330,9 @@ export class GlobalStyles {
         content: {
             padding: 20,
             paddingBottom: 48,
+            width: '100%',
+            maxWidth: 1200,
+            alignSelf: 'center',
         },
         sectionCard: {
             ...CARD_CHROME,
@@ -767,6 +773,9 @@ export class GlobalStyles {
             padding: 16,
             paddingBottom: 40,
             paddingTop: 72,
+            width: '100%',
+            maxWidth: 1200,
+            alignSelf: 'center',
         },
         compactContent: {
             paddingHorizontal: 16,

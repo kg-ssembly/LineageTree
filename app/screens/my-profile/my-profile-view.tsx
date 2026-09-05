@@ -64,6 +64,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: 40,
+    width: '100%',
+    maxWidth: 1200,
+    alignSelf: 'center',
   },
   tabStripContent: {
     paddingHorizontal: 8,
