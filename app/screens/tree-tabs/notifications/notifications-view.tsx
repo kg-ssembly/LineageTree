@@ -24,6 +24,7 @@ const styles = GlobalStyles.treeDetail;
 const ACTIVITY_PAGE_SIZE = 5;
 const EMBEDDED_ATTENTION_LIMIT = 6;
 const EMBEDDED_COMPLETED_LIMIT = 4;
+type NotificationFilterKey = 'attention' | 'done';
 
 type NotificationFeedKind = 'merge-invite' | 'tree-access-request' | 'tree-access-response' | 'approval' | 'merge-request' | 'merge-history' | 'membership';
 
@@ -146,6 +147,7 @@ export function NotificationsView({
   const { t } = useI18n();
   const [selectedNotification, setSelectedNotification] = useState<NotificationFeedItem | null>(null);
   const [helperVisible, setHelperVisible] = useState(false);
+  const [activeFilter, setActiveFilter] = useState<NotificationFilterKey>('attention');
   const [currentPage, setCurrentPage] = useState(1);
   const [embeddedFilter, setEmbeddedFilter] = useState<'attention' | 'done'>('attention');
 
@@ -295,6 +297,11 @@ export function NotificationsView({
     };
   }, [notificationFeed]);
 
+  const filteredFeed = useMemo(
+    () => (activeFilter === 'attention' ? feedMetrics.attentionItems : feedMetrics.completedItems),
+    [activeFilter, feedMetrics.attentionItems, feedMetrics.completedItems],
+  );
+
   const openNotification = async (item: NotificationFeedItem) => {
     setSelectedNotification(item);
     if (item.notificationId && userId) {
@@ -302,11 +309,11 @@ export function NotificationsView({
     }
   };
 
-  const totalPages = Math.max(1, Math.ceil(notificationFeed.length / ACTIVITY_PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(filteredFeed.length / ACTIVITY_PAGE_SIZE));
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [notificationFeed.length]);
+  }, [activeFilter, filteredFeed.length]);
 
   useEffect(() => {
     setCurrentPage((page) => Math.min(page, totalPages));
@@ -314,8 +321,8 @@ export function NotificationsView({
 
   const paginatedFeed = useMemo(() => {
     const startIndex = (currentPage - 1) * ACTIVITY_PAGE_SIZE;
-    return notificationFeed.slice(startIndex, startIndex + ACTIVITY_PAGE_SIZE);
-  }, [currentPage, notificationFeed]);
+    return filteredFeed.slice(startIndex, startIndex + ACTIVITY_PAGE_SIZE);
+  }, [currentPage, filteredFeed]);
 
   useEffect(() => {
     if (!embedded) {
@@ -598,6 +605,24 @@ export function NotificationsView({
                 <Chip compact icon="check-decagram-outline">{feedMetrics.unactionedDerivedItems.length} to follow up</Chip>
               </View>
               <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                <Chip
+                  compact
+                  selected={activeFilter === 'attention'}
+                  onPress={() => setActiveFilter('attention')}
+                  style={activeFilter === 'attention' ? { backgroundColor: theme.colors.primaryContainer } : undefined}
+                >
+                  {t(K.notifications.needsAttention)} ({feedMetrics.attentionItems.length})
+                </Chip>
+                <Chip
+                  compact
+                  selected={activeFilter === 'done'}
+                  onPress={() => setActiveFilter('done')}
+                  style={activeFilter === 'done' ? { backgroundColor: theme.colors.primaryContainer } : undefined}
+                >
+                  {t(K.common.done)} ({feedMetrics.completedItems.length})
+                </Chip>
+              </View>
+              <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
                 <Button mode="outlined" onPress={() => openConfirm('Delete all notifications?', 'This will remove direct notifications and hide the rest of the current activity feed.', 'Delete all', handleDeleteAll)} disabled={mutating || notificationFeed.length === 0} style={BUTTON_CHROME} buttonColor={theme.colors.surface} textColor={theme.colors.primary} contentStyle={BUTTON_CONTENT_CHROME}>
                   Delete all
                 </Button>
@@ -722,6 +747,13 @@ export function NotificationsView({
                 </SectionCard>
               </Reveal>
             ))}
+            {paginatedFeed.length === 0 ? (
+              <View style={styles.emptyState}>
+                <Text variant="titleMedium">
+                  {activeFilter === 'attention' ? t(K.notifications.everythingCaughtUp) : t(K.notifications.yourFamilyActivityFeedIsQuiet)}
+                </Text>
+              </View>
+            ) : null}
             {totalPages > 1 ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingTop: 4 }}>
                 <IconButton

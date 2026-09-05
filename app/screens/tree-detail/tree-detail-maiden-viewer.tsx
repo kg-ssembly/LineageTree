@@ -1,8 +1,8 @@
 import React from 'react';
-import { Image, Modal, Pressable, ScrollView, View } from 'react-native';
+import { FlatList, Modal, Pressable, ScrollView, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Button, Chip, Dialog, IconButton, Portal, Text, TextInput } from 'react-native-paper';
-import { GlobalStyles, Reveal, SectionCard } from '../../../components';
+import { CachedImage, GlobalStyles, Reveal, SectionCard } from '../../../components';
 import type { PersonPhoto, PersonRecord } from '../../../components/dto/person';
 import { formatPersonDate, getDisplayPersonPhoto, getPersonLifeSpanLabel, getPersonPresenceLabel } from '../../../components/dto/person';
 import { formatPersonName } from '../../../components/person-formatting';
@@ -10,6 +10,9 @@ import { I18N_KEYS as K } from '../../../i18n/keys';
 
 const dialogChrome = GlobalStyles.dialogChrome;
 const styles = GlobalStyles.treeDetail;
+const MAX_ANIMATED_MAIDEN_RESULTS = 6;
+const MAX_ANIMATED_VIEWER_TIMELINE_ITEMS = 6;
+const MAX_ANIMATED_VIEWER_PHOTOS = 6;
 
 export function TreeDetailMaidenViewer({
   theme,
@@ -141,21 +144,28 @@ export function TreeDetailMaidenViewer({
                       {t(K.tree.familyMembers.count, { count: filteredMaidenViewerPeople.length })}
                     </Text>
                   </View>
-                  <ScrollView contentContainerStyle={{ gap: 10, paddingBottom: 8 }}>
-                    {paginatedMaidenViewerPeople.map((person, index) => (
-                      <Pressable
-                        key={person.id}
-                        onPress={() => {
-                          setMaidenMembersVisible(false);
-                          setViewerPerson(person);
-                          setViewerProfileTab('summary');
-                          setViewerPhotoIndex(null);
-                        }}
-                      >
-                        <Reveal delay={70 + index * 30}>
+                  <FlatList
+                    data={paginatedMaidenViewerPeople}
+                    keyExtractor={(person) => person.id}
+                    contentContainerStyle={{ gap: 10, paddingBottom: 8 }}
+                    initialNumToRender={5}
+                    maxToRenderPerBatch={5}
+                    windowSize={5}
+                    removeClippedSubviews
+                    renderItem={({ item: person, index }) => {
+                      const preferredPhoto = getDisplayPersonPhoto(person);
+                      const row = (
+                        <Pressable
+                          onPress={() => {
+                            setMaidenMembersVisible(false);
+                            setViewerPerson(person);
+                            setViewerProfileTab('summary');
+                            setViewerPhotoIndex(null);
+                          }}
+                        >
                           <SectionCard nested style={{ borderRadius: 22, paddingVertical: 14, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                            {getDisplayPersonPhoto(person) ? (
-                              <Image source={{ uri: getDisplayPersonPhoto(person)!.url }} style={{ width: 52, height: 52, borderRadius: 10 }} />
+                            {preferredPhoto ? (
+                              <CachedImage uri={preferredPhoto.url} style={{ width: 52, height: 52, borderRadius: 10 }} priority="low" recyclingKey={preferredPhoto.id} />
                             ) : (
                               <View style={{ width: 52, height: 52, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.surfaceVariant }}>
                                 <MaterialCommunityIcons name="account" size={22} color={theme.colors.primary} />
@@ -169,10 +179,16 @@ export function TreeDetailMaidenViewer({
                             </View>
                             <IconButton icon="chevron-right" size={18} />
                           </SectionCard>
-                        </Reveal>
-                      </Pressable>
-                    ))}
-                  </ScrollView>
+                        </Pressable>
+                      );
+
+                      if (index >= MAX_ANIMATED_MAIDEN_RESULTS) {
+                        return row;
+                      }
+
+                      return <Reveal delay={70 + index * 30}>{row}</Reveal>;
+                    }}
+                  />
                   {maidenMembersTotalPages > 1 ? (
                     <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
                       <IconButton icon="chevron-left" onPress={() => setMaidenMembersPage((page) => Math.max(1, page - 1))} disabled={maidenMembersPage === 1} accessibilityLabel={t(K.tree.familyMembers.previousPage)} />
@@ -208,7 +224,7 @@ export function TreeDetailMaidenViewer({
             <Dialog.Content style={dialogChrome.content}>
               <View style={{ flexDirection: 'row', gap: 16, alignItems: 'center', marginBottom: 16 }}>
                 {viewerPersonPreferredPhoto ? (
-                  <Image source={{ uri: viewerPersonPreferredPhoto.url }} style={{ width: 72, height: 72, borderRadius: 12 }} />
+                  <CachedImage uri={viewerPersonPreferredPhoto.url} style={{ width: 72, height: 72, borderRadius: 12 }} priority="high" recyclingKey={viewerPersonPreferredPhoto.id} />
                 ) : (
                   <View style={{ width: 72, height: 72, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.surfaceVariant }}>
                     <MaterialCommunityIcons name="account" size={30} color={theme.colors.primary} />
@@ -270,8 +286,21 @@ export function TreeDetailMaidenViewer({
                   viewerTimeline.length > 0 ? (
                     <View style={{ gap: 12 }}>
                       {viewerTimeline.map((item, index) => (
-                        <Reveal key={item.id} delay={90 + index * 25}>
-                          <SectionCard nested style={{ borderRadius: 22, paddingVertical: 14, paddingHorizontal: 14 }}>
+                        index < MAX_ANIMATED_VIEWER_TIMELINE_ITEMS ? (
+                          <Reveal key={item.id} delay={90 + index * 25}>
+                            <SectionCard nested style={{ borderRadius: 22, paddingVertical: 14, paddingHorizontal: 14 }}>
+                              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+                                <Chip compact>{item.badgeLabel}</Chip>
+                                <Chip compact icon="calendar">{formatPersonDate(item.date)}</Chip>
+                              </View>
+                              <Text variant="titleMedium">{item.title}</Text>
+                              <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>
+                                {item.description}
+                              </Text>
+                            </SectionCard>
+                          </Reveal>
+                        ) : (
+                          <SectionCard key={item.id} nested style={{ borderRadius: 22, paddingVertical: 14, paddingHorizontal: 14 }}>
                             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
                               <Chip compact>{item.badgeLabel}</Chip>
                               <Chip compact icon="calendar">{formatPersonDate(item.date)}</Chip>
@@ -281,7 +310,7 @@ export function TreeDetailMaidenViewer({
                               {item.description}
                             </Text>
                           </SectionCard>
-                        </Reveal>
+                        )
                       ))}
                     </View>
                   ) : (
@@ -296,17 +325,32 @@ export function TreeDetailMaidenViewer({
 
                 {viewerProfileTab === 'photos' ? (
                   viewerPerson.photos.length > 0 ? (
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingVertical: 4 }}>
-                      {viewerPerson.photos.map((photo, index) => (
-                        <Pressable key={photo.id} onPress={() => setViewerPhotoIndex(index)}>
-                          <Reveal key={photo.id} delay={90 + index * 25}>
+                    <FlatList
+                      data={viewerPerson.photos}
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      keyExtractor={(photo) => photo.id}
+                      contentContainerStyle={{ gap: 12, paddingVertical: 4 }}
+                      initialNumToRender={4}
+                      maxToRenderPerBatch={4}
+                      windowSize={4}
+                      removeClippedSubviews
+                      renderItem={({ item: photo, index }) => {
+                        const card = (
+                          <Pressable onPress={() => setViewerPhotoIndex(index)}>
                             <SectionCard nested style={{ borderRadius: 22, overflow: 'hidden', padding: 0 }}>
-                              <Image source={{ uri: photo.url }} style={{ width: 180, height: 180 }} />
+                              <CachedImage uri={photo.url} style={{ width: 180, height: 180 }} priority="low" recyclingKey={photo.id} />
                             </SectionCard>
-                          </Reveal>
-                        </Pressable>
-                      ))}
-                    </ScrollView>
+                          </Pressable>
+                        );
+
+                        if (index >= MAX_ANIMATED_VIEWER_PHOTOS) {
+                          return card;
+                        }
+
+                        return <Reveal delay={90 + index * 25}>{card}</Reveal>;
+                      }}
+                    />
                   ) : (
                     <View style={{ paddingVertical: 12 }}>
                       <Text variant="titleMedium">{t(K.memories.noPhotosYet)}
@@ -327,7 +371,13 @@ export function TreeDetailMaidenViewer({
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', justifyContent: 'center', alignItems: 'center', padding: 24 }}>
           <IconButton icon="close" size={24} iconColor="#fff" style={{ position: 'absolute', top: 24, right: 24, zIndex: 2 }} onPress={() => setViewerPhotoIndex(null)} />
           {viewerPerson && viewerPhotoIndex !== null ? (
-            <Image source={{ uri: (viewerPerson.photos[viewerPhotoIndex] as PersonPhoto | undefined)?.url }} style={{ width: '100%', height: '80%', resizeMode: 'contain' }} />
+            <CachedImage
+              uri={(viewerPerson.photos[viewerPhotoIndex] as PersonPhoto | undefined)?.url ?? ''}
+              style={{ width: '100%', height: '80%' }}
+              contentFit="contain"
+              priority="high"
+              recyclingKey={(viewerPerson.photos[viewerPhotoIndex] as PersonPhoto | undefined)?.id}
+            />
           ) : null}
         </View>
       </Modal>
