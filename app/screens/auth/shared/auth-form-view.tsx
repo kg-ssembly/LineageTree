@@ -21,7 +21,7 @@ const styles = StyleSheet.create({
   },
   heroTitle: {
     marginTop: 14,
-    fontWeight: '800',
+    fontWeight: '700',
   },
   heroSubtitle: {
     marginTop: 8,
@@ -30,15 +30,15 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: 28,
     padding: 24,
-    shadowColor: '#2A1C14',
-    shadowOpacity: 0.12,
-    shadowRadius: 26,
-    shadowOffset: { width: 0, height: 12 },
-    elevation: 5,
+    shadowColor: '#35432B',
+    shadowOpacity: 0.04,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 1,
   },
   title: { marginBottom: 4, fontWeight: '700' },
   subtitle: { marginBottom: 20 },
-  input: { marginTop: 6 },
+  input: { marginTop: 8 },
   button: { marginTop: 24, ...BUTTON_CHROME },
   buttonContent: BUTTON_CONTENT_CHROME,
   linkButton: { marginTop: 12, alignSelf: 'center' },
@@ -156,6 +156,8 @@ export function AuthFormView({
                 value={field.value}
                 onChangeText={field.onChangeText}
                 mode="outlined"
+                outlineStyle={{ borderRadius: 16 }}
+                outlineColor={theme.colors.outlineVariant}
                 keyboardType={field.keyboardType}
                 secureTextEntry={field.secureTextEntry}
                 autoCapitalize={field.autoCapitalize}

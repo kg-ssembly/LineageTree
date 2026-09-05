@@ -34,3 +34,9 @@ No backend, Firestore schema/rule, dependency, or migration changes were made.
 Before release, exercise owner/editor/viewer sessions with empty and populated trees at phone, tablet, and desktop sizes. Check add/edit person, photos and camera, relationship creation/removal, search reset, fit/zoom with a large surname group, approval cancellation/confirmation, invitation submission, and self-assignment. Verify keyboard focus, screen-reader traversal, large text, dark mode, and reduced motion on devices. Test network failure/reconnection against actual Firestore subscriptions; no speculative offline status or optimistic writes were introduced.
 
 Potential later improvements include canvas search-and-jump across surname groups, richer inline approval comparisons, and a dedicated mobile editing sheet. These need an authenticated interaction pass before expanding the existing workflows.
+
+## Visual refinement follow-up
+
+The subsequent polish pass preserves the existing layout and workflows. The active light palette now uses off-white (#F9FBF6), sage surfaces, warm grey text (#514942), and a deeper leaf green (#477B25) for readable white button labels (5.09:1 contrast). Shared card shadows are lighter, nested cards cannot reintroduce shadows, section typography is calmer, member portraits/rows are roomier, and existing forms use consistent rounded outlines. Tabs have softer selected states and web hover feedback. Tree badge placement now clears person names; the Highlights icon uses a supported glyph. Backgrounds now respect dark mode instead of painting white. Toasts have a constrained, rounded presentation.
+
+Live signed-in Chrome review covered desktop Home, Members, and Tree, plus mobile-width Members and Tree. The earlier signed-out limitation was resolved for visual inspection only; no backend mutations were exercised. Native-device and full dark-mode visual testing remain outstanding.

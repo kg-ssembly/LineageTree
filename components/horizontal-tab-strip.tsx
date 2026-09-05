@@ -31,6 +31,7 @@ export default function HorizontalTabStrip<Key extends string>({
   const { t } = useI18n();
   const [viewportWidth, setViewportWidth] = useState(0);
   const [contentWidth, setContentWidth] = useState(0);
+  const [hoveredKey, setHoveredKey] = useState<Key | null>(null);
   const [scrollOffset, setScrollOffset] = useState(0);
 
   const hasOverflow = contentWidth > viewportWidth + 4;
@@ -48,13 +49,15 @@ export default function HorizontalTabStrip<Key extends string>({
       <Pressable
         key={tab.key}
         onPress={() => onChange(tab.key)}
-        style={[
+        onHoverIn={() => setHoveredKey(tab.key)}
+        onHoverOut={() => setHoveredKey(null)}
+        style={({ pressed }) => [
           styles.item,
           itemStyle,
           Platform.OS === 'web' ? styles.webItem : null,
           {
-            backgroundColor: isActive ? theme.colors.primaryContainer : theme.colors.surface,
-            borderColor: isActive ? theme.colors.primary : theme.colors.outlineVariant,
+            backgroundColor: isActive ? theme.colors.primaryContainer : pressed || hoveredKey === tab.key ? theme.colors.surfaceVariant : theme.colors.surface,
+            borderColor: isActive ? theme.colors.primaryContainer : 'transparent',
           },
         ]}
         accessibilityRole="tab"
@@ -62,7 +65,7 @@ export default function HorizontalTabStrip<Key extends string>({
       >
         <View style={[styles.activeBar, { backgroundColor: isActive ? theme.colors.primary : 'transparent' }]} />
         {tab.icon ? <MaterialCommunityIcons name={tab.icon as never} size={18} color={isActive ? theme.colors.primary : theme.colors.onSurfaceVariant} /> : null}
-        <Text variant="labelMedium" style={{ flex: 1, color: isActive ? theme.colors.primary : theme.colors.onSurfaceVariant }}>
+        <Text variant="labelLarge" style={{ flex: 1, color: isActive ? theme.colors.primary : theme.colors.onSurfaceVariant }}>
           {tab.label}
         </Text>
       </Pressable>
@@ -121,7 +124,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   item: {
-    minHeight: 46,
+    minHeight: 48,
     minWidth: 120,
     flexDirection: 'row',
     alignItems: 'center',

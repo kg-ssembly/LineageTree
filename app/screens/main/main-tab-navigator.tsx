@@ -290,7 +290,7 @@ export function MainTabNavigator({
         tabBarPosition: isDesktopWeb ? 'top' : 'bottom',
         tabBarActiveTintColor: controller.theme.colors.primary,
         tabBarInactiveTintColor: controller.theme.colors.onSurfaceVariant,
-        tabBarActiveBackgroundColor: controller.theme.colors.elevation.level2,
+        tabBarActiveBackgroundColor: controller.theme.colors.secondaryContainer,
         tabBarShowIcon: true,
         tabBarShowLabel: !isDesktopWeb,
         tabBarStyle: [

@@ -363,7 +363,7 @@ const PersonNode = React.memo(function PersonNode(props: PersonNodeProps) {
     : isGhost
     ? primaryColor
     : outlineColor;
-  const borderWidth = isFocusedPerson ? 3 : isHighlighted ? 2.5 : 1;
+  const borderWidth = isFocusedPerson ? 2.5 : isHighlighted ? 2 : 1;
 
   const badgeLabel = isMaidenNameMember
     ? `${person.maidenName!.trim()}`

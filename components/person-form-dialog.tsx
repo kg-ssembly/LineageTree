@@ -1184,6 +1184,7 @@ export default function PersonFormDialog({
               ) : (
                 <>
                   <TextInput
+                    outlineStyle={{ borderRadius: 16 }}
                     mode="outlined"
                     label={t(K.personForm.firstNameRequired)}
                     value={firstName}
@@ -1204,6 +1205,7 @@ export default function PersonFormDialog({
                   </HelperText>
 
                   <TextInput
+                    outlineStyle={{ borderRadius: 16 }}
                     mode="outlined"
                     label={t(K.personForm.secondMiddleNames)}
                     value={middleNames}
@@ -1256,6 +1258,7 @@ export default function PersonFormDialog({
                         </Menu>
                         {showCustomSurnameInput ? (
                           <TextInput
+                            outlineStyle={{ borderRadius: 16 }}
                             mode="outlined"
                             label={t(K.personForm.enterSurnameVariant)}
                             value={lastName}
@@ -1274,6 +1277,7 @@ export default function PersonFormDialog({
                       </>
                     ) : (
                       <TextInput
+                        outlineStyle={{ borderRadius: 16 }}
                         mode="outlined"
                         label={t(K.personForm.enterSurnameVariant)}
                         value={lastName}
@@ -1309,6 +1313,7 @@ export default function PersonFormDialog({
                   <View style={styles.sectionSpacing}>
                     <Text variant="titleSmall">{t(K.personForm.maidenName)}</Text>
                     <TextInput
+                      outlineStyle={{ borderRadius: 16 }}
                       mode="outlined"
                       label={t(K.personForm.maidenBirthSurnameOptional)}
                       value={maidenName}
@@ -1324,6 +1329,7 @@ export default function PersonFormDialog({
                   <View style={styles.sectionSpacing}>
                     <Text variant="titleSmall">{t(K.personProfile.birthPlace)}</Text>
                     <TextInput
+                      outlineStyle={{ borderRadius: 16 }}
                       mode="outlined"
                       label={t(K.treeSettings.birthPlace)}
                       value={birthPlace}

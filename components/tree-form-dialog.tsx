@@ -63,6 +63,7 @@ export default function TreeFormDialog({
         <IconButton icon="close" onPress={onDismiss} disabled={loading} accessibilityLabel={t(K.common.cancel)} style={dialogChrome.closeButton} />
         <Dialog.Content style={dialogChrome.content}>
           <TextInput
+            outlineStyle={{ borderRadius: 16 }}
             mode="outlined"
             label={t(K.app.treeName)}
             value={name}

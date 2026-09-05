@@ -803,7 +803,7 @@ export function HomeDashboardView(props: SharedTabProps) {
   const dashboardTabs = useMemo<Array<{ key: DashboardTabKey; label: string; icon: string }>>(
     () => [
       { key: 'overview', label: t(K.home.overview), icon: 'view-dashboard-outline' },
-      { key: 'highlights', label: t(K.home.highlights), icon: 'sparkles-outline' },
+      { key: 'highlights', label: t(K.home.highlights), icon: 'star-four-points-outline' },
       { key: 'activity', label: activityNotificationCount > 0 ? t(K.home.activityCount, { count: activityNotificationCount }) : t(K.home.activity), icon: 'bell-outline' },
     ],
     [activityNotificationCount, t],

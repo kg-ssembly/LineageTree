@@ -63,6 +63,7 @@ export default function CollaboratorDialog({
         <IconButton icon="close" onPress={onDismiss} disabled={loading} accessibilityLabel={t(K.common.cancel)} style={dialogChrome.closeButton} />
         <Dialog.Content style={dialogChrome.content}>
           <TextInput
+            outlineStyle={{ borderRadius: 16 }}
             mode="outlined"
             label={t(K.treeSettings.collaboratorEmail)}
             value={email}

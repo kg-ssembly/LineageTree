@@ -15,7 +15,7 @@ export function FloatingSnackbar({
     <Portal>
       <Snackbar
         {...props}
-        style={[{ marginBottom: bottomOffset }, style]}
+        style={[{ marginBottom: bottomOffset, borderRadius: 16, width: '94%', maxWidth: 560, alignSelf: 'center' }, style]}
       />
     </Portal>
   );

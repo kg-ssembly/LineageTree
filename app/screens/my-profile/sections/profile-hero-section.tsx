@@ -169,7 +169,7 @@ export function ProfileHeroSection({
               <Text variant="labelLarge" style={{ color: theme.colors.primary }}>
                 {t(K.profileState.profileWorkspace)}
               </Text>
-              <Text variant="headlineMedium" style={{ color: theme.colors.onSurface, fontWeight: '800' }}>
+              <Text variant="headlineMedium" style={{ color: theme.colors.onSurface }}>
                 {userDisplayName ?? t(K.common.unknown)}
               </Text>
               <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 2 }}>
