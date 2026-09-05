@@ -157,6 +157,7 @@ interface TreeState {
   mergePreview: Awaited<ReturnType<typeof getMergePreview>> | null;
   loadingTrees: boolean;
   loadingTreeData: boolean;
+  loadingNotifications: boolean;
   mutating: boolean;
   error: string | null;
   notice: string | null;
@@ -231,6 +232,18 @@ type PersistedTreeState = Pick<
 >;
 
 export const useTreeStore = create<TreeState>()(persist((set, get) => {
+  const notificationSourceLoaded = new Set<string>();
+  const resetNotificationSourceLoadState = () => {
+    notificationSourceLoaded.clear();
+    set({ loadingNotifications: true });
+  };
+  const markNotificationSourceLoaded = (source: string) => {
+    notificationSourceLoaded.add(source);
+    if (['notifications', 'activity', 'approvalRequests', 'mergeRequests', 'mergeHistory'].every((key) => notificationSourceLoaded.has(key))) {
+      set({ loadingNotifications: false });
+    }
+  };
+
   const subscribeToTreeAuxiliaryData = (treeId: string | null) => {
     if (!treeId || subscribedTreeId !== treeId || subscribedTreeAuxiliaryId === treeId) {
       return;
@@ -247,6 +260,7 @@ export const useTreeStore = create<TreeState>()(persist((set, get) => {
     unsubscribeApprovalRequests = subscribeToApprovalRequests(
       treeId,
       (approvalRequests) => {
+        markNotificationSourceLoaded('approvalRequests');
         if (!haveSameRecordVersions(get().approvalRequests, approvalRequests)) {
           set({ approvalRequests });
         }
@@ -271,45 +285,53 @@ export const useTreeStore = create<TreeState>()(persist((set, get) => {
             });
         }
       },
-      (error) => set({ error: normaliseError(error) }),
+      (error) => { markNotificationSourceLoaded('approvalRequests'); set({ error: normaliseError(error) }); },
     );
 
     unsubscribeMergeRequests = subscribeToMergeRequests(
       treeId,
       (mergeRequests) => {
+        markNotificationSourceLoaded('mergeRequests');
         if (!haveSameRecordVersions(get().mergeRequests, mergeRequests)) {
           set({ mergeRequests });
         }
       },
-      (error) => set({ error: normaliseError(error) }),
+      (error) => { markNotificationSourceLoaded('mergeRequests'); set({ error: normaliseError(error) }); },
     );
 
     unsubscribeMergeHistory = subscribeToMergeHistory(
       treeId,
       (mergeHistory) => {
+        markNotificationSourceLoaded('mergeHistory');
         if (!haveSameRecordVersions(get().mergeHistory, mergeHistory)) {
           set({ mergeHistory });
         }
       },
-      (error) => set({ error: normaliseError(error) }),
+      (error) => { markNotificationSourceLoaded('mergeHistory'); set({ error: normaliseError(error) }); },
     );
   };
 
   const subscribeToTreeData = (treeId: string | null) => {
     if (treeId && subscribedTreeId === treeId && get().trees.some((tree) => tree.id === treeId)) {
       set({ selectedTreeId: treeId, loadingTreeData: false });
+      subscribeToTreeAuxiliaryData(treeId);
       return;
     }
 
     stopTreeSubscriptions();
 
     if (!treeId) {
+      markNotificationSourceLoaded('approvalRequests');
+      markNotificationSourceLoaded('mergeRequests');
+      markNotificationSourceLoaded('mergeHistory');
       set({ people: [], relationships: [], approvalRequests: [], mergeRequests: [], mergeHistory: [], mergePreview: null, loadingTreeData: false });
       return;
     }
 
     subscribedTreeId = treeId;
+    resetNotificationSourceLoadState();
     set({ people: [], relationships: [], approvalRequests: [], mergeRequests: [], mergeHistory: [], mergePreview: null, loadingTreeData: true });
+    subscribeToTreeAuxiliaryData(treeId);
     let hasLoadedPeople = false;
     let hasLoadedRelationships = false;
 
@@ -359,6 +381,7 @@ export const useTreeStore = create<TreeState>()(persist((set, get) => {
     mergePreview: null,
     loadingTrees: true,
     loadingTreeData: false,
+    loadingNotifications: true,
     mutating: false,
     error: null,
     notice: null,
@@ -381,6 +404,7 @@ export const useTreeStore = create<TreeState>()(persist((set, get) => {
           mergePreview: null,
           loadingTrees: false,
           loadingTreeData: false,
+          loadingNotifications: false,
           mutating: false,
           error: null,
           notice: null,
@@ -389,6 +413,7 @@ export const useTreeStore = create<TreeState>()(persist((set, get) => {
       }
 
       const state = get();
+      resetNotificationSourceLoadState();
       const hasCachedTrees = state.currentUserId === userId && state.trees.length > 0;
       const hasCachedTreeSelection = hasCachedTrees
         && Boolean(state.selectedTreeId)
@@ -407,6 +432,7 @@ export const useTreeStore = create<TreeState>()(persist((set, get) => {
           mergePreview: null,
           loadingTrees: true,
           loadingTreeData: false,
+          loadingNotifications: true,
           error: null,
           notice: null,
         });
@@ -415,6 +441,7 @@ export const useTreeStore = create<TreeState>()(persist((set, get) => {
           currentUserId: userId,
           loadingTrees: !hasCachedTrees,
           loadingTreeData: false,
+          loadingNotifications: true,
           error: null,
           notice: null,
         });
@@ -460,20 +487,22 @@ export const useTreeStore = create<TreeState>()(persist((set, get) => {
       unsubscribeNotifications = subscribeToNotifications(
         userId,
         (notifications) => {
+          markNotificationSourceLoaded('notifications');
           if (!haveSameRecordVersions(get().notifications, notifications)) {
             set({ notifications });
           }
         },
-        (error) => set({ error: normaliseError(error) }),
+        (error) => { markNotificationSourceLoaded('notifications'); set({ error: normaliseError(error) }); },
       );
       unsubscribeNotificationActivity = subscribeToNotificationActivityStates(
         userId,
         (notificationActivityStates) => {
+          markNotificationSourceLoaded('activity');
           if (!haveSameRecordVersions(get().notificationActivityStates, notificationActivityStates)) {
             set({ notificationActivityStates });
           }
         },
-        (error) => set({ error: normaliseError(error) }),
+        (error) => { markNotificationSourceLoaded('activity'); set({ error: normaliseError(error) }); },
       );
     },
 
