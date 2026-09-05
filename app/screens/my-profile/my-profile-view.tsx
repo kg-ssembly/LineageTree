@@ -64,6 +64,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 8,
     paddingBottom: 40,
+    gap: 16,
     width: '100%',
     maxWidth: 1200,
     alignSelf: 'center',
@@ -76,6 +77,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 8,
     marginHorizontal: 0,
+  },
+  tabStripCard: {
+    marginTop: 0,
+    marginBottom: 0,
   },
 });
 
@@ -974,7 +979,7 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
         />
 
         <Reveal delay={70}>
-          <TabStripCard>
+          <TabStripCard style={styles.tabStripCard}>
             <HorizontalTabStrip
               items={shouldShowLinkedProfileTabs ? profileTabs : profileTabs.filter((tab) => tab.key === 'app-settings')}
               activeKey={activeTab}

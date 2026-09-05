@@ -13,7 +13,7 @@ import { getFamilyMemberCardStyle } from '../../profile-shared/profile-card-shar
 
 const styles = StyleSheet.create({
   heroCard: {
-    marginBottom: 16,
+    marginBottom: 0,
     position: 'relative',
   },
   heroFloatingButton: {
