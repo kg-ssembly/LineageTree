@@ -1,5 +1,5 @@
-import React, { useEffect, useRef } from 'react';
-import { Animated, Easing, Platform, View, type StyleProp, type ViewStyle } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { AccessibilityInfo, Animated, Easing, Platform, View, type StyleProp, type ViewStyle } from 'react-native';
 
 type RevealProps = {
   children: React.ReactNode;
@@ -16,13 +16,23 @@ export default function Reveal({
   duration = 360,
   style,
 }: RevealProps) {
-  if (Platform.OS === 'web') {
-    return <View style={style}>{children}</View>;
-  }
-
-  const translateY = useRef(new Animated.Value(distance)).current;
+  const [reduceMotion, setReduceMotion] = useState(true);
+  const translateY = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    let active = true;
+    void AccessibilityInfo.isReduceMotionEnabled().then((enabled) => {
+      if (active) setReduceMotion(enabled);
+    }).catch(() => {});
+    const subscription = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
+    return () => { active = false; subscription.remove(); };
+  }, []);
+
+  useEffect(() => {
+    if (reduceMotion || Platform.OS === 'web') {
+      translateY.setValue(0);
+      return;
+    }
     translateY.setValue(distance);
 
     const animation = Animated.timing(translateY, {
@@ -36,7 +46,9 @@ export default function Reveal({
     animation.start();
 
     return () => animation.stop();
-  }, [delay, distance, duration, translateY]);
+  }, [delay, distance, duration, reduceMotion, translateY]);
+
+  if (Platform.OS === 'web') return <View style={style}>{children}</View>;
 
   return (
     <Animated.View

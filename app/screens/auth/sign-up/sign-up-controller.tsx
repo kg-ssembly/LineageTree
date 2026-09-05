@@ -103,6 +103,7 @@ export function useSignUpScreenController(navigation: SignUpNavigation) {
       right: (
         <TextInput.Icon
           icon={passwordVisible ? 'eye-off' : 'eye'}
+          accessibilityLabel={t(passwordVisible ? 'Hide password' : 'Show password')}
           onPress={() => setPasswordVisible((current) => !current)}
         />
       ),

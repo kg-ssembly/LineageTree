@@ -43,7 +43,8 @@ export default function ConfirmDialog({
           <Text variant="bodyMedium">{message}</Text>
         </Dialog.Content>
         <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
-          <Button mode="contained" onPress={onConfirm} disabled={loading}>
+          <Button onPress={onDismiss} disabled={loading}>{t(cancelLabel)}</Button>
+          <Button mode="contained" onPress={onConfirm} disabled={loading} loading={loading}>
             {t(confirmLabel)}
           </Button>
         </Dialog.Actions>

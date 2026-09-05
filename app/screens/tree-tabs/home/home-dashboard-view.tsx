@@ -1169,7 +1169,7 @@ export function HomeDashboardView(props: SharedTabProps) {
       <ScreenBackground />
       <ScrollView
         ref={scrollRef}
-        contentContainerStyle={[styles.content, { paddingBottom: 72 }]}
+        contentContainerStyle={[styles.content, { paddingBottom: 72, width: '100%', maxWidth: 1200, alignSelf: 'center' }]}
         showsVerticalScrollIndicator={false}
       >
         <Reveal delay={60}>
@@ -1364,9 +1364,8 @@ export function HomeDashboardView(props: SharedTabProps) {
                   </Button>
                 </View>
 
-                  {overviewActionsExpanded ? (
                   <View style={localStyles.actionPanelBody}>
-                    {overviewPriorityItems.map((item) => (
+                    {(overviewActionsExpanded ? overviewPriorityItems : overviewPriorityItems.slice(0, 1)).map((item) => (
                       <View
                           key={item.id}
                           style={[
@@ -1406,7 +1405,7 @@ export function HomeDashboardView(props: SharedTabProps) {
                       </View>
                     ))}
                   </View>
-                ) : null}
+
               </View>
 
               {dashboardTab === 'overview' ? (

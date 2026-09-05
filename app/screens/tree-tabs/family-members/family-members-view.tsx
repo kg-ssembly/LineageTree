@@ -13,7 +13,7 @@ import {
   useTheme,
 } from 'react-native-paper';
 import { DatePickerModal } from 'react-native-paper-dates';
-import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, CachedImage, GlobalStyles, InfoDialog, Reveal, ScreenBackground } from '../../../../components';
+import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, CachedImage, EmptyState, GlobalStyles, InfoDialog, Reveal, ScreenBackground } from '../../../../components';
 import type { PersonGender, PersonRecord } from '../../../../components/dto/person';
 import {
   formatPersonDate,
@@ -243,6 +243,7 @@ export function FamilyMembersView({
         <Pressable
           onPress={() => openPersonProfile(person)}
           accessibilityRole="button"
+          accessibilityLabel={formatPersonName(person)}
           style={({ pressed }) => [
             styles.memberListRow,
             {
@@ -339,7 +340,7 @@ export function FamilyMembersView({
   return (
     <View style={[styles.content, { flex: 1, paddingBottom: 0, backgroundColor: theme.colors.background }]}>
       <ScreenBackground />
-      <View style={{ flex: 1 }}>
+      <View style={{ flex: 1, width: '100%', maxWidth: 1120, alignSelf: 'center' }}>
         <View style={styles.sectionHeader}>
           <View style={styles.titleWrap}>
             <View style={styles.titleWithHelperRow}>
@@ -373,6 +374,7 @@ export function FamilyMembersView({
           <IconButton
             mode={activeFilterCount > 0 ? 'contained' : 'outlined'}
             icon="tune"
+            accessibilityLabel={t(K.tree.familyMembers.filterMembers)}
             onPress={openFilterModal}
             style={styles.filterButton}>
           </IconButton>
@@ -388,17 +390,21 @@ export function FamilyMembersView({
             </View>
           ) : filteredPeople.length === 0 ? (
             <View style={styles.emptyState}>
-              <Text variant="titleMedium">{t(K.tree.familyMembers.noMatches)}</Text>
-              <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
-                {people.length === 0
-                  ? (canEdit ? t(K.tree.familyMembers.startBuilding) : t(K.tree.familyMembers.sharedTreeEmpty))
-                  : t(K.tree.familyMembers.adjustSearchOrFilters)}
-              </Text>
-              {activeFilterCount > 0 ? (
-                <Button mode="outlined" onPress={() => setFilters(DEFAULT_FILTERS)} style={[BUTTON_CHROME, { marginTop: 8 }]} contentStyle={BUTTON_CONTENT_CHROME}>
-                  {t(K.tree.familyMembers.clearFilters)}
-                </Button>
-              ) : null}
+              <EmptyState
+                icon={people.length === 0 ? 'account-group-outline' : 'account-search-outline'}
+                title={t(people.length === 0 ? K.lineage.noVisualTreeYet : K.tree.familyMembers.noMatches)}
+                message={t(people.length === 0
+                  ? (canEdit ? K.tree.familyMembers.startBuilding : K.tree.familyMembers.sharedTreeEmpty)
+                  : K.tree.familyMembers.adjustSearchOrFilters)}
+                actionLabel={people.length === 0
+                  ? (canEdit ? t(K.home.addFamilyMember) : undefined)
+                  : t(K.common.reset)}
+                onAction={people.length === 0 ? (canEdit ? onOpenAddPerson : undefined) : () => {
+                  setSearchQuery('');
+                  setFilters(DEFAULT_FILTERS);
+                }}
+                disabled={mutating}
+              />
             </View>
           ) : (
             <>

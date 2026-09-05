@@ -67,6 +67,9 @@ export function CollaboratorsSection({
         ) : null}
       </View>
 
+      <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
+        {t(K.treeSettings.familyCircleMessage)}
+      </Text>
       <View style={styles.collaboratorList}>
         {selectedTree.collaborators.map((collaborator, collaboratorIndex) => {
           const linkedPerson = assignedPersonByUserId.get(collaborator.userId) ?? null;
@@ -91,7 +94,8 @@ export function CollaboratorsSection({
                   {canManageCollaborators && collaborator.role !== 'owner' ? (
                     <IconButton
                       icon="account-remove"
-                      iconColor="#C62828"
+                      iconColor={theme.colors.error}
+                      accessibilityLabel={`${t(K.treeSettings.removeCollaborator)}: ${collaborator.displayName || collaborator.email}`}
                       onPress={() => openConfirm(
                         t(K.treeSettings.removeCollaborator),
                         t(K.treeSettings.removeFromTree, { name: collaborator.displayName || collaborator.email }),

@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View } from 'react-native';
 import { Button, Chip, IconButton, SegmentedButtons, Text, useTheme } from 'react-native-paper';
-import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, GlobalStyles, Reveal, SectionCard } from '../../../../components';
+import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, ConfirmDialog, GlobalStyles, Reveal, SectionCard } from '../../../../components';
 import { canUserReviewApprovalRequest, isApprovalExpired } from '../../../../components/dto/approval';
 import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
@@ -26,6 +26,18 @@ export function ApprovalsSection({
 }: ApprovalsSectionProps) {
   const theme = useTheme();
   const { t } = useI18n();
+  const [decision, setDecision] = useState<{ id: string; title: string; description: string; approve: boolean } | null>(null);
+  const [deciding, setDeciding] = useState(false);
+  const confirmDecision = async () => {
+    if (!decision || deciding || mutating) return;
+    setDeciding(true);
+    try {
+      await (decision.approve ? onApproveApprovalRequest(decision.id) : onRejectApprovalRequest(decision.id));
+      setDecision(null);
+    } finally {
+      setDeciding(false);
+    }
+  };
 
   return (
     <Reveal delay={80}>
@@ -75,7 +87,7 @@ export function ApprovalsSection({
         <View style={styles.sectionHeader}>
           <View style={styles.titleWrap}>
             <View style={styles.titleWithHelperRow}>
-              <Text variant="titleLarge">{t(K.treeSettings.pendingApprovals)}</Text>
+              <Text variant="titleLarge">{t(K.treeSettings.pendingApprovals)} ({pendingApprovalRequests.length})</Text>
               <IconButton
                 icon="information-outline"
                 size={18}
@@ -116,10 +128,10 @@ export function ApprovalsSection({
                         </Button>
                         {canReview ? (
                           <>
-                            <Button mode="contained" onPress={() => onApproveApprovalRequest(request.id)} disabled={mutating} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>
+                            <Button mode="contained" onPress={() => setDecision({ id: request.id, title: request.title, description: request.description, approve: true })} disabled={mutating} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>
                               {t(K.treeSettings.approve)}
                             </Button>
-                            <Button mode="outlined" textColor={theme.colors.error} onPress={() => onRejectApprovalRequest(request.id)} disabled={mutating} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>
+                            <Button mode="outlined" textColor={theme.colors.error} onPress={() => setDecision({ id: request.id, title: request.title, description: request.description, approve: false })} disabled={mutating} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>
                               {t(K.treeSettings.reject)}
                             </Button>
                           </>
@@ -141,6 +153,15 @@ export function ApprovalsSection({
         )}
       </SectionCard>
     </View>
+      <ConfirmDialog
+        visible={!!decision}
+        title={decision ? t(decision.approve ? K.treeSettings.approve : K.treeSettings.reject) : ''}
+        message={decision ? decision.title + '\n\n' + decision.description : ''}
+        confirmLabel={decision?.approve ? K.treeSettings.approve : K.treeSettings.reject}
+        loading={mutating || deciding}
+        onDismiss={() => setDecision(null)}
+        onConfirm={confirmDecision}
+      />
     </Reveal>
   );
 }

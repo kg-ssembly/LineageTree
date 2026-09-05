@@ -37,7 +37,7 @@ export const BUTTON_CHROME = {
 } as const;
 
 export const BUTTON_CONTENT_CHROME = {
-    height: 40,
+    minHeight: 48,
     paddingHorizontal: 10,
 } as const;
 
@@ -61,6 +61,9 @@ export class GlobalStyles {
     static readonly dialogChrome = StyleSheet.create({
         dialog: {
             marginHorizontal: 12,
+            width: '94%',
+            maxWidth: 640,
+            alignSelf: 'center',
             borderRadius: 20,
         },
         helperDialog: {

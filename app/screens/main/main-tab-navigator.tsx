@@ -80,11 +80,11 @@ function WebMainTabBar({
     >
       <View style={webTabBarStyles.brandBlock}>
         <Image source={APP_LOGO} style={webTabBarStyles.logo} resizeMode="contain" />
-        <View>
+        <View style={{ flexShrink: 1 }}>
           <Text variant="titleMedium" style={{ color: controller.theme.colors.onSurface }}>
             Lineage Tree
           </Text>
-          <Text variant="bodySmall" style={{ color: controller.theme.colors.onSurfaceVariant }}>
+          <Text numberOfLines={1} variant="bodySmall" style={{ color: controller.theme.colors.onSurfaceVariant }}>
             {controller.selectedTree?.name ?? controller.t(K.navigation.home)}
           </Text>
         </View>
@@ -93,7 +93,7 @@ function WebMainTabBar({
       <View style={webTabBarStyles.menuRow}>
         <Pressable
           onPress={handleNotificationsPress}
-          accessibilityRole="button"
+          accessibilityRole="tab"
           accessibilityLabel={controller.t(K.notifications.notifications)}
           accessibilityState={isNotificationsFocused ? { selected: true } : {}}
           style={[
@@ -143,7 +143,7 @@ function WebMainTabBar({
               onPress={onPress}
               accessibilityRole="button"
               accessibilityState={isFocused ? { selected: true } : {}}
-              accessibilityLabel={descriptor.options.tabBarAccessibilityLabel}
+              accessibilityLabel={descriptor.options.tabBarAccessibilityLabel ?? label}
               style={[
                 webTabBarStyles.menuChip,
                 {
@@ -188,7 +188,8 @@ const webTabBarStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
-    flexShrink: 0,
+    flexShrink: 1,
+    maxWidth: 320,
   },
   logo: {
     width: 52,
@@ -202,7 +203,7 @@ const webTabBarStyles = StyleSheet.create({
     flex: 1,
   },
   menuChip: {
-    minHeight: 42,
+    minHeight: 48,
     paddingHorizontal: 14,
     borderRadius: 999,
     flexDirection: 'row',
@@ -210,8 +211,8 @@ const webTabBarStyles = StyleSheet.create({
     gap: 8,
   },
   iconChip: {
-    minWidth: 42,
-    height: 42,
+    minWidth: 48,
+    height: 48,
     borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',

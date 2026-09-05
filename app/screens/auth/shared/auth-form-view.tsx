@@ -15,7 +15,7 @@ import { BUTTON_CHROME, BUTTON_CONTENT_CHROME } from '../../../../constants/styl
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  scroll: { flexGrow: 1, justifyContent: 'center', padding: 24 },
+  scroll: { flexGrow: 1, justifyContent: 'center', padding: 24, width: '100%', maxWidth: 608, alignSelf: 'center' },
   heroWrap: {
     marginBottom: 28,
   },
@@ -152,6 +152,7 @@ export function AuthFormView({
             <React.Fragment key={field.key}>
               <TextInput
                 label={field.label}
+                accessibilityLabel={field.label}
                 value={field.value}
                 onChangeText={field.onChangeText}
                 mode="outlined"
