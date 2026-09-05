@@ -791,7 +791,7 @@ export function HomeDashboardView(props: SharedTabProps) {
   const dashboardTabs = useMemo<Array<{ key: DashboardTabKey; label: string; icon: string }>>(
     () => [
       { key: 'overview', label: t(K.home.overview), icon: 'view-dashboard-outline' },
-      { key: 'highlights', label: t(K.home.highlights), icon: 'sparkles-outline' },
+      { key: 'highlights', label: t(K.home.highlights), icon: 'star-four-points-outline' },
       { key: 'activity', label: activityNotificationCount > 0 ? t(K.home.activityCount, { count: activityNotificationCount }) : t(K.home.activity), icon: 'bell-outline' },
     ],
     [activityNotificationCount, t],
@@ -1159,7 +1159,7 @@ export function HomeDashboardView(props: SharedTabProps) {
       <ScreenBackground />
       <ScrollView
         ref={scrollRef}
-        contentContainerStyle={[styles.content, { paddingBottom: 72 }]}
+        contentContainerStyle={[styles.content, { paddingBottom: 72, width: '100%', maxWidth: 1200, alignSelf: 'center' }]}
         showsVerticalScrollIndicator={false}
       >
         <Reveal delay={60}>
@@ -1354,9 +1354,8 @@ export function HomeDashboardView(props: SharedTabProps) {
                   </Button>
                 </View>
 
-                  {overviewActionsExpanded ? (
                   <View style={localStyles.actionPanelBody}>
-                    {overviewPriorityItems.map((item) => (
+                    {(overviewActionsExpanded ? overviewPriorityItems : overviewPriorityItems.slice(0, 1)).map((item) => (
                       <View
                           key={item.id}
                           style={[
@@ -1396,7 +1395,7 @@ export function HomeDashboardView(props: SharedTabProps) {
                       </View>
                     ))}
                   </View>
-                ) : null}
+
               </View>
 
               {dashboardTab === 'overview' ? (
@@ -1588,16 +1587,6 @@ export function HomeDashboardView(props: SharedTabProps) {
               {...props}
               embedded
               scrollable={false}
-              navigation={{
-                navigate: (name) => navigation.navigate(name),
-              }}
-            />
-          </Reveal>
-
-          <Reveal delay={135}>
-            <NotificationsView
-              {...props}
-              embedded
               navigation={{
                 navigate: (name) => navigation.navigate(name),
               }}

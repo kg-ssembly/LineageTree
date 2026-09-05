@@ -3,33 +3,33 @@ import type { AppTheme } from './theme';
 
 // ── Shared chrome palette constants (mirrors theme.ts light palette) ─────────
 const F = {
-  background:       '#FAF7F2',
+  background:       '#F9FBF6',
   surface:          '#FFFFFF',
-  surfaceVariant:   '#F1E8DE',
-  outlineVariant:   '#DDD0C3',
-  onSurface:        '#211A16',
-  onSurfaceVariant: '#6B5B4C',
-  onSurfaceDeep:    '#3F332B',
-  primaryGreen:     '#166B51',
-  canvasBg:         '#F7F0E8',
-  canvasBorder:     '#DCCFC2',
+  surfaceVariant:   '#F0F4EB',
+  outlineVariant:   '#E0E6D9',
+  onSurface:        '#514942',
+  onSurfaceVariant: '#696A60',
+  onSurfaceDeep:    '#514942',
+  primaryGreen:     '#477B25',
+  canvasBg:         '#F5F8F0',
+  canvasBorder:     '#E0E6D9',
   nodeBg:           '#FFFFFF',
-  nodeBorder:       '#DDD0C3',
-  avatarBg:         '#F2E7DA',
-  avatarBorder:     '#E5D7C8',
-  hintBg:           '#F6EFE6',
-  pendingBg:        '#FBF7F1',
-  pendingBorder:    '#DDD0C3',
-  photoPreferred:   '#166B51',
-  photoBg:          '#F1E5D7',
+  nodeBorder:       '#E0E6D9',
+  avatarBg:         '#EDF3E5',
+  avatarBorder:     '#DDE6D3',
+  hintBg:           '#F2F5ED',
+  pendingBg:        '#F9FBF6',
+  pendingBorder:    '#E0E6D9',
+  photoPreferred:   '#477B25',
+  photoBg:          '#EDF3E5',
 };
 
 const CARD_CHROME = {
-    shadowColor: '#2A1C14',
-    shadowOpacity: 0.12,
-    shadowRadius: 26,
-    shadowOffset: {width: 0, height: 12},
-    elevation: 5,
+    shadowColor: '#35432B',
+    shadowOpacity: 0.05,
+    shadowRadius: 16,
+    shadowOffset: {width: 0, height: 4},
+    elevation: 1,
 } as const;
 
 export const BUTTON_CHROME = {
@@ -37,8 +37,8 @@ export const BUTTON_CHROME = {
 } as const;
 
 export const BUTTON_CONTENT_CHROME = {
-    height: 40,
-    paddingHorizontal: 10,
+    minHeight: 48,
+    paddingHorizontal: 16,
 } as const;
 
 export function getThemeChrome(theme: AppTheme) {
@@ -61,6 +61,9 @@ export class GlobalStyles {
     static readonly dialogChrome = StyleSheet.create({
         dialog: {
             marginHorizontal: 12,
+            width: '94%',
+            maxWidth: 640,
+            alignSelf: 'center',
             borderRadius: 20,
         },
         helperDialog: {
@@ -83,7 +86,10 @@ export class GlobalStyles {
         },
         dialogActions: {
             paddingHorizontal: 8,
-            paddingTop: 8,
+            paddingTop: 12,
+            paddingBottom: 12,
+            gap: 8,
+            flexWrap: 'wrap',
             borderTopWidth: StyleSheet.hairlineWidth,
         },
         closeButton: {
@@ -101,6 +107,9 @@ export class GlobalStyles {
         content: {
             padding: 20,
             paddingBottom: 48,
+            width: '100%',
+            maxWidth: 1200,
+            alignSelf: 'center',
         },
         profileCard: {
             ...CARD_CHROME,
@@ -321,6 +330,9 @@ export class GlobalStyles {
         content: {
             padding: 20,
             paddingBottom: 48,
+            width: '100%',
+            maxWidth: 1200,
+            alignSelf: 'center',
         },
         sectionCard: {
             ...CARD_CHROME,
@@ -588,8 +600,8 @@ export class GlobalStyles {
         memberListRow: {
             flexDirection: 'row',
             alignItems: 'center',
-            paddingVertical: 14,
-            paddingHorizontal: 14,
+            paddingVertical: 18,
+            paddingHorizontal: 16,
             borderRadius: 22,
             borderWidth: StyleSheet.hairlineWidth,
             borderColor: F.outlineVariant,
@@ -598,7 +610,7 @@ export class GlobalStyles {
         memberListInfo: {
             flex: 1,
             minWidth: 0,
-            marginLeft: 12,
+            marginLeft: 16,
         },
         memberListMeta: {
             flexDirection: 'row',
@@ -620,17 +632,17 @@ export class GlobalStyles {
             marginRight: 4,
         },
         personPhoto: {
-            width: 56,
-            height: 56,
-            borderRadius: 28,
+            width: 60,
+            height: 60,
+            borderRadius: 30,
             borderWidth: 2,
             borderColor: F.avatarBorder,
             backgroundColor: F.avatarBg,
         },
         personPhotoFallback: {
-            width: 56,
-            height: 56,
-            borderRadius: 28,
+            width: 60,
+            height: 60,
+            borderRadius: 30,
             borderWidth: 2,
             borderColor: F.avatarBorder,
             backgroundColor: F.avatarBg,
@@ -761,6 +773,9 @@ export class GlobalStyles {
             padding: 16,
             paddingBottom: 40,
             paddingTop: 72,
+            width: '100%',
+            maxWidth: 1200,
+            alignSelf: 'center',
         },
         compactContent: {
             paddingHorizontal: 16,
@@ -2010,8 +2025,8 @@ export class GlobalStyles {
             padding: 14,
             justifyContent: 'center',
             shadowColor: '#1F2C1B',
-            shadowOpacity: 0.10,
-            shadowRadius: 8,
+            shadowOpacity: 0.05,
+            shadowRadius: 12,
             shadowOffset: {width: 0, height: 4},
             elevation: 2,
         },
@@ -2050,7 +2065,7 @@ export class GlobalStyles {
         },
         nodeBadge: {
             position: 'absolute',
-            top: 8,
+            top: -10,
             right: 8,
             borderRadius: 20,
             paddingHorizontal: 8,

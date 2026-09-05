@@ -48,6 +48,9 @@ const styles = StyleSheet.create({
   signOutButtonContent: {
     height: 48,
   },
+  card: {
+    marginBottom: 0,
+  },
 });
 
 export function AppSettingsSection({ onSignOut, authLoading }: UserProfileTabProps) {
@@ -95,7 +98,7 @@ export function AppSettingsSection({ onSignOut, authLoading }: UserProfileTabPro
   return (
     <>
       <Reveal delay={80}>
-        <SectionCard variant="tree" style={getFamilyMemberCardStyle(theme)}>
+        <SectionCard variant="tree" style={[getFamilyMemberCardStyle(theme), styles.card]}>
         <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>{t(K.settings.editProfile)}</Text>
         <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
           {t(K.settings.changeDisplayName)}
@@ -122,7 +125,7 @@ export function AppSettingsSection({ onSignOut, authLoading }: UserProfileTabPro
       </Reveal>
 
       <Reveal delay={100}>
-        <SectionCard variant="tree" style={getFamilyMemberCardStyle(theme)}>
+        <SectionCard variant="tree" style={[getFamilyMemberCardStyle(theme), styles.card]}>
         <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>{t(K.settings.appearance)}</Text>
         <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
           {t(K.settings.switchLightDarkModes)}
@@ -144,7 +147,7 @@ export function AppSettingsSection({ onSignOut, authLoading }: UserProfileTabPro
       </Reveal>
 
       <Reveal delay={120}>
-        <SectionCard variant="tree" style={getFamilyMemberCardStyle(theme)}>
+        <SectionCard variant="tree" style={[getFamilyMemberCardStyle(theme), styles.card]}>
         <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>{t(K.settings.appLanguage)}</Text>
         <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
           {t(K.settings.chooseLanguage)}

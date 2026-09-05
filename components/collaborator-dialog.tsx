@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Button, Dialog, HelperText, IconButton, Portal, SegmentedButtons, TextInput, useTheme } from 'react-native-paper';
+import { Button, Dialog, HelperText, IconButton, Portal, SegmentedButtons, Text, TextInput, useTheme } from 'react-native-paper';
 import type { CollaboratorRole } from './dto/tree';
 import { useI18n } from '../hooks/use-i18n';
 import { I18N_KEYS as K } from '../i18n/keys';
@@ -63,6 +63,7 @@ export default function CollaboratorDialog({
         <IconButton icon="close" onPress={onDismiss} disabled={loading} accessibilityLabel={t(K.common.cancel)} style={dialogChrome.closeButton} />
         <Dialog.Content style={dialogChrome.content}>
           <TextInput
+            outlineStyle={{ borderRadius: 16 }}
             mode="outlined"
             label={t(K.treeSettings.collaboratorEmail)}
             value={email}
@@ -86,13 +87,17 @@ export default function CollaboratorDialog({
             onValueChange={(value) => setRole(value as CollaboratorRole)}
             style={styles.roleButtons}
             buttons={[
-              { value: 'viewer', label: t(K.treeSettings.viewer) },
-              { value: 'editor', label: t(K.treeSettings.editor) },
+              { value: 'viewer', label: t(K.treeSettings.viewer), disabled: loading },
+              { value: 'editor', label: t(K.treeSettings.editor), disabled: loading },
             ]}
           />
+          <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 12 }}>
+            {t(K.treeSettings.familyCircleMessage)}
+          </Text>
         </Dialog.Content>
         <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
-          <Button mode="contained" onPress={handleSubmit} disabled={loading}>{t(K.treeSettings.invite)}</Button>
+          <Button onPress={onDismiss} disabled={loading}>{t(K.common.cancel)}</Button>
+          <Button mode="contained" onPress={handleSubmit} disabled={loading} loading={loading}>{t(K.treeSettings.invite)}</Button>
         </Dialog.Actions>
       </Dialog>
     </Portal>

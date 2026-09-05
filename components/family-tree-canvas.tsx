@@ -73,8 +73,8 @@ const styles = GlobalStyles.familyTreeCanvas;
 
 // ---- Tunables ----
 const C: LayoutConstants = DEFAULT_LAYOUT_CONSTANTS;
-const MIN_SCALE = 0.7;
-const MAX_SCALE = 1.0;
+const MIN_SCALE = 0.05;
+const MAX_SCALE = 1.8;
 const AUTO_FIT_MAX_SCALE = 0.8; // default zoom cap on initial fit
 const AUTO_FIT_MIN_SCALE_INLINE = 0.7;
 const AUTO_FIT_MIN_SCALE_FULLSCREEN = 0.7;
@@ -361,7 +361,7 @@ const PersonNode = React.memo(function PersonNode(props: PersonNodeProps) {
     : isGhost
     ? primaryColor
     : outlineColor;
-  const borderWidth = isFocusedPerson ? 3 : isHighlighted ? 2.5 : 1;
+  const borderWidth = isFocusedPerson ? 2.5 : isHighlighted ? 2 : 1;
 
   const badgeLabel = isMaidenNameMember
     ? `${person.maidenName!.trim()}`
@@ -372,6 +372,9 @@ const PersonNode = React.memo(function PersonNode(props: PersonNodeProps) {
   return (
       <Pressable
           onPress={handlePress}
+          accessibilityRole="button"
+          accessibilityLabel={formatPersonNodeTitle(person, showMaidenFamilyInNodeTitle)}
+          accessibilityState={{ selected: isFocusedPerson }}
           hitSlop={6}
           style={({ pressed }) => [
             styles.node,
@@ -988,13 +991,14 @@ function FamilyTreeCanvas({
 
   const renderFloatingControls = (mode: 'inline' | 'fullscreen') => (
       <View pointerEvents="box-none" style={styles.viewportOverlay}>
-        <View style={[styles.floatingHintCard, { backgroundColor: theme.colors.backdrop }]}>
-          <Text variant="bodySmall" style={[styles.floatingHintText, { color: theme.colors.onPrimary }]}>{controlsLabel}</Text>
+        <View style={[styles.floatingHintCard, { backgroundColor: theme.colors.surface }]}>
+          <Text variant="bodySmall" style={[styles.floatingHintText, { color: theme.colors.onSurface }]}>{controlsLabel}</Text>
         </View>
         <View style={[styles.floatingControlsCard, { backgroundColor: 'transparent', borderColor: 'transparent', borderWidth: 0 }]}>
           <Chip compact icon="magnify">{scale.toFixed(2)}x</Chip>
-          <IconButton icon="minus" size={18} mode="contained-tonal" onPress={() => zoomBy(-0.15)} />
-          <IconButton icon="plus" size={18} mode="contained-tonal" onPress={() => zoomBy(0.15)} />
+          <IconButton icon="minus" size={24} accessibilityLabel={t('Zoom out')} disabled={scale <= MIN_SCALE} mode="contained-tonal" onPress={() => zoomBy(-0.15)} />
+          <IconButton icon="plus" size={24} accessibilityLabel={t('Zoom in')} disabled={scale >= MAX_SCALE} mode="contained-tonal" onPress={() => zoomBy(0.15)} />
+          <IconButton icon="fit-to-screen-outline" size={24} mode="contained-tonal" accessibilityLabel={t('Fit tree to screen')} onPress={() => fitTo(activeViewportSize.width, activeViewportSize.height, undefined, mode)} />
           {allowFullscreen ? (
               mode === 'fullscreen'
                   ? <Button compact mode="contained" icon="close" onPress={() => setIsFullscreen(false)}>{t(K.common.close)}</Button>
@@ -1108,8 +1112,9 @@ function FamilyTreeCanvas({
               <Text variant="bodyMedium">{controlsLabel}</Text>
               <View style={styles.zoomButtonsRow}>
                 <Chip compact icon="magnify-minus">{scale.toFixed(2)}x</Chip>
-                <Button compact mode="outlined" onPress={() => zoomBy(-0.15)}>-</Button>
-                <Button compact mode="outlined" onPress={() => zoomBy(0.15)}>+</Button>
+                <Button compact accessibilityLabel={t('Zoom out')} mode="outlined" onPress={() => zoomBy(-0.15)}>-</Button>
+                <Button compact accessibilityLabel={t('Zoom in')} mode="outlined" onPress={() => zoomBy(0.15)}>+</Button>
+                <Button compact mode="outlined" onPress={() => fitTo(activeViewportSize.width, activeViewportSize.height)}>{t('Fit tree to screen')}</Button>
                 {allowFullscreen ? <Button compact mode="contained-tonal" icon="fullscreen" onPress={() => setIsFullscreen(true)}>{t(K.common.fullscreen)}</Button> : null}
               </View>
             </View>
@@ -1125,7 +1130,7 @@ function FamilyTreeCanvas({
                 <>
                   <View style={styles.fullscreenHeader}>
                     <Text variant="titleLarge">{fullscreenTitle}</Text>
-                    <IconButton icon="close" onPress={() => setIsFullscreen(false)} />
+                    <IconButton icon="close" accessibilityLabel={t(K.common.close)} onPress={() => setIsFullscreen(false)} />
                   </View>
                   {renderViewport('fullscreen', { height: Math.max(320, windowHeight - 172), borderRadius: 5 })}
                 </>

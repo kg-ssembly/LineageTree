@@ -1,8 +1,7 @@
 import React from 'react';
 import { View } from 'react-native';
-import { ActivityIndicator, Chip, Text, useTheme } from 'react-native-paper';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { FamilyTreeCanvas, GlobalStyles, ScreenBackground } from '../../../../components';
+import { ActivityIndicator, Button, Text, useTheme } from 'react-native-paper';
+import { EmptyState, FamilyTreeCanvas, GlobalStyles, ScreenBackground, BUTTON_CHROME, BUTTON_CONTENT_CHROME } from '../../../../components';
 import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
 import type { SharedTabProps } from '../shared';
@@ -18,6 +17,10 @@ export function FamilyTreeView({
   loadingTreeData,
   familySwitchRef,
   activeFamilyRef,
+  canEdit,
+  mutating,
+  onOpenAddPerson,
+  onOpenRelationshipDialog,
 }: SharedTabProps) {
   const theme = useTheme();
   const { t } = useI18n();
@@ -25,6 +28,14 @@ export function FamilyTreeView({
   return (
     <View style={[styles.visualisationTabContainer, { backgroundColor: theme.colors.background }]}>
       <ScreenBackground variant="soft-circles" />
+      {people.length > 1 && relationships.length === 0 && canEdit && !loadingTreeData ? (
+        <View style={{ padding: 16, gap: 8, backgroundColor: theme.colors.surface }}>
+          <Text variant="bodyMedium">{t(K.home.linkPeopleTogetherSoTheTreeBecomesAConnectedFamilyInsteadOfSeparatePages)}</Text>
+          <Button mode="outlined" icon="family-tree" onPress={onOpenRelationshipDialog} disabled={mutating} style={[BUTTON_CHROME, { alignSelf: 'flex-start' }]} contentStyle={BUTTON_CONTENT_CHROME}>
+            {t(K.relationship.addRelationship)}
+          </Button>
+        </View>
+      ) : null}
       {people.length > 0 ? (
         <FamilyTreeCanvas
           people={people}
@@ -47,25 +58,14 @@ export function FamilyTreeView({
         </View>
       ) : (
         <View style={[styles.visualisationEmptyState, { backgroundColor: 'transparent', borderWidth: 0, borderColor: 'transparent' }]}>
-          <View style={{
-            width: 84,
-            height: 84,
-            borderRadius: 42,
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginBottom: 18,
-            backgroundColor: theme.colors.primaryContainer,
-          }}>
-            <MaterialCommunityIcons name="family-tree" size={40} color={theme.colors.primary} />
-          </View>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
-            <Chip compact icon="gesture-pinch">{t(K.lineage.zoom)}</Chip>
-            <Chip compact icon="gesture-tap">{t(K.lineage.tapToExplore)}</Chip>
-          </View>
-          <Text variant="titleMedium">{t(K.lineage.noVisualTreeYet)}</Text>
-          <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant }]}>
-            {t(K.lineage.startDrawingTree)}
-          </Text>
+          <EmptyState
+            icon="family-tree"
+            title={t(K.lineage.noVisualTreeYet)}
+            message={t(canEdit ? K.tree.familyMembers.startBuilding : K.tree.familyMembers.sharedTreeEmpty)}
+            actionLabel={canEdit ? t(K.home.addFamilyMember) : undefined}
+            onAction={canEdit ? onOpenAddPerson : undefined}
+            disabled={mutating}
+          />
         </View>
       )}
     </View>

@@ -83,6 +83,7 @@ export function getTreeSettingsFamilyMemberCardStyle(
     backgroundColor: backgroundColor ?? theme.colors.surface,
     paddingVertical: 14,
     paddingHorizontal: 14,
+    marginBottom: 0,
     shadowColor: 'transparent',
     shadowOpacity: 0,
     shadowRadius: 0,

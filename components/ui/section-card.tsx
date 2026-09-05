@@ -39,7 +39,7 @@ export function SectionCard({
 
   return (
     <Surface
-      style={[baseStyle, { backgroundColor: backgroundColor ?? theme.colors.surface }, nestedStyle, style]}
+      style={[baseStyle, { backgroundColor: backgroundColor ?? theme.colors.surface }, style, nestedStyle]}
       elevation={nested ? 0 : elevation}
       onLayout={onLayout}
     >

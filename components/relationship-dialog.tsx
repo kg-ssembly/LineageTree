@@ -276,6 +276,7 @@ export default function RelationshipDialog({
                 ) : null}
               </View>
               <TextInput
+                outlineStyle={{ borderRadius: 16 }}
                 mode="outlined"
                 label={t(K.common.searchFamilyMember)}
                 value={fromSearch}
@@ -341,6 +342,7 @@ export default function RelationshipDialog({
                 ) : null}
               </View>
               <TextInput
+                outlineStyle={{ borderRadius: 16 }}
                 mode="outlined"
                 label={t(K.common.searchFamilyMember)}
                 value={toSearch}

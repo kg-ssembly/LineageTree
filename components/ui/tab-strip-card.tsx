@@ -10,14 +10,14 @@ type TabStripCardProps = {
   style?: any;
 };
 
-export function TabStripCard({ children, nested = false, elevation = 2, style }: TabStripCardProps) {
+export function TabStripCard({ children, nested = false, elevation = 0, style }: TabStripCardProps) {
   const theme = useTheme();
 
   return (
     <Surface
       style={[
         styles.card,
-        { backgroundColor: theme.colors.surface },
+        { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant },
         nested ? styles.nestedCard : null,
         nested ? { borderColor: theme.colors.outlineVariant } : null,
         style,
@@ -36,10 +36,11 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     overflow: 'hidden',
     shadowColor: '#1F2C1B',
-    shadowOpacity: 0.08,
+    borderWidth: StyleSheet.hairlineWidth,
+    shadowOpacity: 0.02,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
+    elevation: 0,
   },
   nestedCard: {
     shadowOpacity: 0,

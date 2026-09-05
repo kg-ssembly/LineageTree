@@ -15,13 +15,13 @@ import { BUTTON_CHROME, BUTTON_CONTENT_CHROME } from '../../../../constants/styl
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  scroll: { flexGrow: 1, justifyContent: 'center', padding: 24 },
+  scroll: { flexGrow: 1, justifyContent: 'center', padding: 24, width: '100%', maxWidth: 608, alignSelf: 'center' },
   heroWrap: {
     marginBottom: 28,
   },
   heroTitle: {
     marginTop: 14,
-    fontWeight: '800',
+    fontWeight: '700',
   },
   heroSubtitle: {
     marginTop: 8,
@@ -30,15 +30,15 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: 28,
     padding: 24,
-    shadowColor: '#2A1C14',
-    shadowOpacity: 0.12,
-    shadowRadius: 26,
-    shadowOffset: { width: 0, height: 12 },
-    elevation: 5,
+    shadowColor: '#35432B',
+    shadowOpacity: 0.04,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 1,
   },
   title: { marginBottom: 4, fontWeight: '700' },
   subtitle: { marginBottom: 20 },
-  input: { marginTop: 6 },
+  input: { marginTop: 8 },
   button: { marginTop: 24, ...BUTTON_CHROME },
   buttonContent: BUTTON_CONTENT_CHROME,
   linkButton: { marginTop: 12, alignSelf: 'center' },
@@ -152,9 +152,12 @@ export function AuthFormView({
             <React.Fragment key={field.key}>
               <TextInput
                 label={field.label}
+                accessibilityLabel={field.label}
                 value={field.value}
                 onChangeText={field.onChangeText}
                 mode="outlined"
+                outlineStyle={{ borderRadius: 16 }}
+                outlineColor={theme.colors.outlineVariant}
                 keyboardType={field.keyboardType}
                 secureTextEntry={field.secureTextEntry}
                 autoCapitalize={field.autoCapitalize}

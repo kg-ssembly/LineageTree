@@ -449,7 +449,7 @@ export function ScreenBackground({ variant = 'soft-circles' }: ScreenBackgroundP
   const shapes = variants[variant];
 
   return (
-    <View pointerEvents="none" style={[styles.backdrop, { backgroundColor: '#FFFFFF' }]}>
+    <View pointerEvents="none" style={[styles.backdrop, { backgroundColor: theme.colors.background }]}>
       <Svg width="100%" height="100%" style={StyleSheet.absoluteFillObject}>
         <Defs>
           {shapes.map((shape) => (
@@ -465,7 +465,7 @@ export function ScreenBackground({ variant = 'soft-circles' }: ScreenBackgroundP
                   key={`${shape.gradientId}-${stop.offset}`}
                   offset={stop.offset}
                   stopColor={theme.colors[shape.colorToken]}
-                  stopOpacity={stop.opacity}
+                  stopOpacity={stop.opacity * (theme.dark ? 0.25 : 0.45)}
                 />
               ))}
             </RadialGradient>

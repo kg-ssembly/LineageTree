@@ -106,8 +106,8 @@ test('buildTreeSuggestions shows profile detail prompts before a tree reaches te
 
 test('buildBranchGrowth prioritises recently growing branches over larger but stale surnames', () => {
   const people = [
-    makePerson({ id: 'fresh-1', lastName: 'Fresh', createdAt: '2026-07-08T00:00:00.000Z' }),
-    makePerson({ id: 'fresh-2', lastName: 'Fresh', createdAt: '2026-07-07T00:00:00.000Z' }),
+    makePerson({ id: 'fresh-1', lastName: 'Fresh', createdAt: new Date(Date.now() - 86400000).toISOString() }),
+    makePerson({ id: 'fresh-2', lastName: 'Fresh', createdAt: new Date(Date.now() - 2 * 86400000).toISOString() }),
     makePerson({ id: 'stale-1', lastName: 'Stale', createdAt: '2026-01-01T00:00:00.000Z' }),
     makePerson({ id: 'stale-2', lastName: 'Stale', createdAt: '2026-01-02T00:00:00.000Z' }),
     makePerson({ id: 'stale-3', lastName: 'Stale', createdAt: '2026-01-03T00:00:00.000Z' }),
