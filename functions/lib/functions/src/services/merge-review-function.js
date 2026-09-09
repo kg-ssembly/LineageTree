@@ -2,6 +2,8 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MergeReviewFunction = void 0;
 const https_1 = require("firebase-functions/v2/https");
+const family_tree_merge_review_workflow_1 = require("../../../providers/family-tree-merge-review-workflow");
+const tree_merge_eligibility_1 = require("../../../providers/tree-merge-eligibility");
 const merge_intelligence_1 = require("../../../providers/merge-intelligence");
 const admin_family_tree_utils_1 = require("../shared/admin-family-tree-utils");
 function normalizeRelationshipEndpoints(type, fromPersonId, toPersonId) {
@@ -14,20 +16,6 @@ function normalizeRelationshipEndpoints(type, fromPersonId, toPersonId) {
 function getMergeSelectedMatches(request) {
     const selectedMatchIds = new Set(request.selectedMatchIds);
     return request.preview.matches.filter((match) => selectedMatchIds.has(match.id));
-}
-function validateSelectedMergeMatches(request) {
-    const sourcePersonIds = new Set();
-    const targetPersonIds = new Set();
-    getMergeSelectedMatches(request).forEach((match) => {
-        if (sourcePersonIds.has(match.sourcePersonId)) {
-            throw new Error('Each source family member can only be matched once in a merge.');
-        }
-        if (targetPersonIds.has(match.targetPersonId)) {
-            throw new Error('Each target family member can only be matched once in a merge.');
-        }
-        sourcePersonIds.add(match.sourcePersonId);
-        targetPersonIds.add(match.targetPersonId);
-    });
 }
 function mapPhoto(photo, index) {
     return {
@@ -195,48 +183,52 @@ function buildMergeApprovalLabel(tree, userId) {
 function canApproveMergeForTree(tree, userId) {
     return tree.editorIds.includes(userId);
 }
-function buildMergeReviewUpdate(options) {
-    const nextSelectedMatchIds = options.selectedMatchIds
-        ? [...new Set(options.selectedMatchIds.filter((matchId) => options.currentRequest.preview.matches.some((match) => match.id === matchId)))]
-        : options.currentRequest.selectedMatchIds;
-    if (options.decision === 'approve' && nextSelectedMatchIds.length === 0) {
-        throw new Error('Select at least one person match before approving this merge.');
-    }
-    validateSelectedMergeMatches({
-        ...options.currentRequest,
-        selectedMatchIds: nextSelectedMatchIds,
-    });
-    const approvals = [
-        ...options.currentRequest.approvals.filter((entry) => !options.nextApprovals.some((approval) => approval.treeId === entry.treeId && approval.editorUserId === entry.editorUserId)),
-        ...options.nextApprovals,
-    ];
-    const reviewerComments = options.comment?.trim()
-        ? [...options.currentRequest.reviewerComments, options.comment.trim()]
-        : options.currentRequest.reviewerComments;
-    let status = options.currentRequest.status;
-    if (options.decision === 'reject') {
-        status = 'rejected';
-    }
-    else if (options.decision === 'request-changes') {
-        status = 'changes-requested';
-    }
-    else {
-        const approvedTreeIds = new Set(approvals.filter((entry) => entry.decision === 'approve').map((entry) => entry.treeId));
-        status = approvedTreeIds.has(options.sourceTreeId) && approvedTreeIds.has(options.targetTreeId) ? 'approved' : 'pending';
-    }
-    return {
-        approvals,
-        reviewerComments,
-        conflictChoices: options.conflictChoices ?? [],
-        selectedMatchIds: nextSelectedMatchIds,
-        status,
-        shouldApply: status === 'approved' && options.currentRequest.status !== 'approved',
-    };
-}
 class MergeReviewFunction {
     db;
     constructor(db) {
         this.db = db;
+    }
+    async create(actorUserId, sourceTreeId, targetTreeId) {
+        const [source, target] = await Promise.all([
+            (0, admin_family_tree_utils_1.getTreeBundle)(this.db, sourceTreeId),
+            (0, admin_family_tree_utils_1.getTreeBundle)(this.db, targetTreeId),
+        ]);
+        if (!canApproveMergeForTree(source.tree, actorUserId) || !canApproveMergeForTree(target.tree, actorUserId)) {
+            throw new https_1.HttpsError('permission-denied', 'You need editor access to both trees before starting a merge.');
+        }
+        this.validateTreeEligibility(source.tree, target.tree, source.people, target.people);
+        const preview = (0, merge_intelligence_1.buildMergePreview)(source, target);
+        if (preview.matches.length === 0) {
+            throw new https_1.HttpsError('failed-precondition', 'No likely person matches were found between these trees yet.');
+        }
+        const sourceIds = new Set();
+        const targetIds = new Set();
+        const selectedMatchIds = preview.matches.filter((match) => {
+            if (match.confidenceScore < 65 || sourceIds.has(match.sourcePersonId) || targetIds.has(match.targetPersonId))
+                return false;
+            sourceIds.add(match.sourcePersonId);
+            targetIds.add(match.targetPersonId);
+            return true;
+        }).map((match) => match.id);
+        const ref = this.db.collection(admin_family_tree_utils_1.MERGE_REQUESTS_COLLECTION).doc();
+        const timestamp = (0, admin_family_tree_utils_1.nowIso)();
+        await ref.set({
+            sourceTreeId, targetTreeId, involvedTreeIds: [sourceTreeId, targetTreeId],
+            suggestedByUserId: actorUserId,
+            suggestedByLabel: buildMergeApprovalLabel(source.tree, actorUserId),
+            status: 'pending', preview, selectedMatchIds,
+            approvals: [], reviewerComments: [], conflictChoices: [],
+            createdAt: timestamp, updatedAt: timestamp,
+        });
+        return { id: ref.id, preview };
+    }
+    validateTreeEligibility(source, target, sourcePeople, targetPeople) {
+        try {
+            (0, tree_merge_eligibility_1.assertTreesMergeCompatible)(source, target, sourcePeople, targetPeople);
+        }
+        catch (error) {
+            throw new https_1.HttpsError('failed-precondition', error.message);
+        }
     }
     async review(actorUserId, input) {
         const requestRef = this.db.collection(admin_family_tree_utils_1.MERGE_REQUESTS_COLLECTION).doc(input.requestId);
@@ -256,13 +248,20 @@ class MergeReviewFunction {
         if (approvableTrees.length === 0) {
             throw new https_1.HttpsError('permission-denied', 'Only an editor from an affected tree can review this merge.');
         }
+        if (input.decision === 'approve') {
+            const [sourcePeople, targetPeople] = await Promise.all([
+                (0, admin_family_tree_utils_1.getPeopleByTreeId)(this.db, sourceTree.id),
+                (0, admin_family_tree_utils_1.getPeopleByTreeId)(this.db, targetTree.id),
+            ]);
+            this.validateTreeEligibility(sourceTree, targetTree, sourcePeople, targetPeople);
+        }
         const nextApprovals = input.decision === 'approve'
             ? approvableTrees.map((tree) => ({
                 treeId: tree.id,
                 editorUserId: actorUserId,
                 editorLabel: buildMergeApprovalLabel(tree, actorUserId),
                 decision: input.decision,
-                comment: input.comment,
+                comment: input.comment ?? '',
                 decidedAt: (0, admin_family_tree_utils_1.nowIso)(),
             }))
             : [{
@@ -270,7 +269,7 @@ class MergeReviewFunction {
                     editorUserId: actorUserId,
                     editorLabel: buildMergeApprovalLabel(approvableTrees[0], actorUserId),
                     decision: input.decision,
-                    comment: input.comment,
+                    comment: input.comment ?? '',
                     decidedAt: (0, admin_family_tree_utils_1.nowIso)(),
                 }];
         const transactionResult = await this.db.runTransaction(async (transaction) => {
@@ -282,16 +281,22 @@ class MergeReviewFunction {
             if (latestRequest.status !== 'pending' && latestRequest.status !== 'changes-requested') {
                 throw new https_1.HttpsError('failed-precondition', 'Only pending merge requests can be reviewed.');
             }
-            const update = buildMergeReviewUpdate({
-                currentRequest: latestRequest,
-                decision: input.decision,
-                nextApprovals,
-                comment: input.comment,
-                conflictChoices: input.conflictChoices,
-                selectedMatchIds: input.selectedMatchIds,
-                sourceTreeId: sourceTree.id,
-                targetTreeId: targetTree.id,
-            });
+            let update;
+            try {
+                update = (0, family_tree_merge_review_workflow_1.buildMergeReviewUpdate)({
+                    currentRequest: latestRequest,
+                    decision: input.decision,
+                    nextApprovals,
+                    comment: input.comment ?? '',
+                    conflictChoices: input.conflictChoices,
+                    selectedMatchIds: input.selectedMatchIds,
+                    sourceTreeId: sourceTree.id,
+                    targetTreeId: targetTree.id,
+                });
+            }
+            catch (error) {
+                throw new https_1.HttpsError('failed-precondition', error instanceof Error ? error.message : 'Unable to review these matches.');
+            }
             transaction.update(requestRef, {
                 approvals: update.approvals,
                 reviewerComments: update.reviewerComments,
@@ -349,6 +354,7 @@ class MergeReviewFunction {
             (0, admin_family_tree_utils_1.getTreeBundle)(this.db, request.sourceTreeId),
             (0, admin_family_tree_utils_1.getTreeBundle)(this.db, request.targetTreeId),
         ]);
+        this.validateTreeEligibility(source.tree, target.tree, source.people, target.people);
         const currentPreview = (0, merge_intelligence_1.buildMergePreview)(source, target);
         const currentMatchIds = new Set(currentPreview.matches.map((match) => match.id));
         const missingMatch = request.selectedMatchIds.find((matchId) => !currentMatchIds.has(matchId));
@@ -369,7 +375,7 @@ class MergeReviewFunction {
             throw new https_1.HttpsError('failed-precondition', 'Only approved merge requests can be applied.');
         }
         const timestamp = (0, admin_family_tree_utils_1.nowIso)();
-        validateSelectedMergeMatches(request);
+        (0, family_tree_merge_review_workflow_1.validateSelectedMergeMatches)(request);
         await this.ensureMergePreviewStillMatches(request);
         const snapshotBeforeMerge = await this.captureMergeSnapshot(request.sourceTreeId, request.targetTreeId, request.preview.matches);
         const batch = this.db.batch();

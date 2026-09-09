@@ -506,13 +506,24 @@ export function layoutFamilyTree(
     });
   });
 
-  // Shift everything by PADDING so coords are positive with margin.
+  // Reserve space above each row for remarriage arcs, including wide families.
+  const arcsByRow = new Map<number, number>();
+  for (const relationship of relationships) {
+    if (relationship.type !== 'spouse') continue;
+    const a = positionsByPersonId.get(relationship.fromPersonId);
+    const b = positionsByPersonId.get(relationship.toPersonId);
+    if (!a || !b || (a.y === b.y && Math.abs(a.x - b.x) <= C.NODE_WIDTH + C.SPOUSE_GAP + 4)) continue;
+    const row = Math.min(a.y, b.y);
+    arcsByRow.set(row, (arcsByRow.get(row) ?? 0) + 1);
+  }
+  const topPadding = Math.max(C.PADDING, 26 + Math.max(0, ...arcsByRow.values()) * 8);
+  // Shift everything into the padded canvas.
   positionsByPersonId.forEach((p) => {
     p.x += C.PADDING;
-    p.y += C.PADDING;
+    p.y += topPadding;
   });
   contentWidth += C.PADDING * 2;
-  contentHeight += C.PADDING * 2;
+  contentHeight += topPadding + C.PADDING;
 
   return {
     positionsByPersonId,

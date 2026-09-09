@@ -119,3 +119,33 @@ test('buildMergeReviewUpdate keeps only one approval entry per editor-tree pair 
   assert.equal(reviewUpdate.approvals[0]?.decision, 'approve');
   assert.equal(reviewUpdate.status, 'pending');
 });
+
+for (const decision of ['reject', 'request-changes'] as const) {
+  test(`${decision} succeeds even when suggested matches reuse the same person`, () => {
+    const request = makeRequest();
+    request.preview.matches.push({ ...request.preview.matches[0], id: 'match-2', targetPersonId: 'other-target' });
+    request.selectedMatchIds.push('match-2');
+    const update = buildMergeReviewUpdate({
+      currentRequest: request,
+      decision,
+      nextApprovals: [{ ...makeApproval('source-tree', 'editor-a'), decision }],
+      sourceTreeId: request.sourceTreeId,
+      targetTreeId: request.targetTreeId,
+    });
+    assert.equal(update.status, decision === 'reject' ? 'rejected' : 'changes-requested');
+    assert.equal(update.shouldApply, false);
+  });
+}
+
+test('approval still rejects ambiguous person selections', () => {
+  const request = makeRequest();
+  request.preview.matches.push({ ...request.preview.matches[0], id: 'match-2', targetPersonId: 'other-target' });
+  request.selectedMatchIds.push('match-2');
+  assert.throws(() => buildMergeReviewUpdate({
+    currentRequest: request,
+    decision: 'approve',
+    nextApprovals: [makeApproval('source-tree', 'editor-a')],
+    sourceTreeId: request.sourceTreeId,
+    targetTreeId: request.targetTreeId,
+  }), /Each source family member can only be matched once/);
+});

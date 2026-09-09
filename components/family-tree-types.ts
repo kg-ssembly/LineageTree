@@ -23,6 +23,9 @@ export type LayoutResult = {
 
 export type Connector = {
   key: string;
+  /** Actual relationship endpoints, used for interactive highlighting. */
+  personIds?: string[];
+  relationshipType?: RelationshipRecord['type'];
   d: string;
   stroke: string;
   strokeWidth: number;
@@ -51,8 +54,8 @@ export type LayoutConstants = {
 };
 
 export const DEFAULT_LAYOUT_CONSTANTS: LayoutConstants = {
-  NODE_WIDTH: 176,
-  NODE_HEIGHT: 92,
+  NODE_WIDTH: 232,
+  NODE_HEIGHT: 108,
   HORIZONTAL_GAP: 48,
   SPOUSE_GAP: 12,
   // Wider so each band has enough vertical room to host multiple

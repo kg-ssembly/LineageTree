@@ -1,3 +1,5 @@
+import { getPeopleByTreeId } from '../../../../providers/family-tree-data';
+import { areTreesMergeCompatible } from '../../../../providers/tree-merge-eligibility';
 import React from 'react';
 import { Pressable, View } from 'react-native';
 import { ActivityIndicator, Button, Chip, Divider, IconButton, ProgressBar, Text, TextInput, useTheme } from 'react-native-paper';
@@ -48,6 +50,22 @@ export function MergesSection({
   const [accessSearching, setAccessSearching] = React.useState(false);
   const [accessResultsPage, setAccessResultsPage] = React.useState(1);
 
+  const [mergePeopleByTree, setMergePeopleByTree] = React.useState<Record<string, { lastName: string }[]> | null>(null);
+  const [mergeEligibilityError, setMergeEligibilityError] = React.useState('');
+  React.useEffect(() => {
+    let cancelled = false;
+    setMergePeopleByTree(null);
+    setMergeEligibilityError('');
+    Promise.all(availableMergeSourceTrees.map(async (tree) => (
+      [tree.id, await getPeopleByTreeId(tree.id)] as const
+    ))).then((entries) => {
+      if (!cancelled) setMergePeopleByTree(Object.fromEntries(entries));
+    }).catch(() => {
+      if (!cancelled) setMergeEligibilityError('Unable to check member surnames. Reopen this section to try again.');
+    });
+    return () => { cancelled = true; };
+  }, [availableMergeSourceTrees]);
+
   const pendingMergeInvites = notifications.filter((notification) => notification.type === 'merge-invite' && notification.status === 'pending');
   const pendingTreeAccessRequests = notifications.filter((notification) => notification.type === 'tree-access-response' && notification.status === 'pending');
   const pendingRequestTreeIds = new Set(pendingTreeAccessRequests.map((notification) => notification.sourceTreeId));
@@ -57,8 +75,13 @@ export function MergesSection({
       .filter(Boolean),
   );
   const mergeTargetOptions = React.useMemo(
-    () => availableMergeSourceTrees.filter((tree) => tree.id !== mergeSourceTreeId),
-    [availableMergeSourceTrees, mergeSourceTreeId],
+    () => {
+      const source = availableMergeSourceTrees.find((tree) => tree.id === mergeSourceTreeId);
+      return source && mergePeopleByTree ? availableMergeSourceTrees.filter((tree) => (
+        areTreesMergeCompatible(source, tree, mergePeopleByTree[source.id], mergePeopleByTree[tree.id])
+      )) : [];
+    },
+    [availableMergeSourceTrees, mergeSourceTreeId, mergePeopleByTree],
   );
   const totalAccessPages = Math.max(1, Math.ceil(accessResults.length / RESULTS_PER_PAGE));
   const pagedAccessResults = accessResults.slice((accessResultsPage - 1) * RESULTS_PER_PAGE, accessResultsPage * RESULTS_PER_PAGE);
@@ -198,7 +221,7 @@ export function MergesSection({
             </View>
 
             <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
-              {t(K.treeSettings.mergeAnotherTreeMessage)}
+              {t('Merge trees sharing a surname through their names, saved variants, or members’ current surnames. Maiden surnames do not qualify. Review the person matches before approving; only selected duplicates are combined and both trees remain available.')}
             </Text>
 
             <Text variant="labelMedium" style={{ marginTop: 12 }}>{t(K.treeSettings.sourceTree)}</Text>
@@ -221,7 +244,7 @@ export function MergesSection({
               </View>
             ) : (
               <Text variant="bodySmall" style={{ marginTop: 8, color: theme.colors.onSurfaceVariant }}>
-                {t(K.treeSettings.needAccessToAnotherEditableTree)}
+                {t(mergeEligibilityError || (!mergePeopleByTree ? 'Checking tree surnames…' : 'No compatible editable tree is available. You need editor access to another tree sharing a surname through its name, saved variants, or members’ current surnames.'))}
               </Text>
             )}
 

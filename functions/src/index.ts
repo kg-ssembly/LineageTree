@@ -354,6 +354,19 @@ export const sendNotificationEmailOnCreate = onDocumentCreated(
   },
 );
 
+export const createMergeRequestServer = onCall(
+  { region: 'us-central1' },
+  async (request) => {
+    assertAuthenticated(request.auth?.uid);
+    const sourceTreeId = typeof request.data?.sourceTreeId === 'string' ? request.data.sourceTreeId.trim() : '';
+    const targetTreeId = typeof request.data?.targetTreeId === 'string' ? request.data.targetTreeId.trim() : '';
+    if (!sourceTreeId || !targetTreeId || sourceTreeId.includes('/') || targetTreeId.includes('/') || sourceTreeId === targetTreeId) {
+      throw new HttpsError('invalid-argument', 'Choose two different trees before starting a merge.');
+    }
+    return mergeReviewFunction.create(request.auth!.uid, sourceTreeId, targetTreeId);
+  },
+);
+
 export const reviewMergeRequestServer = onCall(
   {
     region: 'us-central1',

@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteTreeServer = exports.processExpiredApprovalRequestsServer = exports.decideApprovalRequestServer = exports.reviewMergeRequestServer = exports.sendNotificationEmailOnCreate = exports.sendPasswordResetEmail = exports.sendTreeInviteEmail = exports.sendWelcomeEmail = void 0;
+exports.deleteTreeServer = exports.processExpiredApprovalRequestsServer = exports.decideApprovalRequestServer = exports.reviewMergeRequestServer = exports.createMergeRequestServer = exports.sendNotificationEmailOnCreate = exports.sendPasswordResetEmail = exports.sendTreeInviteEmail = exports.sendWelcomeEmail = void 0;
 const app_1 = require("firebase-admin/app");
 const auth_1 = require("firebase-admin/auth");
 const firestore_1 = require("firebase-admin/firestore");
@@ -261,6 +261,15 @@ exports.sendNotificationEmailOnCreate = (0, firestore_2.onDocumentCreated)({
         text: template.text,
         category: 'notification',
     });
+});
+exports.createMergeRequestServer = (0, https_1.onCall)({ region: 'us-central1' }, async (request) => {
+    assertAuthenticated(request.auth?.uid);
+    const sourceTreeId = typeof request.data?.sourceTreeId === 'string' ? request.data.sourceTreeId.trim() : '';
+    const targetTreeId = typeof request.data?.targetTreeId === 'string' ? request.data.targetTreeId.trim() : '';
+    if (!sourceTreeId || !targetTreeId || sourceTreeId.includes('/') || targetTreeId.includes('/') || sourceTreeId === targetTreeId) {
+        throw new https_1.HttpsError('invalid-argument', 'Choose two different trees before starting a merge.');
+    }
+    return mergeReviewFunction.create(request.auth.uid, sourceTreeId, targetTreeId);
 });
 exports.reviewMergeRequestServer = (0, https_1.onCall)({
     region: 'us-central1',

@@ -133,11 +133,14 @@ service cloud.firestore {
     match /mergeRequests/{requestId} {
       allow read: if isTreeMemberById(resource.data.sourceTreeId)
         || isTreeMemberById(resource.data.targetTreeId);
-      allow create: if signedIn()
-        && request.resource.data.suggestedByUserId == request.auth.uid
-        && isTreeEditorById(request.resource.data.sourceTreeId)
-        && isTreeEditorById(request.resource.data.targetTreeId);
-      allow update, delete: if isTreeEditorById(resource.data.sourceTreeId)
+      // Creation and review use server validation. Clients may only mark an undo.
+      allow create: if false;
+      allow update: if (isTreeEditorById(resource.data.sourceTreeId)
+          || isTreeEditorById(resource.data.targetTreeId))
+        && resource.data.status == 'applied'
+        && request.resource.data.status == 'undone'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'undoneAt', 'updatedAt']);
+      allow delete: if isTreeEditorById(resource.data.sourceTreeId)
         || isTreeEditorById(resource.data.targetTreeId);
     }
 

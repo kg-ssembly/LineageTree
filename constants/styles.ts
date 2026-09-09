@@ -1997,7 +1997,8 @@ export class GlobalStyles {
         },
         floatingHintCard: {
             alignSelf: 'flex-start',
-            maxWidth: 300,
+            width: 320,
+            maxWidth: '100%',
             borderRadius: 20,
             paddingHorizontal: 12,
             paddingVertical: 10,
@@ -2077,7 +2078,7 @@ export class GlobalStyles {
         },
         nodeTitle: {
             fontWeight: '700',
-            paddingRight: 12,
+            paddingRight: 0,
         },
         nodeMeta: {
             color: F.onSurfaceVariant,

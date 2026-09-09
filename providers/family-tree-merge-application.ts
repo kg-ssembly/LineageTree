@@ -9,23 +9,7 @@ export function getMergeSelectedMatches(request: MergeRequestRecord) {
   return request.preview.matches.filter((match) => selectedMatchIds.has(match.id));
 }
 
-export function validateSelectedMergeMatches(request: MergeRequestRecord) {
-  const sourcePersonIds = new Set<string>();
-  const targetPersonIds = new Set<string>();
-
-  getMergeSelectedMatches(request).forEach((match) => {
-    if (sourcePersonIds.has(match.sourcePersonId)) {
-      throw new Error('Each source family member can only be matched once in a merge.');
-    }
-
-    if (targetPersonIds.has(match.targetPersonId)) {
-      throw new Error('Each target family member can only be matched once in a merge.');
-    }
-
-    sourcePersonIds.add(match.sourcePersonId);
-    targetPersonIds.add(match.targetPersonId);
-  });
-}
+export { validateSelectedMergeMatches } from './family-tree-merge-review-workflow';
 
 function mapPhoto(photo: any, index: number): PersonPhoto {
   return {

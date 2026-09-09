@@ -2,7 +2,7 @@
 // ---------------------------------------------------------------------------
 // Improvements over the original:
 //   1. Tidy-tree layout (Walker) keyed by spouse-group  → no card overlap.
-//   2. Lane-allocated orthogonal connectors             → no line overlap.
+//   2. Shared family buses and gaps at unrelated intersections.
 //   3. Viewport culling                                  → unlimited nodes.
 //   4. Per-node `Pressable`                              → reliable taps at
 //      any zoom level (no manual hit-testing math).
@@ -26,6 +26,7 @@ import {
   Animated,
   GestureResponderEvent,
   LayoutChangeEvent,
+  Keyboard,
   Modal,
   PanResponder,
   PanResponderGestureState,
@@ -36,7 +37,7 @@ import {
   View,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Button, Chip, IconButton, Text, useTheme } from 'react-native-paper';
+import { Button, Chip, IconButton, Searchbar, Text, useTheme } from 'react-native-paper';
 import { translate } from '../i18n';
 import { I18N_KEYS as K } from '../i18n/keys';
 import Svg, { Path, Text as SvgText } from 'react-native-svg';
@@ -53,8 +54,8 @@ import { GlobalStyles } from '../constants/styles';
 
 import { layoutFamilyTree } from './family-tree-layout';
 import { buildConnectors } from './family-tree-connectors';
+import { createViewportIndex } from './family-tree-viewport';
 import {
-  Connector,
   DEFAULT_LAYOUT_CONSTANTS,
   LayoutConstants,
 } from './family-tree-types';
@@ -337,6 +338,9 @@ type PersonNodeProps = {
   onPrimaryColor: string;
   deferPhoto: boolean;
   compactDetails: boolean;
+  isInspected: boolean;
+  isDimmed: boolean;
+  onInspect: (id?: string) => void;
   onPress: (person: PersonRecord) => void;
 };
 const PersonNode = React.memo(function PersonNode(props: PersonNodeProps) {
@@ -344,7 +348,7 @@ const PersonNode = React.memo(function PersonNode(props: PersonNodeProps) {
     person, x, y, showMaidenFamilyInNodeTitle, isCurrentUser, isFocusedPerson, isGhost, isCrossSurnameChild, isMaidenNameMember,
     surfaceColor, outlineColor, primaryColor, tertiaryColor, onTertiaryColor,
     variantSurface, variantOnSurface, onPrimaryColor,
-    deferPhoto, compactDetails,
+    deferPhoto, compactDetails, isInspected, isDimmed, onInspect,
     onPress,
   } = props;
   const photo = getDisplayPersonPhoto(person);
@@ -354,14 +358,14 @@ const PersonNode = React.memo(function PersonNode(props: PersonNodeProps) {
   }, [person, onPress]);
 
   const isHighlighted = isMaidenNameMember || isCrossSurnameChild || isFocusedPerson;
-  const borderColor = isFocusedPerson
+  const borderColor = isFocusedPerson || isInspected
     ? primaryColor
     : isHighlighted
     ? tertiaryColor
     : isGhost
     ? primaryColor
     : outlineColor;
-  const borderWidth = isFocusedPerson ? 2.5 : isHighlighted ? 2 : 1;
+  const borderWidth = isFocusedPerson || isInspected ? 2.5 : isHighlighted ? 2 : 1;
 
   const badgeLabel = isMaidenNameMember
     ? `${person.maidenName!.trim()}`
@@ -372,8 +376,12 @@ const PersonNode = React.memo(function PersonNode(props: PersonNodeProps) {
   return (
       <Pressable
           onPress={handlePress}
+          onHoverIn={() => onInspect(person.id)}
+          onHoverOut={() => onInspect(undefined)}
+          onFocus={() => onInspect(person.id)}
+          onBlur={() => onInspect(undefined)}
           accessibilityRole="button"
-          accessibilityLabel={formatPersonNodeTitle(person, showMaidenFamilyInNodeTitle)}
+          accessibilityLabel={`${formatPersonNodeTitle(person, showMaidenFamilyInNodeTitle)}, ${getPersonLifeSpanLabel(person)}`}
           accessibilityState={{ selected: isFocusedPerson }}
           hitSlop={6}
           style={({ pressed }) => [
@@ -387,7 +395,10 @@ const PersonNode = React.memo(function PersonNode(props: PersonNodeProps) {
               top: y,
               width: C.NODE_WIDTH,
               height: C.NODE_HEIGHT,
-              opacity: pressed ? 0.85 : isGhost ? 0.7 : 1,
+              opacity: isDimmed ? 0.45 : pressed ? 0.85 : isGhost ? 0.8 : 1,
+              transform: [{ translateY: isInspected ? -3 : 0 }, { scale: pressed ? 0.98 : 1 }],
+              shadowOpacity: isInspected ? 0.16 : 0.05,
+              elevation: isInspected ? 5 : 2,
               ...(Platform.OS === 'web' ? ({ cursor: 'pointer' } as any) : null),
             },
           ]}
@@ -398,7 +409,7 @@ const PersonNode = React.memo(function PersonNode(props: PersonNodeProps) {
             </View>
         ) : isFocusedPerson ? (
             <View style={[styles.nodeBadge, { backgroundColor: primaryColor }]}>
-              <Text variant="labelSmall" style={[styles.nodeBadgeText, { color: onPrimaryColor }]}>{translate(K.common.open)}</Text>
+              <Text variant="labelSmall" style={[styles.nodeBadgeText, { color: onPrimaryColor }]}>{translate('Selected')}</Text>
             </View>
         ) : badgeLabel ? (
             <View style={[styles.nodeBadge, { backgroundColor: tertiaryColor }]}>
@@ -428,7 +439,7 @@ const PersonNode = React.memo(function PersonNode(props: PersonNodeProps) {
             </Text>
             {compactDetails ? null : (
               <>
-                <Text variant="bodySmall" style={[styles.nodeMeta, { color: variantOnSurface }]} numberOfLines={1}>{getPersonLifeSpanLabel(person)}</Text>
+                <Text variant="bodySmall" style={[styles.nodeMeta, { color: variantOnSurface }]} numberOfLines={1}>{[person.birthDate?.slice(0, 4), person.deathDate?.slice(0, 4)].filter(Boolean).join(' – ') || getPersonLifeSpanLabel(person)}</Text>
                 <Text variant="bodySmall" style={[styles.nodeMeta, { color: variantOnSurface }]} numberOfLines={1}>{getPersonPresenceLabel(person)}</Text>
               </>
             )}
@@ -472,18 +483,20 @@ function FamilyTreeCanvas({
   const [inlineViewportSize, setInlineViewportSize] = useState({ width: 0, height: 0 });
   const [fullscreenViewportSize, setFullscreenViewportSize] = useState({ width: 0, height: 0 });
   const [activeSurnames, setActiveSurnames] = useState<string[]>([]);
-
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchFocusId, setSearchFocusId] = useState<string>();
+  const [inspectedPersonId, setInspectedPersonId] = useState<string>();
+  const inspectPerson = useCallback((id?: string) => setInspectedPersonId(id), []);
   // Refs that need to stay current inside gesture callbacks.
   const scaleRef = useRef(scale);
   const panRef = useRef(pan);
-  scaleRef.current = scale;
-  panRef.current = pan;
+  // Gesture refs are updated synchronously by scheduleViewportState; copying
+  // deferred React state here would rewind an in-flight pan on hover renders.
   const scaleAnim = useRef(new Animated.Value(scale)).current;
   const panXAnim = useRef(new Animated.Value(pan.x)).current;
   const panYAnim = useRef(new Animated.Value(pan.y)).current;
   const pendingViewportRef = useRef<{ scale: number; pan: { x: number; y: number } } | null>(null);
   const viewportCommitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [interactionActive, setInteractionActive] = useState(false);
 
   const commitViewportState = useCallback(() => {
     viewportCommitTimerRef.current = null;
@@ -532,6 +545,10 @@ function FamilyTreeCanvas({
   }, [people, relationships, ascendantRootPersonId, descendantRootPersonId]);
 
   // ---- Surname clustering ----
+  const searchResults = useMemo(() => {
+    const query = searchQuery.trim().toLocaleLowerCase();
+    return query ? renderedPeople.filter((person) => formatPersonName(person).toLocaleLowerCase().includes(query)).slice(0, 5) : [];
+  }, [renderedPeople, searchQuery]);
   const surnameClusters = useMemo(
     () => buildSurnameClusters(renderedPeople, currentTreeId),
     [currentTreeId, renderedPeople],
@@ -637,40 +654,6 @@ function FamilyTreeCanvas({
     [clusterPeople, positionsByPersonId],
   );
 
-  const contentBounds = useMemo(() => {
-    if (positionedPeople.length === 0) {
-      return {
-        minX: 0,
-        minY: 0,
-        maxX: contentWidth,
-        maxY: contentHeight,
-        width: Math.max(contentWidth, C.NODE_WIDTH),
-        height: Math.max(contentHeight, C.NODE_HEIGHT),
-      };
-    }
-
-    let minX = Infinity;
-    let minY = Infinity;
-    let maxX = -Infinity;
-    let maxY = -Infinity;
-
-    positionedPeople.forEach(({ x, y }) => {
-      minX = Math.min(minX, x);
-      minY = Math.min(minY, y);
-      maxX = Math.max(maxX, x + C.NODE_WIDTH);
-      maxY = Math.max(maxY, y + C.NODE_HEIGHT);
-    });
-
-    return {
-      minX,
-      minY,
-      maxX,
-      maxY,
-      width: Math.max(maxX - minX, C.NODE_WIDTH),
-        height: Math.max(maxY - minY, C.NODE_HEIGHT),
-      };
-  }, [positionedPeople, contentWidth, contentHeight]);
-
   // ---- Connectors (lane-allocated) ----
   const connectorCacheKey = useMemo(() => [
     getObjectIdentity(layout),
@@ -695,6 +678,59 @@ function FamilyTreeCanvas({
       [clusterRelationships, connectorCacheKey, ghostPersonIds, layout, theme.colors.outline, theme.colors.primary, theme.colors.secondary, theme.colors.tertiary],
   );
   const allConnectors = useMemo(() => [...parentChildConnectors, ...spouseConnectors], [parentChildConnectors, spouseConnectors]);
+  const relatedPersonIds = useMemo(() => {
+    if (!inspectedPersonId) return null;
+    const ids = new Set([inspectedPersonId]);
+    relationships.forEach((r) => {
+      if (r.fromPersonId === inspectedPersonId) ids.add(r.toPersonId);
+      if (r.toPersonId === inspectedPersonId) ids.add(r.fromPersonId);
+    });
+    allConnectors.forEach((connector) => {
+      if (connector.personIds?.includes(inspectedPersonId)) connector.personIds.forEach((id) => ids.add(id));
+    });
+    return ids;
+  }, [inspectedPersonId, relationships, allConnectors]);
+
+  const contentBounds = useMemo(() => {
+    if (positionedPeople.length === 0) {
+      return {
+        minX: 0,
+        minY: 0,
+        maxX: contentWidth,
+        maxY: contentHeight,
+        width: Math.max(contentWidth, C.NODE_WIDTH),
+        height: Math.max(contentHeight, C.NODE_HEIGHT),
+      };
+    }
+
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+
+    positionedPeople.forEach(({ x, y }) => {
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x + C.NODE_WIDTH);
+      maxY = Math.max(maxY, y + C.NODE_HEIGHT);
+    });
+
+    allConnectors.forEach(({ bounds }) => {
+      minX = Math.min(minX, bounds.x);
+      minY = Math.min(minY, bounds.y);
+      maxX = Math.max(maxX, bounds.x + bounds.w);
+      maxY = Math.max(maxY, bounds.y + bounds.h);
+    });
+    return {
+      minX,
+      minY,
+      maxX,
+      maxY,
+      width: Math.max(maxX - minX, C.NODE_WIDTH),
+        height: Math.max(maxY - minY, C.NODE_HEIGHT),
+      };
+  }, [positionedPeople, allConnectors, contentWidth, contentHeight]);
+
   const isLargeTreeMode = clusterPeople.length >= LARGE_TREE_NODE_THRESHOLD
     || allConnectors.length >= LARGE_TREE_CONNECTOR_THRESHOLD;
 
@@ -727,11 +763,12 @@ function FamilyTreeCanvas({
   // ---- Auto-fit on first layout / when canvas size or focus changes ----
   const lastAutoFitKey = useRef<string | null>(null);
   const effectiveFocusId = useMemo(() => {
+    if (searchFocusId && positionsByPersonId.has(searchFocusId)) return searchFocusId;
     if (initialFocusPersonId && positionsByPersonId.has(initialFocusPersonId)) return initialFocusPersonId;
     if (ascendantRootPersonId && positionsByPersonId.has(ascendantRootPersonId)) return ascendantRootPersonId;
     if (descendantRootPersonId && positionsByPersonId.has(descendantRootPersonId)) return descendantRootPersonId;
     return clusterPeople[0]?.id ?? renderedPeople[0]?.id;
-  }, [initialFocusPersonId, ascendantRootPersonId, descendantRootPersonId, positionsByPersonId, clusterPeople, renderedPeople]);
+  }, [searchFocusId, initialFocusPersonId, ascendantRootPersonId, descendantRootPersonId, positionsByPersonId, clusterPeople, renderedPeople]);
 
   const fitTo = useCallback((vw: number, vh: number, focusPersonId?: string, mode: 'inline' | 'fullscreen' = 'inline') => {
     if (vw <= 0 || vh <= 0) return;
@@ -852,7 +889,6 @@ function FamilyTreeCanvas({
       onPanResponderGrant: (e) => {
         gestureMovedRef.current = false;
         dragStartPanRef.current = panRef.current;
-        setInteractionActive(true);
         if (e.nativeEvent.touches.length >= 2) {
           pinchStateRef.current = {
             startDist: distanceBetweenTouches(e),
@@ -896,12 +932,10 @@ function FamilyTreeCanvas({
       onPanResponderRelease: () => {
         pinchStateRef.current = null;
         flushViewportState();
-        setInteractionActive(false);
       },
       onPanResponderTerminate: () => {
         pinchStateRef.current = null;
         flushViewportState();
-        setInteractionActive(false);
       },
       onPanResponderTerminationRequest: () => false,
     }),
@@ -924,22 +958,10 @@ function FamilyTreeCanvas({
     };
   }, [deferredPan.x, deferredPan.y, deferredScale, activeViewportSize.width, activeViewportSize.height]);
 
-  const intersects = useCallback((b: { x: number; y: number; w: number; h: number }) => (
-      b.x + b.w >= viewportRect.x &&
-      b.x <= viewportRect.x + viewportRect.w &&
-      b.y + b.h >= viewportRect.y &&
-      b.y <= viewportRect.y + viewportRect.h
-  ), [viewportRect]);
-
-  const visiblePeople = useMemo(
-    () => positionedPeople.filter(({ bounds }) => intersects(bounds)),
-    [intersects, positionedPeople],
-  );
-
-  const visibleConnectors = useMemo(
-      () => allConnectors.filter((c: Connector) => intersects(c.bounds)),
-      [allConnectors, intersects],
-  );
+  const queryPeople = useMemo(() => createViewportIndex(positionedPeople), [positionedPeople]);
+  const queryConnectors = useMemo(() => createViewportIndex(allConnectors), [allConnectors]);
+  const visiblePeople = useMemo(() => queryPeople(viewportRect), [queryPeople, viewportRect]);
+  const visibleConnectors = useMemo(() => queryConnectors(viewportRect), [queryConnectors, viewportRect]);
 
   // ---- Layout handlers ----
   const onLayoutInline = useCallback((e: LayoutChangeEvent) => {
@@ -989,13 +1011,44 @@ function FamilyTreeCanvas({
     transformOrigin: '0 0' as const,
   }), [panXAnim, panYAnim, scaleAnim]);
 
+  const focusPerson = (person: PersonRecord, mode: 'inline' | 'fullscreen') => {
+    Keyboard.dismiss();
+    if (!positionsByPersonId.has(person.id)) navigateToSurname(extractSurname(person, currentTreeId));
+    setSearchFocusId(person.id);
+    setSearchQuery('');
+    if (positionsByPersonId.has(person.id)) fitTo(activeViewportSize.width, activeViewportSize.height, person.id, mode);
+  };
+
   const renderFloatingControls = (mode: 'inline' | 'fullscreen') => (
       <View pointerEvents="box-none" style={styles.viewportOverlay}>
         <View style={[styles.floatingHintCard, { backgroundColor: theme.colors.surface }]}>
-          <Text variant="bodySmall" style={[styles.floatingHintText, { color: theme.colors.onSurface }]}>{controlsLabel}</Text>
+          <Text variant="titleSmall" style={{ color: theme.colors.primary, marginBottom: 6 }}>
+            {activeSurnames[0] || t('Family tree')} · {clusterPeople.length} {t('people')}
+          </Text>
+          <Searchbar
+            placeholder={t('Find a family member')}
+            accessibilityLabel={t('Find a family member')}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            style={{ backgroundColor: theme.colors.surfaceVariant, height: 44 }}
+            inputStyle={{ minHeight: 44, fontSize: 14 }}
+          />
+          {searchQuery.trim() ? (
+            <View style={{ marginTop: 8 }}>
+              {searchResults.map((person) => (
+                <Button key={person.id} icon="account-search-outline" contentStyle={{ justifyContent: 'flex-start' }} onPress={() => focusPerson(person, mode)}>
+                  {formatPersonName(person)}
+                </Button>
+              ))}
+              {searchResults.length === 0 ? <Text variant="bodySmall">{t('No family members found')}</Text> : null}
+            </View>
+          ) : <Text variant="bodySmall" style={[styles.floatingHintText, { color: theme.colors.onSurfaceVariant, marginTop: 8 }]}>{controlsLabel}</Text>}
         </View>
-        <View style={[styles.floatingControlsCard, { backgroundColor: 'transparent', borderColor: 'transparent', borderWidth: 0 }]}>
-          <Chip compact icon="magnify">{scale.toFixed(2)}x</Chip>
+        <View style={[styles.floatingControlsCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant }]}>
+          <Chip compact icon="magnify">{Math.round(scale * 100)}%</Chip>
+          {currentUserPersonId && renderedPeopleById.has(currentUserPersonId) ? (
+            <IconButton icon="account-star-outline" size={24} accessibilityLabel={t('Find me in the tree')} onPress={() => focusPerson(renderedPeopleById.get(currentUserPersonId)!, mode)} />
+          ) : null}
           <IconButton icon="minus" size={24} accessibilityLabel={t('Zoom out')} disabled={scale <= MIN_SCALE} mode="contained-tonal" onPress={() => zoomBy(-0.15)} />
           <IconButton icon="plus" size={24} accessibilityLabel={t('Zoom in')} disabled={scale >= MAX_SCALE} mode="contained-tonal" onPress={() => zoomBy(0.15)} />
           <IconButton icon="fit-to-screen-outline" size={24} mode="contained-tonal" accessibilityLabel={t('Fit tree to screen')} onPress={() => fitTo(activeViewportSize.width, activeViewportSize.height, undefined, mode)} />
@@ -1050,7 +1103,8 @@ function FamilyTreeCanvas({
                       d={c.d}
                       fill="none"
                       stroke={c.stroke}
-                      strokeWidth={c.strokeWidth}
+                      strokeWidth={c.strokeWidth + (inspectedPersonId && c.personIds?.includes(inspectedPersonId) ? 1 : 0)}
+                      opacity={!inspectedPersonId || c.personIds?.includes(inspectedPersonId) ? 1 : 0.18}
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       {...(c.dashArray ? { strokeDasharray: c.dashArray } : {})}
@@ -1080,7 +1134,7 @@ function FamilyTreeCanvas({
                     y={y}
                     showMaidenFamilyInNodeTitle={showMaidenFamilyInNodeTitle}
                     isCurrentUser={currentUserPersonId === person.id}
-                    isFocusedPerson={highlightedPersonId === person.id}
+                    isFocusedPerson={highlightedPersonId === person.id || searchFocusId === person.id}
                     isGhost={ghostPersonIds.has(person.id)}
                     isCrossSurnameChild={crossSurnameChildIds.has(person.id)}
                     isMaidenNameMember={maidenNameMemberIds.has(person.id)}
@@ -1092,8 +1146,11 @@ function FamilyTreeCanvas({
                     variantSurface={theme.colors.surfaceVariant}
                     variantOnSurface={theme.colors.onSurfaceVariant}
                     onPrimaryColor={theme.colors.onPrimary}
-                    deferPhoto={interactionActive || isLargeTreeMode}
-                    compactDetails={isLargeTreeMode}
+                    deferPhoto={false}
+                    compactDetails={isLargeTreeMode && scale < 0.45}
+                    isInspected={inspectedPersonId === person.id}
+                    isDimmed={!!relatedPersonIds && !relatedPersonIds.has(person.id)}
+                    onInspect={inspectPerson}
                     onPress={handlePersonPress}
                 />
             );

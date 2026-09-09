@@ -1,10 +1,5 @@
-// Orthogonal connector routing with lane allocation.
-//
-// Because the tidy-tree layout guarantees no node overlaps, we no
-// longer need obstacle dodging. Each parent group gets its own
-// horizontal "lane" in the gap between generations, and each
-// non-adjacent spouse pair gets its own lane above their row.
-// This eliminates overlapping connectors entirely.
+import { buildConnectorPaths, type ConnectorRoute } from './family-tree-routing';
+// Orthogonal family buses with card avoidance and explicit crossing gaps.
 
 import type { RelationshipRecord } from './dto/relationship';
 import { DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND, DEFAULT_SPOUSE_RELATIONSHIP_STATUS } from './dto/relationship';
@@ -14,56 +9,7 @@ import {
   LayoutResult,
 } from './family-tree-types';
 
-type FamilyEntry = {
-  parentGroupId: string;
-  childPersonIds: string[];
-  parentCenterX: number;
-  parentBottomY: number;
-};
-
 type HorizontalInterval = { start: number; end: number };
-
-function pointsToRoundedPath(points: { x: number; y: number }[], radius: number): string {
-  if (points.length === 0) return '';
-  if (points.length === 1) return `M ${points[0].x} ${points[0].y}`;
-  if (points.length === 2) return `M ${points[0].x} ${points[0].y} L ${points[1].x} ${points[1].y}`;
-
-  let d = `M ${points[0].x} ${points[0].y}`;
-  for (let i = 1; i < points.length - 1; i++) {
-    const p1 = points[i - 1];
-    const p2 = points[i];
-    const p3 = points[i + 1];
-
-    const d1 = Math.hypot(p2.x - p1.x, p2.y - p1.y);
-    const d2 = Math.hypot(p3.x - p2.x, p3.y - p2.y);
-    if (d1 === 0 || d2 === 0) {
-      d += ` L ${p2.x} ${p2.y}`;
-      continue;
-    }
-    const r = Math.min(radius, d1 / 2, d2 / 2);
-
-    const sx = p2.x + ((p1.x - p2.x) / d1) * r;
-    const sy = p2.y + ((p1.y - p2.y) / d1) * r;
-    const ex = p2.x + ((p3.x - p2.x) / d2) * r;
-    const ey = p2.y + ((p3.y - p2.y) / d2) * r;
-
-    d += ` L ${sx} ${sy} Q ${p2.x} ${p2.y} ${ex} ${ey}`;
-  }
-  const last = points[points.length - 1];
-  d += ` L ${last.x} ${last.y}`;
-  return d;
-}
-
-function boundsOf(points: { x: number; y: number }[]) {
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  points.forEach((p) => {
-    if (p.x < minX) minX = p.x;
-    if (p.y < minY) minY = p.y;
-    if (p.x > maxX) maxX = p.x;
-    if (p.y > maxY) maxY = p.y;
-  });
-  return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
-}
 
 function simplifyOrthogonalPoints(points: { x: number; y: number }[]) {
   const deduped = points.filter((point, index) => (
@@ -147,10 +93,13 @@ function buildParentChildRoute(
   endLevel: number,
   occupiedIntervalsByLevel: Map<number, HorizontalInterval[]>,
   contentWidth: number,
+  laneFraction: number,
+  occupiedRoutes: { x: number; top: number; bottom: number; network: string }[],
+  network: string,
 ) {
   const totalGap = endY - startY;
   const laneInset = Math.max(16, Math.min(32, totalGap / 4));
-  let exitY = startY + laneInset;
+  let exitY = startY + laneInset + Math.max(0, Math.min(totalGap, 100) - 2 * laneInset) * laneFraction;
   let approachY = endY - laneInset;
   if (exitY > approachY) {
     const midY = (startY + endY) / 2;
@@ -165,7 +114,11 @@ function buildParentChildRoute(
 
   const laneX = findNearestFreeX(
     endX,
-    blockedAcrossLevels,
+    mergeIntervals([
+      ...blockedAcrossLevels,
+      ...occupiedRoutes.filter((run) => run.network !== network && run.top < approachY && run.bottom > exitY)
+        .map((run) => ({ start: run.x - 8, end: run.x + 8 })),
+    ]),
     1,
     Math.max(1, contentWidth - 1),
   );
@@ -237,7 +190,7 @@ export function buildConnectors(
   // Adjacent spouses (same group, side-by-side): straight horizontal line.
   // Non-adjacent spouses (rare — e.g. remarriage drawn far away): routed
   // ABOVE the row in a dedicated lane.
-  const spouseConnectors: Connector[] = [];
+  const spouseRoutes: ConnectorRoute[] = [];
 
   // Group non-adjacent spouse pairs by row to allocate lanes.
   type SpousePair = { rel: RelationshipRecord; leftX: number; rightX: number; rowY: number; adjacent: boolean };
@@ -273,7 +226,7 @@ export function buildConnectors(
   nonAdjacentByRow.forEach((pairs) => {
     // Sort by span size desc — bigger spans get outer lanes.
     pairs
-      .sort((l, r) => (r.rightX - r.leftX) - (l.rightX - l.leftX))
+      .sort((l, r) => (l.rightX - l.leftX) - (r.rightX - r.leftX))
       .forEach((p, i) => laneByPairKey.set(p.rel.id, i + 1));
   });
 
@@ -313,12 +266,15 @@ export function buildConnectors(
       : { x: pts[0].x, y: pts[0].y };
     const connectorStyle = getSpouseConnectorStyle(pair.rel, colors, isBridge);
 
-    spouseConnectors.push({
+    spouseRoutes.push({
       key: `spouse-${pair.rel.id}`,
-      d: pointsToRoundedPath(pts, 12),
+      points: pts,
+      networkId: `spouse-${pair.rel.id}`,
+      relationshipType: 'spouse',
+      personIds: [pair.rel.fromPersonId, pair.rel.toPersonId],
       stroke: connectorStyle.stroke,
       strokeWidth: connectorStyle.strokeWidth,
-      bounds: boundsOf(pts),
+
       dashArray: connectorStyle.dashArray,
       label: isBridge ? '⬌ married into family' : undefined,
       labelPosition: isBridge ? labelPos : undefined,
@@ -328,7 +284,7 @@ export function buildConnectors(
   // ---- Parent-child connectors ----
   // Aggregate by (parentGroup, childLevel). Each entry uses one trunk
   // emitted once + N drops, in its own lane.
-  const familiesByLevel = new Map<number, FamilyEntry[]>();
+
 
   // Pre-compute spouse-group bounds so we know parent center & bottom.
   const groupBounds = new Map<string, { centerX: number; bottomY: number; topY: number; left: number; right: number }>();
@@ -360,78 +316,87 @@ export function buildConnectors(
     occupiedIntervalsByLevel.set(level, mergeIntervals(intervals));
   });
 
-  relationships.forEach((r) => {
-    if (r.type !== 'parent-child') return;
+  // Match the *recorded* parent set, not every partner in a spouse group.
+  // A solo parent's child must never appear to belong to their other partner.
+  const parentsByChildKind = new Map<string, Set<string>>();
+  const parentRelationships = relationships.filter((r) => r.type === 'parent-child');
+  for (const r of parentRelationships) {
+    const key = `${r.toPersonId}:${r.parentChildKind ?? DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND}`;
+    const parents = parentsByChildKind.get(key) ?? new Set<string>();
+    parents.add(r.fromPersonId);
+    parentsByChildKind.set(key, parents);
+  }
+  const networkByRelationship = new Map<string, string>();
+  const networksByLevel = new Map<number, string[]>();
+  for (const r of parentRelationships) {
+    const kind = r.parentChildKind ?? DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND;
+    const parents = [...parentsByChildKind.get(`${r.toPersonId}:${kind}`)!].sort();
+    const network = JSON.stringify([parents, kind]);
+    networkByRelationship.set(r.id, network);
+    const childGroup = spouseGroupIdByPersonId.get(r.toPersonId);
+    const level = childGroup ? levelBySpouseGroupId.get(childGroup) : undefined;
+    if (level === undefined) continue;
+    const networks = networksByLevel.get(level) ?? [];
+    if (!networks.includes(network)) networks.push(network);
+    networksByLevel.set(level, networks);
+  }
+  const portsByPerson = new Map<string, string[]>();
+  for (const r of parentRelationships) {
+    for (const id of [r.fromPersonId, r.toPersonId]) {
+      const portKey = `${id}:${id === r.fromPersonId ? 'out' : 'in'}`;
+      const ports = portsByPerson.get(portKey) ?? [];
+      const network = networkByRelationship.get(r.id)!;
+      if (!ports.includes(network)) ports.push(network);
+      portsByPerson.set(portKey, ports);
+    }
+  }
+  const portOffset = (id: string, direction: 'in' | 'out', network: string) => {
+    const ports = portsByPerson.get(`${id}:${direction}`)!;
+    return (ports.indexOf(network) - (ports.length - 1) / 2) * Math.min(12, 80 / ports.length);
+  };
+  const occupiedRoutes: { x: number; top: number; bottom: number; network: string }[] = [];
+  const parentRoutes: ConnectorRoute[] = [];
+  for (const r of parentRelationships) {
     const parentGid = spouseGroupIdByPersonId.get(r.fromPersonId);
     const childGid = spouseGroupIdByPersonId.get(r.toPersonId);
-    if (!parentGid || !childGid) return;
-    const childLevel = levelBySpouseGroupId.get(childGid);
-    if (typeof childLevel !== 'number') return;
-    const parentBounds = groupBounds.get(parentGid);
-    if (!parentBounds) return;
-
-    if (!familiesByLevel.has(childLevel)) familiesByLevel.set(childLevel, []);
-    const entries = familiesByLevel.get(childLevel)!;
-    let entry = entries.find((e) => e.parentGroupId === parentGid);
-    if (!entry) {
-      entry = {
-        parentGroupId: parentGid,
-        childPersonIds: [],
-        parentCenterX: parentBounds.centerX,
-        parentBottomY: parentBounds.bottomY,
-      };
-      entries.push(entry);
-    }
-    if (!entry.childPersonIds.includes(r.toPersonId)) {
-      entry.childPersonIds.push(r.toPersonId);
-    }
-  });
-
-  const parentChildConnectors: Connector[] = [];
-  const cornerRadius = 24;
-
-  // ---- Parent-child connectors ----
-  // Route every edge independently through card-free generation gaps.
-  // The vertical "lane" is chosen outside all node bounds on the
-  // intermediate levels so the connector can never pass through a card.
-  relationships.forEach((r) => {
-    if (r.type !== 'parent-child') return;
-    const parentGid = spouseGroupIdByPersonId.get(r.fromPersonId);
-    const childGid = spouseGroupIdByPersonId.get(r.toPersonId);
-    if (!parentGid) return;
-    if (!childGid) return;
-
+    if (!parentGid || !childGid) continue;
     const childLevel = levelBySpouseGroupId.get(childGid);
     const parentLevel = levelBySpouseGroupId.get(parentGid);
-    if (typeof childLevel !== 'number' || typeof parentLevel !== 'number') return;
-
-    const familyEntries = familiesByLevel.get(layout.levelBySpouseGroupId.get(childGid) ?? -1) ?? [];
-    const isPrimary = familyEntries.some((e) => e.parentGroupId === parentGid && e.childPersonIds.includes(r.toPersonId));
     const parentBounds = groupBounds.get(parentGid);
+    const parentPos = positionsByPersonId.get(r.fromPersonId);
     const childPos = positionsByPersonId.get(r.toPersonId);
-    if (!parentBounds || !childPos) return;
-
+    if (childLevel === undefined || parentLevel === undefined || !parentBounds || !parentPos || !childPos) continue;
+    const kind = r.parentChildKind ?? DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND;
+    const parents = parentsByChildKind.get(`${r.toPersonId}:${kind}`)!;
+    const wholeCouple = spouseGroupsById.get(parentGid)!.memberIds.every((id) => parents.has(id));
+    const network = networkByRelationship.get(r.id)!;
+    const lanes = networksByLevel.get(childLevel)!;
     const routePoints = buildParentChildRoute(
-      parentBounds.centerX,
-      parentBounds.bottomY,
-      parentLevel,
-      childPos.x + C.NODE_WIDTH / 2,
-      childPos.y,
-      childLevel,
-      occupiedIntervalsByLevel,
-      contentWidth,
+      wholeCouple ? parentBounds.centerX : parentPos.x + C.NODE_WIDTH / 2 + portOffset(r.fromPersonId, 'out', network),
+      parentBounds.bottomY, parentLevel,
+      childPos.x + C.NODE_WIDTH / 2 + portOffset(r.toPersonId, 'in', network), childPos.y, childLevel,
+      occupiedIntervalsByLevel, contentWidth,
+      lanes.indexOf(network) / Math.max(1, lanes.length - 1),
+      occupiedRoutes, network,
     );
-    const connectorStyle = getParentChildConnectorStyle(r, colors, isPrimary);
-
-    parentChildConnectors.push({
-      key: `pc-${isPrimary ? 'primary' : 'secondary'}-${r.id}`,
-      d: pointsToRoundedPath(routePoints, cornerRadius),
-      stroke: connectorStyle.stroke,
-      strokeWidth: connectorStyle.strokeWidth,
-      bounds: boundsOf(routePoints),
-      dashArray: connectorStyle.dashArray,
+    for (let i = 1; i < routePoints.length; i++) {
+      const a = routePoints[i - 1], b = routePoints[i];
+      if (a.x === b.x) occupiedRoutes.push({ x: a.x, top: Math.min(a.y, b.y), bottom: Math.max(a.y, b.y), network });
+    }
+    if (wholeCouple && spouseGroupsById.get(parentGid)!.memberIds.length === 2) {
+      routePoints.unshift({ x: parentBounds.centerX, y: parentPos.y + C.NODE_HEIGHT / 2 });
+    }
+    const connectorStyle = getParentChildConnectorStyle(r, colors, true);
+    parentRoutes.push({
+      key: `pc-${r.id}`, networkId: network, relationshipType: 'parent-child',
+      personIds: [r.fromPersonId, r.toPersonId], points: routePoints,
+      junctions: wholeCouple && spouseGroupsById.get(parentGid)!.memberIds.length === 2 ? [routePoints[0]] : [],
+      ...connectorStyle,
     });
-  });
-
-  return { spouseConnectors, parentChildConnectors };
+  }
+  const connectors = buildConnectorPaths([...parentRoutes, ...spouseRoutes]);
+  return {
+    spouseConnectors: connectors.filter((c) => c.relationshipType === 'spouse'),
+    parentChildConnectors: connectors.filter((c) => c.relationshipType !== 'spouse'),
+  };
 }

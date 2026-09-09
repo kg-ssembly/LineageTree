@@ -1,5 +1,22 @@
 import type { MergeApproval, MergeConflictChoice, MergeRequestRecord, MergeReviewDecision } from '../components/dto/merge';
-import { validateSelectedMergeMatches } from './family-tree-merge-application';
+export function validateSelectedMergeMatches(request: MergeRequestRecord) {
+  const sourcePersonIds = new Set<string>();
+  const targetPersonIds = new Set<string>();
+
+  request.preview.matches.filter((match) => request.selectedMatchIds.includes(match.id)).forEach((match) => {
+    if (sourcePersonIds.has(match.sourcePersonId)) {
+      throw new Error('Each source family member can only be matched once in a merge.');
+    }
+
+    if (targetPersonIds.has(match.targetPersonId)) {
+      throw new Error('Each target family member can only be matched once in a merge.');
+    }
+
+    sourcePersonIds.add(match.sourcePersonId);
+    targetPersonIds.add(match.targetPersonId);
+  });
+}
+
 
 type BuildMergeReviewUpdateInput = {
   currentRequest: MergeRequestRecord;
@@ -39,10 +56,12 @@ export function buildMergeReviewUpdate({
     throw new Error('Select at least one person match before approving this merge.');
   }
 
-  validateSelectedMergeMatches({
-    ...currentRequest,
-    selectedMatchIds: nextSelectedMatchIds,
-  });
+  if (decision === 'approve') {
+    validateSelectedMergeMatches({
+      ...currentRequest,
+      selectedMatchIds: nextSelectedMatchIds,
+    });
+  }
 
   const approvals = [
     ...currentRequest.approvals.filter((entry) => !nextApprovals.some((approval) => approval.treeId === entry.treeId && approval.editorUserId === entry.editorUserId)),
