@@ -21,6 +21,7 @@ export type TreeDetailTabParamList = {
 };
 
 export type RootStackParamList = {
+  JoinTree: { treeId: string };
   Login: undefined;
   SignUp: undefined;
   Main: NavigatorScreenParams<MainTabParamList> | undefined;

@@ -76,21 +76,14 @@ export function MainScreenView({ controller }: { controller: ReturnType<typeof u
     />
   );
 
-  if (isWaitingForInitialTreeSelection) {
-    return (
-      <View style={[styles.container, { backgroundColor: controller.theme.colors.background }]}>
-        <ScreenBackground />
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator size="large" color={controller.theme.colors.primary} />
-        </View>
-      </View>
-    );
-  }
 
   return (
     <View style={[styles.container, { backgroundColor: controller.theme.colors.background }]}>
       <ScreenBackground />
       <MainTabNavigator controller={controller} noTreeGate={noTreeGate} styles={styles} />
+      {isWaitingForInitialTreeSelection ? <View style={[StyleSheet.absoluteFillObject, { zIndex: 10, backgroundColor: controller.theme.colors.background, justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={controller.theme.colors.primary} />
+      </View> : null}
 
       <CollaboratorDialog
         visible={controller.collaboratorDialogVisible && !isSharedLoaderVisible}
@@ -112,7 +105,7 @@ export function MainScreenView({ controller }: { controller: ReturnType<typeof u
       />
 
       <PersonFormDialog
-        visible={controller.personDialog.visible && !isSharedLoaderVisible}
+        visible={controller.personDialog.visible}
         mode={controller.personDialog.mode}
         person={controller.personDialog.person}
         initialPendingRelationships={controller.personDialog.initialPendingRelationships}
@@ -130,7 +123,7 @@ export function MainScreenView({ controller }: { controller: ReturnType<typeof u
       />
 
       <PersonFormDialog
-        visible={controller.selfPersonDialogVisible && !isSharedLoaderVisible}
+        visible={controller.selfPersonDialogVisible}
         mode="create"
         initialValues={controller.selfInitialValues}
         loading={controller.mutating}

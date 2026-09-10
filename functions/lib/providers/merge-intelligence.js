@@ -19,7 +19,7 @@ function getDisplayName(person) {
     return [person.firstName, person.middleNames ?? '', person.lastName].join(' ').replace(/\s+/g, ' ').trim();
 }
 function getBirthYear(person) {
-    return person.birthDate ? Number.parseInt(person.birthDate.slice(0, 4), 10) : null;
+    return /^\d{4}(?:-|$)/.test(person.birthDate) ? Number.parseInt(person.birthDate.slice(0, 4), 10) : null;
 }
 function buildSurnameSet(person, groups) {
     const values = new Set();

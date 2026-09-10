@@ -1,3 +1,4 @@
+import { useSyncStatusStore } from '../stores/sync-status-store';
 import {
   collection,
   doc,
@@ -196,7 +197,11 @@ export function subscribeToTrees(
   const treesQuery = query(collection(db, TREES_COLLECTION), where('memberIds', 'array-contains', userId));
   return onSnapshot(
     treesQuery,
-    (snapshot) => onChange(sortByNewest(snapshot.docs.map(mapTree))),
+     { includeMetadataChanges: true },
+    (snapshot) => {
+      useSyncStatusStore.setState({ source: snapshot.metadata.fromCache ? 'cache' : 'server', pendingWrites: snapshot.metadata.hasPendingWrites });
+      onChange(sortByNewest(snapshot.docs.map(mapTree)));
+    },
     onError,
   );
 }

@@ -1,5 +1,7 @@
-import React, { useDeferredValue, useEffect, useMemo, useState } from 'react';
-import { FlatList, Platform, Pressable, ScrollView, Share, StyleSheet, View } from 'react-native';
+import { buildTreeInvitationLink } from '../../../../components/tree-invitation-link';
+import { PersonRecoveryPanel } from '../../../../components/person-recovery-panel';
+import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { FlatList, Pressable, ScrollView, Share, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Button, Chip, Dialog, IconButton, Portal, ProgressBar, Text, TextInput, useTheme } from 'react-native-paper';
 import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, FloatingSnackbar, GlobalStyles, InfoDialog, Reveal, ScreenBackground } from '../../../../components';
@@ -42,6 +44,7 @@ const settingsTabIcons: Record<TreeManagementTabKey, keyof typeof MaterialCommun
   approvals: 'clipboard-check-outline',
   merges: 'merge',
   trees: 'source-branch',
+  history: 'history',
 };
 
 const tabStyles = StyleSheet.create({
@@ -62,7 +65,7 @@ const tabStyles = StyleSheet.create({
     width: '100%',
   },
   item: {
-    width: 136,
+    width: '100%',
     minHeight: 46,
     flexDirection: 'row',
     alignItems: 'center',
@@ -127,6 +130,8 @@ function TreeSettingsContent({
   onCreateMergeRequest,
   onSendMergeInvite,
   onRespondToMergeInvite,
+  onRespondToTreeAccessRequest,
+  loadingNotifications,
   onRequestTreeAccess,
   onRequestTreeAccessByIdentifier,
   onSearchDiscoverableTrees,
@@ -147,12 +152,15 @@ function TreeSettingsContent({
   onSwitchTree,
 }: SharedTabProps) {
   const theme = useTheme();
+  const contentRef = useRef<ScrollView>(null);
+  const handledFocusToken = useRef<number | null>(null);
   const { t } = useI18n();
   const [helperDialog, setHelperDialog] = useState<{ visible: boolean; key: TreeHelperDialogKey }>({
     visible: false,
     key: 'tree-management',
   });
-  const [activeManagementTab, setActiveManagementTab] = useState<TreeManagementTabKey>('overview');
+  const [activeManagementTab, setActiveManagementTab] = useState<TreeManagementTabKey | null>(null);
+  useEffect(() => { contentRef.current?.scrollTo({ y: 0, animated: false }); }, [activeManagementTab]);
   const [linkSearchQuery, setLinkSearchQuery] = useState('');
   const [ownerLinkTargetUserId, setOwnerLinkTargetUserId] = useState<string | null>(null);
   const [ownerLinkSearchQuery, setOwnerLinkSearchQuery] = useState('');
@@ -378,9 +386,12 @@ function TreeSettingsContent({
   }, [pendingMergeRequests]);
 
   useEffect(() => {
-    if (!treeSettingsFocus) {
+    if (!treeSettingsFocus || handledFocusToken.current === treeSettingsFocus.token) {
       return;
     }
+
+    handledFocusToken.current = treeSettingsFocus.token;
+    if (treeSettingsFocus.mode === 'trees') { setActiveManagementTab('trees'); return; }
 
     if (treeSettingsFocus.mode === 'approval') {
       setActiveManagementTab('approvals');
@@ -532,14 +543,17 @@ function TreeSettingsContent({
     );
   };
 
+  const { width } = useWindowDimensions();
+  const wideSettings = width >= 900;
+  const accessRequests = notifications.filter(item => item.type === 'tree-access-request' && item.status === 'pending' && item.sourceTreeId === selectedTree.id);
   const managementTabItems = TREE_MANAGEMENT_TABS.map((tab) => {
-    const isActive = activeManagementTab === tab.key;
+    const isActive = activeManagementTab === tab.key || (tab.key === 'approvals' && activeManagementTab === 'merges');
     return (
       <Pressable
         key={tab.key}
         onPress={() => setActiveManagementTab(tab.key)}
-        style={[tabStyles.item, Platform.OS === 'web' ? tabStyles.webItem : null, { backgroundColor: isActive ? theme.colors.primaryContainer : theme.colors.surface, borderColor: isActive ? theme.colors.primary : theme.colors.outlineVariant }]}
-        accessibilityRole="tab"
+        style={[tabStyles.item, { backgroundColor: isActive ? theme.colors.primaryContainer : theme.colors.surface, borderColor: isActive ? theme.colors.primary : theme.colors.outlineVariant }]}
+        accessibilityRole="button"
         accessibilityState={{ selected: isActive }}
       >
         <View style={[tabStyles.activeBar, { backgroundColor: isActive ? theme.colors.primary : 'transparent' }]} />
@@ -549,7 +563,7 @@ function TreeSettingsContent({
           color={isActive ? theme.colors.primary : theme.colors.onSurfaceVariant}
         />
         <Text variant="labelMedium" style={[tabStyles.itemLabel, { color: isActive ? theme.colors.primary : theme.colors.onSurfaceVariant }]}>
-          {t(tab.label)}
+          {t(tab.label)}{tab.key === 'approvals' ? ` (${pendingApprovalRequests.length + pendingMergeRequests.length})` : tab.key === 'collaborators' && accessRequests.length ? ` (${accessRequests.length})` : ''}
         </Text>
       </Pressable>
     );
@@ -558,10 +572,11 @@ function TreeSettingsContent({
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <ScreenBackground />
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView ref={contentRef} contentContainerStyle={styles.content}>
         <View>
         <View style={styles.titleWithHelperRow}>
           <Text variant="headlineSmall">{selectedTree.name}</Text>
+          <Button icon="chevron-down" onPress={() => setActiveManagementTab('trees')}>{t('Manage trees')}</Button>
           <IconButton
             icon="information-outline"
             size={20}
@@ -571,20 +586,22 @@ function TreeSettingsContent({
           />
         </View>
 
-        <Reveal delay={70}>
-          <View style={[tabStyles.rail, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant }]}>
-            {Platform.OS === 'web' ? (
-              <View style={[tabStyles.content, tabStyles.webContent]}>{managementTabItems}</View>
-            ) : (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={tabStyles.content}>
-                {managementTabItems}
-              </ScrollView>
-            )}
-          </View>
-        </Reveal>
-
+        <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>{people.length} {t('family members')} · {selectedTree.collaborators.length} {t('collaborators')}</Text>
+        <View style={{ flexDirection: wideSettings ? 'row' : 'column', gap: 20, marginTop: 16 }}>
+          {wideSettings || !activeManagementTab ? <View style={{ width: wideSettings ? 240 : '100%', gap: 8 }}>{managementTabItems}</View> : null}
+          <View style={{ flex: 1, minWidth: 0, gap: 16 }}>
+            {activeManagementTab ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+              {!wideSettings ? <Button icon="arrow-left" onPress={() => setActiveManagementTab(null)}>{t('Settings')}</Button> : null}
+              <Text variant="titleLarge">{t(activeManagementTab === 'trees' ? 'Manage trees' : activeManagementTab === 'merges' ? 'Reviews' : TREE_MANAGEMENT_TABS.find(tab => tab.key === activeManagementTab)?.label ?? '')}</Text>
+            </View> : wideSettings ? <Text style={{ color: theme.colors.onSurfaceVariant }}>{t('Choose a section to manage your tree.')}</Text> : null}
+            {activeManagementTab === 'approvals' || activeManagementTab === 'merges' ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              <Button mode={activeManagementTab === 'approvals' ? 'contained-tonal' : 'outlined'} onPress={() => setActiveManagementTab('approvals')}>{t('Pending changes')} ({pendingApprovalRequests.length})</Button>
+              <Button mode={activeManagementTab === 'merges' ? 'contained-tonal' : 'outlined'} onPress={() => setActiveManagementTab('merges')}>{t('Merge requests & tools')} ({pendingMergeRequests.length})</Button>
+            </View> : null}
+            {activeManagementTab === 'history' ? <PersonRecoveryPanel treeId={selectedTree.id} userId={userId ?? ''} isOwner={isOwner} canEdit={canEdit} people={people} history={approvalRequests} /> : null}
         {activeManagementTab === 'overview' ? (
-          <OverviewSection
+          <>
+<OverviewSection
             selectedTree={selectedTree}
             people={people}
             role={role}
@@ -594,7 +611,7 @@ function TreeSettingsContent({
             currentSelfAssignmentSuggestions={currentSelfAssignmentSuggestions}
             canCreateSelfProfile={canCreateSelfProfile}
             mutating={mutating}
-            userId={userId}
+            userId={userId ?? ""}
             treeSurnameVariants={treeSurnameVariants}
             unlinkedCollaboratorCount={unlinkedCollaboratorCount}
             linkSearchQuery={linkSearchQuery}
@@ -610,9 +627,24 @@ function TreeSettingsContent({
             onClearSelfAssignment={onClearSelfAssignment}
             setLinkSearchQuery={setLinkSearchQuery}
           />
+</>
         ) : null}
 
         {activeManagementTab === 'collaborators' ? (
+          <>
+          <View style={[getTreeSettingsFamilyMemberCardStyle(theme), { gap: 8 }]}><Button disabled={!selectedTree.discoverable} onPress={() => { void Share.share({ message: buildTreeInvitationLink(selectedTree.id) }); }}>{t('Share invitation link')}</Button>
+<Text>{t('Invitation links require discovery to be enabled and owner approval to join.')}</Text>
+</View>
+          {isOwner ? <View style={[getTreeSettingsFamilyMemberCardStyle(theme), { gap: 12 }]}>
+            <Text variant="titleMedium">{t('Access requests')} ({accessRequests.length})</Text>
+            {loadingNotifications ? <ProgressBar indeterminate /> : accessRequests.length === 0 ? <Text style={{ color: theme.colors.onSurfaceVariant }}>{t('No pending access requests.')}</Text> : accessRequests.map(request => <View key={request.id} style={{ gap: 8, borderTopWidth: StyleSheet.hairlineWidth, borderColor: theme.colors.outlineVariant, paddingTop: 12 }}>
+              <Text variant="titleSmall">{request.requestedByLabel}</Text><Text>{request.message}</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                <Button mode="contained" disabled={mutating} onPress={() => openConfirm(t('Approve access'), t('Allow this person to join your tree?'), t('Approve'), () => onRespondToTreeAccessRequest(request.id, 'accepted'))}>{t('Approve')}</Button>
+                <Button mode="outlined" disabled={mutating} onPress={() => openConfirm(t('Decline access'), t('Decline this request to join your tree?'), t('Decline'), () => onRespondToTreeAccessRequest(request.id, 'rejected'))}>{t('Decline')}</Button>
+              </View>
+            </View>)}
+          </View> : null}
           <CollaboratorsSection
             selectedTree={selectedTree}
             people={people}
@@ -621,7 +653,7 @@ function TreeSettingsContent({
             role={role}
             canManageCollaborators={canEdit}
             isOwner={isOwner}
-            userId={userId}
+            userId={userId ?? ""}
             mutating={mutating}
             ownerLinkTargetUserId={ownerLinkTargetUserId}
             ownerLinkSearchQuery={ownerLinkSearchQuery}
@@ -646,6 +678,7 @@ function TreeSettingsContent({
               setOwnerLinkPage(1);
             }}
           />
+          </>
         ) : null}
 
         {activeManagementTab === 'approvals' ? (
@@ -655,7 +688,7 @@ function TreeSettingsContent({
             approvalWindowValue={approvalWindowValue}
             approvalsDisabled={approvalsDisabled}
             isOwner={isOwner}
-            userId={userId}
+            userId={userId ?? ""}
             mutating={mutating}
             onOpenHelperDialog={openHelperDialog}
             onSetApprovalWindowHours={onSetApprovalWindowHours}
@@ -676,7 +709,7 @@ function TreeSettingsContent({
             mergeSelectionDrafts={mergeSelectionDrafts}
             availableMergeSourceTrees={availableMergeSourceTrees}
             canEdit={canEdit}
-            userId={userId}
+            userId={userId ?? ""}
             mutating={mutating}
             onOpenHelperDialog={openHelperDialog}
             setMergePreviewVisible={setMergePreviewVisible}
@@ -701,7 +734,7 @@ function TreeSettingsContent({
             trees={trees}
             defaultTreeId={defaultTreeId}
             loadingTrees={loadingTrees}
-            userId={userId}
+            userId={userId ?? ""}
             mutating={mutating}
             maidenSurnameSuggestions={maidenSurnameSuggestions}
             onOpenHelperDialog={openHelperDialog}
@@ -714,6 +747,7 @@ function TreeSettingsContent({
           />
         ) : null}
       </View>
+      </View></View>
 
       <InfoDialog
         visible={helperDialog.visible}

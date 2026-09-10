@@ -186,6 +186,7 @@ export function mapPersonData(id: string, data: DocumentData): PersonRecord {
     duplicatePersonIds: Array.isArray(data.duplicatePersonIds) ? data.duplicatePersonIds.filter((value): value is string => typeof value === 'string') : [],
     birthDate: asSafeString(data.birthDate),
     deathDate: asSafeString(data.deathDate),
+    lifeStatus: ['living', 'deceased', 'unknown'].includes(data.lifeStatus) ? data.lifeStatus : (data.deathDate ? 'deceased' : 'living'),
     gender: data.gender ?? 'unspecified',
     notes: asSafeString(data.notes),
     lifeEvents: Array.isArray(data.lifeEvents) ? data.lifeEvents.map(mapLifeEvent) : [],

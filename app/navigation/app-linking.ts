@@ -9,9 +9,20 @@ const linking: LinkingOptions<RootStackParamList> = {
   ],
   config: {
     screens: {
+      JoinTree: 'join/:treeId',
       Login: 'login',
       SignUp: 'signup',
-      Main: '',
+      Main: {
+        path: '',
+        screens: {
+          home: 'home',
+          notifications: 'notifications',
+          tree: 'tree',
+          members: 'members',
+          treeSettings: 'settings',
+          myProfile: 'profile',
+        },
+      },
       PersonProfile: 'trees/:treeId/family-members/:personId',
     },
   },

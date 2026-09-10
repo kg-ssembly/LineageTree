@@ -1,4 +1,6 @@
-import React, { useEffect } from 'react';
+import { SyncStatusBanner } from '../../components/sync-status-banner';
+import JoinTreeScreen from '../screens/join-tree';
+import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useTheme } from 'react-native-paper';
@@ -25,19 +27,20 @@ function getPersonProfileScreen() {
 
 export default function RootNavigator() {
   const theme = useTheme();
-  const { user, loading, init } = useAuthStore();
+  const { user, loading } = useAuthStore();
+  const [bootstrapped, setBootstrapped] = useState(!loading);
   const syncFamilyData = useTreeStore((state) => state.syncFamilyData);
   const safeAreaEdges = ['top'] as const;
 
   useEffect(() => {
-    return init();
-  }, [init]);
+    if (!loading) setBootstrapped(true);
+  }, [loading]);
 
   useEffect(() => {
     syncFamilyData(user?.id ?? null);
   }, [syncFamilyData, user?.id]);
 
-  if (loading) {
+  if (loading && !bootstrapped) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background }}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
@@ -47,7 +50,9 @@ export default function RootNavigator() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }} edges={safeAreaEdges}>
+      {user ? <SyncStatusBanner /> : null}
       <Stack.Navigator
+        initialRouteName={user ? "Main" : "Login"}
         screenOptions={{
           animation: 'fade_from_bottom',
           headerStyle: { backgroundColor: theme.colors.background },
@@ -57,6 +62,7 @@ export default function RootNavigator() {
           contentStyle: { backgroundColor: theme.colors.background },
         }}
       >
+        <Stack.Screen name="JoinTree" component={JoinTreeScreen} options={{ headerShown: false }} />
         {user ? (
           <>
             <Stack.Screen name="Main" getComponent={getMainScreen} options={{ headerShown: false }} />

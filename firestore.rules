@@ -112,6 +112,11 @@ service cloud.firestore {
       allow delete: if isExistingTreeOwner();
     }
 
+    match /personTrash/{personId} {
+      allow read: if isTreeMemberById(resource.data.treeId);
+      allow create, update, delete: if false;
+    }
+
     match /persons/{personId} {
       allow read: if isTreeMemberById(resource.data.treeId);
       allow create: if isTreeEditorById(request.resource.data.treeId)

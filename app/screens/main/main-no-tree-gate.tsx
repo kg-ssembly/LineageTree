@@ -1,3 +1,4 @@
+import { TreeAccessChooser } from '../../../components/tree-access-chooser';
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -444,23 +445,7 @@ export function MainNoTreeGate({
                   <Text variant="bodySmall" style={{ color: controller.theme.colors.onSurfaceVariant }}>
                     {controller.t(K.app.enterUsernameOrEmailDirectlyHelper)}
                   </Text>
-                  <TextInput
-                    mode="outlined"
-                    label={controller.t(K.app.usernameEmailOrTreeId)}
-                    value={usernameQuery}
-                    onChangeText={setUsernameQuery}
-                    autoCapitalize="none"
-                    left={<TextInput.Icon icon="account" />}
-                  />
-                  <Button
-                    mode="outlined"
-                    onPress={() => { void handleIdentifierRequest(); }}
-                    disabled={!usernameQuery.trim() || pendingIdentifierKeys.has(usernameQuery.trim().toLowerCase()) || searching || controller.mutating}
-                    buttonColor={controller.theme.colors.surface}
-                    textColor={controller.theme.colors.primary}
-                  >
-                    {controller.t(K.app.requestAccessDirectly)}
-                  </Button>
+                  <TreeAccessChooser userId={controller.user?.id ?? ""} onRequest={controller.onRequestTreeAccess} />
                 </View>
               )}
 

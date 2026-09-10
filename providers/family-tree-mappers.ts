@@ -244,6 +244,7 @@ export function mapPerson(snapshot: QueryDocumentSnapshot): PersonRecord {
     duplicatePersonIds: Array.isArray(data.duplicatePersonIds) ? data.duplicatePersonIds.filter((value) => typeof value === 'string') : [],
     birthDate: data.birthDate ?? '',
     deathDate: data.deathDate ?? '',
+    lifeStatus: ['living', 'deceased', 'unknown'].includes(data.lifeStatus) ? data.lifeStatus : (data.deathDate ? 'deceased' : 'living'),
     gender: data.gender ?? 'unspecified',
     notes: data.notes ?? '',
     lifeEvents: Array.isArray(data.lifeEvents) ? data.lifeEvents.map(mapLifeEvent) : [],

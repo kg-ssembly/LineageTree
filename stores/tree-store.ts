@@ -1,3 +1,4 @@
+import { useSyncStatusStore } from './sync-status-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import type { createJSONStorage as createJSONStorageFn, persist as persistFn } from 'zustand/middleware';
@@ -148,6 +149,7 @@ interface TreeState {
   selectedTreeId: string | null;
   currentUserId: string | null;
   people: PersonRecord[];
+  treeDataTreeId: string | null;
   relationships: RelationshipRecord[];
   approvalRequests: ApprovalRequest[];
   mergeRequests: MergeRequestRecord[];
@@ -228,7 +230,7 @@ interface TreeState {
 
 type PersistedTreeState = Pick<
   TreeState,
-  'currentUserId' | 'trees' | 'selectedTreeId'
+  'currentUserId' | 'trees' | 'selectedTreeId' | 'treeDataTreeId' | 'people' | 'relationships'
 >;
 
 export const useTreeStore = create<TreeState>()(persist((set, get) => {
@@ -330,7 +332,8 @@ export const useTreeStore = create<TreeState>()(persist((set, get) => {
 
     subscribedTreeId = treeId;
     resetNotificationSourceLoadState();
-    set({ people: [], relationships: [], approvalRequests: [], mergeRequests: [], mergeHistory: [], mergePreview: null, loadingTreeData: true });
+    const keepCached = get().treeDataTreeId === treeId;
+    set({ treeDataTreeId: treeId, people: keepCached ? get().people : [], relationships: keepCached ? get().relationships : [], approvalRequests: [], mergeRequests: [], mergeHistory: [], mergePreview: null, loadingTreeData: !keepCached });
     subscribeToTreeAuxiliaryData(treeId);
     let hasLoadedPeople = false;
     let hasLoadedRelationships = false;
@@ -344,25 +347,33 @@ export const useTreeStore = create<TreeState>()(persist((set, get) => {
     unsubscribePeople = subscribeToPeople(
       treeId,
       (people) => {
+        if (useSyncStatusStore.getState().source === 'cache' && people.length === 0 && get().people.length) return;
         hasLoadedPeople = true;
         if (!haveSameRecordVersions(get().people, people)) {
           set({ people });
         }
         updateInitialLoadState();
       },
-      (error) => set({ error: normaliseError(error), loadingTreeData: false }),
+      (error) => set({
+        error: normaliseError(error), loadingTreeData: false,
+        ...((error as { code?: string }).code === 'permission-denied' ? { people: [], relationships: [], treeDataTreeId: null } : {}),
+      }),
     );
 
     unsubscribeRelationships = subscribeToRelationships(
       treeId,
       (relationships) => {
+        if (useSyncStatusStore.getState().source === 'cache' && relationships.length === 0 && get().relationships.length) return;
         hasLoadedRelationships = true;
         if (!haveSameRecordVersions(get().relationships, relationships, getRelationshipVersion)) {
           set({ relationships });
         }
         updateInitialLoadState();
       },
-      (error) => set({ error: normaliseError(error), loadingTreeData: false }),
+      (error) => set({
+        error: normaliseError(error), loadingTreeData: false,
+        ...((error as { code?: string }).code === 'permission-denied' ? { people: [], relationships: [], treeDataTreeId: null } : {}),
+      }),
     );
 
   };
@@ -371,6 +382,7 @@ export const useTreeStore = create<TreeState>()(persist((set, get) => {
     trees: [],
     selectedTreeId: null,
     currentUserId: null,
+    treeDataTreeId: null,
     people: [],
     relationships: [],
     approvalRequests: [],
@@ -387,6 +399,7 @@ export const useTreeStore = create<TreeState>()(persist((set, get) => {
     notice: null,
 
     syncFamilyData: (userId) => {
+      useSyncStatusStore.setState({ source: "connecting", pendingWrites: false });
       stopAllSubscriptions();
 
       if (!userId) {
@@ -394,7 +407,8 @@ export const useTreeStore = create<TreeState>()(persist((set, get) => {
           trees: [],
           selectedTreeId: null,
           currentUserId: null,
-          people: [],
+          treeDataTreeId: null,
+    people: [],
           relationships: [],
           approvalRequests: [],
           mergeRequests: [],
@@ -424,7 +438,8 @@ export const useTreeStore = create<TreeState>()(persist((set, get) => {
           currentUserId: userId,
           trees: [],
           selectedTreeId: null,
-          people: [],
+          treeDataTreeId: null,
+    people: [],
           relationships: [],
           approvalRequests: [],
           mergeRequests: [],
@@ -451,6 +466,11 @@ export const useTreeStore = create<TreeState>()(persist((set, get) => {
         userId,
         (trees) => {
           const currentState = get();
+          if (useSyncStatusStore.getState().source === 'cache' && !trees.length && currentState.trees.length) {
+            set({ loadingTrees: false });
+            if (currentState.selectedTreeId && !subscribedTreeId) subscribeToTreeData(currentState.selectedTreeId);
+            return;
+          }
           const previousSelectedTreeId = currentState.selectedTreeId;
           const nextSelectedTreeId = trees.some((tree) => tree.id === previousSelectedTreeId)
             ? previousSelectedTreeId
@@ -1017,7 +1037,8 @@ export const useTreeStore = create<TreeState>()(persist((set, get) => {
         trees: [],
         selectedTreeId: null,
         currentUserId: null,
-        people: [],
+        treeDataTreeId: null,
+    people: [],
         relationships: [],
         approvalRequests: [],
         mergeRequests: [],
@@ -1041,5 +1062,8 @@ export const useTreeStore = create<TreeState>()(persist((set, get) => {
     currentUserId: state.currentUserId,
     trees: state.trees,
     selectedTreeId: state.selectedTreeId,
+    treeDataTreeId: state.treeDataTreeId,
+    people: state.people,
+    relationships: state.relationships,
   }),
 }));

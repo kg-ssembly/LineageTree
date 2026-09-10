@@ -3,7 +3,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteTreeServer = exports.processExpiredApprovalRequestsServer = exports.decideApprovalRequestServer = exports.reviewMergeRequestServer = exports.createMergeRequestServer = exports.sendNotificationEmailOnCreate = exports.sendPasswordResetEmail = exports.sendTreeInviteEmail = exports.sendWelcomeEmail = void 0;
+exports.respondToTreeAccessServer = exports.requestTreeAccessServer = exports.archivePersonServer = exports.restorePersonServer = exports.deleteTreeServer = exports.processExpiredApprovalRequestsServer = exports.decideApprovalRequestServer = exports.reviewMergeRequestServer = exports.createMergeRequestServer = exports.sendNotificationEmailOnCreate = exports.sendPasswordResetEmail = exports.sendTreeInviteEmail = exports.sendWelcomeEmail = void 0;
+const tree_access_function_1 = require("./services/tree-access-function");
+const person_recovery_function_1 = require("./services/person-recovery-function");
 const app_1 = require("firebase-admin/app");
 const auth_1 = require("firebase-admin/auth");
 const firestore_1 = require("firebase-admin/firestore");
@@ -324,4 +326,28 @@ exports.deleteTreeServer = (0, https_1.onCall)({
         throw new https_1.HttpsError('invalid-argument', 'treeId is required.');
     }
     return treeDeletionFunction.deleteTree(request.auth.uid, treeId);
+});
+exports.restorePersonServer = (0, https_1.onCall)(async (request) => {
+    if (!request.auth)
+        throw new https_1.HttpsError('unauthenticated', 'Sign in to restore a person.');
+    return (0, person_recovery_function_1.restoreDeletedPerson)(db, request.auth.uid, String(request.data?.treeId ?? ''), String(request.data?.personId ?? ''), request.data?.restoreLinks !== false);
+});
+exports.archivePersonServer = (0, https_1.onCall)(async (request) => {
+    if (!request.auth)
+        throw new https_1.HttpsError('unauthenticated', 'Sign in to remove a person.');
+    const treeId = String(request.data?.treeId ?? '');
+    const personId = String(request.data?.personId ?? '');
+    if (!treeId || !personId || treeId.includes('/') || personId.includes('/'))
+        throw new https_1.HttpsError('invalid-argument', 'Choose a person.');
+    return (0, person_recovery_function_1.archivePerson)(db, treeId, personId, request.auth.uid);
+});
+exports.requestTreeAccessServer = (0, https_1.onCall)(async (request) => {
+    if (!request.auth)
+        throw new https_1.HttpsError('unauthenticated', 'Sign in to request access.');
+    return (0, tree_access_function_1.requestTreeAccess)(db, request.auth.uid, String(request.data?.treeId ?? ''));
+});
+exports.respondToTreeAccessServer = (0, https_1.onCall)(async (request) => {
+    if (!request.auth)
+        throw new https_1.HttpsError('unauthenticated', 'Sign in to respond.');
+    return (0, tree_access_function_1.respondToAccess)(db, request.auth.uid, String(request.data?.notificationId ?? ''), String(request.data?.status ?? ''));
 });

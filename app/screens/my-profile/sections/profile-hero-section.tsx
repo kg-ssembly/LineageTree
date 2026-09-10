@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import { Avatar, Chip, IconButton, Text, useTheme } from 'react-native-paper';
+import { Avatar, Button, Chip, Text, useTheme } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { CachedImage, Reveal, SectionCard } from '../../../../components';
 import type { PersonRecord } from '../../../../components/dto/person';
@@ -55,7 +55,7 @@ const styles = StyleSheet.create({
   },
   heroIdentityWrap: {
     flex: 1,
-    minWidth: 220,
+    minWidth: 0,
   },
   heroNameRow: {
     flexDirection: 'row',
@@ -83,6 +83,7 @@ export function ProfileHeroSection({
   userDisplayName,
   userEmail,
   fallbackSummary,
+  treeName,
 }: {
   shouldShowLinkedProfileTabs: boolean;
   linkedPerson: PersonRecord | null;
@@ -92,6 +93,7 @@ export function ProfileHeroSection({
   userDisplayName?: string | null;
   userEmail?: string | null;
   fallbackSummary: string;
+  treeName?: string;
 }) {
   const theme = useTheme();
   const { t } = useI18n();
@@ -105,16 +107,6 @@ export function ProfileHeroSection({
           backgroundColor={chrome.primaryCardBackground}
           style={[getFamilyMemberCardStyle(theme, chrome.primaryCardBackground), styles.heroCard]}
         >
-          {canEditLinkedProfile ? (
-            <IconButton
-              icon="pencil"
-              mode="contained"
-              size={22}
-              onPress={onEdit}
-              style={[styles.heroFloatingButton, styles.heroFloatingButtonRight]}
-              accessibilityLabel={t(K.personProfile.editLinkedFamilyProfile)}
-            />
-          ) : null}
           <View style={styles.heroHeader}>
             <View style={styles.heroAvatarRow}>
               {preferredPhoto ? (
@@ -147,6 +139,8 @@ export function ProfileHeroSection({
               </View>
             </View>
           </View>
+          {treeName ? <Text variant="bodySmall" style={{ marginTop: 12, color: theme.colors.onSurfaceVariant }}>{treeName}</Text> : null}
+          {canEditLinkedProfile ? <Button mode="contained" icon="pencil-outline" onPress={onEdit} style={{ alignSelf: 'flex-start', marginTop: 12 }}>{t('Edit profile')}</Button> : null}
         </SectionCard>
       </Reveal>
     );

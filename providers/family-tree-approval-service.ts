@@ -5,6 +5,7 @@ import {
   getDoc,
   getDocs,
   query,
+  runTransaction,
   setDoc,
   updateDoc,
   writeBatch,
@@ -253,6 +254,7 @@ async function preparePersonUpdatePreview(
     birthPlace: input.birthPlace?.trim() ?? '',
     birthDate: input.birthDate.trim(),
     deathDate: input.deathDate.trim(),
+    lifeStatus: input.lifeStatus ?? (input.deathDate ? 'deceased' : 'living'),
     gender: input.gender,
     notes: input.notes.trim(),
     lifeEvents: normaliseLifeEvents(input.lifeEvents),
@@ -373,6 +375,7 @@ async function applyApprovedCreatePerson(payload: ApprovalRequestPayload) {
     maidenName: person.maidenName ?? '',
     birthDate: person.birthDate,
     deathDate: person.deathDate,
+    lifeStatus: person.lifeStatus ?? (person.deathDate ? 'deceased' : 'living'),
     notes: person.notes,
     lifeEvents: person.lifeEvents,
   }, []);
@@ -398,6 +401,7 @@ async function applyApprovedCreatePerson(payload: ApprovalRequestPayload) {
     duplicatePersonIds: person.duplicatePersonIds ?? [],
     birthDate: person.birthDate,
     deathDate: person.deathDate,
+    lifeStatus: person.lifeStatus ?? (person.deathDate ? 'deceased' : 'living'),
     gender: person.gender,
     notes: person.notes,
     lifeEvents: normaliseLifeEvents(person.lifeEvents),
@@ -449,7 +453,13 @@ async function applyApprovedPersonUpdate(payload: ApprovalRequestPayload) {
     throw new Error('The approved family member update is missing its target data.');
   }
 
-  await updateDoc(doc(db, PEOPLE_COLLECTION, nextPerson.id), {
+  await runTransaction(db, async (transaction) => {
+    const personRef = doc(db, PEOPLE_COLLECTION, nextPerson.id);
+    const current = await transaction.get(personRef);
+    if (!current.exists() || current.data().updatedAt !== payload.beforePerson?.updatedAt) {
+      throw new Error('This profile changed since you opened it. Reopen the latest profile before saving.');
+    }
+    transaction.update(personRef, {
     firstName: nextPerson.firstName,
     middleNames: nextPerson.middleNames ?? '',
     lastName: nextPerson.lastName,
@@ -458,16 +468,17 @@ async function applyApprovedPersonUpdate(payload: ApprovalRequestPayload) {
     birthPlace: nextPerson.birthPlace ?? '',
     birthDate: nextPerson.birthDate,
     deathDate: nextPerson.deathDate,
+    lifeStatus: nextPerson.lifeStatus ?? (nextPerson.deathDate ? 'deceased' : 'living'),
     gender: nextPerson.gender,
     notes: nextPerson.notes,
     lifeEvents: normaliseLifeEvents(nextPerson.lifeEvents),
     photos: nextPerson.photos,
     preferredPhotoId: nextPerson.preferredPhotoId,
     updatedAt: nowIso(),
+    });
   });
 
-  await deletePhotos(payload.removedPhotos ?? []);
-  await deletePhotos(payload.cleanupPhotos ?? []);
+  // Retain prior photos so approval history can restore the previous version.
 
   const parentIds = await getParentIdsForChild(nextPerson.treeId, nextPerson.id);
   await updateParentLifeEventsForChild(parentIds, {
@@ -485,24 +496,7 @@ async function rejectApprovedPersonUpdate(payload: ApprovalRequestPayload) {
 }
 
 async function deletePersonDirect(person: PersonRecord) {
-  await deletePhotos(person.photos);
-
-  const relationships = await getRelationshipsTouchingPerson(person.treeId, person.id);
-  const parentIds = relationships
-    .filter((relationship) => relationship.type === 'parent-child' && relationship.toPersonId === person.id)
-    .map((relationship) => relationship.fromPersonId);
-
-  await updateParentLifeEventsForChild(parentIds, {
-    id: person.id,
-    treeId: person.treeId,
-    firstName: person.firstName,
-    lastName: person.lastName,
-    birthDate: '',
-  });
-
-  const refsToDelete = relationships.map((relationship) => doc(db, RELATIONSHIPS_COLLECTION, relationship.id));
-  refsToDelete.push(doc(db, PEOPLE_COLLECTION, person.id));
-  await deleteDocumentRefs(refsToDelete);
+  await httpsCallable(functionsApi, 'archivePersonServer')({ treeId: person.treeId, personId: person.id });
 }
 
 async function applyApprovedDeletePerson(payload: ApprovalRequestPayload) {
@@ -686,6 +680,7 @@ export async function submitCreatePersonApproval(
     maidenName: input.maidenName ?? '',
     birthDate: input.birthDate,
     deathDate: input.deathDate,
+    lifeStatus: input.lifeStatus ?? (input.deathDate ? 'deceased' : 'living'),
     notes: input.notes,
     lifeEvents: input.lifeEvents,
   }, newPhotoUris);
@@ -723,6 +718,7 @@ export async function submitCreatePersonApproval(
       duplicatePersonIds: [],
       birthDate: input.birthDate.trim(),
       deathDate: input.deathDate.trim(),
+      lifeStatus: input.lifeStatus ?? (input.deathDate ? 'deceased' : 'living'),
       gender: input.gender,
       notes: input.notes.trim(),
       lifeEvents: normaliseLifeEvents(input.lifeEvents),
@@ -1290,6 +1286,7 @@ export async function validatePersonCreation(treeId: string, person: {
   maidenName?: string;
   birthDate: string;
   deathDate: string;
+  lifeStatus?: PersonRecord['lifeStatus'];
   notes: string;
   lifeEvents: PersonRecord['lifeEvents'];
 }, newPhotoUris: string[]) {
@@ -1303,6 +1300,7 @@ export async function validatePersonCreation(treeId: string, person: {
       maidenName: person.maidenName ?? '',
       birthDate: person.birthDate,
       deathDate: person.deathDate,
+      lifeStatus: person.lifeStatus ?? (person.deathDate ? 'deceased' : 'living'),
       notes: person.notes,
       lifeEvents: person.lifeEvents,
     },

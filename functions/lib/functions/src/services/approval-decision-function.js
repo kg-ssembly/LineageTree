@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ApprovalDecisionFunction = void 0;
+const person_recovery_function_1 = require("./person-recovery-function");
 const https_1 = require("firebase-functions/v2/https");
 const relationship_1 = require("../../../components/dto/relationship");
 const admin_family_tree_utils_1 = require("../shared/admin-family-tree-utils");
@@ -97,6 +98,7 @@ class ApprovalDecisionFunction {
             duplicatePersonIds: person.duplicatePersonIds ?? [],
             birthDate: person.birthDate,
             deathDate: person.deathDate,
+            lifeStatus: person.lifeStatus ?? (person.deathDate ? 'deceased' : 'living'),
             gender: person.gender,
             notes: person.notes,
             lifeEvents: (0, admin_family_tree_utils_1.normaliseLifeEvents)(person.lifeEvents),
@@ -142,24 +144,31 @@ class ApprovalDecisionFunction {
         if (!nextPerson) {
             throw new https_1.HttpsError('failed-precondition', 'The approved family member update is missing its target data.');
         }
-        await this.db.collection(admin_family_tree_utils_1.PEOPLE_COLLECTION).doc(nextPerson.id).update({
-            firstName: nextPerson.firstName,
-            middleNames: nextPerson.middleNames ?? '',
-            lastName: nextPerson.lastName,
-            maidenName: nextPerson.maidenName ?? '',
-            hometown: nextPerson.hometown ?? '',
-            birthPlace: nextPerson.birthPlace ?? '',
-            birthDate: nextPerson.birthDate,
-            deathDate: nextPerson.deathDate,
-            gender: nextPerson.gender,
-            notes: nextPerson.notes,
-            lifeEvents: (0, admin_family_tree_utils_1.normaliseLifeEvents)(nextPerson.lifeEvents),
-            photos: nextPerson.photos,
-            preferredPhotoId: nextPerson.preferredPhotoId,
-            updatedAt: (0, admin_family_tree_utils_1.nowIso)(),
+        await this.db.runTransaction(async (transaction) => {
+            const personRef = this.db.collection(admin_family_tree_utils_1.PEOPLE_COLLECTION).doc(nextPerson.id);
+            const current = await transaction.get(personRef);
+            if (!current.exists || current.data()?.updatedAt !== payload.beforePerson?.updatedAt) {
+                throw new https_1.HttpsError('failed-precondition', 'This profile changed after the request. Submit a fresh change from the latest profile.');
+            }
+            transaction.update(personRef, {
+                firstName: nextPerson.firstName,
+                middleNames: nextPerson.middleNames ?? '',
+                lastName: nextPerson.lastName,
+                maidenName: nextPerson.maidenName ?? '',
+                hometown: nextPerson.hometown ?? '',
+                birthPlace: nextPerson.birthPlace ?? '',
+                birthDate: nextPerson.birthDate,
+                deathDate: nextPerson.deathDate,
+                lifeStatus: nextPerson.lifeStatus ?? (nextPerson.deathDate ? 'deceased' : 'living'),
+                gender: nextPerson.gender,
+                notes: nextPerson.notes,
+                lifeEvents: (0, admin_family_tree_utils_1.normaliseLifeEvents)(nextPerson.lifeEvents),
+                photos: nextPerson.photos,
+                preferredPhotoId: nextPerson.preferredPhotoId,
+                updatedAt: (0, admin_family_tree_utils_1.nowIso)(),
+            });
         });
-        await (0, admin_family_tree_utils_1.deleteStoragePhotos)(payload.removedPhotos ?? []);
-        await (0, admin_family_tree_utils_1.deleteStoragePhotos)(payload.cleanupPhotos ?? []);
+        // Keep previous photos available for revision recovery.
         const parentIds = await (0, admin_family_tree_utils_1.getParentIdsForChild)(this.db, nextPerson.treeId, nextPerson.id);
         await (0, admin_family_tree_utils_1.updateParentLifeEventsForChild)(this.db, parentIds, {
             id: nextPerson.id,
@@ -174,21 +183,7 @@ class ApprovalDecisionFunction {
         await (0, admin_family_tree_utils_1.deleteStoragePhotos)(payload.cleanupPhotos ?? []);
     }
     async deletePersonDirect(person) {
-        await (0, admin_family_tree_utils_1.deleteStoragePhotos)(person.photos);
-        const relationships = await (0, admin_family_tree_utils_1.getRelationshipsTouchingPerson)(this.db, person.treeId, person.id);
-        const parentIds = relationships
-            .filter((relationship) => relationship.type === 'parent-child' && relationship.toPersonId === person.id)
-            .map((relationship) => relationship.fromPersonId);
-        await (0, admin_family_tree_utils_1.updateParentLifeEventsForChild)(this.db, parentIds, {
-            id: person.id,
-            treeId: person.treeId,
-            firstName: person.firstName,
-            lastName: person.lastName,
-            birthDate: '',
-        });
-        const refsToDelete = relationships.map((relationship) => this.db.collection(admin_family_tree_utils_1.RELATIONSHIPS_COLLECTION).doc(relationship.id));
-        refsToDelete.push(this.db.collection(admin_family_tree_utils_1.PEOPLE_COLLECTION).doc(person.id));
-        await (0, admin_family_tree_utils_1.deleteDocumentRefs)(this.db, refsToDelete);
+        await (0, person_recovery_function_1.archivePerson)(this.db, person.treeId, person.id);
     }
     async applyApprovedDeletePerson(payload) {
         const person = payload.deletedPerson;

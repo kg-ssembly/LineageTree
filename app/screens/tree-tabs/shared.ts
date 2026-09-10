@@ -98,8 +98,8 @@ export interface SharedTabProps {
   onUndoMerge: (requestId: string) => Promise<void>;
   onGrantMergeViewerAccess: (requestId: string, treeId: string) => Promise<void>;
   onCreateSurnameTree: (surname: string) => Promise<void>;
-  treeSettingsFocus?: { tab: 'approvals' | 'merges'; itemId: string; mode: 'approval' | 'merge'; token: number } | null;
-  onOpenTreeSettingsTarget?: (target: { tab: 'approvals' | 'merges'; itemId: string; mode: 'approval' | 'merge' }) => void;
+  treeSettingsFocus?: { tab: 'approvals' | 'merges' | 'trees'; itemId: string; mode: 'approval' | 'merge' | 'trees'; token: number } | null;
+  onOpenTreeSettingsTarget?: (target: { tab: 'approvals' | 'merges' | 'trees'; itemId: string; mode: 'approval' | 'merge' | 'trees' }) => void;
   trees?: FamilyTree[];
   defaultTreeId?: string | null;
   loadingTrees?: boolean;

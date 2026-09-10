@@ -1,3 +1,4 @@
+import { archivePerson } from './person-recovery-function';
 import { HttpsError } from 'firebase-functions/v2/https';
 import type { Firestore } from 'firebase-admin/firestore';
 import type { ApprovalRequest, ApprovalRequestPayload } from '../../../components/dto/approval';
@@ -123,6 +124,7 @@ export class ApprovalDecisionFunction {
       duplicatePersonIds: person.duplicatePersonIds ?? [],
       birthDate: person.birthDate,
       deathDate: person.deathDate,
+      lifeStatus: person.lifeStatus ?? (person.deathDate ? 'deceased' : 'living'),
       gender: person.gender,
       notes: person.notes,
       lifeEvents: normaliseLifeEvents(person.lifeEvents),
@@ -174,7 +176,13 @@ export class ApprovalDecisionFunction {
       throw new HttpsError('failed-precondition', 'The approved family member update is missing its target data.');
     }
 
-    await this.db.collection(PEOPLE_COLLECTION).doc(nextPerson.id).update({
+    await this.db.runTransaction(async (transaction) => {
+      const personRef = this.db.collection(PEOPLE_COLLECTION).doc(nextPerson.id);
+      const current = await transaction.get(personRef);
+      if (!current.exists || current.data()?.updatedAt !== payload.beforePerson?.updatedAt) {
+        throw new HttpsError('failed-precondition', 'This profile changed after the request. Submit a fresh change from the latest profile.');
+      }
+      transaction.update(personRef, {
       firstName: nextPerson.firstName,
       middleNames: nextPerson.middleNames ?? '',
       lastName: nextPerson.lastName,
@@ -183,16 +191,17 @@ export class ApprovalDecisionFunction {
       birthPlace: nextPerson.birthPlace ?? '',
       birthDate: nextPerson.birthDate,
       deathDate: nextPerson.deathDate,
+      lifeStatus: nextPerson.lifeStatus ?? (nextPerson.deathDate ? 'deceased' : 'living'),
       gender: nextPerson.gender,
       notes: nextPerson.notes,
       lifeEvents: normaliseLifeEvents(nextPerson.lifeEvents),
       photos: nextPerson.photos,
       preferredPhotoId: nextPerson.preferredPhotoId,
       updatedAt: nowIso(),
+      });
     });
 
-    await deleteStoragePhotos(payload.removedPhotos ?? []);
-    await deleteStoragePhotos(payload.cleanupPhotos ?? []);
+    // Keep previous photos available for revision recovery.
 
     const parentIds = await getParentIdsForChild(this.db, nextPerson.treeId, nextPerson.id);
     await updateParentLifeEventsForChild(this.db, parentIds, {
@@ -210,24 +219,7 @@ export class ApprovalDecisionFunction {
   }
 
   private async deletePersonDirect(person: PersonRecord) {
-    await deleteStoragePhotos(person.photos);
-
-    const relationships = await getRelationshipsTouchingPerson(this.db, person.treeId, person.id);
-    const parentIds = relationships
-      .filter((relationship) => relationship.type === 'parent-child' && relationship.toPersonId === person.id)
-      .map((relationship) => relationship.fromPersonId);
-
-    await updateParentLifeEventsForChild(this.db, parentIds, {
-      id: person.id,
-      treeId: person.treeId,
-      firstName: person.firstName,
-      lastName: person.lastName,
-      birthDate: '',
-    });
-
-    const refsToDelete = relationships.map((relationship) => this.db.collection(RELATIONSHIPS_COLLECTION).doc(relationship.id));
-    refsToDelete.push(this.db.collection(PEOPLE_COLLECTION).doc(person.id));
-    await deleteDocumentRefs(this.db, refsToDelete);
+    await archivePerson(this.db, person.treeId, person.id);
   }
 
   private async applyApprovedDeletePerson(payload: ApprovalRequestPayload) {

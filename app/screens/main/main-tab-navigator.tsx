@@ -1,9 +1,9 @@
-import React, { type ComponentType } from 'react';
+import React, { useState, type ComponentType } from 'react';
 import { Image, Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { createBottomTabNavigator, type BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Text } from 'react-native-paper';
+import { Button, Menu, Text } from 'react-native-paper';
 import type { MainTabParamList, RootStackParamList } from '../../../components/dto/navigation';
 import { I18N_KEYS as K } from '../../../i18n/keys';
 import type { useMainScreenController } from './main-controller';
@@ -18,6 +18,7 @@ type PersonProfileComponent = ComponentType<{
   route: { params: RootStackParamList['PersonProfile'] };
 }>;
 type UserProfileComponent = ComponentType<{
+  treeContext: SharedTabProps | null;
   onSignOut: ReturnType<typeof useMainScreenController>['signOut'];
   authLoading: boolean;
 }>;
@@ -39,6 +40,14 @@ const TAB_LABELS: Record<keyof MainTabParamList, string> = {
   treeSettings: K.navigation.settings,
   myProfile: K.navigation.profile,
 };
+
+function TreeSwitcher({ controller, onManageTrees }: { controller: ReturnType<typeof useMainScreenController>; onManageTrees: () => void }) {
+  const [treeMenuVisible, setTreeMenuVisible] = useState(false);
+  return (          <Menu visible={treeMenuVisible} onDismiss={() => setTreeMenuVisible(false)} anchor={<Button icon="chevron-down" compact onPress={() => setTreeMenuVisible(true)}>{controller.selectedTree?.name ?? controller.t('Choose tree')}</Button>}>
+            {(controller.sharedTabProps?.trees ?? []).map(tree => <Menu.Item key={tree.id} title={tree.name} leadingIcon={tree.id === controller.selectedTree?.id ? 'check' : 'family-tree'} onPress={() => { setTreeMenuVisible(false); void controller.sharedTabProps?.onSwitchTree?.(tree); }} />)}
+            <Menu.Item title={controller.t('Manage trees')} leadingIcon="cog-outline" onPress={() => { setTreeMenuVisible(false); controller.sharedTabProps?.onOpenTreeSettingsTarget?.({ tab: 'trees', mode: 'trees', itemId: '' }); onManageTrees(); }} />
+          </Menu>);
+}
 
 function WebMainTabBar({
   state,
@@ -84,9 +93,7 @@ function WebMainTabBar({
           <Text variant="titleMedium" style={{ color: controller.theme.colors.onSurface }}>
             Lineage Tree
           </Text>
-          <Text numberOfLines={1} variant="bodySmall" style={{ color: controller.theme.colors.onSurfaceVariant }}>
-            {controller.selectedTree?.name ?? controller.t(K.navigation.home)}
-          </Text>
+          <TreeSwitcher controller={controller} onManageTrees={() => navigation.navigate('treeSettings')} />
         </View>
       </View>
 
@@ -284,9 +291,11 @@ export function MainTabNavigator({
   return (
     <Tab.Navigator
       tabBar={isDesktopWeb ? (props) => <WebMainTabBar {...props} controller={controller} /> : undefined}
-      screenOptions={({ route }) => ({
+      screenOptions={({ route, navigation }) => ({
         lazy: true,
-        headerShown: false,
+        headerShown: !isDesktopWeb,
+        headerTitle: () => <TreeSwitcher controller={controller} onManageTrees={() => navigation.navigate('treeSettings')} />,
+        headerStyle: { backgroundColor: controller.theme.colors.surface },
         tabBarPosition: isDesktopWeb ? 'top' : 'bottom',
         tabBarActiveTintColor: controller.theme.colors.primary,
         tabBarInactiveTintColor: controller.theme.colors.onSurfaceVariant,
@@ -388,7 +397,7 @@ export function MainTabNavigator({
       <Tab.Screen name="myProfile" options={{ title: controller.t(K.navigation.profile) }}>
         {() => {
           const UserProfileTabContent = getUserProfileTabContent();
-          return <UserProfileTabContent onSignOut={controller.signOut} authLoading={controller.authLoading} />;
+          return <UserProfileTabContent treeContext={controller.sharedTabProps} onSignOut={controller.signOut} authLoading={controller.authLoading} />;
         }}
       </Tab.Screen>
     </Tab.Navigator>

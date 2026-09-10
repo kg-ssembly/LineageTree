@@ -143,6 +143,7 @@ function buildPersonMutationPayload(
     hometown: person.hometown ?? '',
     birthDate: person.birthDate,
     deathDate: person.deathDate,
+    lifeStatus: person.lifeStatus,
     gender: person.gender,
     notes: person.notes,
     lifeEvents: person.lifeEvents,
@@ -619,7 +620,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
     try {
       await updatePerson(user.id, person, payload);
       setEditorVisible(false);
-    } catch {
+    } catch (error) {
       // surfaced by store snackbar
     }
   };
@@ -656,7 +657,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
       }
 
       setRelationshipAddFlowVisible(false);
-    } catch {
+    } catch (error) {
       // surfaced by store snackbar
     }
   };
@@ -962,6 +963,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
         maidenName: person.maidenName ?? '',
         birthDate: person.birthDate,
         deathDate: person.deathDate,
+        lifeStatus: person.lifeStatus,
         notes: person.notes,
         lifeEvents: nextLifeEvents,
       },

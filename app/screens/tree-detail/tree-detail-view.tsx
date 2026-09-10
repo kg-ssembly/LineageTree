@@ -78,9 +78,9 @@ type ConfirmState = {
 };
 
 type TreeSettingsFocus = {
-  tab: 'approvals' | 'merges';
+  tab: 'approvals' | 'merges' | 'trees';
   itemId: string;
-  mode: 'approval' | 'merge';
+  mode: 'approval' | 'merge' | 'trees';
   token: number;
 } | null;
 
@@ -758,7 +758,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
       }
 
       closePersonDialog();
-    } catch {
+    } catch (error) {
       // surfaced by store snackbar
     }
   }, [closePersonDialog, createPersonFromPayload, personDialog.mode, personDialog.person, selectedTree, updatePerson, user?.id]);
@@ -775,7 +775,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
         setFollowUpTreePromptsPending(true);
       }
       setSelfPersonDialogVisible(false);
-    } catch {
+    } catch (error) {
       // surfaced by store snackbar
     }
   }, [assignPersonToUser, createSelfPersonFromPayload, selectedTree, user?.id]);
@@ -1241,7 +1241,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
       />
 
       <PersonFormDialog
-        visible={personDialog.visible && !isSharedLoaderVisible}
+        visible={personDialog.visible}
         mode={personDialog.mode}
         person={personDialog.person}
         initialPendingRelationships={personDialog.initialPendingRelationships}
@@ -1263,7 +1263,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
       />
 
       <PersonFormDialog
-        visible={selfPersonDialogVisible && !isSharedLoaderVisible}
+        visible={selfPersonDialogVisible}
         mode="create"
         initialValues={selfPersonInitialValues}
         loading={mutating}

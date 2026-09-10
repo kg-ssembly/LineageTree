@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import {
   createUserWithEmailAndPassword,
@@ -183,7 +184,17 @@ async function ensureUserProfileDocument(fbUser: Pick<FirebaseUser, 'uid' | 'ema
 
 async function fetchUserProfile(uid: string, fallbackUser?: FirebaseUser | null): Promise<UserProfile | null> {
   if (fallbackUser && fallbackUser.uid === uid) {
-    return ensureUserProfileDocument(fallbackUser);
+    try {
+      const profile = await ensureUserProfileDocument(fallbackUser);
+      await AsyncStorage.setItem(`profile-cache:${uid}`, JSON.stringify(profile)).catch(() => {});
+      return profile;
+    } catch (error) {
+      if ((error as { code?: string }).code !== 'unavailable') throw error;
+      const cached = await AsyncStorage.getItem(`profile-cache:${uid}`);
+      const profile = cached ? JSON.parse(cached) as UserProfile : null;
+      if (profile?.id === uid) return profile;
+      throw error;
+    }
   }
 
   const snap = await getDoc(doc(db, 'users', uid));
@@ -372,7 +383,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   signOut: async () => {
     set({ loading: true, error: null });
     try {
+      const userId = get().user?.id;
       await firebaseSignOut(auth);
+      if (userId) {
+        const keys = await AsyncStorage.getAllKeys();
+        await AsyncStorage.multiRemove(keys.filter((key) => key.startsWith(`person-draft:v1:${userId}:`) || key === `profile-cache:${userId}`));
+      }
       set({ user: null, firebaseUser: null, loading: false });
     } catch (err: any) {
       set({ loading: false, error: humaniseError(err.code ?? '') });

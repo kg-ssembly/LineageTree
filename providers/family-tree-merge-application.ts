@@ -189,6 +189,7 @@ export function buildMergedTargetPersonUpdate(
     surnameVariantHints: mergeUniqueStrings(targetSnapshot.surnameVariantHints, sourceSnapshot.surnameVariantHints),
     birthDate: resolveMergeConflictValue(match.id, 'birthDate', request, sourceSnapshot, targetSnapshot) ?? targetSnapshot.birthDate ?? sourceSnapshot.birthDate ?? '',
     deathDate: targetSnapshot.deathDate || sourceSnapshot.deathDate || '',
+    lifeStatus: targetSnapshot.deathDate || sourceSnapshot.deathDate ? 'deceased' : targetSnapshot.lifeStatus ?? sourceSnapshot.lifeStatus ?? 'living',
     gender: targetSnapshot.gender && targetSnapshot.gender !== 'unspecified' ? targetSnapshot.gender : sourceSnapshot.gender ?? targetSnapshot.gender ?? 'unspecified',
     notes: mergeTextBlocks(targetSnapshot.notes, sourceSnapshot.notes),
     lifeEvents: mergeLifeEvents(targetSnapshot.lifeEvents, sourceSnapshot.lifeEvents),

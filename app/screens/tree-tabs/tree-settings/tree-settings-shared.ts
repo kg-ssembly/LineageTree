@@ -8,7 +8,7 @@ import { translate } from '../../../../i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
 import type { SharedTabProps } from '../shared';
 
-export type TreeManagementTabKey = 'overview' | 'collaborators' | 'approvals' | 'merges' | 'trees';
+export type TreeManagementTabKey = 'overview' | 'collaborators' | 'approvals' | 'merges' | 'trees' | 'history';
 export type TreeHelperDialogKey =
   | 'tree-management'
   | 'surname-variants'
@@ -22,11 +22,10 @@ export type TreeHelperDialogKey =
   | 'my-trees';
 
 export const TREE_MANAGEMENT_TABS: Array<{ key: TreeManagementTabKey; label: string }> = [
-  { key: 'overview', label: K.treeSettings.overviewTab },
-  { key: 'collaborators', label: K.treeSettings.collaboratorsTab },
-  { key: 'approvals', label: K.treeSettings.approvalsTab },
-  { key: 'merges', label: K.treeSettings.mergesTab },
-  { key: 'trees', label: K.treeSettings.myTreesTab },
+  { key: 'overview', label: 'Tree details' },
+  { key: 'collaborators', label: 'People & access' },
+  { key: 'approvals', label: 'Reviews' },
+  { key: 'history', label: 'History & recovery' },
 ];
 
 export const TREE_HELPER_COPY: Record<TreeHelperDialogKey, { title: string; message: string }> = {

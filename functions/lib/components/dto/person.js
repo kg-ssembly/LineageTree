@@ -7,10 +7,12 @@ exports.getPersonFallbackAvatarIcon = getPersonFallbackAvatarIcon;
 exports.parsePersonDate = parsePersonDate;
 exports.formatPersonDate = formatPersonDate;
 exports.formatDate = formatDate;
+exports.getPersonLifeStatus = getPersonLifeStatus;
 exports.isPersonDeceased = isPersonDeceased;
 exports.getPersonPresenceLabel = getPersonPresenceLabel;
 exports.getPersonLifeSpanLabel = getPersonLifeSpanLabel;
 exports.getLifeEventTypeLabel = getLifeEventTypeLabel;
+const person_date_1 = require("../person-date");
 const i18n_1 = require("../../i18n");
 const keys_1 = require("../../i18n/keys");
 function getPreferredPersonPhoto(person) {
@@ -49,6 +51,8 @@ function getPersonAgeInYears(person) {
     if (!birthDate) {
         return null;
     }
+    if (getPersonLifeStatus(person) !== 'living' && !parsePersonDate(person.deathDate))
+        return null;
     const endDate = parsePersonDate(person.deathDate) ?? new Date();
     let age = endDate.getFullYear() - birthDate.getFullYear();
     const monthDelta = endDate.getMonth() - birthDate.getMonth();
@@ -71,13 +75,15 @@ function getPersonFallbackAvatarIcon(person) {
     return 'account';
 }
 function parsePersonDate(value) {
-    if (!value) {
+    if (!(0, person_date_1.isExactPersonDate)(value)) {
         return null;
     }
     const parsed = new Date(`${value}T00:00:00`);
     return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 function formatPersonDate(value) {
+    if (/^~\d{4}$/.test(value))
+        return `About ${value.slice(1)}`;
     const parsed = parsePersonDate(value);
     if (!parsed) {
         return value || (0, i18n_1.translate)(keys_1.I18N_KEYS.common.unknown);
@@ -91,10 +97,17 @@ function formatDate(date) {
     const year = date.getFullYear();
     return `${day} ${month} ${year}`;
 }
+function getPersonLifeStatus(person) {
+    return person?.lifeStatus ?? (person?.deathDate?.trim() ? 'deceased' : 'living');
+}
 function isPersonDeceased(person) {
-    return Boolean(person?.deathDate?.trim());
+    return getPersonLifeStatus(person) === 'deceased';
 }
 function getPersonPresenceLabel(person) {
+    if (getPersonLifeStatus(person) === 'unknown')
+        return (0, i18n_1.translate)(keys_1.I18N_KEYS.common.unknown);
+    if (isPersonDeceased(person) && !person?.deathDate)
+        return (0, i18n_1.translate)(keys_1.I18N_KEYS.personProfile.inMemory);
     if (person?.deathDate) {
         return `${(0, i18n_1.translate)(keys_1.I18N_KEYS.personProfile.inMemory)} • ${formatPersonDate(person.deathDate)}`;
     }
@@ -105,7 +118,7 @@ function getPersonLifeSpanLabel(person) {
         return (0, i18n_1.translate)(keys_1.I18N_KEYS.personProfile.unknownLifespan);
     }
     const birthLabel = person.birthDate ? formatPersonDate(person.birthDate) : (0, i18n_1.translate)(keys_1.I18N_KEYS.personProfile.birthDateUnknown);
-    const deathLabel = person.deathDate ? formatPersonDate(person.deathDate) : (0, i18n_1.translate)(keys_1.I18N_KEYS.common.present);
+    const deathLabel = person.deathDate ? formatPersonDate(person.deathDate) : getPersonPresenceLabel(person);
     return `${birthLabel} - ${deathLabel}`;
 }
 function getLifeEventTypeLabel(type) {

@@ -721,7 +721,7 @@ test('warns when child birth is after recorded parent death', () => {
   assert.ok(feedback.errors.includes('This child was recorded as born after the parent died. Please double-check the dates.'));
 });
 
-test('blocks biological parent-child relationships without birth dates for both people', () => {
+test('allows biological relationships with a warning when birth dates are unknown', () => {
   const parent = makePerson('parent', 'Alex', 'male');
   const child = { ...makePerson('child', 'Jordan', 'male'), birthDate: '2001-01-01' };
 
@@ -734,7 +734,8 @@ test('blocks biological parent-child relationships without birth dates for both 
     parentChildKind: 'biological',
   });
 
-  assert.ok(feedback.errors.includes('Birth dates are required for both family members before adding a biological parent-child relationship.'));
+  assert.equal(feedback.errors.length, 0);
+  assert.ok(feedback.warnings.some((message) => message.includes('timeline could not be checked')));
 });
 
 test('warns when spouse shared-child timelines are implausible', () => {
@@ -796,7 +797,7 @@ test('blocks future birth dates', () => {
   assert.ok(feedback.errors.includes('Birth date cannot be in the future.'));
 });
 
-test('requires a birth date when validating a person', () => {
+test('allows an unknown birth date when validating a person', () => {
   const feedback = getPersonValidationFeedback({
     people: [],
     person: {
@@ -811,7 +812,7 @@ test('requires a birth date when validating a person', () => {
     },
   });
 
-  assert.ok(feedback.errors.includes('Birth date is required.'));
+  assert.ok(!feedback.errors.includes('Birth date is required.'));
 });
 
 test('warns when child surname differs from both biological parents without context', () => {

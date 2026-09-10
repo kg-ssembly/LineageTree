@@ -1,8 +1,9 @@
+import { useSyncStatusStore } from '../stores/sync-status-store';
 import {
   deleteObject,
   getDownloadURL,
   ref,
-  uploadBytes,
+  uploadBytesResumable,
 } from 'firebase/storage';
 import type { NewPersonPhotoInput, PersonPhoto } from '../components/dto/person';
 import { cropPhotoForPreferredDisplay, MAX_PHOTO_BYTES } from '../components/photo-utils';
@@ -22,32 +23,37 @@ export async function uploadPersonPhotos(
 ): Promise<PersonPhoto[]> {
   const uploadedPhotos: PersonPhoto[] = [];
 
-  for (let index = 0; index < newPhotos.length; index += 1) {
-    const photoInput = newPhotos[index];
-    const uri = photoInput.uri;
-    const extension = uri.split('.').pop()?.split('?')[0]?.toLowerCase() || 'jpg';
-    const safeExtension = extension === 'jpg' ? 'jpeg' : extension;
-    const photoId = `${Date.now()}-${index}`;
-    const path = `treePhotos/${treeId}/${personId}/${actorUserId}-${photoId}.${extension}`;
-    const blob = await uriToBlob(uri);
-    if (blob.size > MAX_PHOTO_BYTES) {
-      throw new Error('Each photo must be smaller than 2 MB before upload.');
+  try {
+    for (let index = 0; index < newPhotos.length; index += 1) {
+      const photoInput = newPhotos[index];
+      const uri = photoInput.uri;
+      const extension = uri.split('.').pop()?.split('?')[0]?.toLowerCase() || 'jpg';
+      const safeExtension = extension === 'jpg' ? 'jpeg' : extension;
+      const photoId = `${Date.now()}-${index}`;
+      const path = `treePhotos/${treeId}/${personId}/${actorUserId}-${photoId}.${extension}`;
+      const blob = await uriToBlob(uri);
+      if (blob.size > MAX_PHOTO_BYTES) {
+        throw new Error('Each photo must be smaller than 2 MB before upload.');
+      }
+      const storageRef = ref(storage, path);
+      await uploadWithProgress(storageRef, blob, `image/${safeExtension}`, `Uploading photo ${index + 1} of ${newPhotos.length}`);
+      const url = await getDownloadURL(storageRef);
+
+      uploadedPhotos.push({
+        id: photoId,
+        url,
+        path,
+        description: photoInput.description?.trim() ?? '',
+        linkedLifeEventId: photoInput.linkedLifeEventId?.trim() ?? '',
+        createdAt: nowIso(),
+      });
     }
-    const storageRef = ref(storage, path);
-    await uploadBytes(storageRef, blob, { contentType: `image/${safeExtension}` });
-    const url = await getDownloadURL(storageRef);
 
-    uploadedPhotos.push({
-      id: photoId,
-      url,
-      path,
-      description: photoInput.description?.trim() ?? '',
-      linkedLifeEventId: photoInput.linkedLifeEventId?.trim() ?? '',
-      createdAt: nowIso(),
-    });
+    return uploadedPhotos;
+  } catch (error) {
+    await deletePhotos(uploadedPhotos);
+    throw error;
   }
-
-  return uploadedPhotos;
 }
 
 export async function uploadPreferredPhotoDisplayVariant(
@@ -65,7 +71,7 @@ export async function uploadPreferredPhotoDisplayVariant(
   const path = `treePhotos/${treeId}/${personId}/${actorUserId}-${preferredPhotoId}-preferred.jpeg`;
   const blob = await uriToBlob(croppedPreferred.uri);
   const storageRef = ref(storage, path);
-  await uploadBytes(storageRef, blob, { contentType: 'image/jpeg' });
+  await uploadWithProgress(storageRef, blob, 'image/jpeg', 'Uploading profile photo');
   const url = await getDownloadURL(storageRef);
 
   return { url, path };
@@ -160,4 +166,19 @@ export async function deletePhotos(photos: PersonPhoto[]) {
         }
       }),
   );
+}
+
+
+async function uploadWithProgress(storageRef: ReturnType<typeof ref>, blob: Blob, contentType: string, label: string) {
+  const task = uploadBytesResumable(storageRef, blob, { contentType });
+  try {
+    await new Promise<void>((resolve, reject) => {
+      task.on('state_changed', (snapshot) => {
+        useSyncStatusStore.setState({ upload: {
+          label, progress: snapshot.totalBytes ? snapshot.bytesTransferred / snapshot.totalBytes : 0,
+          paused: snapshot.state === 'paused', pause: () => { task.pause(); }, resume: () => { task.resume(); }, cancel: () => { task.cancel(); },
+        } });
+      }, reject, () => resolve());
+    });
+  } finally { useSyncStatusStore.setState({ upload: null }); }
 }

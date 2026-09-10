@@ -25,6 +25,9 @@ export function ApprovalsSection({
   setPreviewApprovalRequest,
 }: ApprovalsSectionProps) {
   const theme = useTheme();
+  const [settingsVisible, setSettingsVisible] = useState(false);
+  const [reviewFilter, setReviewFilter] = useState<'all' | 'mine'>('all');
+  const visibleRequests = pendingApprovalRequests.filter(request => reviewFilter === 'all' || canUserReviewApprovalRequest(request, userId));
   const { t } = useI18n();
   const [decision, setDecision] = useState<{ id: string; title: string; description: string; approve: boolean } | null>(null);
   const [deciding, setDeciding] = useState(false);
@@ -46,47 +49,6 @@ export function ApprovalsSection({
         <View style={styles.sectionHeader}>
           <View style={styles.titleWrap}>
             <View style={styles.titleWithHelperRow}>
-              <Text variant="titleLarge">{t(K.treeSettings.approvalSettings)}</Text>
-              <IconButton
-                icon="information-outline"
-                size={18}
-                style={styles.helperIconButton}
-                onPress={() => onOpenHelperDialog('approval-settings')}
-                accessibilityLabel={t(K.treeSettings.approvalSettings)}
-              />
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.summaryChipRow}>
-          <Chip icon="timeline-clock-outline">
-            {approvalsDisabled ? t(K.treeSettings.currentWindowOff) : t(K.treeSettings.currentWindowHours, { hours: approvalWindowHours })}
-          </Chip>
-        </View>
-
-        <SegmentedButtons
-          value={approvalWindowValue}
-          onValueChange={(value) => {
-            if (!isOwner || mutating) {
-              return;
-            }
-            void onSetApprovalWindowHours(Number(value));
-          }}
-          buttons={[
-            { value: '0', label: t(K.treeSettings.off), disabled: !isOwner || mutating },
-            { value: '12', label: '12h', disabled: !isOwner || mutating },
-            { value: '24', label: '24h', disabled: !isOwner || mutating },
-            { value: '48', label: '48h', disabled: !isOwner || mutating },
-          ]}
-          style={styles.managementSegmentedButtons}
-          density="small"
-        />
-      </SectionCard>
-
-      <SectionCard style={getTreeSettingsFamilyMemberCardStyle(theme)}>
-        <View style={styles.sectionHeader}>
-          <View style={styles.titleWrap}>
-            <View style={styles.titleWithHelperRow}>
               <Text variant="titleLarge">{t(K.treeSettings.pendingApprovals)} ({pendingApprovalRequests.length})</Text>
               <IconButton
                 icon="information-outline"
@@ -99,9 +61,13 @@ export function ApprovalsSection({
           </View>
         </View>
 
-        {pendingApprovalRequests.length > 0 ? (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+          <Button mode={reviewFilter === 'all' ? 'contained-tonal' : 'outlined'} onPress={() => setReviewFilter('all')}>{t('All pending')}</Button>
+          <Button mode={reviewFilter === 'mine' ? 'contained-tonal' : 'outlined'} onPress={() => setReviewFilter('mine')}>{t('Needs my review')}</Button>
+        </View>
+        {visibleRequests.length > 0 ? (
           <View style={styles.collaboratorList}>
-            {pendingApprovalRequests.map((request, index) => {
+            {visibleRequests.map((request, index) => {
               const canReview = canUserReviewApprovalRequest(request, userId);
               const expiresSoon = isApprovalExpired(request);
 
@@ -152,6 +118,50 @@ export function ApprovalsSection({
           </View>
         )}
       </SectionCard>
+      <Button mode="outlined" icon={settingsVisible ? 'chevron-up' : 'chevron-down'} onPress={() => setSettingsVisible(value => !value)}>{t('Approval settings')}</Button>
+      {settingsVisible ? <>
+      <SectionCard style={getTreeSettingsFamilyMemberCardStyle(theme)}>
+        <View style={styles.sectionHeader}>
+          <View style={styles.titleWrap}>
+            <View style={styles.titleWithHelperRow}>
+              <Text variant="titleLarge">{t(K.treeSettings.approvalSettings)}</Text>
+              <IconButton
+                icon="information-outline"
+                size={18}
+                style={styles.helperIconButton}
+                onPress={() => onOpenHelperDialog('approval-settings')}
+                accessibilityLabel={t(K.treeSettings.approvalSettings)}
+              />
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.summaryChipRow}>
+          <Chip icon="timeline-clock-outline">
+            {approvalsDisabled ? t(K.treeSettings.currentWindowOff) : t(K.treeSettings.currentWindowHours, { hours: approvalWindowHours })}
+          </Chip>
+        </View>
+
+        <SegmentedButtons
+          value={approvalWindowValue}
+          onValueChange={(value) => {
+            if (!isOwner || mutating) {
+              return;
+            }
+            void onSetApprovalWindowHours(Number(value));
+          }}
+          buttons={[
+            { value: '0', label: t(K.treeSettings.off), disabled: !isOwner || mutating },
+            { value: '12', label: '12h', disabled: !isOwner || mutating },
+            { value: '24', label: '24h', disabled: !isOwner || mutating },
+            { value: '48', label: '48h', disabled: !isOwner || mutating },
+          ]}
+          style={styles.managementSegmentedButtons}
+          density="small"
+        />
+      </SectionCard>
+
+      </> : null}
     </View>
       <ConfirmDialog
         visible={!!decision}

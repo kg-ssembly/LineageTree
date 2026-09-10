@@ -1,3 +1,5 @@
+import { requestTreeAccess, respondToAccess } from './services/tree-access-function';
+import { archivePerson, restoreDeletedPerson } from './services/person-recovery-function';
 import { initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
@@ -446,3 +448,26 @@ export const deleteTreeServer = onCall(
     return treeDeletionFunction.deleteTree(request.auth!.uid, treeId);
   },
 );
+
+
+export const restorePersonServer = onCall(async (request) => {
+  if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in to restore a person.');
+  return restoreDeletedPerson(db, request.auth.uid, String(request.data?.treeId ?? ''), String(request.data?.personId ?? ''), request.data?.restoreLinks !== false);
+});
+
+export const archivePersonServer = onCall(async (request) => {
+  if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in to remove a person.');
+  const treeId = String(request.data?.treeId ?? '');
+  const personId = String(request.data?.personId ?? '');
+  if (!treeId || !personId || treeId.includes('/') || personId.includes('/')) throw new HttpsError('invalid-argument', 'Choose a person.');
+  return archivePerson(db, treeId, personId, request.auth.uid);
+});
+
+export const requestTreeAccessServer = onCall(async (request) => {
+  if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in to request access.');
+  return requestTreeAccess(db, request.auth.uid, String(request.data?.treeId ?? ''));
+});
+export const respondToTreeAccessServer = onCall(async (request) => {
+  if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in to respond.');
+  return respondToAccess(db, request.auth.uid, String(request.data?.notificationId ?? ''), String(request.data?.status ?? ''));
+});

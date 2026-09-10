@@ -1,3 +1,7 @@
+import { useFormDraft } from '../hooks/use-form-draft';
+import { useAuthStore } from '../stores/auth-store';
+import { useTreeStore } from '../stores/tree-store';
+import { personDateBounds } from './person-date';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, ScrollView, View } from 'react-native';
 import {
@@ -17,7 +21,7 @@ import {
 } from 'react-native-paper';
 import { DatePickerModal } from 'react-native-paper-dates';
 import type { PersonGender, PersonLifeEvent, PersonMutationPayload, PersonPhoto, PersonRecord } from './dto/person';
-import { formatPersonDate } from './dto/person';
+import { type PersonLifeStatus, formatPersonDate } from './dto/person';
 import type { ParentChildRelationshipKind, RelationshipRecord, SpouseRelationshipStatus } from './dto/relationship';
 import { DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND, DEFAULT_SPOUSE_RELATIONSHIP_STATUS } from './dto/relationship';
 import { getPersonValidationFeedback, getRelationshipValidationFeedback } from './family-tree-validation';
@@ -187,6 +191,7 @@ function createValidationPersonRecord(input: {
   birthPlace: string;
   birthDate: string;
   deathDate: string;
+  lifeStatus?: import('./dto/person').PersonLifeStatus;
   gender: PersonGender;
   notes: string;
   lifeEvents: PersonLifeEvent[];
@@ -212,6 +217,7 @@ function createValidationPersonRecord(input: {
     duplicatePersonIds: [],
     birthDate: input.birthDate,
     deathDate: input.deathDate,
+    lifeStatus: input.lifeStatus,
     gender: input.gender,
     notes: input.notes,
     lifeEvents: input.lifeEvents,
@@ -295,7 +301,10 @@ export default function PersonFormDialog({
   const theme = useTheme();
   const { t, language } = useI18n();
   const isRelationshipOnlyFlow = mode === 'create' && relationshipOnly;
-  const [isPresent, setIsPresent] = useState(true);
+  const [lifeStatus, setLifeStatus] = useState<PersonLifeStatus>('living');
+  const isPresent = lifeStatus !== 'deceased';
+  const [closePrompt, setClosePrompt] = useState(false);
+  const [showOptionalDetails, setShowOptionalDetails] = useState(mode === 'edit');
   const [firstName, setFirstName] = useState('');
   const [middleNames, setMiddleNames] = useState('');
   const [lastName, setLastName] = useState('');
@@ -363,8 +372,9 @@ export default function PersonFormDialog({
     }
     lastInitKeyRef.current = initKey;
 
+    setShowOptionalDetails(mode === 'edit');
     const initialDeathDate = person?.deathDate ?? initialValues?.deathDate ?? '';
-    setIsPresent(!initialDeathDate);
+    setLifeStatus(person?.lifeStatus ?? initialValues?.lifeStatus ?? (initialDeathDate ? 'deceased' : 'living'));
     setFirstName(person?.firstName ?? initialValues?.firstName ?? '');
     setMiddleNames(person?.middleNames ?? initialValues?.middleNames ?? '');
     setLastName(person?.lastName ?? initialValues?.lastName ?? '');
@@ -425,6 +435,7 @@ export default function PersonFormDialog({
     birthPlace,
     birthDate,
     deathDate: isPresent ? '' : deathDate,
+    lifeStatus,
     gender,
     notes,
     lifeEvents,
@@ -495,12 +506,13 @@ export default function PersonFormDialog({
       birthPlace,
       birthDate,
       deathDate: isPresent ? '' : deathDate,
+    lifeStatus,
       gender,
       notes,
       lifeEvents,
       person,
     }),
-    [birthDate, birthPlace, deathDate, firstName, gender, isPresent, isRelationshipOnlyFlow, lastName, lastNameTouched, lifeEvents, maidenName, middleNames, mode, notes, person, suggestedLastName],
+    [birthDate, birthPlace, deathDate, firstName, gender, isPresent, lifeStatus, isRelationshipOnlyFlow, lastName, lastNameTouched, lifeEvents, maidenName, middleNames, mode, notes, person, suggestedLastName],
   );
   const subjectPersonId = validationPersonRecord.id;
   const pendingValidationRelationships = useMemo(
@@ -524,6 +536,7 @@ export default function PersonFormDialog({
           maidenName,
           birthDate,
           deathDate: isPresent ? '' : deathDate,
+    lifeStatus,
           notes,
           lifeEvents,
         },
@@ -535,7 +548,7 @@ export default function PersonFormDialog({
         requireRelationshipContext: requiresRelationshipConnection,
         ignorePersonId: person?.id,
       })),
-    [birthDate, deathDate, existingPhotos, firstName, isPresent, isRelationshipOnlyFlow, lastName, lastNameTouched, lifeEvents, maidenName, middleNames, mode, newPhotoUris, pendingRelationships, pendingValidationRelationships, person?.id, relationshipCandidates, relationships, removedPhotos, requiresRelationshipConnection, notes, suggestedLastName],
+    [birthDate, deathDate, existingPhotos, firstName, isPresent, lifeStatus, isRelationshipOnlyFlow, lastName, lastNameTouched, lifeEvents, maidenName, middleNames, mode, newPhotoUris, pendingRelationships, pendingValidationRelationships, person?.id, relationshipCandidates, relationships, removedPhotos, requiresRelationshipConnection, notes, suggestedLastName],
   );
   const validationPeople = useMemo(
     () => [validationPersonRecord, ...new Map(relationshipCandidates.map((candidate) => [candidate.id, candidate])).values()],
@@ -725,6 +738,9 @@ export default function PersonFormDialog({
   );
 
   const handleSubmit = async () => {
+    if (birthDate && !personDateBounds(birthDate)) { setShowOptionalDetails(true); setBirthDateError(t('Enter a valid date, year, or approximate year (~1940).')); return; }
+    if (!isPresent && deathDate && !personDateBounds(deathDate)) { setShowOptionalDetails(true); setDeathDateError(t('Enter a valid date, year, or approximate year (~1940).')); return; }
+
     if (!isRelationshipOnlyFlow) {
       const firstError = personValidationFeedback.errors.find((message) => message === t(K.personForm.firstNameRequiredError));
       if (firstError) {
@@ -825,6 +841,9 @@ export default function PersonFormDialog({
   };
 
   const handleNextStep = () => {
+    if (birthDate && !personDateBounds(birthDate)) { setShowOptionalDetails(true); setBirthDateError(t('Enter a valid date, year, or approximate year (~1940).')); return; }
+    if (!isPresent && deathDate && !personDateBounds(deathDate)) { setShowOptionalDetails(true); setDeathDateError(t('Enter a valid date, year, or approximate year (~1940).')); return; }
+
     const firstError = personValidationFeedback.errors.find((message) => message === t(K.personForm.firstNameRequiredError));
     if (firstError) {
       setFirstNameError(firstError);
@@ -1000,6 +1019,27 @@ export default function PersonFormDialog({
     setProposedSurnameVariant(null);
   };
 
+  const draftUserId = useAuthStore((state) => state.user?.id);
+  const draftTreeId = useTreeStore((state) => state.selectedTreeId);
+  const draftValue = { firstName, middleNames, lastName, maidenName, birthPlace, birthDate, deathDate, lifeStatus, gender, notes, lifeEvents, existingPhotos, removedPhotos, newPhotoUris, preferredPhotoRef, pendingRelationships, surnameVariantHints, currentStep };
+  const draft = useFormDraft(
+    `person-draft:v1:${draftUserId}:${person?.treeId ?? draftTreeId}:${person?.id ?? (initialValues ? 'self' : 'new')}:${relationshipOnly}`,
+    visible, draftValue,
+  );
+  const restoreDraft = () => {
+    const saved = draft.available;
+    if (!saved) return;
+    setShowOptionalDetails(true);
+    setFirstName(saved.firstName); setMiddleNames(saved.middleNames); setLastName(saved.lastName); setLastNameTouched(true);
+    setMaidenName(saved.maidenName); setBirthPlace(saved.birthPlace); setBirthDate(saved.birthDate); setDeathDate(saved.deathDate);
+    setLifeStatus(saved.lifeStatus); setGender(saved.gender); setNotes(saved.notes); setLifeEvents(saved.lifeEvents);
+    setExistingPhotos(saved.existingPhotos); setRemovedPhotos(saved.removedPhotos); setNewPhotoUris(saved.newPhotoUris);
+    setPreferredPhotoRef(saved.preferredPhotoRef); setPendingRelationships(saved.pendingRelationships);
+    setSurnameVariantHints(saved.surnameVariantHints); setCurrentStep(saved.currentStep);
+    draft.consume();
+  };
+  const handleClose = () => { if (draft.dirty) setClosePrompt(true); else onDismiss(); };
+
   const handlePreviewConfirm = async () => {
     if (!previewState.payload) {
       return;
@@ -1011,6 +1051,9 @@ export default function PersonFormDialog({
 
     try {
       await onSubmit(payload);
+      await draft.clear(true);
+    } catch (error) {
+      setRelationshipError(error instanceof Error ? error.message : t("Save failed. Your changes are still here; try again."));
     } finally {
       setSubmitPending(false);
     }
@@ -1018,18 +1061,34 @@ export default function PersonFormDialog({
 
   return (
     <>
+      {closePrompt ? <Portal><Dialog visible onDismiss={() => setClosePrompt(false)} style={dialogChrome.dialog}>
+        <Dialog.Title>{t('Unsaved changes')}</Dialog.Title>
+        <Dialog.Content><Text>{t('Your changes have not been submitted.')}</Text></Dialog.Content>
+        <Dialog.Actions style={{ flexWrap: 'wrap' }}>
+          <Button onPress={() => setClosePrompt(false)}>{t('Keep editing')}</Button>
+          <Button onPress={() => { void draft.clear().then(() => { setClosePrompt(false); onDismiss(); }); }}>{t('Discard')}</Button>
+          <Button onPress={() => { void draft.save().then(() => { setClosePrompt(false); onDismiss(); }).catch(() => { setClosePrompt(false); setRelationshipError(t('Draft could not be saved.')); }); }}>{t('Save draft and close')}</Button>
+        </Dialog.Actions>
+      </Dialog></Portal> : null}
       <Portal>
         <Dialog
           visible={visible && !childOverlayVisible}
-          onDismiss={isBusy ? undefined : onDismiss}
+          onDismiss={isBusy ? undefined : handleClose}
           style={[dialogChrome.dialog, styles.dialog, { backgroundColor: theme.colors.surface }]}
         >
           <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose, styles.dialogTitle]}>
             {dialogTitle}
           </Dialog.Title>
-          <IconButton icon="close" onPress={onDismiss} disabled={isBusy} accessibilityLabel={t(K.common.cancel)} style={dialogChrome.closeButton} />
+          <IconButton icon="close" onPress={handleClose} disabled={isBusy} accessibilityLabel={t(K.common.cancel)} style={dialogChrome.closeButton} />
           <Dialog.ScrollArea style={[dialogChrome.scrollArea, styles.scrollArea]}>
             <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+              {draft.available ? <View>
+                <Text>{t('An unfinished draft is available. Restoring it replaces the fields below.')}</Text>
+                <Button onPress={restoreDraft}>{t('Restore draft')}</Button>
+                <Button onPress={() => { void draft.clear(); }}>{t('Discard saved draft')}</Button>
+              </View> : null}
+              {draft.error ? <HelperText type="error" visible>{draft.error}</HelperText> : null}
+              {relationshipError ? <HelperText type="error" visible>{relationshipError}</HelperText> : null}
               {mode === 'create' && !isRelationshipOnlyFlow ? (
                 <Text variant="labelMedium" style={[styles.stepMeta, { color: theme.colors.onSurfaceVariant }]}>
                   {t(K.personForm.stepOfTwo, { step: currentStep })}
@@ -1204,14 +1263,6 @@ export default function PersonFormDialog({
                     {personValidationFeedback.warnings[0] ?? ''}
                   </HelperText>
 
-                  <TextInput
-                    outlineStyle={{ borderRadius: 16 }}
-                    mode="outlined"
-                    label={t(K.personForm.secondMiddleNames)}
-                    value={middleNames}
-                    onChangeText={setMiddleNames}
-                    disabled={isBusy}
-                  />
 
                   <View style={styles.sectionSpacing}>
                     <Text variant="titleSmall">{t(K.personForm.lastName)}</Text>
@@ -1310,6 +1361,19 @@ export default function PersonFormDialog({
                     ) : null}
                   </View>
 
+                  <Button onPress={() => setShowOptionalDetails(!showOptionalDetails)} disabled={isBusy}>
+                    {t(showOptionalDetails ? 'Hide optional details' : 'Add optional details: dates, status and more')}
+                  </Button>
+                  {showOptionalDetails ? <>
+                  <TextInput
+                    outlineStyle={{ borderRadius: 16 }}
+                    mode="outlined"
+                    label={t(K.personForm.secondMiddleNames)}
+                    value={middleNames}
+                    onChangeText={setMiddleNames}
+                    disabled={isBusy}
+                  />
+
                   <View style={styles.sectionSpacing}>
                     <Text variant="titleSmall">{t(K.personForm.maidenName)}</Text>
                     <TextInput
@@ -1340,7 +1404,10 @@ export default function PersonFormDialog({
                   </View>
 
                   <View style={styles.sectionSpacing}>
-                    <Text variant="titleSmall">{t(K.personForm.birthDate)} *</Text>
+                    <Text variant="titleSmall">{t(K.personForm.birthDate)}</Text>
+                    <TextInput mode="outlined" label={t('Date or year (optional)')} value={birthDate} disabled={isBusy}
+                      placeholder="1940, ~1940, or 1940-06-15" onChangeText={setBirthDate} />
+                    <HelperText type="info" visible>{t('Leave blank if unknown. Use ~1940 for an approximate year.')}</HelperText>
                     <View style={styles.birthDateActions}>
                       <Button
                         mode="outlined"
@@ -1368,21 +1435,20 @@ export default function PersonFormDialog({
 
                   <View style={styles.sectionSpacing}>
                     <View style={styles.presentRow}>
-                      <Text variant="titleSmall">{t(K.personForm.stillPresent)}</Text>
-                      <Switch
-                        value={isPresent}
-                        onValueChange={(value) => {
-                          setIsPresent(value);
-                          if (value) {
-                            setDeathDate('');
-                            setDeathDateError(null);
-                          }
-                        }}
-                        disabled={isBusy}
-                      />
+                      <Text variant="titleSmall">{t("Life status")}</Text>
+                      <View style={styles.chipGroup}>
+                        {(['living', 'deceased', 'unknown'] as const).map((status) => (
+                          <Chip key={status} selected={lifeStatus === status} disabled={isBusy}
+                            onPress={() => { setLifeStatus(status); if (status !== 'deceased') setDeathDate(''); }}>
+                            {t(status === 'living' ? 'Living' : status === 'deceased' ? 'Deceased' : 'Unknown')}
+                          </Chip>
+                        ))}
+                      </View>
                     </View>
                     {!isPresent ? (
                       <>
+                        <TextInput mode="outlined" label={t('Death date or year (optional)')} value={deathDate} disabled={isBusy}
+                          placeholder="Leave blank if unknown" onChangeText={setDeathDate} />
                         <View style={styles.birthDateActions}>
                           <Button
                             mode="outlined"
@@ -1427,6 +1493,7 @@ export default function PersonFormDialog({
                       ))}
                     </View>
                   </View>
+                  </> : null}
                 </>
               )}
             </ScrollView>
@@ -1527,6 +1594,7 @@ export default function PersonFormDialog({
           <IconButton icon="close" onPress={() => setPreviewState({ visible: false, payload: null, warnings: [] })} disabled={isBusy} accessibilityLabel={t(K.common.cancel)} style={dialogChrome.closeButton} />
           <Dialog.ScrollArea style={[dialogChrome.scrollArea, styles.scrollArea]}>
             <ScrollView contentContainerStyle={styles.content}>
+
               {previewState.payload ? (
                 <>
                   <Text variant="titleMedium">{formatPreviewName(previewState.payload)}</Text>
@@ -1534,6 +1602,7 @@ export default function PersonFormDialog({
                     {mode === 'create' && !isRelationshipOnlyFlow ? t(K.personForm.readyToCreateFamilyMember) : t(K.personForm.readyToSaveFamilyMember)}
                   </Text>
                   <Text variant="titleSmall" style={styles.sectionSpacing}>{t(K.common.summary)}</Text>
+                  <Text variant="bodyMedium">{t("Life status")}: {previewState.payload.lifeStatus}</Text>
                   <Text variant="bodyMedium">{t(K.personForm.gender)}: {previewState.payload.gender}</Text>
                   {previewState.payload.birthDate ? <Text variant="bodyMedium">{t(K.personProfile.birth)}: {formatPersonDate(previewState.payload.birthDate)}</Text> : null}
                   {previewState.payload.birthPlace ? <Text variant="bodyMedium">{t(K.personProfile.birthPlace)}: {previewState.payload.birthPlace}</Text> : null}

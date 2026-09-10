@@ -1,3 +1,4 @@
+import { personDateBounds, isDefinitelyBefore } from './person-date';
 import type { PersonInput, PersonPhoto, PersonRecord } from './dto/person';
 import { parsePersonDate } from './dto/person';
 import type { ParentChildRelationshipKind, RelationshipRecord, RelationshipType, SpouseRelationshipStatus } from './dto/relationship';
@@ -21,7 +22,7 @@ type RelationshipValidationInput = {
 type PersonValidationInput = {
   people: PersonRecord[];
   relationships?: RelationshipRecord[];
-  person: Pick<PersonInput, 'firstName' | 'middleNames' | 'lastName' | 'maidenName' | 'birthDate' | 'deathDate' | 'notes' | 'lifeEvents'>;
+  person: Pick<PersonInput, 'firstName' | 'middleNames' | 'lastName' | 'maidenName' | 'birthDate' | 'deathDate' | 'lifeStatus' | 'notes' | 'lifeEvents'>;
   pendingRelationships?: Array<{
     mode: 'parent-of' | 'child-of' | 'spouse-of';
     relatedPersonId: string;
@@ -254,9 +255,8 @@ export function getPersonValidationFeedback({
     errors.push(translate(K.personForm.lastNameRequired));
   }
 
-  if (!birthDate) {
-    errors.push(translate(K.personForm.birthDateRequired));
-  }
+  if (birthDate && !personDateBounds(birthDate)) errors.push('Enter a valid birth date, year, or approximate year (~1940).');
+  if (deathDate && !personDateBounds(deathDate)) errors.push('Enter a valid death date, year, or approximate year (~1940).');
 
   if (requireIdentityContext && !lastName && !birthDate && pendingRelationships.filter((relationship) => relationship.relatedPersonId).length === 0) {
     errors.push(translate(K.personForm.identityDetailRequired));
@@ -266,24 +266,24 @@ export function getPersonValidationFeedback({
     errors.push(translate(K.personForm.addRelationshipToConnectMember));
   }
 
-  if (birthDate && birthDate > formatDateToIso(new Date())) {
+  if (birthDate && isDefinitelyBefore(formatDateToIso(new Date()), birthDate)) {
     errors.push(translate(K.personForm.birthDateInFuture));
   }
 
-  if (deathDate && deathDate > formatDateToIso(new Date())) {
+  if (deathDate && isDefinitelyBefore(formatDateToIso(new Date()), deathDate)) {
     errors.push(translate(K.personForm.deathDateInFuture));
   }
 
-  if (birthDate && deathDate && deathDate < birthDate) {
+  if (birthDate && deathDate && isDefinitelyBefore(deathDate, birthDate)) {
     errors.push(translate(K.personForm.deathDateBeforeBirth));
   }
 
   person.lifeEvents.forEach((event) => {
-    if (birthDate && event.date < birthDate) {
+    if (birthDate && isDefinitelyBefore(event.date, birthDate)) {
       errors.push(translate(K.personForm.lifeEventBeforeBirth));
     }
 
-    if (deathDate && event.date > deathDate) {
+    if (deathDate && isDefinitelyBefore(deathDate, event.date)) {
       errors.push(translate(K.personForm.lifeEventAfterDeath));
       if (event.type !== 'death') {
         warnings.push(translate(K.personForm.deceasedPersonHasPresentDayEvents));
@@ -605,7 +605,7 @@ export function getRelationshipValidationFeedback({
       }
 
       if (isBiologicalParentChildKind(parentChildKind) && (!parent.birthDate || !child.birthDate)) {
-        errors.push(translate(K.relationship.biologicalRelationshipBirthDatesRequired));
+        warnings.push('Birth dates are unknown; the biological relationship timeline could not be checked.');
       }
 
       if (parent.birthDate && child.birthDate) {
@@ -627,7 +627,7 @@ export function getRelationshipValidationFeedback({
         }
       }
 
-      if (parent.deathDate && child.birthDate && parent.deathDate < child.birthDate) {
+      if (parent.deathDate && child.birthDate && isDefinitelyBefore(parent.deathDate, child.birthDate)) {
         if (isBiologicalParentChildKind(parentChildKind)) {
           errors.push(translate(K.relationship.childBornAfterParentDeath));
         } else {
@@ -717,8 +717,8 @@ export function getRelationshipValidationFeedback({
 
         const firstAgeGap = firstParent.birthDate ? getAgeDifferenceInYears(firstParent.birthDate, child.birthDate) : null;
         const secondAgeGap = secondParent.birthDate ? getAgeDifferenceInYears(secondParent.birthDate, child.birthDate) : null;
-        const bornAfterFirstParentDeath = Boolean(firstParent.deathDate && firstParent.deathDate < child.birthDate);
-        const bornAfterSecondParentDeath = Boolean(secondParent.deathDate && secondParent.deathDate < child.birthDate);
+        const bornAfterFirstParentDeath = Boolean(firstParent.deathDate && isDefinitelyBefore(firstParent.deathDate, child.birthDate));
+        const bornAfterSecondParentDeath = Boolean(secondParent.deathDate && isDefinitelyBefore(secondParent.deathDate, child.birthDate));
 
         return bornAfterFirstParentDeath
           || bornAfterSecondParentDeath

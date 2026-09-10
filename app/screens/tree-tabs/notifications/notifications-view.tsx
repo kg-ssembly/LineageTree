@@ -763,7 +763,7 @@ export function NotificationsView({
                     ) : null}
                     {item.kind === 'merge-invite' && item.notificationId && item.status === 'pending' ? (
                       <>
-                        <Button compact mode="contained" onPress={() => onRespondToMergeInvite(item.notificationId!, 'accepted')} disabled={mutating} style={BUTTON_CHROME} buttonColor={theme.colors.primary} textColor={theme.colors.onPrimary} contentStyle={BUTTON_CONTENT_CHROME}>
+                        <Button compact mode="contained" onPress={() => { void handleAcceptMergeInvite(item); }} disabled={mutating} style={BUTTON_CHROME} buttonColor={theme.colors.primary} textColor={theme.colors.onPrimary} contentStyle={BUTTON_CONTENT_CHROME}>
                           {t(K.notifications.accept)}
                         </Button>
                         <Button compact mode="outlined" onPress={() => onRespondToMergeInvite(item.notificationId!, 'dismissed')} disabled={mutating} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>

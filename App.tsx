@@ -1,4 +1,4 @@
-import React, { Component, type ErrorInfo, type ReactNode, useEffect } from 'react';
+import React, { Component, type ErrorInfo, type ReactNode, useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -12,6 +12,7 @@ import linking from './app/navigation/app-linking';
 import { setActiveLanguage } from './i18n';
 import { useLanguageStore } from './stores/language-store';
 import { useThemeStore } from './stores/theme-store';
+import { useAuthStore } from './stores/auth-store';
 
 // react-native-paper-dates only renders cleanly after a locale is registered.
 // We register the built-in English pack for every app language so the date
@@ -69,6 +70,9 @@ function RootNavigatorLoader() {
 }
 
 function AppShell() {
+  const authLoading = useAuthStore((state) => state.loading);
+  const initAuth = useAuthStore((state) => state.init);
+  const [authReady, setAuthReady] = useState(!authLoading);
   const preference = useThemeStore((state) => state.preference);
   const hydrateTheme = useThemeStore((state) => state.hydrate);
   const language = useLanguageStore((state) => state.language);
@@ -83,11 +87,14 @@ function AppShell() {
     hydrateLanguage();
   }, [hydrateLanguage, hydrateTheme]);
 
+  useEffect(() => initAuth(), [initAuth]);
+  useEffect(() => { if (!authLoading) setAuthReady(true); }, [authLoading]);
+
   useEffect(() => {
     setActiveLanguage(language);
   }, [language]);
 
-  if (!fontsLoaded) {
+  if (!fontsLoaded || !authReady) {
     return (
       <View
         style={{

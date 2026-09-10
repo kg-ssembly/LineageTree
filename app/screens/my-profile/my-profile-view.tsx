@@ -4,7 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as ImagePicker from 'expo-image-picker';
 import {
-  ActivityIndicator,
+  ActivityIndicator, Button, Text,
   useTheme,
 } from 'react-native-paper';
 import {
@@ -49,6 +49,8 @@ import {
   type PersonRelationshipSectionTabKey as RelationshipSectionTabKey,
 } from '../profile-shared';
 import { ProfileOverviewSection } from './sections/profile-overview-section';
+import { ProfileLinkSection } from '../tree-tabs/tree-settings/profile-link-section';
+import type { SharedTabProps } from '../tree-tabs/shared';
 import { ProfileHeroSection } from './sections/profile-hero-section';
 
 const styles = StyleSheet.create({
@@ -108,15 +110,12 @@ type MaidenTreeSuggestionState = {
   relatedTreeCandidates: MaidenTreeSuggestionCandidate[];
 };
 
-type ProfileTabKey = 'biography' | 'relationships' | 'memories' | 'descendants' | 'ascendants' | 'app-settings';
+type ProfileTabKey = 'biography' | 'relationships' | 'memories' | 'descendants' | 'ascendants' | 'app-settings' | 'linking';
 
 const PROFILE_TABS: Array<{ key: ProfileTabKey; label: string; icon: string }> = [
-  { key: 'biography', label: K.personProfile.biography, icon: 'book-open-page-variant-outline' },
-  { key: 'relationships', label: K.personProfile.relationships, icon: 'account-multiple-outline' },
+  { key: 'biography', label: 'About', icon: 'book-open-page-variant-outline' },
+  { key: 'relationships', label: 'Family', icon: 'account-multiple-outline' },
   { key: 'memories', label: K.memories.memories, icon: 'image-multiple-outline' },
-  { key: 'descendants', label: K.lineage.descendants, icon: 'family-tree' },
-  { key: 'ascendants', label: K.lineage.ascendants, icon: 'arrow-up-bold' },
-  { key: 'app-settings', label: K.personProfile.appSettings, icon: 'cog-outline' },
 ];
 
 function getRelationshipModeForPerson(personId: string, relationship: RelationshipRecord): PersonRelationshipMode {
@@ -140,6 +139,7 @@ function buildPersonMutationPayload(
     hometown: person.hometown ?? '',
     birthDate: person.birthDate,
     deathDate: person.deathDate,
+    lifeStatus: person.lifeStatus,
     gender: person.gender,
     notes: person.notes,
     lifeEvents: person.lifeEvents,
@@ -214,8 +214,9 @@ function getAscendantIds(rootPersonId: string, relationships: RelationshipRecord
   return [...ascendantIds];
 }
 
-export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTabProps) {
+export function UserProfileTabContent({ onSignOut, authLoading, treeContext }: UserProfileTabProps & { treeContext: SharedTabProps | null }) {
   const theme = useTheme();
+  const [linkSearch, setLinkSearch] = useState('');
   const { t } = useI18n();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { user } = useAuthStore();
@@ -536,9 +537,9 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
 
   useEffect(() => {
     if (!shouldShowLinkedProfileTabs && activeTab !== 'app-settings') {
-      setActiveTab('app-settings');
+      setActiveTab(current => current === 'app-settings' || !treeContext ? 'app-settings' : 'linking');
     }
-  }, [activeTab, shouldShowLinkedProfileTabs]);
+  }, [activeTab, shouldShowLinkedProfileTabs, treeContext]);
 
   const openConfirm = (title: string, message: string, confirmLabel: string, action: () => Promise<void>) => {
     setConfirmState({ visible: true, title, message, confirmLabel, action });
@@ -580,7 +581,7 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
     try {
       await updatePerson(user.id, linkedPerson, payload);
       setEditorVisible(false);
-    } catch {
+    } catch (error) {
       // surfaced by store snackbar
     }
   };
@@ -617,7 +618,7 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
       }
 
       setRelationshipAddFlowVisible(false);
-    } catch {
+    } catch (error) {
       // surfaced by store snackbar
     }
   };
@@ -923,6 +924,7 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
         maidenName: linkedPerson.maidenName ?? '',
         birthDate: linkedPerson.birthDate,
         deathDate: linkedPerson.deathDate,
+        lifeStatus: linkedPerson.lifeStatus,
         notes: linkedPerson.notes,
         lifeEvents: nextLifeEvents,
       },
@@ -967,6 +969,11 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       <ScreenBackground />
       <ScrollView contentContainerStyle={styles.compactContent}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+          <Text variant="titleLarge">{t(activeTab === 'app-settings' ? 'Account & preferences' : activeTab === 'linking' ? 'My place in the tree' : 'Profile')}</Text>
+          {(activeTab === 'app-settings' || activeTab === 'linking') && treeContext ? <Button icon="arrow-left" onPress={() => setActiveTab(shouldShowLinkedProfileTabs ? 'biography' : 'linking')}>{t('Profile')}</Button> : <Button icon="cog-outline" onPress={() => setActiveTab('app-settings')}>{t('Account & preferences')}</Button>}
+        </View>
+        {activeTab !== 'app-settings' && activeTab !== 'linking' ? <>
         <ProfileHeroSection
           shouldShowLinkedProfileTabs={shouldShowLinkedProfileTabs}
           linkedPerson={linkedPerson}
@@ -976,19 +983,23 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
           userDisplayName={user?.displayName}
           userEmail={user?.email}
           fallbackSummary={fallbackProfileState.summary}
+          treeName={profileTree?.name}
         />
 
-        <Reveal delay={70}>
+        <Button style={{ alignSelf: 'flex-start' }} icon="link-variant" onPress={() => setActiveTab('linking')}>{t('My place in the tree')}</Button>
+        </> : null}
+
+        {shouldShowLinkedProfileTabs && activeTab !== 'app-settings' && activeTab !== 'linking' ? <Reveal delay={70}>
           <TabStripCard style={styles.tabStripCard}>
             <HorizontalTabStrip
-              items={shouldShowLinkedProfileTabs ? profileTabs : profileTabs.filter((tab) => tab.key === 'app-settings')}
-              activeKey={activeTab}
+              items={profileTabs}
+              activeKey={activeTab === 'ascendants' || activeTab === 'descendants' ? 'relationships' : activeTab}
               onChange={setActiveTab}
               contentContainerStyle={styles.tabStripContent}
               itemStyle={styles.tabStripItem}
             />
           </TabStripCard>
-        </Reveal>
+        </Reveal> : null}
 
         {shouldShowLinkedProfileTabs && activeTab === 'biography' && linkedPerson ? (
           <ProfileOverviewSection
@@ -1012,6 +1023,12 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
             }}
           />
         ) : null}
+
+        {shouldShowLinkedProfileTabs && ['relationships', 'ascendants', 'descendants'].includes(activeTab) ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+          <Button mode={activeTab === 'relationships' ? 'contained-tonal' : 'outlined'} onPress={() => setActiveTab('relationships')}>{t('Close family')}</Button>
+          <Button mode={activeTab === 'ascendants' ? 'contained-tonal' : 'outlined'} onPress={() => setActiveTab('ascendants')}>{t('Ancestors')}</Button>
+          <Button mode={activeTab === 'descendants' ? 'contained-tonal' : 'outlined'} onPress={() => setActiveTab('descendants')}>{t('Descendants')}</Button>
+        </View> : null}
 
         {shouldShowLinkedProfileTabs && activeTab === 'relationships' && linkedPerson ? (
           <RelationshipsSection
@@ -1086,6 +1103,18 @@ export function UserProfileTabContent({ onSignOut, authLoading }: UserProfileTab
             mode="ascendant"
           />
         ) : null}
+
+        {activeTab === 'linking' && treeContext ? <>
+          <ProfileLinkSection selectedTree={treeContext.selectedTree} currentUserLabel={treeContext.currentUserLabel}
+            currentAssignedPerson={treeContext.currentAssignedPerson} currentSelfAssignmentSuggestions={treeContext.currentSelfAssignmentSuggestions}
+            canCreateSelfProfile={treeContext.canCreateSelfProfile} mutating={treeContext.mutating} userId={treeContext.userId}
+            linkSearchQuery={linkSearch} setLinkSearchQuery={setLinkSearch}
+            filteredLinkPeople={treeContext.availableSelfLinkPeople.filter(person => formatPersonName(person).toLowerCase().includes(linkSearch.toLowerCase()))}
+            onOpenHelperDialog={() => Alert.alert(t('My place in the tree'), t('Link your account to an existing family member, or add yourself if you are not in the tree yet.'))}
+            onOpenAddSelf={treeContext.onOpenAddSelf} openPersonProfile={treeContext.openPersonProfile}
+            onAssignPersonToUser={treeContext.onAssignPersonToUser} openConfirm={treeContext.openConfirm} onClearSelfAssignment={treeContext.onClearSelfAssignment} />
+          {!shouldShowLinkedProfileTabs ? <Button icon="cog-outline" onPress={() => setActiveTab('app-settings')}>{t('Account & preferences')}</Button> : null}
+        </> : null}
 
         {activeTab === 'app-settings' ? (
           <AppSettingsSection onSignOut={onSignOut} authLoading={authLoading} />

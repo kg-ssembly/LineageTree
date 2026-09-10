@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
-import { Button, Chip, SegmentedButtons, Text, TextInput, useTheme } from 'react-native-paper';
-import { Reveal, SectionCard } from '../../../../components';
+import { ScrollView, StyleSheet, View } from 'react-native';
+import { Button, Dialog, Portal, RadioButton, SegmentedButtons, Text, TextInput, useTheme } from 'react-native-paper';
+import { GlobalStyles, Reveal, SectionCard } from '../../../../components';
 import type { ThemePreference } from '../../../../constants/theme';
 import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
@@ -55,6 +55,9 @@ const styles = StyleSheet.create({
 
 export function AppSettingsSection({ onSignOut, authLoading }: UserProfileTabProps) {
   const theme = useTheme();
+  const [languagePickerVisible, setLanguagePickerVisible] = useState(false);
+  const [languageError, setLanguageError] = useState('');
+  const [savingLanguage, setSavingLanguage] = useState(false);
   const { language, languages, setLanguage, t } = useI18n();
   const { user, updateDisplayName, updatePreferredLanguage } = useAuthStore();
   const preference = useThemeStore((state) => state.preference);
@@ -68,11 +71,6 @@ export function AppSettingsSection({ onSignOut, authLoading }: UserProfileTabPro
   }, [user?.displayName]);
 
   const isDirty = editName.trim() !== (user?.displayName ?? '').trim();
-  const appearanceSummary =
-    preference === 'dark'
-      ? t(K.settings.darkModeEnabled)
-      : t(K.settings.lightModeEnabled);
-
   const handleSaveName = async () => {
     if (!editName.trim()) {
       setNameError(t(K.settings.displayNameEmpty));
@@ -91,15 +89,17 @@ export function AppSettingsSection({ onSignOut, authLoading }: UserProfileTabPro
   };
 
   const handleLanguageChange = async (nextLanguage: typeof language) => {
-    await setLanguage(nextLanguage);
-    await updatePreferredLanguage(nextLanguage);
+    setSavingLanguage(true); setLanguageError('');
+    try { await updatePreferredLanguage(nextLanguage); await setLanguage(nextLanguage); setLanguagePickerVisible(false); }
+    catch { setLanguageError(t('Language could not be saved. Please try again.')); }
+    finally { setSavingLanguage(false); }
   };
 
   return (
     <>
       <Reveal delay={80}>
         <SectionCard variant="tree" style={[getFamilyMemberCardStyle(theme), styles.card]}>
-        <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>{t(K.settings.editProfile)}</Text>
+        <Text variant="headlineSmall" style={{ color: theme.colors.onSurface }}>{t('Account name')}</Text>
         <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
           {t(K.settings.changeDisplayName)}
         </Text>
@@ -140,9 +140,7 @@ export function AppSettingsSection({ onSignOut, authLoading }: UserProfileTabPro
           ]}
           style={styles.themeSwitch}
         />
-        <View style={[styles.appearanceHint, { backgroundColor: theme.colors.surfaceVariant }]}>
-          <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>{appearanceSummary}</Text>
-        </View>
+
         </SectionCard>
       </Reveal>
 
@@ -152,19 +150,13 @@ export function AppSettingsSection({ onSignOut, authLoading }: UserProfileTabPro
         <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
           {t(K.settings.chooseLanguage)}
         </Text>
-        <View style={styles.languageChipRow}>
-          {languages.map((option) => (
-            <Chip
-              key={option.code}
-              selected={option.code === language}
-              onPress={() => void handleLanguageChange(option.code)}
-              style={{ marginBottom: 8 }}
-              icon={option.code === language ? 'check' : 'translate'}
-            >
-              {option.nativeName}
-            </Chip>
-          ))}
-        </View>
+        <Button mode="outlined" icon="translate" style={{ marginTop: 16, alignSelf: 'flex-start' }} onPress={() => setLanguagePickerVisible(true)}>{languages.find(option => option.code === language)?.nativeName}</Button>
+        <Portal><Dialog visible={languagePickerVisible} onDismiss={() => { if (!savingLanguage) setLanguagePickerVisible(false); }} style={[GlobalStyles.dialogChrome.dialog, { maxWidth: 480, maxHeight: '80%', backgroundColor: theme.colors.surface }]}>
+          <Dialog.Title>{t(K.settings.appLanguage)}</Dialog.Title>
+          <Dialog.ScrollArea style={GlobalStyles.dialogChrome.scrollArea}><ScrollView>{languages.map(option => <RadioButton.Item key={option.code} label={option.nativeName} value={option.code} status={option.code === language ? 'checked' : 'unchecked'} disabled={savingLanguage} onPress={() => void handleLanguageChange(option.code)} />)}</ScrollView></Dialog.ScrollArea>
+          {languageError ? <Dialog.Content><Text style={{ color: theme.colors.error }}>{languageError}</Text></Dialog.Content> : null}
+          <Dialog.Actions><Button disabled={savingLanguage} onPress={() => setLanguagePickerVisible(false)}>{t('Close')}</Button></Dialog.Actions>
+        </Dialog></Portal>
         </SectionCard>
       </Reveal>
 

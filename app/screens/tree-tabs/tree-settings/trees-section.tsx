@@ -35,6 +35,7 @@ export function TreesSection({
   return (
     <Reveal delay={80}>
     <View>
+      {onCreateTree ? <Button mode="contained" icon="plus" onPress={onCreateTree} disabled={mutating} style={[BUTTON_CHROME, { alignSelf: 'flex-start', marginBottom: 16 }]}>{t(K.treeSettings.createATree)}</Button> : null}
       {maidenSurnameSuggestions.length > 0 ? (
         <Reveal delay={80}>
           <SectionCard style={[styles.collaboratorCard, getTreeSettingsFamilyMemberCardStyle(theme), { marginBottom: 16 }]}>
@@ -110,9 +111,9 @@ export function TreesSection({
           return (
             <Reveal key={tree.id} delay={100 + index * 25}>
               <SectionCard nested style={[styles.personCard, getTreeSettingsFamilyMemberCardStyle(theme, isSelected ? theme.colors.primaryContainer : theme.colors.surface)]}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <View style={{ flex: 1 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+                  <View style={{ flex: 1, minWidth: 180 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
                       <Text variant="titleMedium" style={isSelected ? { color: theme.colors.onPrimaryContainer } : undefined}>{tree.name}</Text>
                       {isDefault ? <Chip compact style={{ backgroundColor: theme.colors.secondaryContainer }}>{t(K.treeSettings.defaultTree)}</Chip> : null}
                       {isSelected ? <Chip compact icon="check-circle" style={{ backgroundColor: theme.colors.primaryContainer }}>{t(K.treeSettings.active)}</Chip> : null}
@@ -125,9 +126,10 @@ export function TreesSection({
                     </Text>
                   </View>
                   <View style={{ flexDirection: 'row', gap: 4 }}>
-                    <IconButton icon="content-copy" size={20} onPress={() => { void onCopyTreeId(tree.id); }} disabled={mutating} />
+                    <IconButton accessibilityLabel={t('Copy tree ID')} icon="content-copy" size={20} onPress={() => { void onCopyTreeId(tree.id); }} disabled={mutating} />
                     {onToggleDefaultTree && !hideTreeActionIcons ? (
                       <IconButton
+                        accessibilityLabel={t(isDefault ? 'Remove default tree' : 'Set as default tree')}
                         icon={isDefault ? 'star' : 'star-outline'}
                         size={20}
                         onPress={() => onToggleDefaultTree(tree)}
@@ -135,10 +137,10 @@ export function TreesSection({
                       />
                     ) : null}
                     {!isSelected && onSwitchTree && !hideTreeActionIcons ? (
-                      <IconButton icon="swap-horizontal" size={20} onPress={() => onSwitchTree(tree)} disabled={mutating} />
+                      <IconButton accessibilityLabel={t('Switch to this tree')} icon="swap-horizontal" size={20} onPress={() => onSwitchTree(tree)} disabled={mutating} />
                     ) : null}
                     {onEditTree ? (
-                      <IconButton icon="pencil-outline" size={20} onPress={() => onEditTree(tree)} disabled={mutating} />
+                      <IconButton accessibilityLabel={t('Edit tree')} icon="pencil-outline" size={20} onPress={() => onEditTree(tree)} disabled={mutating} />
                     ) : null}
                   </View>
                 </View>

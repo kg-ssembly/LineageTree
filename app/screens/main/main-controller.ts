@@ -74,9 +74,9 @@ export type TreeDialogState = {
 };
 
 export type TreeSettingsFocus = {
-  tab: 'approvals' | 'merges';
+  tab: 'approvals' | 'merges' | 'trees';
   itemId: string;
-  mode: 'approval' | 'merge';
+  mode: 'approval' | 'merge' | 'trees';
   token: number;
 } | null;
 
@@ -918,8 +918,8 @@ export function useMainScreenController({ navigation }: Props) {
         await updatePerson(user.id, personDialog.person, payload);
       }
       closePersonDialog();
-    } catch {
-      // snackbar
+    } catch (error) {
+      throw error; // Keep form and draft available for retry.
     }
   }, [closePersonDialog, createPersonFromPayload, personDialog.mode, personDialog.person, selectedTree, updatePerson, user?.id]);
 
@@ -935,8 +935,8 @@ export function useMainScreenController({ navigation }: Props) {
         setFollowUpTreePromptsPending(true);
       }
       setSelfPersonDialogVisible(false);
-    } catch {
-      // snackbar
+    } catch (error) {
+      throw error; // Keep form and draft available for retry.
     }
   }, [assignPersonToUser, createSelfPersonFromPayload, selectedTree, user?.id]);
 

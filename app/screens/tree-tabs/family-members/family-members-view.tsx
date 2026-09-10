@@ -1,3 +1,4 @@
+import { getPersonLifeStatus } from '../../../../components/dto/person';
 import React, { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { FlatList, Pressable, ScrollView, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -185,8 +186,8 @@ export function FamilyMembersView({
           }
 
           if (filters.gender !== 'all' && person.gender !== filters.gender) return false;
-          if (filters.presence === 'present' && person.deathDate) return false;
-          if (filters.presence === 'deceased' && !person.deathDate) return false;
+          if (filters.presence === 'present' && getPersonLifeStatus(person) !== 'living') return false;
+          if (filters.presence === 'deceased' && getPersonLifeStatus(person) !== 'deceased') return false;
           if (filters.hasNotes === true && !person.notes.trim()) return false;
           if (filters.hasNotes === false && person.notes.trim()) return false;
           if (filters.hasParents === true && !personRelStats.childOf.has(person.id)) return false;

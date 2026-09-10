@@ -32,8 +32,17 @@ export class TreeDeletionFunction {
       this.db.collection(MERGE_HISTORY_COLLECTION).where('involvedTreeIds', 'array-contains', tree.id).get(),
     ]);
 
+    const trashSnapshot = await this.db.collection('personTrash').where('treeId', '==', tree.id).get();
     const peopleToDelete = people.filter((person) => person.treeMembershipIds.length <= 1);
-    await deleteStoragePhotos(peopleToDelete.flatMap((person) => person.photos));
+    const sharedPersonIds = new Set(people.filter((person) => person.treeMembershipIds.length > 1).map((person) => person.id));
+    const retainedPhotos = [
+      ...trashSnapshot.docs.flatMap((entry) => entry.data().person?.photos ?? []),
+      ...approvalRequestsSnapshot.docs.flatMap((entry) => sharedPersonIds.has(entry.data().targetId) ? [] : [
+        ...(entry.data().payload?.beforePerson?.photos ?? []),
+        ...(entry.data().payload?.afterPerson?.photos ?? []),
+      ]),
+    ];
+    await deleteStoragePhotos([...peopleToDelete.flatMap((person) => person.photos), ...retainedPhotos]);
 
     await Promise.all(
       people
@@ -105,6 +114,7 @@ export class TreeDeletionFunction {
     );
 
     const refsToDelete = [
+      ...trashSnapshot.docs.map((snapshot) => snapshot.ref),
       ...peopleToDelete.map((person) => this.db.collection(PEOPLE_COLLECTION).doc(person.id)),
       ...relationshipSnapshot.docs.map((snapshot) => snapshot.ref),
       ...approvalRequestsSnapshot.docs.map((snapshot) => snapshot.ref),

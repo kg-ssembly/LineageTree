@@ -51,7 +51,7 @@ function getDisplayName(person: PersonRecord) {
 }
 
 function getBirthYear(person: PersonRecord) {
-  return person.birthDate ? Number.parseInt(person.birthDate.slice(0, 4), 10) : null;
+  return /^\d{4}(?:-|$)/.test(person.birthDate) ? Number.parseInt(person.birthDate.slice(0, 4), 10) : null;
 }
 
 function buildSurnameSet(person: PersonRecord, groups: SurnameVariantGroup[]) {

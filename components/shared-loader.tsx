@@ -1,6 +1,8 @@
+import { useSyncStatusStore } from '../stores/sync-status-store';
+import { useI18n } from '../hooks/use-i18n';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import { ActivityIndicator, Portal, Text, useTheme } from 'react-native-paper';
+import { ActivityIndicator, Button, ProgressBar, Portal, Text, useTheme } from 'react-native-paper';
 
 type SharedLoaderProps = {
   visible: boolean;
@@ -33,6 +35,8 @@ export default function SharedLoader({
   description,
 }: SharedLoaderProps) {
   const theme = useTheme();
+  const upload = useSyncStatusStore((state) => state.upload);
+  const { t } = useI18n();
 
   if (!visible) {
     return null;
@@ -58,6 +62,12 @@ export default function SharedLoader({
           ]}
         >
           <ActivityIndicator size="large" color={theme.colors.primary} />
+          {upload ? <View style={{ minWidth: 220, gap: 8 }}>
+            <Text>{t(upload.label)} · {Math.round(upload.progress * 100)}%</Text>
+            <ProgressBar progress={upload.progress} />
+            <Button onPress={upload.paused ? upload.resume : upload.pause}>{t(upload.paused ? 'Resume upload' : 'Pause upload')}</Button>
+            <Button onPress={upload.cancel}>{t('Cancel upload')}</Button>
+          </View> : null}
           {label ? (
             <Text variant="titleMedium" style={{ textAlign: 'center', color: theme.colors.onSurface }}>
               {label}

@@ -1,5 +1,8 @@
+import { isExactPersonDate } from '../person-date';
 import { translate } from '../../i18n';
 import { I18N_KEYS as K } from '../../i18n/keys';
+
+export type PersonLifeStatus = 'living' | 'deceased' | 'unknown';
 
 export type PersonGender = 'unspecified' | 'female' | 'male' | 'non-binary' | 'other';
 
@@ -59,6 +62,7 @@ export interface PersonRecord {
   duplicatePersonIds?: string[];
   birthDate: string;
   deathDate: string;
+  lifeStatus?: PersonLifeStatus;
   gender: PersonGender;
   notes: string;
   lifeEvents: PersonLifeEvent[];
@@ -79,6 +83,7 @@ export interface PersonInput {
   surnameVariantHints?: string[];
   birthDate: string;
   deathDate: string;
+  lifeStatus?: PersonLifeStatus;
   gender: PersonGender;
   notes: string;
   lifeEvents: PersonLifeEvent[];
@@ -139,6 +144,7 @@ function getPersonAgeInYears(person?: PersonRecord | null) {
     return null;
   }
 
+  if (getPersonLifeStatus(person) !== 'living' && !parsePersonDate(person.deathDate)) return null;
   const endDate = parsePersonDate(person.deathDate) ?? new Date();
   let age = endDate.getFullYear() - birthDate.getFullYear();
   const monthDelta = endDate.getMonth() - birthDate.getMonth();
@@ -168,7 +174,7 @@ export function getPersonFallbackAvatarIcon(person?: PersonRecord | null) {
 }
 
 export function parsePersonDate(value: string) {
-  if (!value) {
+  if (!isExactPersonDate(value)) {
     return null;
   }
 
@@ -177,6 +183,7 @@ export function parsePersonDate(value: string) {
 }
 
 export function formatPersonDate(value: string) {
+  if (/^~\d{4}$/.test(value)) return `About ${value.slice(1)}`;
   const parsed = parsePersonDate(value);
   if (!parsed) {
     return value || translate(K.common.unknown);
@@ -194,11 +201,17 @@ export function formatDate(date: Date) {
   return `${day} ${month} ${year}`;
 }
 
+export function getPersonLifeStatus(person?: Pick<PersonRecord, 'deathDate' | 'lifeStatus'> | null): PersonLifeStatus {
+  return person?.lifeStatus ?? (person?.deathDate?.trim() ? 'deceased' : 'living');
+}
+
 export function isPersonDeceased(person?: PersonRecord | null) {
-  return Boolean(person?.deathDate?.trim());
+  return getPersonLifeStatus(person) === 'deceased';
 }
 
 export function getPersonPresenceLabel(person?: PersonRecord | null) {
+  if (getPersonLifeStatus(person) === 'unknown') return translate(K.common.unknown);
+  if (isPersonDeceased(person) && !person?.deathDate) return translate(K.personProfile.inMemory);
   if (person?.deathDate) {
     return `${translate(K.personProfile.inMemory)} • ${formatPersonDate(person.deathDate)}`;
   }
@@ -212,7 +225,7 @@ export function getPersonLifeSpanLabel(person?: PersonRecord | null) {
   }
 
   const birthLabel = person.birthDate ? formatPersonDate(person.birthDate) : translate(K.personProfile.birthDateUnknown);
-  const deathLabel = person.deathDate ? formatPersonDate(person.deathDate) : translate(K.common.present);
+  const deathLabel = person.deathDate ? formatPersonDate(person.deathDate) : getPersonPresenceLabel(person);
   return `${birthLabel} - ${deathLabel}`;
 }
 
