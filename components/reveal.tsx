@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, Easing, Platform, View, type StyleProp, type ViewStyle } from 'react-native';
+import { AccessibilityInfo, Animated, Easing, Platform, type StyleProp, type ViewStyle } from 'react-native';
 
 type RevealProps = {
   children: React.ReactNode;
@@ -29,7 +29,7 @@ export default function Reveal({
   }, []);
 
   useEffect(() => {
-    if (reduceMotion || Platform.OS === 'web') {
+    if (reduceMotion) {
       translateY.setValue(0);
       return;
     }
@@ -40,7 +40,7 @@ export default function Reveal({
       duration,
       delay,
       easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
+      useNativeDriver: Platform.OS !== 'web',
     });
 
     animation.start();
@@ -48,7 +48,6 @@ export default function Reveal({
     return () => animation.stop();
   }, [delay, distance, duration, reduceMotion, translateY]);
 
-  if (Platform.OS === 'web') return <View style={style}>{children}</View>;
 
   return (
     <Animated.View

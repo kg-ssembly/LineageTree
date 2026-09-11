@@ -1,3 +1,5 @@
+import { canUserReviewApprovalRequest } from '../../../components/dto/approval';
+import { canEditTreeContent } from '../../../components/dto/tree';
 import type { ApprovalRequest } from '../../../components/dto/approval';
 import type { MergeHistoryRecord, MergeRequestRecord } from '../../../components/dto/merge';
 import type { AppNotification, NotificationActivityState } from '../../../components/dto/notification';
@@ -167,83 +169,14 @@ type ActivityNotificationCountInput = {
 export function getActivityNotificationCount({
   approvalRequests,
   mergeRequests,
-  mergeHistory,
   notifications,
-  notificationActivityStates,
   trees,
   userId,
 }: ActivityNotificationCountInput) {
-  const actionedStateKeys = new Set(
-    notificationActivityStates
-      .filter((state) => Boolean(state.actionedAt) && !state.deletedAt)
-      .map((state) => `${state.sourceKind}:${state.sourceId}`),
-  );
-  const deletedStateKeys = new Set(
-    notificationActivityStates
-      .filter((state) => Boolean(state.deletedAt))
-      .map((state) => `${state.sourceKind}:${state.sourceId}`),
-  );
-
-  let unseenDirectCount = 0;
-  for (const notification of notifications) {
-    if (!notification.seenAt) {
-      unseenDirectCount += 1;
-    }
-  }
-
-  let unactionedApprovalCount = 0;
-  for (const request of approvalRequests) {
-    if (!actionedStateKeys.has(`approval:${request.id}`)) {
-      if (deletedStateKeys.has(`approval:${request.id}`)) {
-        continue;
-      }
-      unactionedApprovalCount += 1;
-    }
-  }
-
-  let unactionedMergeRequestCount = 0;
-  for (const request of mergeRequests) {
-    if (!actionedStateKeys.has(`merge-request:${request.id}`)) {
-      if (deletedStateKeys.has(`merge-request:${request.id}`)) {
-        continue;
-      }
-      unactionedMergeRequestCount += 1;
-    }
-  }
-
-  let unactionedMergeHistoryCount = 0;
-  for (const entry of mergeHistory) {
-    if (!actionedStateKeys.has(`merge-history:${entry.id}`)) {
-      if (deletedStateKeys.has(`merge-history:${entry.id}`)) {
-        continue;
-      }
-      unactionedMergeHistoryCount += 1;
-    }
-  }
-
-  let unactionedMembershipCount = 0;
-  for (const tree of trees ?? []) {
-    for (const entry of tree.membershipHistory) {
-      const canSeeEntry = !userId || entry.userId === userId || entry.action === 'invited' || entry.action === 'role-changed';
-      if (!canSeeEntry) {
-        continue;
-      }
-
-      if (deletedStateKeys.has(`membership:${tree.id}-${entry.id}`)) {
-        continue;
-      }
-
-      if (!actionedStateKeys.has(`membership:${tree.id}-${entry.id}`)) {
-        unactionedMembershipCount += 1;
-      }
-    }
-  }
-
-  return unseenDirectCount
-    + unactionedApprovalCount
-    + unactionedMergeRequestCount
-    + unactionedMergeHistoryCount
-    + unactionedMembershipCount;
+  const direct = notifications.filter(item => (item.type === 'merge-invite' || item.type === 'tree-access-request') && item.status === 'pending').length;
+  const approvals = approvalRequests.filter(item => canUserReviewApprovalRequest(item, userId)).length;
+  const merges = mergeRequests.filter(item => (item.status === 'pending' || item.status === 'changes-requested') && (trees ?? []).some(tree => item.involvedTreeIds.includes(tree.id) && canEditTreeContent(tree, userId))).length;
+  return direct + approvals + merges;
 }
 
 function normaliseComparableName(value: string) {

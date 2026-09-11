@@ -1064,7 +1064,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
       <ScrollView contentContainerStyle={styles.content}>
         <Reveal delay={60}>
           <PanelSurface
-            style={[getFamilyMemberCardStyle(theme, chrome.primaryCardBackground), styles.heroCard]}
+            style={[getFamilyMemberCardStyle(theme, theme.colors.surface), styles.heroCard]}
             elevation={0}
           >
           {canEdit ? (
@@ -1098,7 +1098,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
               )}
               <View style={styles.heroIdentityWrap}>
                 <Text variant="labelLarge" style={{ color: theme.colors.primary }}>
-                  {t(K.personProfile.familyProfile)}
+                  {t('A life woven into our family')}
                 </Text>
                 <View style={styles.heroNameRow}>
                   <Text variant="headlineMedium">{formatPersonName(person)}</Text>

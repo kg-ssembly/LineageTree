@@ -1,10 +1,9 @@
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Avatar, Button, Chip, Text, useTheme } from 'react-native-paper';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { CachedImage, Reveal, SectionCard } from '../../../../components';
 import type { PersonRecord } from '../../../../components/dto/person';
-import { getPersonLifeSpanLabel, isPersonDeceased, type PersonPhoto } from '../../../../components/dto/person';
+import { getPersonLifeSpanLabel, type PersonPhoto } from '../../../../components/dto/person';
 import { formatPersonName } from '../../../../components/person-formatting';
 import { getThemeChrome } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
@@ -104,8 +103,8 @@ export function ProfileHeroSection({
       <Reveal delay={60}>
         <SectionCard
           variant="person"
-          backgroundColor={chrome.primaryCardBackground}
-          style={[getFamilyMemberCardStyle(theme, chrome.primaryCardBackground), styles.heroCard]}
+          backgroundColor={theme.colors.surface}
+          style={[getFamilyMemberCardStyle(theme, theme.colors.surface), styles.heroCard]}
         >
           <View style={styles.heroHeader}>
             <View style={styles.heroAvatarRow}>
@@ -117,17 +116,11 @@ export function ProfileHeroSection({
                   recyclingKey={preferredPhoto.id}
                 />
               ) : (
-                <View style={[styles.heroAvatarFallback, { backgroundColor: chrome.avatarBackground, borderColor: chrome.avatarBorder }]}>
-                  <MaterialCommunityIcons
-                    name={linkedPerson && isPersonDeceased(linkedPerson) ? 'flower-outline' : 'account-heart-outline'}
-                    size={38}
-                    color={theme.colors.primary}
-                  />
-                </View>
+                <Avatar.Text size={92} label={`${linkedPerson?.firstName[0] ?? ''}${linkedPerson?.lastName[0] ?? ''}`} style={{ backgroundColor: theme.colors.surfaceVariant }} color={theme.colors.onSurfaceVariant} />
               )}
               <View style={styles.heroIdentityWrap}>
                 <Text variant="labelLarge" style={{ color: theme.colors.primary }}>
-                  {t(K.personProfile.linkedFamilyProfile)}
+                  {t('My family story')}
                 </Text>
                 <View style={styles.heroNameRow}>
                   <Text variant="headlineMedium">{linkedPerson ? formatPersonName(linkedPerson) : t(K.common.unknown)}</Text>
@@ -139,6 +132,7 @@ export function ProfileHeroSection({
               </View>
             </View>
           </View>
+          {linkedPerson?.notes ? <Text numberOfLines={3} variant="bodyLarge" style={{ marginTop: 16, color: theme.colors.onSurface }}>{linkedPerson.notes}</Text> : null}
           {treeName ? <Text variant="bodySmall" style={{ marginTop: 12, color: theme.colors.onSurfaceVariant }}>{treeName}</Text> : null}
           {canEditLinkedProfile ? <Button mode="contained" icon="pencil-outline" onPress={onEdit} style={{ alignSelf: 'flex-start', marginTop: 12 }}>{t('Edit profile')}</Button> : null}
         </SectionCard>

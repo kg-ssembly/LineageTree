@@ -1,3 +1,4 @@
+import { FamilyWelcome } from './family-welcome';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -551,12 +552,12 @@ export function HomeDashboardView(props: SharedTabProps) {
   const [deeperExpanded, setDeeperExpanded] = useState(false);
   const [overviewActionsExpanded, setOverviewActionsExpanded] = useState(false);
   const [buildInfoVisible, setBuildInfoVisible] = useState(false);
+  const [showTreeProgress, setShowTreeProgress] = useState(false);
   const [heroInfoVisible, setHeroInfoVisible] = useState(false);
   const [missingDetailsExpanded, setMissingDetailsExpanded] = useState(false);
-  const [dashboardTab, setDashboardTab] = useState<DashboardTabKey>(needsAttentionCount > 0 ? 'activity' : 'overview');
+  const [dashboardTab, setDashboardTab] = useState<DashboardTabKey>('overview');
   const hasUserSelectedDashboardTabRef = useRef(false);
   const previousFocusRef = useRef(isFocused);
-  const previousNeedsAttentionCountRef = useRef(needsAttentionCount);
   const promptStorageId = `${selectedTree.id}:${currentAssignedPerson?.id ?? 'unlinked'}`;
   const dashboardVisitStorageId = `${selectedTree.id}:${currentAssignedPerson?.id ?? 'unlinked'}`;
   const isEmptyTree = people.length === 0;
@@ -700,25 +701,6 @@ export function HomeDashboardView(props: SharedTabProps) {
     previousTaskDoneByIdRef.current = null;
   }, [promptStorageId, showFollowUpTreePrompts]);
 
-  useEffect(() => {
-    const previousNeedsAttentionCount = previousNeedsAttentionCountRef.current;
-    previousNeedsAttentionCountRef.current = needsAttentionCount;
-
-    if (loadingTreeData) {
-      return;
-    }
-
-    if (previousNeedsAttentionCount === 0 && needsAttentionCount > 0 && dashboardTab !== 'activity') {
-      setDashboardTab('activity');
-      return;
-    }
-
-    if (hasUserSelectedDashboardTabRef.current) {
-      return;
-    }
-
-    setDashboardTab(needsAttentionCount > 0 ? 'activity' : 'overview');
-  }, [dashboardTab, loadingTreeData, needsAttentionCount]);
 
   useEffect(() => {
     if (!showFollowUpTreePrompts) {
@@ -790,8 +772,8 @@ export function HomeDashboardView(props: SharedTabProps) {
 
   const dashboardTabs = useMemo<Array<{ key: DashboardTabKey; label: string; icon: string }>>(
     () => [
-      { key: 'overview', label: t(K.home.overview), icon: 'view-dashboard-outline' },
-      { key: 'highlights', label: t(K.home.highlights), icon: 'star-four-points-outline' },
+      { key: 'overview', label: t('Our family'), icon: 'view-dashboard-outline' },
+      { key: 'highlights', label: t('Family occasions'), icon: 'star-four-points-outline' },
       { key: 'activity', label: activityNotificationCount > 0 ? t(K.home.activityCount, { count: activityNotificationCount }) : t(K.home.activity), icon: 'bell-outline' },
     ],
     [activityNotificationCount, t],
@@ -1178,7 +1160,9 @@ export function HomeDashboardView(props: SharedTabProps) {
           </TabStripCard>
         </Reveal>
 
-      {dashboardTab === 'overview' && !isEmptyTree ? (
+        {dashboardTab === 'overview' ? <FamilyWelcome {...props} onOpenActivity={() => setDashboardTab('activity')} /> : null}
+      {dashboardTab === 'overview' && !isEmptyTree ? <Button icon={showTreeProgress ? 'chevron-up' : 'chevron-down'} onPress={() => setShowTreeProgress(value => !value)} style={{ alignSelf: 'flex-start', marginVertical: 12 }}>{t('Help our family tree grow')}</Button> : null}
+      {dashboardTab === 'overview' && !isEmptyTree && showTreeProgress ? (
         <Reveal delay={70}>
           <View>
             <View

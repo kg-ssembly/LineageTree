@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { Button, Chip, Dialog, IconButton, Portal, Text, TextInput, useTheme } from 'react-native-paper';
 import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, CachedImage, GlobalStyles, HorizontalTabStrip, Reveal, SectionCard, TabStripCard } from '../../../../components';
@@ -113,6 +113,14 @@ export function PersonMemoriesSection({
   const theme = useTheme();
   const { t } = useI18n();
   const [photoDrafts, setPhotoDrafts] = useState<Record<string, { description: string; linkedLifeEventId: string }>>({});
+  const previousMemory = useRef({ id: person.id, photos: person.photos.length, events: person.lifeEvents.length, notes: person.notes });
+  const [savedMoment, setSavedMoment] = useState(false);
+  useEffect(() => {
+    const previous = previousMemory.current;
+    if (previous.id === person.id && (person.photos.length > previous.photos || person.lifeEvents.length > previous.events || (person.notes && person.notes !== previous.notes))) setSavedMoment(true);
+    previousMemory.current = { id: person.id, photos: person.photos.length, events: person.lifeEvents.length, notes: person.notes };
+  }, [person.id, person.photos.length, person.lifeEvents.length, person.notes]);
+  useEffect(() => { if (!savedMoment) return; const timer = setTimeout(() => setSavedMoment(false), 5000); return () => clearTimeout(timer); }, [savedMoment]);
   const isPhotosTab = memorySectionTab === 'photos';
   const isEventsTab = memorySectionTab === 'events';
 
@@ -149,8 +157,9 @@ export function PersonMemoriesSection({
   return (
     <Reveal delay={130}>
       <SectionCard variant="person" style={getFamilyMemberCardStyle(theme)}>
+      {savedMoment ? <Reveal distance={6}><Text accessibilityLiveRegion="polite" style={{ padding: 14, marginBottom: 12, borderRadius: 14, color: theme.colors.onPrimaryContainer, backgroundColor: theme.colors.primaryContainer }}>{t('Another piece of your family story, kept safe here.')}</Text></Reveal> : null}
       <View style={styles.titleWithHelperRow}>
-        <Text variant="titleLarge">{t(K.memories.memoriesAndGallery)}</Text>
+        <Text variant="titleLarge">{t('The family journal')}</Text>
         <IconButton
           icon="information-outline"
           size={20}

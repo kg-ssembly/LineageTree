@@ -1,6 +1,6 @@
 {
   "name": "Lineage Tree",
-  "version": "1.0.14",
+  "version": "1.0.15",
   "main": "index.ts",
   "engines": {
     "node": ">=20 <24"
@@ -14,11 +14,10 @@
     "typecheck": "tsc --noEmit",
     "test": "npm run test:core",
     "test:core": "tsc -p tsconfig.test.json && node --test .test-dist/tests/*.test.js",
-    "test:relationships": "npm run test:core",
+    "test:relationships": "tsc -p tsconfig.test.json && node --test .test-dist/tests/relationship-engine.test.js",
     "migrate:profile-components": "node scripts/migrate-profile-component-duplicates.mjs",
     "verify:release": "npm run typecheck && npm test && npm run export:web",
     "build:functions": "npx tsc -p functions/tsconfig.json",
-    "test:relationships": "tsc -p tsconfig.test.json && node --test .test-dist/tests/relationship-engine.test.js",
     "export:web": "expo export --platform web",
     "deploy:web": "expo export --platform web && node -e \"require('fs').cpSync('web-public','dist',{recursive:true,force:true})\" && npx firebase-tools deploy --only hosting",
     "deploy:functions": "npm run build:functions && npx firebase-tools deploy --only functions",
@@ -60,6 +59,7 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/react": "~19.1.0",
+    "@types/react-native": "^0.72.8",
     "@typescript-eslint/eslint-plugin": "^8.62.1",
     "@typescript-eslint/parser": "^8.62.1",
     "eslint": "^10.6.0",

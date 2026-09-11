@@ -120,7 +120,7 @@ export function FamilyHighlightsPanel({
   const pageSize = 3;
   const peopleById = useMemo(() => new Map(people.map((person) => [person.id, person])), [people]);
   const [helperVisible, setHelperVisible] = useState(false);
-  const [expandedPanel, setExpandedPanel] = useState<HighlightPanelKey | null>(null);
+  const [expandedPanel, setExpandedPanel] = useState<HighlightPanelKey | null>('anniversary');
   const [recentPage, setRecentPage] = useState(0);
   const [anniversaryPage, setAnniversaryPage] = useState(0);
   const [growthPage, setGrowthPage] = useState(0);
