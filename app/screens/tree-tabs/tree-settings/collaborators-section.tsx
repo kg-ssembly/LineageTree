@@ -46,7 +46,7 @@ export function CollaboratorsSection({
   };
 
   return (
-    <View style={styles.collaboratorSectionWrap}>
+    <View style={{ gap: 16 }}>
       <View style={styles.sectionHeader}>
         <View style={styles.titleWrap}>
           <View style={styles.titleWithHelperRow}>
@@ -70,7 +70,7 @@ export function CollaboratorsSection({
       <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
         {t(K.treeSettings.familyCircleMessage)}
       </Text>
-      <View style={styles.collaboratorList}>
+      <View style={{ gap: 12 }}>
         {selectedTree.collaborators.map((collaborator, collaboratorIndex) => {
           const linkedPerson = assignedPersonByUserId.get(collaborator.userId) ?? null;
           const collaboratorSuggestions = !linkedPerson

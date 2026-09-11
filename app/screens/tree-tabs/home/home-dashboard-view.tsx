@@ -14,7 +14,6 @@ import { formatPersonName } from '../../../../components/person-formatting';
 import { getActivityNotificationCount } from '../shared';
 import type { SharedTabProps } from '../shared';
 import { FamilyHighlightsPanel } from '../tree-settings/family-highlights-panel';
-import { NotificationsView } from '../notifications/notifications-view';
 import { buildMissingDetailSuggestionForPerson, buildTreeSuggestions } from '../../profile-shared/suggestions';
 
 const styles = GlobalStyles.treeDetail;
@@ -751,7 +750,7 @@ export function HomeDashboardView(props: SharedTabProps) {
 
   const focusSection = useCallback((key: DashboardSectionKey) => {
     if (key === 'since-last-visit') {
-      setDashboardTab('activity');
+      navigation.navigate('notifications');
     }
     if (key === 'family-highlights') {
       setDashboardTab('highlights');
@@ -764,7 +763,7 @@ export function HomeDashboardView(props: SharedTabProps) {
     setTimeout(() => {
       scrollToSection(key);
     }, 120);
-  }, [scrollToSection]);
+  }, [navigation, scrollToSection]);
 
   const dashboardLens: DashboardLens = dashboardTab === 'activity'
     ? 'activity'
@@ -774,7 +773,6 @@ export function HomeDashboardView(props: SharedTabProps) {
     () => [
       { key: 'overview', label: t('Our family'), icon: 'view-dashboard-outline' },
       { key: 'highlights', label: t('Family occasions'), icon: 'star-four-points-outline' },
-      { key: 'activity', label: activityNotificationCount > 0 ? t(K.home.activityCount, { count: activityNotificationCount }) : t(K.home.activity), icon: 'bell-outline' },
     ],
     [activityNotificationCount, t],
   );
@@ -782,8 +780,8 @@ export function HomeDashboardView(props: SharedTabProps) {
   const isActivityTab = dashboardTab === 'activity';
 
   const openFamilyActivity = useCallback(() => {
-    setDashboardTab('activity');
-  }, []);
+    navigation.navigate('notifications');
+  }, [navigation]);
 
   const openApprovals = useCallback(() => {
     if (firstPendingApproval && onOpenTreeSettingsTarget) {
@@ -1159,8 +1157,8 @@ export function HomeDashboardView(props: SharedTabProps) {
             />
           </TabStripCard>
         </Reveal>
+        {dashboardTab === 'overview' ? <FamilyWelcome {...props} onOpenOccasions={() => setDashboardTab('highlights')} /> : null}
 
-        {dashboardTab === 'overview' ? <FamilyWelcome {...props} onOpenActivity={() => setDashboardTab('activity')} /> : null}
       {dashboardTab === 'overview' && !isEmptyTree ? <Button icon={showTreeProgress ? 'chevron-up' : 'chevron-down'} onPress={() => setShowTreeProgress(value => !value)} style={{ alignSelf: 'flex-start', marginVertical: 12 }}>{t('Help our family tree grow')}</Button> : null}
       {dashboardTab === 'overview' && !isEmptyTree && showTreeProgress ? (
         <Reveal delay={70}>
@@ -1544,40 +1542,6 @@ export function HomeDashboardView(props: SharedTabProps) {
             />
           </View>
         </Reveal>
-      ) : null}
-
-      {dashboardTab === 'activity' ? (
-        <>
-          {sinceLastVisit.length > 0 ? (
-            <Reveal delay={105}>
-              <SectionCard onLayout={registerSectionOffset('since-last-visit')}>
-                <Text variant="titleLarge">{t(K.home.sinceYourLastVisit)}</Text>
-                <Text variant="bodyMedium" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-                  {t(K.home.aQuickDigestOfWhatChangedWhileYouWereAway)}
-                </Text>
-                <View style={[styles.dashboardActionRow, { marginTop: 14 }]}>
-                  {sinceLastVisit.map((item) => (
-                    <Chip key={item.id} icon="clock-outline" onPress={item.onPress}>
-                      {item.label}
-                    </Chip>
-                  ))}
-                </View>
-              </SectionCard>
-            </Reveal>
-          ) : null}
-
-          <Reveal delay={115}>
-            <NotificationsView
-              {...props}
-              embedded
-              scrollable={false}
-              navigation={{
-                navigate: (name) => navigation.navigate(name),
-              }}
-            />
-          </Reveal>
-
-        </>
       ) : null}
 
       <InfoDialog

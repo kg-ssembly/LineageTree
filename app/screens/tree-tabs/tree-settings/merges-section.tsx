@@ -139,7 +139,7 @@ export function MergesSection({
 
   return (
     <Reveal delay={80}>
-      <View style={styles.collaboratorSectionWrap}>
+      <View style={{ gap: 16 }}>
         <View style={styles.sectionHeader}>
           <View style={styles.titleWrap}>
             <View style={styles.titleWithHelperRow}>
@@ -157,7 +157,7 @@ export function MergesSection({
 
         {pendingMergeInvites.length > 0 ? (
           <Reveal delay={90}>
-            <SectionCard style={[styles.collaboratorCard, getTreeSettingsFamilyMemberCardStyle(theme), { marginBottom: 16 }]}>
+            <SectionCard style={[styles.collaboratorCard, getTreeSettingsFamilyMemberCardStyle(theme), { marginBottom: 0 }]}>
               <View style={styles.titleWithHelperRow}>
                 <Text variant="titleMedium">{t(K.treeSettings.mergeInvitations)}</Text>
                 <IconButton
@@ -226,7 +226,7 @@ export function MergesSection({
           </View>
 
           {pendingMergeRequests.length > 0 ? (
-            <View style={styles.collaboratorList}>
+            <View style={{ gap: 12 }}>
               {pendingMergeRequests.map((request, index) => {
                 const selectedMatchIds = mergeSelectionDrafts[request.id] ?? request.selectedMatchIds;
 
@@ -304,7 +304,7 @@ export function MergesSection({
         <Button mode="outlined" icon={advancedVisible ? 'chevron-up' : 'chevron-down'} onPress={() => setAdvancedVisible(value => !value)}>{t('Advanced merge tools')}</Button>
         {advancedVisible ? <>
         <Reveal delay={110}>
-          <SectionCard style={[styles.selfAssignmentCard, getTreeSettingsFamilyMemberCardStyle(theme), { marginBottom: 16 }]}>
+          <SectionCard style={[styles.selfAssignmentCard, getTreeSettingsFamilyMemberCardStyle(theme), { marginBottom: 0 }]}>
             <View style={styles.titleWithHelperRow}>
               <Text variant="titleMedium" style={{ marginBottom: 8 }}>{t(K.treeSettings.mergeAnotherTree)}</Text>
               <IconButton

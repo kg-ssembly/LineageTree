@@ -49,6 +49,49 @@ function TreeSwitcher({ controller, onManageTrees }: { controller: ReturnType<ty
           </Menu>);
 }
 
+function MobileMainTabBar({ state, navigation, controller }: BottomTabBarProps & {
+  controller: ReturnType<typeof useMainScreenController>;
+}) {
+  const [moreVisible, setMoreVisible] = useState(false);
+  const insets = useSafeAreaInsets();
+  const { colors } = controller.theme;
+  const activeName = state.routes[state.index].name;
+  const navigate = (name: keyof MainTabParamList) => {
+    const route = state.routes.find(item => item.name === name);
+    if (!route) return;
+    const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+    if (!event.defaultPrevented) navigation.navigate(route.name, route.params);
+    setMoreVisible(false);
+  };
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6, marginHorizontal: 12, marginTop: 8, marginBottom: Math.max(insets.bottom, 12), borderRadius: 32, backgroundColor: colors.surface, shadowColor: colors.onSurface, shadowOpacity: 0.10, shadowRadius: 12, shadowOffset: { width: 0, height: 3 }, elevation: 4 }}>
+      {(['home', 'members', 'tree', 'notifications'] as const).map(name => {
+        const selected = activeName === name;
+        const centre = name === 'tree';
+        const label = name === 'notifications' ? controller.t('Inbox') : controller.t(TAB_LABELS[name]);
+        return <Pressable key={name} accessibilityRole="tab" accessibilityLabel={name === 'notifications' ? `${controller.t('Notifications')}, ${controller.notificationBadgeCount} ${controller.t('need your response')}` : label} accessibilityState={{ selected }} onPress={() => navigate(name)} style={{ flex: 1, minHeight: 62, alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+          <View style={{ width: centre ? 48 : 32, height: centre ? 48 : 30, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: selected ? colors.primaryContainer : colors.surface, marginTop: centre ? -8 : 0 }}>
+            <MaterialCommunityIcons name={TAB_ICONS[name] as never} size={centre ? 27 : 23} color={selected ? colors.primary : colors.onSurfaceVariant} />
+            {name === 'notifications' && controller.notificationBadgeCount > 0 ? <View style={[webTabBarStyles.badge, webTabBarStyles.iconBadge, { backgroundColor: colors.primary }]}><Text variant="labelSmall" style={{ color: colors.onPrimary }}>{controller.notificationBadgeCount > 99 ? '99+' : controller.notificationBadgeCount}</Text></View> : null}
+          </View>
+          <Text variant="labelSmall" style={{ color: selected ? colors.primary : colors.onSurfaceVariant }}>{label}</Text>
+        </Pressable>;
+      })}
+      <View style={{ flex: 1 }}>
+        <Menu visible={moreVisible} onDismiss={() => setMoreVisible(false)} anchorPosition="top" anchor={
+          <Pressable accessibilityRole="button" accessibilityLabel={controller.t('More options')} accessibilityState={{ expanded: moreVisible }} onPress={() => setMoreVisible(true)} style={{ minHeight: 62, alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+            <MaterialCommunityIcons name="dots-horizontal" size={26} color={['myProfile', 'treeSettings'].includes(activeName) ? colors.primary : colors.onSurfaceVariant} />
+            <Text variant="labelSmall">{controller.t('More')}</Text>
+          </Pressable>
+        }>
+          <Menu.Item title={controller.t('My profile')} leadingIcon="account-circle-outline" onPress={() => navigate('myProfile')} />
+          <Menu.Item title={controller.t('Settings')} leadingIcon="cog-outline" onPress={() => navigate('treeSettings')} />
+        </Menu>
+      </View>
+    </View>
+  );
+}
+
 function WebMainTabBar({
   state,
   descriptors,
@@ -57,6 +100,8 @@ function WebMainTabBar({
 }: BottomTabBarProps & {
   controller: ReturnType<typeof useMainScreenController>;
 }) {
+  const { width } = useWindowDimensions();
+  const compactDesktop = width < 1150;
   const notificationsRouteIndex = state.routes.findIndex((route) => route.name === 'notifications');
   const isNotificationsFocused = notificationsRouteIndex >= 0 && state.index === notificationsRouteIndex;
 
@@ -81,9 +126,10 @@ function WebMainTabBar({
     <View
       style={[
         webTabBarStyles.shell,
+        compactDesktop && { flexDirection: 'column', alignItems: 'stretch' },
         {
           backgroundColor: controller.theme.colors.surface,
-          borderBottomColor: controller.theme.colors.outlineVariant,
+          shadowColor: controller.theme.colors.onSurface,
         },
       ]}
     >
@@ -97,16 +143,16 @@ function WebMainTabBar({
         </View>
       </View>
 
-      <View style={webTabBarStyles.menuRow}>
+      <View style={[webTabBarStyles.menuRow, compactDesktop && { flexGrow: 0, flexShrink: 0, flexBasis: 'auto', minHeight: 48, justifyContent: 'space-between' }]}>
         <Pressable
           onPress={handleNotificationsPress}
           accessibilityRole="tab"
           accessibilityLabel={controller.t(K.notifications.notifications)}
           accessibilityState={isNotificationsFocused ? { selected: true } : {}}
           style={[
-            webTabBarStyles.iconChip,
+            webTabBarStyles.menuChip,
             {
-              backgroundColor: isNotificationsFocused ? controller.theme.colors.secondaryContainer : controller.theme.colors.surface,
+              backgroundColor: isNotificationsFocused ? controller.theme.colors.primaryContainer : controller.theme.colors.surface,
             },
           ]}
         >
@@ -115,8 +161,9 @@ function WebMainTabBar({
             size={18}
             color={isNotificationsFocused ? controller.theme.colors.primary : controller.theme.colors.onSurfaceVariant}
           />
+          <Text variant="labelLarge" style={{ color: controller.theme.colors.onSurface }}>{controller.t(K.notifications.notifications)}</Text>
           {controller.notificationBadgeCount > 0 ? (
-            <View style={[webTabBarStyles.badge, webTabBarStyles.iconBadge, { backgroundColor: controller.theme.colors.primary }]}>
+            <View style={[webTabBarStyles.badge, { backgroundColor: controller.theme.colors.primary }]}>
               <Text variant="labelSmall" style={{ color: controller.theme.colors.onPrimary }}>
                 {controller.notificationBadgeCount > 99 ? '99+' : controller.notificationBadgeCount}
               </Text>
@@ -154,7 +201,7 @@ function WebMainTabBar({
               style={[
                 webTabBarStyles.menuChip,
                 {
-                  backgroundColor: isFocused ? controller.theme.colors.secondaryContainer : controller.theme.colors.surface,
+                  backgroundColor: isFocused ? controller.theme.colors.primaryContainer : controller.theme.colors.surface,
                 },
               ]}
             >
@@ -181,10 +228,16 @@ function WebMainTabBar({
 
 const webTabBarStyles = StyleSheet.create({
   shell: {
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 12,
     paddingHorizontal: 20,
-    paddingTop: 18,
-    paddingBottom: 14,
-    borderBottomWidth: 1,
+    paddingVertical: 10,
+    borderRadius: 32,
+    shadowOpacity: 0.10,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 4,
     gap: 14,
     flexDirection: 'row',
     alignItems: 'center',
@@ -290,7 +343,7 @@ export function MainTabNavigator({
 
   return (
     <Tab.Navigator
-      tabBar={isDesktopWeb ? (props) => <WebMainTabBar {...props} controller={controller} /> : undefined}
+      tabBar={(props) => isDesktopWeb ? <WebMainTabBar {...props} controller={controller} /> : <MobileMainTabBar {...props} controller={controller} />}
       screenOptions={({ route, navigation }) => ({
         lazy: true,
         headerShown: !isDesktopWeb,
@@ -311,7 +364,7 @@ export function MainTabNavigator({
             height: isDesktopWeb ? undefined : styles.tabBar.height + bottomInset,
           },
         ],
-        tabBarItemStyle: route.name === 'notifications' ? { display: 'none' } : styles.tabItem,
+        tabBarItemStyle: styles.tabItem,
         sceneStyle: [styles.tabScene, { backgroundColor: controller.theme.colors.background }],
         tabBarIcon: ({ color, size }) => (
           <MaterialCommunityIcons name={(TAB_ICONS[route.name as keyof MainTabParamList] ?? 'circle') as never} size={size} color={color} />
@@ -338,7 +391,6 @@ export function MainTabNavigator({
         name="notifications"
         options={{
           title: controller.t(K.notifications.notifications),
-          tabBarButton: () => null,
         }}
       >
         {() => {
@@ -403,3 +455,4 @@ export function MainTabNavigator({
     </Tab.Navigator>
   );
 }
+

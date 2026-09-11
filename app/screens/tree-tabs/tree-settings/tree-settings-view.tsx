@@ -1,10 +1,10 @@
 import { buildTreeInvitationLink } from '../../../../components/tree-invitation-link';
 import { PersonRecoveryPanel } from '../../../../components/person-recovery-panel';
 import React, { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
-import { FlatList, Pressable, ScrollView, Share, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { FlatList, ScrollView, Share, StyleSheet, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Button, Chip, Dialog, IconButton, Portal, ProgressBar, Text, TextInput, useTheme } from 'react-native-paper';
-import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, FloatingSnackbar, GlobalStyles, InfoDialog, Reveal, ScreenBackground } from '../../../../components';
+import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, FloatingSnackbar, GlobalStyles, HorizontalTabStrip, TabStripCard, InfoDialog, Reveal, ScreenBackground } from '../../../../components';
 import type { ApprovalRequest } from '../../../../components/dto/approval';
 import type { PersonRecord } from '../../../../components/dto/person';
 import {
@@ -46,50 +46,6 @@ const settingsTabIcons: Record<TreeManagementTabKey, keyof typeof MaterialCommun
   trees: 'source-branch',
   history: 'history',
 };
-
-const tabStyles = StyleSheet.create({
-  rail: {
-    marginTop: 14,
-    marginBottom: 16,
-    borderRadius: 22,
-    padding: 8,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  content: {
-    gap: 8,
-  },
-  webContent: {
-    flex: 1,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    width: '100%',
-  },
-  item: {
-    width: '100%',
-    minHeight: 46,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    borderRadius: 16,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  webItem: {
-    flex: 1,
-    flexBasis: 0,
-    width: undefined,
-    minWidth: 120,
-  },
-  activeBar: {
-    width: 3,
-    height: 20,
-    borderRadius: 2,
-  },
-  itemLabel: {
-    flex: 1,
-  },
-});
 
 function TreeSettingsContent({
   selectedTree,
@@ -159,7 +115,7 @@ function TreeSettingsContent({
     visible: false,
     key: 'tree-management',
   });
-  const [activeManagementTab, setActiveManagementTab] = useState<TreeManagementTabKey | null>(null);
+  const [activeManagementTab, setActiveManagementTab] = useState<TreeManagementTabKey>('overview');
   useEffect(() => { contentRef.current?.scrollTo({ y: 0, animated: false }); }, [activeManagementTab]);
   const [linkSearchQuery, setLinkSearchQuery] = useState('');
   const [ownerLinkTargetUserId, setOwnerLinkTargetUserId] = useState<string | null>(null);
@@ -543,31 +499,12 @@ function TreeSettingsContent({
     );
   };
 
-  const { width } = useWindowDimensions();
-  const wideSettings = width >= 900;
   const accessRequests = notifications.filter(item => item.type === 'tree-access-request' && item.status === 'pending' && item.sourceTreeId === selectedTree.id);
-  const managementTabItems = TREE_MANAGEMENT_TABS.map((tab) => {
-    const isActive = activeManagementTab === tab.key || (tab.key === 'approvals' && activeManagementTab === 'merges');
-    return (
-      <Pressable
-        key={tab.key}
-        onPress={() => setActiveManagementTab(tab.key)}
-        style={[tabStyles.item, { backgroundColor: isActive ? theme.colors.primaryContainer : theme.colors.surface, borderColor: isActive ? theme.colors.primary : theme.colors.outlineVariant }]}
-        accessibilityRole="button"
-        accessibilityState={{ selected: isActive }}
-      >
-        <View style={[tabStyles.activeBar, { backgroundColor: isActive ? theme.colors.primary : 'transparent' }]} />
-        <MaterialCommunityIcons
-          name={settingsTabIcons[tab.key]}
-          size={20}
-          color={isActive ? theme.colors.primary : theme.colors.onSurfaceVariant}
-        />
-        <Text variant="labelMedium" style={[tabStyles.itemLabel, { color: isActive ? theme.colors.primary : theme.colors.onSurfaceVariant }]}>
-          {t(tab.label)}{tab.key === 'approvals' ? ` (${pendingApprovalRequests.length + pendingMergeRequests.length})` : tab.key === 'collaborators' && accessRequests.length ? ` (${accessRequests.length})` : ''}
-        </Text>
-      </Pressable>
-    );
-  });
+  const managementTabItems = TREE_MANAGEMENT_TABS.map(tab => ({
+    key: tab.key,
+    label: t(tab.label) + (tab.key === 'approvals' ? ` (${pendingApprovalRequests.length + pendingMergeRequests.length})` : tab.key === 'collaborators' && accessRequests.length ? ` (${accessRequests.length})` : ''),
+    icon: settingsTabIcons[tab.key],
+  }));
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
@@ -587,13 +524,11 @@ function TreeSettingsContent({
         </View>
 
         <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>{people.length} {t('family members')} · {selectedTree.collaborators.length} {t('collaborators')}</Text>
-        <View style={{ flexDirection: wideSettings ? 'row' : 'column', gap: 20, marginTop: 16 }}>
-          {wideSettings || !activeManagementTab ? <View style={{ width: wideSettings ? 240 : '100%', gap: 8 }}>{managementTabItems}</View> : null}
-          <View style={{ flex: 1, minWidth: 0, gap: 16 }}>
-            {activeManagementTab ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
-              {!wideSettings ? <Button icon="arrow-left" onPress={() => setActiveManagementTab(null)}>{t('Settings')}</Button> : null}
-              <Text variant="titleLarge">{t(activeManagementTab === 'trees' ? 'Manage trees' : activeManagementTab === 'merges' ? 'Reviews' : TREE_MANAGEMENT_TABS.find(tab => tab.key === activeManagementTab)?.label ?? '')}</Text>
-            </View> : wideSettings ? <Text style={{ color: theme.colors.onSurfaceVariant }}>{t('Choose a section to manage your tree.')}</Text> : null}
+        <TabStripCard style={{ marginTop: 16, marginBottom: 16 }}>
+          <HorizontalTabStrip items={managementTabItems} activeKey={activeManagementTab === 'merges' ? 'approvals' : activeManagementTab} onChange={setActiveManagementTab} contentContainerStyle={GlobalStyles.personProfile.tabStripContent} itemStyle={GlobalStyles.personProfile.tabStripItem} />
+        </TabStripCard>
+        <View>
+          <View style={{ minWidth: 0, gap: 16 }}>
             {activeManagementTab === 'approvals' || activeManagementTab === 'merges' ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
               <Button mode={activeManagementTab === 'approvals' ? 'contained-tonal' : 'outlined'} onPress={() => setActiveManagementTab('approvals')}>{t('Pending changes')} ({pendingApprovalRequests.length})</Button>
               <Button mode={activeManagementTab === 'merges' ? 'contained-tonal' : 'outlined'} onPress={() => setActiveManagementTab('merges')}>{t('Merge requests & tools')} ({pendingMergeRequests.length})</Button>

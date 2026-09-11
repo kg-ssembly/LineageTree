@@ -44,7 +44,7 @@ export function ApprovalsSection({
 
   return (
     <Reveal delay={80}>
-    <View style={styles.collaboratorSectionWrap}>
+    <View style={{ gap: 16 }}>
       <SectionCard style={getTreeSettingsFamilyMemberCardStyle(theme)}>
         <View style={styles.sectionHeader}>
           <View style={styles.titleWrap}>
@@ -66,7 +66,7 @@ export function ApprovalsSection({
           <Button mode={reviewFilter === 'mine' ? 'contained-tonal' : 'outlined'} onPress={() => setReviewFilter('mine')}>{t('Needs my review')}</Button>
         </View>
         {visibleRequests.length > 0 ? (
-          <View style={styles.collaboratorList}>
+          <View style={{ gap: 12 }}>
             {visibleRequests.map((request, index) => {
               const canReview = canUserReviewApprovalRequest(request, userId);
               const expiresSoon = isApprovalExpired(request);
