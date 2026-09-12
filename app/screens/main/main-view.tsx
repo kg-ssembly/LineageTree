@@ -231,6 +231,7 @@ export function MainScreenView({ controller }: { controller: ReturnType<typeof u
         <TreeDetailNodeQuickActionsDialog
           visible={controller.nodeQuickActionState.visible}
           person={controller.nodeQuickActionState.person}
+          treeActions={controller.nodeQuickActionState.treeActions}
           theme={controller.theme}
           t={controller.t}
           canEdit={controller.canEdit}

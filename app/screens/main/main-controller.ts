@@ -1,3 +1,4 @@
+import type { TreePersonActions } from '../../../components/tree-exploration';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useIsFocused } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -55,6 +56,7 @@ export type PersonDialogState = {
 };
 
 export type NodeQuickActionState = {
+  treeActions?: TreePersonActions;
   visible: boolean;
   person: PersonRecord | null;
 };
@@ -1046,8 +1048,8 @@ export function useMainScreenController({ navigation }: Props) {
     setRelationshipDialogVisible(true);
   }, []);
 
-  const onOpenPersonQuickActions = useCallback((person: PersonRecord) => {
-    setNodeQuickActionState({ visible: true, person });
+  const onOpenPersonQuickActions = useCallback((person: PersonRecord, treeActions?: TreePersonActions) => {
+    setNodeQuickActionState({ visible: true, person, treeActions });
   }, []);
 
   const onOpenCollaboratorDialog = useCallback(() => {

@@ -37,7 +37,7 @@ import {
   View,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Button, Chip, IconButton, Searchbar, Text, useTheme } from 'react-native-paper';
+import { Button, Chip, IconButton, Menu, Searchbar, Text, useTheme } from 'react-native-paper';
 import { translate } from '../i18n';
 import { I18N_KEYS as K } from '../i18n/keys';
 import Svg, { Path, Text as SvgText } from 'react-native-svg';
@@ -46,12 +46,12 @@ import type { PersonRecord } from './dto/person';
 import {
   getPersonFallbackAvatarIcon,
   getPersonLifeSpanLabel,
-  getPersonPresenceLabel,
   getDisplayPersonPhoto,
 } from './dto/person';
 import type { RelationshipRecord } from './dto/relationship';
 import { GlobalStyles } from '../constants/styles';
 
+import { connectorOnPath } from './tree-exploration';
 import { layoutFamilyTree } from './family-tree-layout';
 import { buildConnectors } from './family-tree-connectors';
 import { createViewportIndex } from './family-tree-viewport';
@@ -95,12 +95,17 @@ interface FamilyTreeCanvasProps {
   onPressPerson: (person: PersonRecord) => void;
   currentUserPersonId?: string;
   highlightedPersonId?: string;
+  highlightedPathIds?: string[];
+  focusRequest?: { personId: string; token: number };
+  viewportStorageKey?: string;
   initialFocusPersonId?: string;
   descendantRootPersonId?: string;
   ascendantRootPersonId?: string;
   showMaidenFamilyInNodeTitle?: boolean;
   allowFullscreen?: boolean;
   floatingControls?: boolean;
+  /** Optional view controls displayed with the tree search in both canvas modes. */
+  searchControls?: React.ReactNode;
   fillAvailableSpace?: boolean;
   showControls?: boolean;
   disableSurnameClustering?: boolean;
@@ -148,6 +153,7 @@ type CanvasBounds = {
   height: number;
 };
 
+const savedViewports = new Map<string, { pan: { x: number; y: number }; scale: number; width: number; height: number }>();
 const MAX_TREE_CACHE_ENTRIES = 12;
 const layoutCache = new Map<string, ReturnType<typeof layoutFamilyTree>>();
 const connectorCache = new Map<string, ReturnType<typeof buildConnectors>>();
@@ -346,7 +352,7 @@ type PersonNodeProps = {
 const PersonNode = React.memo(function PersonNode(props: PersonNodeProps) {
   const {
     person, x, y, showMaidenFamilyInNodeTitle, isCurrentUser, isFocusedPerson, isGhost, isCrossSurnameChild, isMaidenNameMember,
-    surfaceColor, outlineColor, primaryColor, tertiaryColor, onTertiaryColor,
+    surfaceColor, outlineColor, primaryColor, tertiaryColor,
     variantSurface, variantOnSurface, onPrimaryColor,
     deferPhoto, compactDetails, isInspected, isDimmed, onInspect,
     onPress,
@@ -361,7 +367,7 @@ const PersonNode = React.memo(function PersonNode(props: PersonNodeProps) {
   const borderColor = isFocusedPerson || isInspected
     ? primaryColor
     : isHighlighted
-    ? tertiaryColor
+    ? outlineColor
     : isGhost
     ? primaryColor
     : outlineColor;
@@ -412,8 +418,8 @@ const PersonNode = React.memo(function PersonNode(props: PersonNodeProps) {
               <Text variant="labelSmall" style={[styles.nodeBadgeText, { color: onPrimaryColor }]}>{translate('Selected')}</Text>
             </View>
         ) : badgeLabel ? (
-            <View style={[styles.nodeBadge, { backgroundColor: tertiaryColor }]}>
-              <Text variant="labelSmall" style={[styles.nodeBadgeText, { color: onTertiaryColor }]} numberOfLines={1}>{badgeLabel}</Text>
+            <View style={[styles.nodeBadge, { backgroundColor: variantSurface }]}>
+              <Text variant="labelSmall" style={[styles.nodeBadgeText, { color: variantOnSurface }]} numberOfLines={1}>{badgeLabel}</Text>
             </View>
         ) : null}
         <View style={styles.nodeInnerRow}>
@@ -422,12 +428,12 @@ const PersonNode = React.memo(function PersonNode(props: PersonNodeProps) {
               {photo && !deferPhoto ? (
                 <CachedImage
                   uri={photo.url}
-                  style={styles.nodeAvatar}
+                  style={[styles.nodeAvatar, { width: 64, height: 64, borderRadius: 32 }]}
                   priority="low"
                   recyclingKey={photo.id}
                 />
               ) : (
-                <View style={[styles.nodeAvatarFallback, { borderColor: outlineColor, backgroundColor: variantSurface }]}>
+                <View style={[styles.nodeAvatarFallback, { width: 64, height: 64, borderRadius: 32, borderColor: outlineColor, backgroundColor: variantSurface }]}>
                   <MaterialCommunityIcons name={getPersonFallbackAvatarIcon(person)} size={28} color={isHighlighted ? tertiaryColor : primaryColor} />
                 </View>
               )}
@@ -439,8 +445,7 @@ const PersonNode = React.memo(function PersonNode(props: PersonNodeProps) {
             </Text>
             {compactDetails ? null : (
               <>
-                <Text variant="bodySmall" style={[styles.nodeMeta, { color: variantOnSurface }]} numberOfLines={1}>{[person.birthDate?.slice(0, 4), person.deathDate?.slice(0, 4)].filter(Boolean).join(' – ') || getPersonLifeSpanLabel(person)}</Text>
-                <Text variant="bodySmall" style={[styles.nodeMeta, { color: variantOnSurface }]} numberOfLines={1}>{getPersonPresenceLabel(person)}</Text>
+                <Text variant="bodySmall" style={[styles.nodeMeta, { color: variantOnSurface }]} numberOfLines={1}>{person.deathDate ? `${translate('In memory')} · ` : ''}{[person.birthDate?.slice(0, 4), person.deathDate?.slice(0, 4)].filter(Boolean).join(' – ') || getPersonLifeSpanLabel(person)}</Text>
               </>
             )}
           </View>
@@ -459,12 +464,16 @@ function FamilyTreeCanvas({
                             onPressPerson,
                             currentUserPersonId,
                             highlightedPersonId,
+                            highlightedPathIds,
+                            focusRequest,
+                            viewportStorageKey,
                             initialFocusPersonId,
                             descendantRootPersonId,
                             ascendantRootPersonId,
                             showMaidenFamilyInNodeTitle = false,
                             allowFullscreen = true,
                             floatingControls = false,
+                            searchControls,
                             fillAvailableSpace = false,
                             showControls = true,
                             disableSurnameClustering = false,
@@ -484,6 +493,9 @@ function FamilyTreeCanvas({
   const [fullscreenViewportSize, setFullscreenViewportSize] = useState({ width: 0, height: 0 });
   const [activeSurnames, setActiveSurnames] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchExpanded, setSearchExpanded] = useState(false);
+  const [toolsVisible, setToolsVisible] = useState(false);
+  const restoredViewportKey = useRef<string | undefined>(undefined);
   const [searchFocusId, setSearchFocusId] = useState<string>();
   const [inspectedPersonId, setInspectedPersonId] = useState<string>();
   const inspectPerson = useCallback((id?: string) => setInspectedPersonId(id), []);
@@ -610,7 +622,11 @@ function FamilyTreeCanvas({
   // Navigation: switch to a different surname (one family shown at a time).
   const navigateToSurname = useCallback((targetSurname: string) => {
     setActiveSurnames([targetSurname]);
-  }, []);
+    if (disableSurnameClustering) {
+      const target = renderedPeople.find(person => extractSurname(person, currentTreeId) === targetSurname);
+      if (target) setSearchFocusId(target.id);
+    }
+  }, [disableSurnameClustering, renderedPeople, currentTreeId]);
 
   // Expose navigateToSurname to the parent via an optional ref so the Quick
   // Actions dialog (or any parent component) can trigger a family switch.
@@ -678,18 +694,20 @@ function FamilyTreeCanvas({
       [clusterRelationships, connectorCacheKey, ghostPersonIds, layout, theme.colors.outline, theme.colors.primary, theme.colors.secondary, theme.colors.tertiary],
   );
   const allConnectors = useMemo(() => [...parentChildConnectors, ...spouseConnectors], [parentChildConnectors, spouseConnectors]);
+  const activeInspectionId = inspectedPersonId ?? highlightedPersonId;
   const relatedPersonIds = useMemo(() => {
-    if (!inspectedPersonId) return null;
-    const ids = new Set([inspectedPersonId]);
+    if (highlightedPathIds) return new Set(highlightedPathIds);
+    if (!activeInspectionId) return null;
+    const ids = new Set([activeInspectionId]);
     relationships.forEach((r) => {
-      if (r.fromPersonId === inspectedPersonId) ids.add(r.toPersonId);
-      if (r.toPersonId === inspectedPersonId) ids.add(r.fromPersonId);
+      if (r.fromPersonId === activeInspectionId) ids.add(r.toPersonId);
+      if (r.toPersonId === activeInspectionId) ids.add(r.fromPersonId);
     });
     allConnectors.forEach((connector) => {
-      if (connector.personIds?.includes(inspectedPersonId)) connector.personIds.forEach((id) => ids.add(id));
+      if (connector.personIds?.includes(activeInspectionId)) connector.personIds.forEach((id) => ids.add(id));
     });
     return ids;
-  }, [inspectedPersonId, relationships, allConnectors]);
+  }, [activeInspectionId, highlightedPathIds, relationships, allConnectors]);
 
   const contentBounds = useMemo(() => {
     if (positionedPeople.length === 0) {
@@ -749,6 +767,7 @@ function FamilyTreeCanvas({
 
   // ---- Active viewport ----
   const activeViewportSize = isFullscreen ? fullscreenViewportSize : inlineViewportSize;
+  const viewportCacheKey = viewportStorageKey ? `${viewportStorageKey}:${isFullscreen}:${activeViewportSize.width}x${activeViewportSize.height}` : undefined;
 
   const clampPanToViewport = useCallback((
     nextPan: { x: number; y: number },
@@ -799,11 +818,36 @@ function FamilyTreeCanvas({
 
   useEffect(() => {
     if (activeViewportSize.width <= 0 || activeViewportSize.height <= 0) return;
-    const key = `${isFullscreen}:${activeViewportSize.width}x${activeViewportSize.height}:${contentWidth}x${contentHeight}:${effectiveFocusId ?? ''}`;
+    const key = `${viewportStorageKey ?? ''}:${isFullscreen}:${activeViewportSize.width}x${activeViewportSize.height}:${contentWidth}x${contentHeight}:${effectiveFocusId ?? ''}`;
     if (lastAutoFitKey.current === key) return;
+    if (viewportCacheKey && restoredViewportKey.current !== viewportCacheKey) {
+      restoredViewportKey.current = viewportCacheKey;
+      const saved = savedViewports.get(viewportCacheKey);
+      if (saved && saved.width === activeViewportSize.width && saved.height === activeViewportSize.height) {
+        scheduleViewportState(saved.pan, saved.scale);
+        lastAutoFitKey.current = key;
+        return;
+      }
+    }
     fitTo(activeViewportSize.width, activeViewportSize.height, effectiveFocusId, isFullscreen ? 'fullscreen' : 'inline');
     lastAutoFitKey.current = key;
-  }, [activeViewportSize.width, activeViewportSize.height, contentWidth, contentHeight, effectiveFocusId, isFullscreen, fitTo]);
+  }, [activeViewportSize.width, activeViewportSize.height, contentWidth, contentHeight, effectiveFocusId, isFullscreen, fitTo, viewportStorageKey, viewportCacheKey, scheduleViewportState]);
+
+  useEffect(() => {
+    if (!viewportCacheKey || !activeViewportSize.width || !activeViewportSize.height) return;
+    return () => {
+      savedViewports.set(viewportCacheKey, { pan: panRef.current, scale: scaleRef.current, width: activeViewportSize.width, height: activeViewportSize.height });
+      if (savedViewports.size > 30) savedViewports.delete(savedViewports.keys().next().value!);
+    };
+  }, [viewportCacheKey, activeViewportSize.width, activeViewportSize.height]);
+
+  const handledFocusRequest = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    if (focusRequest && handledFocusRequest.current !== focusRequest.token && positionsByPersonId.has(focusRequest.personId) && activeViewportSize.width > 0) {
+      handledFocusRequest.current = focusRequest.token;
+      fitTo(activeViewportSize.width, activeViewportSize.height, focusRequest.personId, isFullscreen ? 'fullscreen' : 'inline');
+    }
+  }, [focusRequest, positionsByPersonId, activeViewportSize.width, activeViewportSize.height, fitTo, isFullscreen]);
 
   // ---- Anchored zoom ----
   // Keeps the canvas point under (focalX, focalY) in viewport space stationary.
@@ -828,6 +872,7 @@ function FamilyTreeCanvas({
   }, [zoomAt, isFullscreen, fullscreenViewportSize, inlineViewportSize]);
 
   const handlePersonPress = useCallback((pressedPerson: PersonRecord) => {
+    setIsFullscreen(false);
     onPressPerson(pressedPerson);
   }, [onPressPerson]);
 
@@ -1016,24 +1061,31 @@ function FamilyTreeCanvas({
     if (!positionsByPersonId.has(person.id)) navigateToSurname(extractSurname(person, currentTreeId));
     setSearchFocusId(person.id);
     setSearchQuery('');
+    setSearchExpanded(false);
     if (positionsByPersonId.has(person.id)) fitTo(activeViewportSize.width, activeViewportSize.height, person.id, mode);
   };
 
   const renderFloatingControls = (mode: 'inline' | 'fullscreen') => (
       <View pointerEvents="box-none" style={styles.viewportOverlay}>
-        <View style={[styles.floatingHintCard, { backgroundColor: theme.colors.surface }]}>
-          <Text variant="titleSmall" style={{ color: theme.colors.primary, marginBottom: 6 }}>
-            {activeSurnames[0] || t('Family tree')} · {clusterPeople.length} {t('people')}
-          </Text>
-          <Searchbar
+        <View style={[styles.floatingHintCard, { backgroundColor: theme.colors.surface, width: searchExpanded ? 360 : 'auto', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 28 }]}>
+          {searchExpanded ? <Searchbar
+            autoFocus
             placeholder={t('Find a family member')}
             accessibilityLabel={t('Find a family member')}
             value={searchQuery}
             onChangeText={setSearchQuery}
-            style={{ backgroundColor: theme.colors.surfaceVariant, height: 44 }}
+            icon="arrow-left"
+            onIconPress={() => { setSearchExpanded(false); setSearchQuery(''); Keyboard.dismiss(); }}
+            searchAccessibilityLabel={t('Close search')}
+            style={{ backgroundColor: theme.colors.surface, height: 44 }}
             inputStyle={{ minHeight: 44, fontSize: 14 }}
-          />
-          {searchQuery.trim() ? (
+          /> : <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            {!searchControls ? <Text numberOfLines={1} variant="titleSmall" style={{ color: theme.colors.primary, flexShrink: 1, paddingHorizontal: 8 }}>{activeSurnames[0] || t('Family tree')}</Text> : null}
+            {searchControls}
+            <Text variant="labelSmall" accessibilityLabel={`${clusterPeople.length} ${t('people')}`} style={{ color: theme.colors.onSurfaceVariant, paddingHorizontal: 4 }}>{clusterPeople.length}</Text>
+            <IconButton icon="magnify" size={23} accessibilityLabel={t('Find a family member')} onPress={() => setSearchExpanded(true)} style={{ margin: 0, width: 44, height: 44 }} />
+          </View>}
+          {searchExpanded && searchQuery.trim() ? (
             <View style={{ marginTop: 8 }}>
               {searchResults.map((person) => (
                 <Button key={person.id} icon="account-search-outline" contentStyle={{ justifyContent: 'flex-start' }} onPress={() => focusPerson(person, mode)}>
@@ -1042,9 +1094,9 @@ function FamilyTreeCanvas({
               ))}
               {searchResults.length === 0 ? <Text variant="bodySmall">{t('No family members found')}</Text> : null}
             </View>
-          ) : <Text variant="bodySmall" style={[styles.floatingHintText, { color: theme.colors.onSurfaceVariant, marginTop: 8 }]}>{controlsLabel}</Text>}
+          ) : null}
         </View>
-        <View style={[styles.floatingControlsCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant }]}>
+        <View style={[styles.floatingControlsCard, { backgroundColor: theme.colors.surface, borderWidth: 0, borderRadius: 28 }]}>
           <Chip compact icon="magnify">{Math.round(scale * 100)}%</Chip>
           {currentUserPersonId && renderedPeopleById.has(currentUserPersonId) ? (
             <IconButton icon="account-star-outline" size={24} accessibilityLabel={t('Find me in the tree')} onPress={() => focusPerson(renderedPeopleById.get(currentUserPersonId)!, mode)} />
@@ -1052,11 +1104,9 @@ function FamilyTreeCanvas({
           <IconButton icon="minus" size={24} accessibilityLabel={t('Zoom out')} disabled={scale <= MIN_SCALE} mode="contained-tonal" onPress={() => zoomBy(-0.15)} />
           <IconButton icon="plus" size={24} accessibilityLabel={t('Zoom in')} disabled={scale >= MAX_SCALE} mode="contained-tonal" onPress={() => zoomBy(0.15)} />
           <IconButton icon="fit-to-screen-outline" size={24} mode="contained-tonal" accessibilityLabel={t('Fit tree to screen')} onPress={() => fitTo(activeViewportSize.width, activeViewportSize.height, undefined, mode)} />
-          {allowFullscreen ? (
-              mode === 'fullscreen'
-                  ? <Button compact mode="contained" icon="close" onPress={() => setIsFullscreen(false)}>{t(K.common.close)}</Button>
-                  : <Button compact mode="contained" icon="fullscreen" onPress={() => setIsFullscreen(true)}>{t(K.common.fullscreen)}</Button>
-          ) : null}
+          {allowFullscreen ? <Menu visible={toolsVisible} onDismiss={() => setToolsVisible(false)} anchor={<IconButton icon="dots-horizontal" accessibilityLabel={t('Tree tools')} onPress={() => setToolsVisible(true)} />}>
+            <Menu.Item title={t(mode === 'fullscreen' ? 'Exit fullscreen' : 'Fullscreen')} leadingIcon="fullscreen" onPress={() => { setToolsVisible(false); setIsFullscreen(mode !== 'fullscreen'); }} />
+          </Menu> : null}
         </View>
       </View>
   );
@@ -1102,9 +1152,9 @@ function FamilyTreeCanvas({
                   <Path
                       d={c.d}
                       fill="none"
-                      stroke={c.stroke}
-                      strokeWidth={c.strokeWidth + (inspectedPersonId && c.personIds?.includes(inspectedPersonId) ? 1 : 0)}
-                      opacity={!inspectedPersonId || c.personIds?.includes(inspectedPersonId) ? 1 : 0.18}
+                      stroke={highlightedPathIds && connectorOnPath(c.personIds, highlightedPathIds) ? theme.colors.primary : c.stroke}
+                      strokeWidth={c.strokeWidth + (activeInspectionId && c.personIds?.includes(activeInspectionId) ? 1.5 : 0)}
+                      opacity={highlightedPathIds ? (connectorOnPath(c.personIds, highlightedPathIds) ? 1 : 0.12) : !activeInspectionId || c.personIds?.includes(activeInspectionId) ? 1 : 0.18}
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       {...(c.dashArray ? { strokeDasharray: c.dashArray } : {})}
@@ -1148,7 +1198,7 @@ function FamilyTreeCanvas({
                     onPrimaryColor={theme.colors.onPrimary}
                     deferPhoto={false}
                     compactDetails={isLargeTreeMode && scale < 0.45}
-                    isInspected={inspectedPersonId === person.id}
+                    isInspected={activeInspectionId === person.id}
                     isDimmed={!!relatedPersonIds && !relatedPersonIds.has(person.id)}
                     onInspect={inspectPerson}
                     onPress={handlePersonPress}

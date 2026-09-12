@@ -1,4 +1,3 @@
-import { SyncStatusBanner } from '../../components/sync-status-banner';
 import JoinTreeScreen from '../screens/join-tree';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
@@ -50,7 +49,6 @@ export default function RootNavigator() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: theme.colors.background }} edges={safeAreaEdges}>
-      {user ? <SyncStatusBanner /> : null}
       <Stack.Navigator
         initialRouteName={user ? "Main" : "Login"}
         screenOptions={{

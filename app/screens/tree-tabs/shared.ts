@@ -1,3 +1,4 @@
+import type { TreePersonActions } from '../../../components/tree-exploration';
 import { canUserReviewApprovalRequest } from '../../../components/dto/approval';
 import { canEditTreeContent } from '../../../components/dto/tree';
 import type { ApprovalRequest } from '../../../components/dto/approval';
@@ -61,7 +62,7 @@ export interface SharedTabProps {
   onOpenAddPerson: () => void;
   onOpenAddPersonForRelationship: (mode: PendingRelationshipMode, relatedPerson: PersonRecord) => void;
   onOpenRelationshipDialog: () => void;
-  onOpenPersonQuickActions: (person: PersonRecord) => void;
+  onOpenPersonQuickActions: (person: PersonRecord, treeActions?: TreePersonActions) => void;
   onOpenCollaboratorDialog: () => void;
   onOpenAddSelf: () => void;
   onConsumeFollowUpTreePrompts: () => void;

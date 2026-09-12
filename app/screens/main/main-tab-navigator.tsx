@@ -346,7 +346,7 @@ export function MainTabNavigator({
       tabBar={(props) => isDesktopWeb ? <WebMainTabBar {...props} controller={controller} /> : <MobileMainTabBar {...props} controller={controller} />}
       screenOptions={({ route, navigation }) => ({
         lazy: true,
-        headerShown: !isDesktopWeb,
+        headerShown: false,
         headerTitle: () => <TreeSwitcher controller={controller} onManageTrees={() => navigation.navigate('treeSettings')} />,
         headerStyle: { backgroundColor: controller.theme.colors.surface },
         tabBarPosition: isDesktopWeb ? 'top' : 'bottom',
