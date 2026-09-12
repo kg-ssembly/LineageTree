@@ -238,6 +238,7 @@ export function MainScreenView({ controller }: { controller: ReturnType<typeof u
           mutating={controller.mutating}
           closeNodeQuickActions={controller.closeNodeQuickActions}
           openPersonProfile={controller.openPersonProfile}
+          openPersonPhotos={(person) => controller.openPersonProfile(person, { initialTab: 'memories-gallery', initialMemorySectionTab: 'photos' })}
           openCreateRelativeDialog={controller.openCreateRelativeDialog}
           crossSurnameChildIds={controller.crossSurnameChildIds}
           canvasActiveFamilyRef={controller.sharedTabProps?.activeFamilyRef ?? { current: null }}

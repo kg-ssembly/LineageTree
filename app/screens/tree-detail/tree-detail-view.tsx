@@ -1291,6 +1291,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
         mutating={mutating}
         closeNodeQuickActions={closeNodeQuickActions}
         openPersonProfile={openPersonProfile}
+        openPersonPhotos={(person) => navigation.navigate('PersonProfile', { treeId: person.treeId, personId: person.id, initialTab: 'memories-gallery', initialMemorySectionTab: 'photos' })}
         openCreateRelativeDialog={openCreateRelativeDialog}
         crossSurnameChildIds={crossSurnameChildIds}
         canvasActiveFamilyRef={canvasActiveFamilyRef}

@@ -8,6 +8,7 @@ type CachedImageProps = {
   contentFit?: ImageContentFit;
   priority?: 'low' | 'normal' | 'high';
   recyclingKey?: string;
+  onError?: () => void;
 };
 
 export function CachedImage({
@@ -16,6 +17,7 @@ export function CachedImage({
   contentFit = 'cover',
   priority = 'normal',
   recyclingKey,
+  onError,
 }: CachedImageProps) {
   return (
     <ExpoImage
@@ -26,6 +28,7 @@ export function CachedImage({
       priority={priority}
       recyclingKey={recyclingKey ?? uri}
       transition={0}
+      onError={onError}
     />
   );
 }

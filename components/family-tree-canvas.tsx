@@ -36,7 +36,6 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Button, Chip, IconButton, Menu, Searchbar, Text, useTheme } from 'react-native-paper';
 import { translate } from '../i18n';
 import { I18N_KEYS as K } from '../i18n/keys';
@@ -44,9 +43,7 @@ import Svg, { Path, Text as SvgText } from 'react-native-svg';
 
 import type { PersonRecord } from './dto/person';
 import {
-  getPersonFallbackAvatarIcon,
   getPersonLifeSpanLabel,
-  getDisplayPersonPhoto,
 } from './dto/person';
 import type { RelationshipRecord } from './dto/relationship';
 import { GlobalStyles } from '../constants/styles';
@@ -68,7 +65,7 @@ import {
   getSortedSurnames,
 } from './family-tree-surname-clusters';
 import { useI18n } from '../hooks/use-i18n';
-import CachedImage from './cached-image';
+import { PersonPortrait } from './ui/person-portrait';
 
 const styles = GlobalStyles.familyTreeCanvas;
 
@@ -352,12 +349,11 @@ type PersonNodeProps = {
 const PersonNode = React.memo(function PersonNode(props: PersonNodeProps) {
   const {
     person, x, y, showMaidenFamilyInNodeTitle, isCurrentUser, isFocusedPerson, isGhost, isCrossSurnameChild, isMaidenNameMember,
-    surfaceColor, outlineColor, primaryColor, tertiaryColor,
+    surfaceColor, outlineColor, primaryColor,
     variantSurface, variantOnSurface, onPrimaryColor,
     deferPhoto, compactDetails, isInspected, isDimmed, onInspect,
     onPress,
   } = props;
-  const photo = getDisplayPersonPhoto(person);
 
   const handlePress = useCallback(() => {
     onPress(person);
@@ -424,20 +420,7 @@ const PersonNode = React.memo(function PersonNode(props: PersonNodeProps) {
         ) : null}
         <View style={styles.nodeInnerRow}>
           <View style={styles.nodeAvatarColumn}>
-            <View style={styles.nodeAvatarWrap}>
-              {photo && !deferPhoto ? (
-                <CachedImage
-                  uri={photo.url}
-                  style={[styles.nodeAvatar, { width: 64, height: 64, borderRadius: 32 }]}
-                  priority="low"
-                  recyclingKey={photo.id}
-                />
-              ) : (
-                <View style={[styles.nodeAvatarFallback, { width: 64, height: 64, borderRadius: 32, borderColor: outlineColor, backgroundColor: variantSurface }]}>
-                  <MaterialCommunityIcons name={getPersonFallbackAvatarIcon(person)} size={28} color={isHighlighted ? tertiaryColor : primaryColor} />
-                </View>
-              )}
-            </View>
+            <PersonPortrait person={person} size={84} highlighted={isFocusedPerson || isInspected} deferPhoto={deferPhoto} />
           </View>
           <View style={styles.nodeTextWrap}>
             <Text variant="titleSmall" style={styles.nodeTitle} numberOfLines={2}>
@@ -483,7 +466,7 @@ function FamilyTreeCanvas({
 }: FamilyTreeCanvasProps) {
   const theme = useTheme();
   const { t } = useI18n();
-  const { height: windowHeight } = useWindowDimensions();
+  const { height: windowHeight, width: windowWidth } = useWindowDimensions();
   const inlineViewportHeight = inlineViewportHeightOverride ?? Math.max(420, windowHeight - 360);
 
   const [scale, setScale] = useState(1);
@@ -1099,11 +1082,11 @@ function FamilyTreeCanvas({
         <View style={[styles.floatingControlsCard, { backgroundColor: theme.colors.surface, borderWidth: 0, borderRadius: 28 }]}>
           <Chip compact icon="magnify">{Math.round(scale * 100)}%</Chip>
           {currentUserPersonId && renderedPeopleById.has(currentUserPersonId) ? (
-            <IconButton icon="account-star-outline" size={24} accessibilityLabel={t('Find me in the tree')} onPress={() => focusPerson(renderedPeopleById.get(currentUserPersonId)!, mode)} />
+            windowWidth >= 900 ? <Button icon="account-star-outline" contentStyle={{ minHeight: 44 }} onPress={() => focusPerson(renderedPeopleById.get(currentUserPersonId)!, mode)}>{t('Find me in the tree')}</Button> : <IconButton icon="account-star-outline" size={24} accessibilityLabel={t('Find me in the tree')} onPress={() => focusPerson(renderedPeopleById.get(currentUserPersonId)!, mode)} />
           ) : null}
           <IconButton icon="minus" size={24} accessibilityLabel={t('Zoom out')} disabled={scale <= MIN_SCALE} mode="contained-tonal" onPress={() => zoomBy(-0.15)} />
           <IconButton icon="plus" size={24} accessibilityLabel={t('Zoom in')} disabled={scale >= MAX_SCALE} mode="contained-tonal" onPress={() => zoomBy(0.15)} />
-          <IconButton icon="fit-to-screen-outline" size={24} mode="contained-tonal" accessibilityLabel={t('Fit tree to screen')} onPress={() => fitTo(activeViewportSize.width, activeViewportSize.height, undefined, mode)} />
+          {windowWidth >= 900 ? <Button icon="fit-to-screen-outline" contentStyle={{ minHeight: 44 }} onPress={() => fitTo(activeViewportSize.width, activeViewportSize.height, undefined, mode)}>{t('Fit tree to screen')}</Button> : <IconButton icon="fit-to-screen-outline" size={24} mode="contained-tonal" accessibilityLabel={t('Fit tree to screen')} onPress={() => fitTo(activeViewportSize.width, activeViewportSize.height, undefined, mode)} />}
           {allowFullscreen ? <Menu visible={toolsVisible} onDismiss={() => setToolsVisible(false)} anchor={<IconButton icon="dots-horizontal" accessibilityLabel={t('Tree tools')} onPress={() => setToolsVisible(true)} />}>
             <Menu.Item title={t(mode === 'fullscreen' ? 'Exit fullscreen' : 'Fullscreen')} leadingIcon="fullscreen" onPress={() => { setToolsVisible(false); setIsFullscreen(mode !== 'fullscreen'); }} />
           </Menu> : null}
@@ -1153,7 +1136,7 @@ function FamilyTreeCanvas({
                       d={c.d}
                       fill="none"
                       stroke={highlightedPathIds && connectorOnPath(c.personIds, highlightedPathIds) ? theme.colors.primary : c.stroke}
-                      strokeWidth={c.strokeWidth + (activeInspectionId && c.personIds?.includes(activeInspectionId) ? 1.5 : 0)}
+                      strokeWidth={c.strokeWidth + (highlightedPathIds && connectorOnPath(c.personIds, highlightedPathIds) ? 2 : activeInspectionId && c.personIds?.includes(activeInspectionId) ? 1.5 : 0)}
                       opacity={highlightedPathIds ? (connectorOnPath(c.personIds, highlightedPathIds) ? 1 : 0.12) : !activeInspectionId || c.personIds?.includes(activeInspectionId) ? 1 : 0.18}
                       strokeLinecap="round"
                       strokeLinejoin="round"

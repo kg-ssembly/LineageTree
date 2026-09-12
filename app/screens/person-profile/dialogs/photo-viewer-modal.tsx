@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Dimensions, FlatList, Modal, StyleSheet, View } from 'react-native';
+import { FlatList, Modal, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { IconButton, Text } from 'react-native-paper';
 import { CachedImage } from '../../../../components';
 import type { PersonPhoto, PersonRecord } from '../../../../components/dto/person';
@@ -97,8 +97,8 @@ export function PersonPhotoViewerModal({
   onEditPhoto?: (photo: PersonPhoto) => void;
 }) {
   const { t } = useI18n();
-  const viewerWidth = Dimensions.get('window').width;
-  const viewerHeight = Dimensions.get('window').height;
+  const { width, height: viewerHeight } = useWindowDimensions();
+  const viewerWidth = width - 24;
   const selectedPhoto = useMemo(
     () => (viewerIndex !== null ? person.photos[viewerIndex] ?? null : null),
     [person.photos, viewerIndex],
@@ -111,7 +111,7 @@ export function PersonPhotoViewerModal({
   return (
     <Modal visible={viewerIndex !== null} animationType="fade" transparent onRequestClose={() => setViewerIndex(null)}>
       <View style={styles.viewerBackdrop}>
-        <IconButton icon="close" iconColor="#FFFFFF" size={28} style={styles.viewerCloseButton} onPress={() => setViewerIndex(null)} />
+        <IconButton icon="close" iconColor="#FFFFFF" size={28} style={styles.viewerCloseButton} onPress={() => setViewerIndex(null)} accessibilityLabel={t(K.common.close)} />
         {selectedPhoto && onEditPhoto ? (
           <IconButton
             icon="pencil"
@@ -129,6 +129,8 @@ export function PersonPhotoViewerModal({
           <>
             <IconButton
               icon="chevron-left"
+              accessibilityLabel={t('Previous')}
+              disabled={viewerIndex === 0}
               iconColor="#FFFFFF"
               size={32}
               style={[styles.viewerNavButton, styles.viewerNavButtonLeft]}
@@ -136,6 +138,8 @@ export function PersonPhotoViewerModal({
             />
             <IconButton
               icon="chevron-right"
+              accessibilityLabel={t('Next')}
+              disabled={viewerIndex === person.photos.length - 1}
               iconColor="#FFFFFF"
               size={32}
               style={[styles.viewerNavButton, styles.viewerNavButtonRight]}

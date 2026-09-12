@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { ScrollView, View, useWindowDimensions } from 'react-native';
 import { ActivityIndicator, Button, IconButton, Text, Tooltip, useTheme } from 'react-native-paper';
 import { EmptyState, FamilyTreeCanvas, GlobalStyles, ScreenBackground, BUTTON_CHROME, BUTTON_CONTENT_CHROME } from '../../../../components';
 import { useI18n } from '../../../../hooks/use-i18n';
@@ -26,6 +26,7 @@ export function FamilyTreeView({
   onOpenRelationshipDialog,
 }: SharedTabProps) {
   const theme = useTheme();
+  const { width } = useWindowDimensions();
   const { t } = useI18n();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [scope, setScope] = useState<TreeScope>('full');
@@ -113,15 +114,18 @@ export function FamilyTreeView({
           currentUserPersonId={currentAssignedPerson?.id ?? undefined}
           initialFocusPersonId={scope === 'full' ? currentAssignedPerson?.id : focusRoot}
           floatingControls
-          searchControls={<View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 0 }}>
+          searchControls={<View style={{ flexShrink: 1, gap: 2 }}>
+            {width < 900 ? <Text variant="labelMedium" style={{ paddingHorizontal: 8, color: theme.colors.primary }}>{t(scope === 'close' ? 'Close family' : scope === 'ancestors' ? 'Ancestors' : scope === 'descendants' ? 'Descendants' : 'Full tree')}</Text> : null}
+            <View accessibilityRole="tablist" style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 0 }}>
               {([
                 { key: 'close', label: 'Close family', icon: 'account-group-outline' },
                 { key: 'ancestors', label: 'Ancestors', icon: 'arrow-up-bold-outline' },
                 { key: 'descendants', label: 'Descendants', icon: 'arrow-down-bold-outline' },
                 { key: 'full', label: 'Full tree', icon: 'family-tree' },
-              ] as const).map(item => <Tooltip key={item.key} title={t(item.label)}>
+              ] as const).map(item => width >= 900 ? <Button key={item.key} compact icon={item.icon} mode={scope === item.key ? 'contained-tonal' : 'text'} accessibilityRole="tab" accessibilityLabel={t(item.label)} accessibilityState={{ selected: scope === item.key }} onPress={() => changeScope(item.key)} contentStyle={{ minHeight: 44 }} style={{ borderRadius: 24 }}>{t(item.label)}</Button> : <Tooltip key={item.key} title={t(item.label)}>
                 <IconButton icon={item.icon} size={23} mode={scope === item.key ? 'contained' : undefined} containerColor={scope === item.key ? theme.colors.primaryContainer : undefined} iconColor={scope === item.key ? theme.colors.primary : theme.colors.onSurfaceVariant} accessibilityRole="tab" accessibilityLabel={t(item.label)} accessibilityState={{ selected: scope === item.key }} onPress={() => changeScope(item.key)} style={{ margin: 0, width: 44, height: 44 }} />
               </Tooltip>)}
+            </View>
           </View>}
           fillAvailableSpace
           familySwitchRef={familySwitchRef}
