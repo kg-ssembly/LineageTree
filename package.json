@@ -24,6 +24,8 @@
     "deploy:firebase": "npx firebase-tools deploy --only firestore:rules,storage",
     "build:android": "eas build --platform android --profile production",
     "build:preview": "eas build --platform android --profile preview",
+    "update:preview": "eas update --channel preview --message \"Preview update\"",
+    "update:production": "eas update --channel production --message \"Production update\"",
     "submit:android": "eas submit --platform android"
   },
   "dependencies": {
@@ -41,6 +43,7 @@
     "expo-image-manipulator": "~14.0.8",
     "expo-image-picker": "~17.0.11",
     "expo-status-bar": "~3.0.9",
+    "expo-updates": "~29.0.20",
     "firebase": "^12.12.1",
     "react": "19.1.0",
     "react-dom": "19.1.0",

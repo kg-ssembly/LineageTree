@@ -22,7 +22,6 @@
     },
     "android": {
       "package": "com.ssembly.lineagetree",
-      "versionCode": 15,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -49,6 +48,14 @@
       "favicon": "./assets/favicon.png",
       "output": "single",
       "bundler": "metro"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/2a5ef864-0b11-4cbb-bd0b-2e0c43e01603",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
     },
     "extra": {
       "eas": {

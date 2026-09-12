@@ -1,11 +1,12 @@
 import React, { Component, type ErrorInfo, type ReactNode, useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, ScrollView, Text, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFonts } from 'expo-font';
 import { PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import * as Updates from 'expo-updates';
 import { en as paperDatesEn, registerTranslation } from 'react-native-paper-dates';
 import { getAppThemes } from './constants/theme';
 import linking from './app/navigation/app-linking';
@@ -73,6 +74,7 @@ function AppShell() {
   const authLoading = useAuthStore((state) => state.loading);
   const initAuth = useAuthStore((state) => state.init);
   const [authReady, setAuthReady] = useState(!authLoading);
+  const [updateCheckComplete, setUpdateCheckComplete] = useState(false);
   const preference = useThemeStore((state) => state.preference);
   const hydrateTheme = useThemeStore((state) => state.hydrate);
   const language = useLanguageStore((state) => state.language);
@@ -91,10 +93,44 @@ function AppShell() {
   useEffect(() => { if (!authLoading) setAuthReady(true); }, [authLoading]);
 
   useEffect(() => {
+    let cancelled = false;
+
+    async function updateBeforeStartup() {
+      // Expo Updates is unavailable for the web bundle and disabled in local
+      // development/Expo Go. Native release builds check the configured EAS
+      // channel and reload once the downloaded bundle is ready.
+      if (Platform.OS === 'web' || !Updates.isEnabled) {
+        if (!cancelled) setUpdateCheckComplete(true);
+        return;
+      }
+
+      try {
+        const result = await Updates.checkForUpdateAsync();
+        if (result.isAvailable) {
+          const downloaded = await Updates.fetchUpdateAsync();
+          if (downloaded.isNew) {
+            await Updates.reloadAsync();
+            return;
+          }
+        }
+      } catch (error) {
+        // A failed update check must never prevent the cached app from
+        // starting, especially when the device is offline.
+        console.warn('Unable to check for an app update', error);
+      }
+
+      if (!cancelled) setUpdateCheckComplete(true);
+    }
+
+    void updateBeforeStartup();
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
     setActiveLanguage(language);
   }, [language]);
 
-  if (!fontsLoaded || !authReady) {
+  if (!fontsLoaded || !authReady || !updateCheckComplete) {
     return (
       <View
         style={{
