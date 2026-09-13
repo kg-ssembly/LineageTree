@@ -20,7 +20,10 @@ export function SyncStatusBanner() {
     : error ? 'Last action failed. Review the message and retry; unsaved person changes remain in the form.'
     : mutating || pendingWrites || upload ? 'Saving changes…'
       : source === 'cache' ? 'Showing saved data. Waiting for connection; you can prepare a person draft.'
-        : source === 'connecting' ? 'Connecting…' : 'Connected · changes saved';
+        : source === 'connecting' ? 'Connecting…' : null;
+  if (!label) {
+    return null;
+  }
   return <View style={{ paddingHorizontal: 16, paddingVertical: 6, backgroundColor: theme.colors.surfaceVariant }}>
     <Text variant="labelSmall" accessibilityLiveRegion="polite">{t(label)}</Text>
     {source === 'error' && userId ? <Button compact onPress={() => syncFamilyData(userId)}>{t('Retry connection')}</Button> : null}

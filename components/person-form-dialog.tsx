@@ -62,6 +62,7 @@ interface PersonFormDialogProps {
   initialAddConnectionMode?: PendingRelationshipMode | null;
   autoOpenAddConnectionDialog?: boolean;
   relationshipOnly?: boolean;
+  enableQuickAdd?: boolean;
   loading?: boolean;
   existingLastNames?: string[];
   relationshipCandidates?: PersonRecord[];
@@ -69,7 +70,7 @@ interface PersonFormDialogProps {
   relationships?: RelationshipRecord[];
   onSelectRelationshipAttempt?: (mode: PendingRelationshipMode, relatedPerson: PersonRecord) => Promise<boolean> | boolean;
   onDismiss: () => void;
-  onSubmit: (payload: PersonFormSubmission) => void | Promise<void>;
+  onSubmit: (payload: PersonFormSubmission, options?: { keepOpen: boolean }) => void | Promise<void>;
   onDelete?: () => void | Promise<void>;
 }
 
@@ -279,7 +280,21 @@ function getRelationshipModeForPerson(personId: string, relationship: Relationsh
   return relationship.fromPersonId === personId ? 'parent-of' : 'child-of';
 }
 
-export default function PersonFormDialog({
+export default function PersonFormDialog(props: PersonFormDialogProps) {
+  const [nextEntry, setNextEntry] = useState<{ sequence: number; payload: PersonFormSubmission } | null>(null);
+  useEffect(() => {
+    if (!props.visible) setNextEntry(null);
+  }, [props.visible]);
+  return <PersonFormDialogContent
+    {...props}
+    key={nextEntry?.sequence ?? 0}
+    initialValues={nextEntry ? { lastName: nextEntry.payload.lastName } : props.initialValues}
+    initialPendingRelationships={nextEntry?.payload.pendingRelationships ?? props.initialPendingRelationships}
+    onRestart={(payload) => setNextEntry((previous) => ({ sequence: (previous?.sequence ?? 0) + 1, payload }))}
+  />;
+}
+
+function PersonFormDialogContent({
   visible,
   mode,
   person,
@@ -289,6 +304,8 @@ export default function PersonFormDialog({
   initialAddConnectionMode = null,
   autoOpenAddConnectionDialog = false,
   relationshipOnly = false,
+  enableQuickAdd = false,
+  onRestart,
   loading = false,
   existingLastNames = [],
   relationshipCandidates = [],
@@ -297,10 +314,13 @@ export default function PersonFormDialog({
   onDismiss,
   onSubmit,
   onDelete,
-}: PersonFormDialogProps) {
+}: PersonFormDialogProps & { onRestart: (payload: PersonFormSubmission) => void }) {
   const theme = useTheme();
   const { t, language } = useI18n();
   const isRelationshipOnlyFlow = mode === 'create' && relationshipOnly;
+  const [useDetailedFlow, setUseDetailedFlow] = useState(false);
+  const quickAdd = enableQuickAdd && mode === 'create' && !relationshipOnly && !useDetailedFlow && initialPendingRelationships.length > 0;
+  const submissionLock = useRef(false);
   const [lifeStatus, setLifeStatus] = useState<PersonLifeStatus>('living');
   const isPresent = lifeStatus !== 'deceased';
   const [closePrompt, setClosePrompt] = useState(false);
@@ -372,6 +392,7 @@ export default function PersonFormDialog({
     }
     lastInitKeyRef.current = initKey;
 
+    setUseDetailedFlow(false);
     setShowOptionalDetails(mode === 'edit');
     const initialDeathDate = person?.deathDate ?? initialValues?.deathDate ?? '';
     setLifeStatus(person?.lifeStatus ?? initialValues?.lifeStatus ?? (initialDeathDate ? 'deceased' : 'living'));
@@ -401,7 +422,7 @@ export default function PersonFormDialog({
         : [],
     );
     setSurnameMenuVisible(false);
-    setLastNameTouched(false);
+    setLastNameTouched(Boolean(initialValues?.lastName));
     setShowCustomSurnameInput(false);
     setPreferredPhotoRef(person?.preferredPhotoId ?? initialValues?.preferredPhotoRef ?? '');
     setPreviewState({ visible: false, payload: null, warnings: [] });
@@ -1023,12 +1044,13 @@ export default function PersonFormDialog({
   const draftTreeId = useTreeStore((state) => state.selectedTreeId);
   const draftValue = { firstName, middleNames, lastName, maidenName, birthPlace, birthDate, deathDate, lifeStatus, gender, notes, lifeEvents, existingPhotos, removedPhotos, newPhotoUris, preferredPhotoRef, pendingRelationships, surnameVariantHints, currentStep };
   const draft = useFormDraft(
-    `person-draft:v1:${draftUserId}:${person?.treeId ?? draftTreeId}:${person?.id ?? (initialValues ? 'self' : 'new')}:${relationshipOnly}`,
+    `person-draft:v1:${draftUserId}:${person?.treeId ?? draftTreeId}:${person?.id ?? (initialValues && !enableQuickAdd ? 'self' : 'new')}:${relationshipOnly}`,
     visible, draftValue,
   );
   const restoreDraft = () => {
     const saved = draft.available;
     if (!saved) return;
+    setUseDetailedFlow(true);
     setShowOptionalDetails(true);
     setFirstName(saved.firstName); setMiddleNames(saved.middleNames); setLastName(saved.lastName); setLastNameTouched(true);
     setMaidenName(saved.maidenName); setBirthPlace(saved.birthPlace); setBirthDate(saved.birthDate); setDeathDate(saved.deathDate);
@@ -1040,22 +1062,26 @@ export default function PersonFormDialog({
   };
   const handleClose = () => { if (draft.dirty) setClosePrompt(true); else onDismiss(); };
 
-  const handlePreviewConfirm = async () => {
-    if (!previewState.payload) {
+  const handlePreviewConfirm = async (addAnother = false) => {
+    if (submissionLock.current || !previewState.payload) {
       return;
     }
 
+    submissionLock.current = true;
     const payload = previewState.payload;
     setPreviewState({ visible: false, payload: null, warnings: [] });
     setSubmitPending(true);
 
     try {
-      await onSubmit(payload);
-      await draft.clear(true);
+      await onSubmit(payload, { keepOpen: addAnother });
+      // A local cleanup failure must not turn a successful create into a retry.
+      await draft.clear(true).catch(() => {});
+      if (addAnother) onRestart(payload);
     } catch (error) {
       setRelationshipError(error instanceof Error ? error.message : t("Save failed. Your changes are still here; try again."));
       void draft.save().catch(() => {});
     } finally {
+      submissionLock.current = false;
       setSubmitPending(false);
     }
   };
@@ -1090,12 +1116,24 @@ export default function PersonFormDialog({
               </View> : null}
               {draft.error ? <HelperText type="error" visible>{draft.error}</HelperText> : null}
               {relationshipError ? <HelperText type="error" visible>{relationshipError}</HelperText> : null}
-              {mode === 'create' && !isRelationshipOnlyFlow ? (
+              {mode === 'create' && !isRelationshipOnlyFlow && !quickAdd ? (
                 <Text variant="labelMedium" style={[styles.stepMeta, { color: theme.colors.onSurfaceVariant }]}>
                   {t(K.personForm.stepOfTwo, { step: currentStep })}
                 </Text>
               ) : null}
 
+              {quickAdd ? <View style={{ gap: 8 }}>
+                <Text variant="titleSmall">{t('Quick add')}</Text>
+                {pendingRelationships.map((connection) => {
+                  const relative = relationshipCandidatesById.get(connection.relatedPersonId);
+                  return (
+                    <Text key={connection.key}>
+                      {getRelationshipPreviewLabel(connection.mode)} {relative ? formatPersonName(relative) : connection.relatedPersonId} · {getPendingRelationshipDetail(connection)}
+                    </Text>
+                  );
+                })}
+                <Button onPress={() => { setUseDetailedFlow(true); setCurrentStep(2); }} disabled={isBusy}>{t('Review or change relationships')}</Button>
+              </View> : null}
               {mode === 'create' && currentStep === 2 ? (
                 <>
                   <HelperText type="error" visible={!!relationshipError}>
@@ -1529,11 +1567,11 @@ export default function PersonFormDialog({
               ) : null}
               <Button
                 mode="contained"
-                onPress={mode === 'create' && currentStep === 1 ? handleNextStep : handleSubmit}
+                onPress={mode === 'create' && currentStep === 1 && !quickAdd ? handleNextStep : handleSubmit}
                 disabled={isBusy}
               >
                 {mode === 'create'
-                  ? currentStep === 1
+                  ? currentStep === 1 && !quickAdd
                     ? t(K.common.next)
                     : isRelationshipOnlyFlow
                       ? t(K.common.save)
@@ -1604,6 +1642,9 @@ export default function PersonFormDialog({
                     {mode === 'create' && !isRelationshipOnlyFlow ? t(K.personForm.readyToCreateFamilyMember) : t(K.personForm.readyToSaveFamilyMember)}
                   </Text>
                   <Text variant="titleSmall" style={styles.sectionSpacing}>{t(K.common.summary)}</Text>
+                  {previewState.warnings.map((warning) => (
+                    <Text key={warning} style={{ color: theme.colors.onSurfaceVariant }}>{warning}</Text>
+                  ))}
                   <Text variant="bodyMedium">{t("Life status")}: {previewState.payload.lifeStatus}</Text>
                   <Text variant="bodyMedium">{t(K.personForm.gender)}: {previewState.payload.gender}</Text>
                   {previewState.payload.birthDate ? <Text variant="bodyMedium">{t(K.personProfile.birth)}: {formatPersonDate(previewState.payload.birthDate)}</Text> : null}
@@ -1627,8 +1668,13 @@ export default function PersonFormDialog({
               ) : null}
             </ScrollView>
           </Dialog.ScrollArea>
-          <Dialog.Actions style={[dialogChrome.dialogActions, styles.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
+          <Dialog.Actions style={[dialogChrome.dialogActions, styles.dialogActions, { borderTopColor: theme.colors.outlineVariant, flexWrap: 'wrap' }]}>
             <Button onPress={() => setPreviewState({ visible: false, payload: null, warnings: [] })} disabled={isBusy}>{t(K.common.back)}</Button>
+            {enableQuickAdd && mode === 'create' && !isRelationshipOnlyFlow ? (
+              <Button onPress={() => { void handlePreviewConfirm(true); }} disabled={isBusy || !previewState.payload}>
+                {t('Save and add another')}
+              </Button>
+            ) : null}
             <Button
               mode="contained"
               onPress={() => {

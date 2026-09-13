@@ -105,6 +105,7 @@ export function MainScreenView({ controller }: { controller: ReturnType<typeof u
         relationshipCandidates={controller.people}
         relationships={controller.relationships}
         perspective="new-person"
+        conciseRelationshipLabels={controller.addPersonChooserUsesConciseLabels}
         onDismiss={controller.closeAddPersonChooser}
         onSelectRelationship={controller.handleAddPersonEntrySelection}
         onSelectRelationshipAttempt={controller.handleMaidenParentSelectionAttempt}
@@ -112,6 +113,7 @@ export function MainScreenView({ controller }: { controller: ReturnType<typeof u
       />
 
       <PersonFormDialog
+        enableQuickAdd
         visible={controller.personDialog.visible}
         mode={controller.personDialog.mode}
         person={controller.personDialog.person}

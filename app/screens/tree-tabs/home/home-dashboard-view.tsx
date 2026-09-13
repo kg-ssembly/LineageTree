@@ -1495,7 +1495,7 @@ export function HomeDashboardView(props: SharedTabProps) {
                             {t(K.home.startMyProfile)}
                           </Button>
                         )}
-                        {canEdit ? <Button mode="outlined" onPress={onOpenAddPerson} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>{t(K.home.addFamilyMember)}</Button> : null}
+                        {canEdit ? <Button mode="outlined" onPress={() => onOpenAddPerson()} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>{t(K.home.addFamilyMember)}</Button> : null}
                         {dismissedTaskIds.length > 0 ? <Button mode="text" onPress={restoreHiddenPrompts} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>{t(K.home.restorePrompts)}</Button> : null}
                       </View>
                     </View>
@@ -1520,7 +1520,7 @@ export function HomeDashboardView(props: SharedTabProps) {
                     {t(K.home.startMyProfile)}
                   </Button>
                   {canEdit ? (
-                    <Button mode="outlined" onPress={onOpenAddPerson} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>
+                    <Button mode="outlined" onPress={() => onOpenAddPerson()} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>
                       {t(K.home.addFamilyMember)}
                     </Button>
                   ) : null}

@@ -73,3 +73,67 @@ test('old pending activity survives the history cap and reload', async ({ page }
   await page.getByRole('button', { name: 'Load older activity', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Load older activity', exact: true })).toHaveCount(0);
 });
+
+
+test('quick add repeats a child without copying personal details and retains draft recovery', async ({ page }, testInfo) => {
+  const db = getFirestore(getApps()[0]);
+  const parentId = 'quick-parent-' + testInfo.project.name;
+  const stamp = new Date().toISOString();
+  await db.doc('persons/' + parentId).set({ treeId: 'journey-tree', treeMembershipIds: ['journey-tree'], ownerId: 'journey-owner', firstName: 'Sarah', lastName: 'Quickfamily', birthDate: '1970', deathDate: '', gender: 'female', notes: '', photos: [], lifeEvents: [], createdAt: stamp, updatedAt: stamp });
+  try {
+    await openWorkspace(page);
+    await expect(page.getByText('Connected · changes saved', { exact: true })).toHaveCount(0);
+    const close = page.getByRole('button', { name: 'Close', exact: true });
+    if (await close.isVisible()) await close.click();
+    await page.getByRole('tab', { name: 'Members', exact: true })
+      .or(page.getByRole('button', { name: 'Members', exact: true })).click();
+    await page.getByRole('button', { name: 'Add', exact: true }).click();
+    await page.getByRole('button', { name: 'Child', exact: true }).click();
+    await page.getByText('Sarah Quickfamily', { exact: true }).last().click();
+    await expect(page.getByText('Quick add', { exact: true })).toBeVisible();
+    await page.getByLabel('First name *', { exact: true }).fill('Firstchild');
+    await page.getByRole('button', { name: 'Add optional details: dates, status and more', exact: true }).click();
+    await page.getByPlaceholder('1940, ~1940, or 1940-06-15', { exact: true }).fill('2000');
+    await page.getByRole('button', { name: 'Create', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Save and add another', exact: true })).toBeVisible();
+    await expect(page.getByLabel('First name *', { exact: true })).toHaveCount(0);
+    await page.screenshot({ path: testInfo.outputPath('quick-add-review.png'), animations: 'disabled' });
+    await page.getByRole('button', { name: 'Save and add another', exact: true }).click();
+    await expect(page.getByLabel('First name *', { exact: true })).toHaveValue('');
+    await expect(page.getByText('Quick add', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Quickfamily', exact: true })).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath('quick-add-next.png') });
+    await page.getByRole('button', { name: 'Add optional details: dates, status and more', exact: true }).click();
+    await expect(page.getByPlaceholder('1940, ~1940, or 1940-06-15', { exact: true })).toHaveValue('');
+    await page.getByLabel('First name *', { exact: true }).fill('Secondchild');
+    await page.getByRole('button', { name: 'Review or change relationships', exact: true }).click();
+    await page.getByRole('button', { name: 'Back', exact: true }).click();
+    await expect(page.getByLabel('First name *', { exact: true })).toHaveValue('Secondchild');
+    await page.getByRole('button', { name: 'Cancel', exact: true }).first().click();
+    await page.getByRole('button', { name: 'Save draft and close', exact: true }).click();
+    await page.getByRole('button', { name: 'Add', exact: true }).click();
+    await page.getByRole('button', { name: 'Child', exact: true }).click();
+    await page.getByText('Sarah Quickfamily', { exact: true }).last().click();
+    await page.getByRole('button', { name: 'Restore draft', exact: true }).click();
+    await expect(page.getByLabel('First name *', { exact: true })).toHaveValue('Secondchild');
+    await page.getByRole('button', { name: 'Next', exact: true }).click();
+    await page.getByRole('button', { name: 'Create', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Create', exact: true })).toHaveCount(1);
+    await page.getByRole('button', { name: 'Create', exact: true }).click();
+    await expect(page.getByLabel('First name *', { exact: true })).toHaveCount(0);
+    await expect.poll(async () => {
+      const children = await db.collection('persons').where('lastName', '==', 'Quickfamily').get();
+      return children.docs.map((doc: { data: () => { firstName: string } }) => doc.data().firstName).sort();
+    }).toEqual(['Firstchild', 'Sarah', 'Secondchild']);
+    await expect(page.getByText('Creating family member', { exact: true })).toHaveCount(0);
+    const links = await db.collection('relationships').where('fromPersonId', '==', parentId).get();
+    expect(links.size).toBe(2);
+    expect(links.docs.every((doc: { data: () => { parentChildKind: string } }) => doc.data().parentChildKind === 'biological')).toBe(true);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+  } finally {
+    for (const collection of ['persons', 'relationships']) {
+      const docs = await db.collection(collection).where('treeId', '==', 'journey-tree').get();
+      const batch = db.batch(); docs.docs.forEach((doc: { ref: unknown }) => batch.delete(doc.ref)); if (docs.size) await batch.commit();
+    }
+  }
+});

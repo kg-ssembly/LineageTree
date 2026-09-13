@@ -273,6 +273,7 @@ export function useMainScreenController({ navigation }: Props) {
     initialPendingRelationships: [],
   });
   const [addPersonChooserVisible, setAddPersonChooserVisible] = useState(false);
+  const [addPersonChooserUsesConciseLabels, setAddPersonChooserUsesConciseLabels] = useState(false);
   const [selfPersonDialogVisible, setSelfPersonDialogVisible] = useState(false);
   const [relationshipDialogVisible, setRelationshipDialogVisible] = useState(false);
   const [collaboratorDialogVisible, setCollaboratorDialogVisible] = useState(false);
@@ -585,6 +586,7 @@ export function useMainScreenController({ navigation }: Props) {
 
   const closeAddPersonChooser = useCallback(() => {
     setAddPersonChooserVisible(false);
+    setAddPersonChooserUsesConciseLabels(false);
   }, []);
 
   const closeNodeQuickActions = useCallback(() => {
@@ -908,7 +910,7 @@ export function useMainScreenController({ navigation }: Props) {
     userId: user?.id,
   }, payload), [addParentChildRelationship, addSpouseRelationship, createPerson, createPersonWithRelationships, people, relationships, selectedTree, user?.id]);
 
-  const handlePersonSubmit = useCallback(async (payload: PersonFormSubmission) => {
+  const handlePersonSubmit = useCallback(async (payload: PersonFormSubmission, options?: { keepOpen: boolean }) => {
     if (!user?.id || !selectedTree) {
       throw new Error('Your session or selected tree changed. Sign in and reopen this draft before saving.');
     }
@@ -918,7 +920,7 @@ export function useMainScreenController({ navigation }: Props) {
     } else if (personDialog.person) {
       await updatePerson(user.id, personDialog.person, payload);
     }
-    closePersonDialog();
+    if (!options?.keepOpen || personDialog.mode !== 'create') closePersonDialog();
 
   }, [closePersonDialog, createPersonFromPayload, personDialog.mode, personDialog.person, selectedTree, updatePerson, user?.id]);
 
@@ -1001,12 +1003,13 @@ export function useMainScreenController({ navigation }: Props) {
     });
   }, []);
 
-  const onOpenAddPerson = useCallback(() => {
+  const onOpenAddPerson = useCallback((source?: 'members') => {
     if (people.length === 0) {
       openCreatePersonDialog();
       return;
     }
 
+    setAddPersonChooserUsesConciseLabels(source === 'members');
     setAddPersonChooserVisible(true);
   }, [openCreatePersonDialog, people.length]);
 
@@ -1704,6 +1707,7 @@ export function useMainScreenController({ navigation }: Props) {
     closeTreeNameSuggestion,
     collaboratorDialogVisible,
     addPersonChooserVisible,
+    addPersonChooserUsesConciseLabels,
     confirmState,
     crossSurnameChildIds,
     dialogActions: {

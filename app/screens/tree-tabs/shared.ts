@@ -59,7 +59,7 @@ export interface SharedTabProps {
       initialMemorySectionTab?: PersonProfileRouteMemorySection;
     },
   ) => void;
-  onOpenAddPerson: () => void;
+  onOpenAddPerson: (source?: 'members') => void;
   onOpenAddPersonForRelationship: (mode: PendingRelationshipMode, relatedPerson: PersonRecord) => void;
   onOpenRelationshipDialog: () => void;
   onOpenPersonQuickActions: (person: PersonRecord, treeActions?: TreePersonActions) => void;

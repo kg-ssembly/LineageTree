@@ -356,7 +356,7 @@ export function FamilyMembersView({
             </View>
           </View>
           {canEdit ? (
-            <Button mode="contained" icon="account-plus" onPress={onOpenAddPerson} disabled={mutating} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>
+            <Button mode="contained" icon="account-plus" onPress={() => onOpenAddPerson('members')} disabled={mutating} style={BUTTON_CHROME} contentStyle={BUTTON_CONTENT_CHROME}>
               {t(K.common.add)}
             </Button>
           ) : null}
@@ -400,7 +400,7 @@ export function FamilyMembersView({
                 actionLabel={people.length === 0
                   ? (canEdit ? t(K.home.addFamilyMember) : undefined)
                   : t(K.common.reset)}
-                onAction={people.length === 0 ? (canEdit ? onOpenAddPerson : undefined) : () => {
+                onAction={people.length === 0 ? (canEdit ? () => onOpenAddPerson('members') : undefined) : () => {
                   setSearchQuery('');
                   setFilters(DEFAULT_FILTERS);
                 }}

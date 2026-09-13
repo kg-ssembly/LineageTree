@@ -37,6 +37,9 @@ export const LANGUAGE_OPTIONS: LanguageOption[] = [
 ];
 
 const SUPPLEMENTAL_TRANSLATIONS_BY_PHRASE: Record<string, Partial<Record<AppLanguage, string>>> = {
+  "Quick add": {"af":"Voeg vinnig by","zu":"Engeza ngokushesha","xh":"Yongeza ngokukhawuleza","nso":"Tsenya ka pela","st":"Kenya kapele","tn":"Tsenya ka bonako","ts":"Engetela hi ku hatlisa","ss":"Ngeta ngekushesha","ve":"Engedza nga u ṱavhanya","nr":"Faka msinyana","it":"Aggiunta rapida","es":"Añadir rápidamente","fr":"Ajout rapide","de":"Schnell hinzufügen","pt":"Adição rápida"},
+  "Save and add another": {"af":"Stoor en voeg nog een by","zu":"Londoloza bese wengeza omunye","xh":"Gcina uze wongeze omnye","nso":"Boloka gomme o tsenye yo mongwe","st":"Boloka mme o kenye e mong","tn":"Boloka mme o tsenye yo mongwe","ts":"Hlayisa u engetela un’wana","ss":"Gcina bese wengeta lomunye","ve":"Vhulungani ni engedze muṅwe","nr":"Bulunga bese ufaka omunye","it":"Salva e aggiungi un altro","es":"Guardar y añadir otro","fr":"Enregistrer et ajouter une autre personne","de":"Speichern und weitere Person hinzufügen","pt":"Guardar e adicionar outra pessoa"},
+  "Review or change relationships": {"af":"Hersien of verander verwantskappe","zu":"Buyekeza noma ushintshe ubudlelwano","xh":"Hlola okanye utshintshe ubudlelwane","nso":"Lekola goba fetola ditswalano","st":"Hlahloba kapa fetola dikamano","tn":"Sekaseka kgotsa fetola dikamano","ts":"Kambisisa kumbe cinca vuxaka","ss":"Buyeketa noma ushintje budlelwane","ve":"Sedzulusa kana shandula vhushaka","nr":"Buyekeza namkha utjhugulule ubudlelwano","it":"Rivedi o modifica le relazioni","es":"Revisar o cambiar relaciones","fr":"Vérifier ou modifier les liens familiaux","de":"Beziehungen prüfen oder ändern","pt":"Rever ou alterar relações"},
   'No family tree yet': {
     af: 'Nog geen familiebome nie',
     zu: 'Alukho uhla lomndeni okwamanje',

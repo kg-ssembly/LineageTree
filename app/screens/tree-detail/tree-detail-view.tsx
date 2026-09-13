@@ -228,6 +228,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     initialPendingRelationships: [],
   });
   const [addPersonChooserVisible, setAddPersonChooserVisible] = useState(false);
+  const [addPersonChooserUsesConciseLabels, setAddPersonChooserUsesConciseLabels] = useState(false);
   const [selfPersonDialogVisible, setSelfPersonDialogVisible] = useState(false);
   const [relationshipDialogVisible, setRelationshipDialogVisible] = useState(false);
   const [collaboratorDialogVisible, setCollaboratorDialogVisible] = useState(false);
@@ -554,6 +555,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
 
   const closeAddPersonChooser = useCallback(() => {
     setAddPersonChooserVisible(false);
+    setAddPersonChooserUsesConciseLabels(false);
   }, []);
 
   const closeNodeQuickActions = useCallback(() => {
@@ -745,22 +747,18 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     }, payload);
   }, [addParentChildRelationship, addSpouseRelationship, createPerson, createPersonWithRelationships, people, relationships, selectedTree, user?.id]);
 
-  const handlePersonSubmit = useCallback(async (payload: PersonFormSubmission) => {
+  const handlePersonSubmit = useCallback(async (payload: PersonFormSubmission, options?: { keepOpen: boolean }) => {
     if (!user?.id || !selectedTree) {
-      return;
+      throw new Error('Your session or selected tree changed. Reopen this draft before saving.');
     }
 
-    try {
-      if (personDialog.mode === 'create') {
-        await createPersonFromPayload(payload);
-      } else if (personDialog.person) {
-        await updatePerson(user.id, personDialog.person, payload);
-      }
-
-      closePersonDialog();
-    } catch (error) {
-      // surfaced by store snackbar
+    if (personDialog.mode === 'create') {
+      await createPersonFromPayload(payload);
+    } else if (personDialog.person) {
+      await updatePerson(user.id, personDialog.person, payload);
     }
+
+    if (!options?.keepOpen || personDialog.mode !== 'create') closePersonDialog();
   }, [closePersonDialog, createPersonFromPayload, personDialog.mode, personDialog.person, selectedTree, updatePerson, user?.id]);
 
   const handleSelfPersonSubmit = useCallback(async (payload: PersonFormSubmission) => {
@@ -858,12 +856,13 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     initialPendingRelationships,
   }), []);
 
-  const onOpenAddPerson = useCallback(() => {
+  const onOpenAddPerson = useCallback((source?: 'members') => {
     if (people.length === 0) {
       openCreatePersonDialog();
       return;
     }
 
+    setAddPersonChooserUsesConciseLabels(source === 'members');
     setAddPersonChooserVisible(true);
   }, [openCreatePersonDialog, people.length]);
   const handleAddPersonEntrySelection = useCallback((mode: PendingRelationshipMode, relatedPerson: PersonRecord) => {
@@ -1234,6 +1233,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
         relationshipCandidates={people}
         relationships={relationships}
         perspective="new-person"
+        conciseRelationshipLabels={addPersonChooserUsesConciseLabels}
         onDismiss={closeAddPersonChooser}
         onSelectRelationship={handleAddPersonEntrySelection}
         onSelectRelationshipAttempt={handleMaidenParentSelectionAttempt}
@@ -1241,6 +1241,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
       />
 
       <PersonFormDialog
+        enableQuickAdd
         visible={personDialog.visible}
         mode={personDialog.mode}
         person={personDialog.person}

@@ -352,8 +352,9 @@ async function validatePendingCreateRelationships(
       throw new Error(validationMessage);
     }
 
-    const relationshipSnapshot = await getDoc(doc(db, RELATIONSHIPS_COLLECTION, relationship.id));
-    if (relationshipSnapshot.exists()) {
+    // Missing documents have no treeId for the read rules to authorize.
+    // The tree-scoped snapshot above already contains existing connections.
+    if (existingRelationships.some((existing) => existing.id === relationship.id)) {
       throw new Error(relationship.type === 'spouse'
         ? 'That spouse relationship already exists.'
         : 'That parent-child relationship already exists.');

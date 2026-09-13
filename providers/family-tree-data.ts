@@ -176,15 +176,9 @@ export async function ensurePeopleBelongToTree(treeId: string, personIds: string
 }
 
 export async function getPeopleForValidation(treeId: string) {
-  const membershipSnapshot = await getDocs(
-    query(collection(db, PEOPLE_COLLECTION), where('treeMembershipIds', 'array-contains', treeId)),
-  );
-  const legacyPeople = await getLegacyPeopleNeedingBackfill(treeId);
-
-  return mergeUniqueById([
-    ...membershipSnapshot.docs.map(mapPerson),
-    ...legacyPeople,
-  ]);
+  // Use the same owner-tree constraints as the directory so Firestore can
+  // authorize the membership query under the existing read rules.
+  return getPeopleByTreeId(treeId);
 }
 
 export async function deleteDocumentRefs(refs: Array<ReturnType<typeof doc>>) {
