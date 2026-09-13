@@ -1,11 +1,11 @@
-import type { Firestore } from 'firebase-admin/firestore';
+import type { Firestore, Transaction } from 'firebase-admin/firestore';
 import { HttpsError } from 'firebase-functions/v2/https';
 import type { PersonRecord } from '../../../components/dto/person';
 import type { RelationshipRecord } from '../../../components/dto/relationship';
 import { validateProposedRelationship } from '../../../components/family-tree-validation';
 
-export async function archivePerson(db: Firestore, treeId: string, personId: string, actorId?: string) {
-  return db.runTransaction(async (tx) => {
+export async function archivePerson(db: Firestore, treeId: string, personId: string, actorId?: string, transaction?: Transaction) {
+  const apply = async (tx: Transaction) => {
     const treeRef = db.doc(`trees/${treeId}`);
     const personRef = db.doc(`persons/${personId}`);
     const [tree, person, outgoing, incoming] = await Promise.all([
@@ -36,7 +36,8 @@ export async function archivePerson(db: Firestore, treeId: string, personId: str
     Object.keys(assignments).forEach((id) => { if (assignments[id] === personId) delete assignments[id]; });
     tx.update(treeRef, { personAssignments: assignments, updatedAt: new Date().toISOString() });
     return { ok: true };
-  });
+  };
+  return transaction ? apply(transaction) : db.runTransaction(apply);
 }
 
 export async function restoreDeletedPerson(db: Firestore, actorId: string, treeId: string, personId: string, restoreLinks = true) {

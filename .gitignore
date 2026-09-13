@@ -40,3 +40,8 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+/functions/lib/
+playwright-report/
+test-results/
+*-debug.log

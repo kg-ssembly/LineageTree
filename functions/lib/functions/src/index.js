@@ -3,7 +3,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.respondToTreeAccessServer = exports.requestTreeAccessServer = exports.archivePersonServer = exports.restorePersonServer = exports.deleteTreeServer = exports.processExpiredApprovalRequestsServer = exports.decideApprovalRequestServer = exports.reviewMergeRequestServer = exports.createMergeRequestServer = exports.sendNotificationEmailOnCreate = exports.sendPasswordResetEmail = exports.sendTreeInviteEmail = exports.sendWelcomeEmail = void 0;
+exports.expireApprovalRequests = exports.respondToTreeAccessServer = exports.requestTreeAccessServer = exports.archivePersonServer = exports.restorePersonServer = exports.deleteTreeServer = exports.processExpiredApprovalRequestsServer = exports.decideApprovalRequestServer = exports.reviewMergeRequestServer = exports.createMergeRequestServer = exports.sendNotificationEmailOnCreate = exports.sendPasswordResetEmail = exports.sendTreeInviteEmail = exports.sendWelcomeEmail = void 0;
+const scheduler_1 = require("firebase-functions/v2/scheduler");
 const tree_access_function_1 = require("./services/tree-access-function");
 const person_recovery_function_1 = require("./services/person-recovery-function");
 const app_1 = require("firebase-admin/app");
@@ -350,4 +351,7 @@ exports.respondToTreeAccessServer = (0, https_1.onCall)(async (request) => {
     if (!request.auth)
         throw new https_1.HttpsError('unauthenticated', 'Sign in to respond.');
     return (0, tree_access_function_1.respondToAccess)(db, request.auth.uid, String(request.data?.notificationId ?? ''), String(request.data?.status ?? ''));
+});
+exports.expireApprovalRequests = (0, scheduler_1.onSchedule)({ schedule: "every 5 minutes", timeZone: "UTC", timeoutSeconds: 540, maxInstances: 1, retryCount: 3 }, async () => {
+    await approvalDecisionFunction.processScheduledExpirations();
 });

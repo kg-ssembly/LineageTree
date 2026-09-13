@@ -1054,6 +1054,7 @@ export default function PersonFormDialog({
       await draft.clear(true);
     } catch (error) {
       setRelationshipError(error instanceof Error ? error.message : t("Save failed. Your changes are still here; try again."));
+      void draft.save().catch(() => {});
     } finally {
       setSubmitPending(false);
     }
@@ -1246,6 +1247,7 @@ export default function PersonFormDialog({
                     outlineStyle={{ borderRadius: 16 }}
                     mode="outlined"
                     label={t(K.personForm.firstNameRequired)}
+                    accessibilityLabel={t(K.personForm.firstNameRequired)}
                     value={firstName}
                     onChangeText={(value) => {
                       setFirstName(value);

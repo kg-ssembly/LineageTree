@@ -1,3 +1,4 @@
+import { measureWork, recordMetric } from './performance-metrics';
 // Optimized FamilyTreeCanvas
 // ---------------------------------------------------------------------------
 // Improvements over the original:
@@ -522,7 +523,9 @@ function FamilyTreeCanvas({
       clearTimeout(viewportCommitTimerRef.current);
       viewportCommitTimerRef.current = null;
     }
+    const started = performance.now();
     commitViewportState();
+    requestAnimationFrame(() => recordMetric('tree.viewport.frame.ms', performance.now() - started));
   }, [commitViewportState]);
 
   useEffect(() => () => {
@@ -633,7 +636,7 @@ function FamilyTreeCanvas({
 
   // ---- Layout (tidy tree) ----
   const layout = useMemo(
-      () => getCachedValue(layoutCache, layoutCacheKey, () => layoutFamilyTree(clusterPeople, clusterRelationships, C)),
+      () => getCachedValue(layoutCache, layoutCacheKey, () => measureWork('tree.layout.ms', () => layoutFamilyTree(clusterPeople, clusterRelationships, C))),
       [clusterPeople, clusterRelationships, layoutCacheKey],
   );
   const { positionsByPersonId, contentWidth, contentHeight } = layout;
@@ -1231,4 +1234,7 @@ function FamilyTreeCanvas({
   );
 }
 
-export default React.memo(FamilyTreeCanvas);
+const MemoizedCanvas = React.memo(FamilyTreeCanvas);
+export default function ProfiledFamilyTreeCanvas(props: React.ComponentProps<typeof FamilyTreeCanvas>) {
+  return <React.Profiler id="family-tree" onRender={(_id, _phase, actualDuration) => recordMetric('tree.render.ms', actualDuration)}><MemoizedCanvas {...props} /></React.Profiler>;
+}

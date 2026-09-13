@@ -1,3 +1,6 @@
+import { trackOperation } from './operation-store';
+import { selectiveStorage } from './selective-storage';
+import { startMetric, finishMetric } from '../components/performance-metrics';
 import { useSyncStatusStore } from './sync-status-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
@@ -77,6 +80,7 @@ let unsubscribeMergeHistory: (() => void) | null = null;
 let unsubscribeNotifications: (() => void) | null = null;
 let unsubscribeNotificationActivity: (() => void) | null = null;
 let subscribedTreeId: string | null = null;
+let subscribedPrimaryIds = '';
 let subscribedTreeAuxiliaryId: string | null = null;
 const expiryProcessingTreeIds = new Set<string>();
 const TREE_STORE_STORAGE_KEY = 'lineagetree-tree-store';
@@ -314,7 +318,8 @@ export const useTreeStore = create<TreeState>()(persist((set, get) => {
   };
 
   const subscribeToTreeData = (treeId: string | null) => {
-    if (treeId && subscribedTreeId === treeId && get().trees.some((tree) => tree.id === treeId)) {
+    const primaryIds = get().trees.map((tree) => tree.id).sort();
+    if (treeId && subscribedTreeId === treeId && subscribedPrimaryIds === primaryIds.join(',') && get().trees.some((tree) => tree.id === treeId)) {
       set({ selectedTreeId: treeId, loadingTreeData: false });
       subscribeToTreeAuxiliaryData(treeId);
       return;
@@ -331,7 +336,10 @@ export const useTreeStore = create<TreeState>()(persist((set, get) => {
     }
 
     subscribedTreeId = treeId;
-    resetNotificationSourceLoadState();
+    subscribedPrimaryIds = primaryIds.join(',');
+    startMetric('tree.ready.ms');
+    ['approvalRequests', 'mergeRequests', 'mergeHistory'].forEach((key) => notificationSourceLoaded.delete(key));
+    set({ loadingNotifications: true });
     const keepCached = get().treeDataTreeId === treeId;
     set({ treeDataTreeId: treeId, people: keepCached ? get().people : [], relationships: keepCached ? get().relationships : [], approvalRequests: [], mergeRequests: [], mergeHistory: [], mergePreview: null, loadingTreeData: !keepCached });
     subscribeToTreeAuxiliaryData(treeId);
@@ -340,6 +348,7 @@ export const useTreeStore = create<TreeState>()(persist((set, get) => {
 
     const updateInitialLoadState = () => {
       if (hasLoadedPeople && hasLoadedRelationships) {
+        finishMetric('tree.ready.ms');
         set({ loadingTreeData: false });
       }
     };
@@ -347,7 +356,7 @@ export const useTreeStore = create<TreeState>()(persist((set, get) => {
     unsubscribePeople = subscribeToPeople(
       treeId,
       (people) => {
-        if (useSyncStatusStore.getState().source === 'cache' && people.length === 0 && get().people.length) return;
+        if (useSyncStatusStore.getState().sources.people?.source === 'cache' && people.length === 0 && get().people.length) return;
         hasLoadedPeople = true;
         if (!haveSameRecordVersions(get().people, people)) {
           set({ people });
@@ -358,12 +367,13 @@ export const useTreeStore = create<TreeState>()(persist((set, get) => {
         error: normaliseError(error), loadingTreeData: false,
         ...((error as { code?: string }).code === 'permission-denied' ? { people: [], relationships: [], treeDataTreeId: null } : {}),
       }),
+      primaryIds,
     );
 
     unsubscribeRelationships = subscribeToRelationships(
       treeId,
       (relationships) => {
-        if (useSyncStatusStore.getState().source === 'cache' && relationships.length === 0 && get().relationships.length) return;
+        if (useSyncStatusStore.getState().sources.relationships?.source === 'cache' && relationships.length === 0 && get().relationships.length) return;
         hasLoadedRelationships = true;
         if (!haveSameRecordVersions(get().relationships, relationships, getRelationshipVersion)) {
           set({ relationships });
@@ -378,7 +388,7 @@ export const useTreeStore = create<TreeState>()(persist((set, get) => {
 
   };
 
-  return {
+  const initialState: TreeState = {
     trees: [],
     selectedTreeId: null,
     currentUserId: null,
@@ -399,7 +409,7 @@ export const useTreeStore = create<TreeState>()(persist((set, get) => {
     notice: null,
 
     syncFamilyData: (userId) => {
-      useSyncStatusStore.setState({ source: "connecting", pendingWrites: false });
+      useSyncStatusStore.setState({ source: "connecting", sources: {}, pendingWrites: false });
       stopAllSubscriptions();
 
       if (!userId) {
@@ -466,11 +476,12 @@ export const useTreeStore = create<TreeState>()(persist((set, get) => {
         userId,
         (trees) => {
           const currentState = get();
-          if (useSyncStatusStore.getState().source === 'cache' && !trees.length && currentState.trees.length) {
+          if (useSyncStatusStore.getState().sources.trees?.source === 'cache' && !trees.length && currentState.trees.length) {
             set({ loadingTrees: false });
             if (currentState.selectedTreeId && !subscribedTreeId) subscribeToTreeData(currentState.selectedTreeId);
             return;
           }
+          if (!trees.length) ['approvalRequests', 'mergeRequests', 'mergeHistory'].forEach(markNotificationSourceLoaded);
           const previousSelectedTreeId = currentState.selectedTreeId;
           const nextSelectedTreeId = trees.some((tree) => tree.id === previousSelectedTreeId)
             ? previousSelectedTreeId
@@ -493,7 +504,7 @@ export const useTreeStore = create<TreeState>()(persist((set, get) => {
             set(nextState);
           }
 
-          if (nextSelectedTreeId !== previousSelectedTreeId || (nextSelectedTreeId && subscribedTreeId !== nextSelectedTreeId)) {
+          if (nextSelectedTreeId !== previousSelectedTreeId || (nextSelectedTreeId && (subscribedTreeId !== nextSelectedTreeId || subscribedPrimaryIds !== trees.map((tree) => tree.id).sort().join(',')))) {
             subscribeToTreeData(nextSelectedTreeId);
           }
         },
@@ -544,307 +555,307 @@ export const useTreeStore = create<TreeState>()(persist((set, get) => {
     },
 
     createTree: async (owner, name) => {
-      set({ mutating: true, error: null });
+      set({ error: null });
       try {
         const tree = await createTree(owner, name);
-        set({ selectedTreeId: tree.id, mutating: false });
+        set({ selectedTreeId: tree.id });
         subscribeToTreeData(tree.id);
         return tree;
       } catch (error) {
-        set({ mutating: false, error: normaliseError(error) });
+        set({ error: normaliseError(error) });
         throw error;
       }
     },
 
     createTreeFromSurname: async (owner, sourceTreeId, surname) => {
-      set({ mutating: true, error: null });
+      set({ error: null });
       try {
         const tree = await createSuggestedSurnameTree(owner, sourceTreeId, surname);
-        set({ mutating: false, notice: 'Surname tree created.' });
+        set({ notice: 'Surname tree created.' });
         return tree;
       } catch (error) {
-        set({ mutating: false, error: normaliseError(error) });
+        set({ error: normaliseError(error) });
         throw error;
       }
     },
 
     renameTree: async (treeId, name) => {
-      set({ mutating: true, error: null });
+      set({ error: null });
       try {
         await updateTreeName(treeId, name);
-        set({ mutating: false });
+
       } catch (error) {
-        set({ mutating: false, error: normaliseError(error) });
+        set({ error: normaliseError(error) });
         throw error;
       }
     },
 
     setTreeDiscoverability: async (treeId, discoverable) => {
-      set({ mutating: true, error: null });
+      set({ error: null });
       try {
         await updateTreeDiscoverability(treeId, discoverable);
-        set({ mutating: false, notice: discoverable ? 'Tree discoverability turned on.' : 'Tree discoverability turned off.' });
+        set({ notice: discoverable ? 'Tree discoverability turned on.' : 'Tree discoverability turned off.' });
       } catch (error) {
-        set({ mutating: false, error: normaliseError(error) });
+        set({ error: normaliseError(error) });
         throw error;
       }
     },
 
     setApprovalWindowHours: async (treeId, hours) => {
-      set({ mutating: true, error: null });
+      set({ error: null });
       try {
         await updateTreeApprovalWindow(treeId, hours);
-        set({ mutating: false, notice: 'Approval window updated.' });
+        set({ notice: 'Approval window updated.' });
       } catch (error) {
-        set({ mutating: false, error: normaliseError(error) });
+        set({ error: normaliseError(error) });
         throw error;
       }
     },
 
     setTreeKinshipSystem: async (treeId, kinshipSystem) => {
-      set({ mutating: true, error: null });
+      set({ error: null });
       try {
         await updateTreeKinshipSystem(treeId, kinshipSystem);
-        set({ mutating: false, notice: 'Kinship terms updated.' });
+        set({ notice: 'Kinship terms updated.' });
       } catch (error) {
-        set({ mutating: false, error: normaliseError(error) });
+        set({ error: normaliseError(error) });
         throw error;
       }
     },
 
     setSurnameVariantGroups: async (treeId, groups) => {
-      set({ mutating: true, error: null });
+      set({ error: null });
       try {
         await updateSurnameVariantGroups(treeId, groups);
-        set({ mutating: false, notice: 'Surname variants updated.' });
+        set({ notice: 'Surname variants updated.' });
       } catch (error) {
-        set({ mutating: false, error: normaliseError(error) });
+        set({ error: normaliseError(error) });
         throw error;
       }
     },
 
     addCollaborator: async (actorUserId, treeId, email, role) => {
-      set({ mutating: true, error: null });
+      set({ error: null });
       try {
         await addCollaboratorToTree(actorUserId, treeId, email, role);
-        set({ mutating: false, notice: 'Collaborator added. Invitation email sent.' });
+        set({ notice: 'Collaborator added. Invitation email sent.' });
       } catch (error) {
-        set({ mutating: false, error: normaliseError(error) });
+        set({ error: normaliseError(error) });
         throw error;
       }
     },
 
     removeCollaborator: async (actorUserId, treeId, collaboratorUserId) => {
-      set({ mutating: true, error: null });
+      set({ error: null });
       try {
         await removeCollaboratorFromTree(actorUserId, treeId, collaboratorUserId);
-        set({ mutating: false });
+
       } catch (error) {
-        set({ mutating: false, error: normaliseError(error) });
+        set({ error: normaliseError(error) });
         throw error;
       }
     },
 
     removeTree: async (tree) => {
-      set({ mutating: true, error: null });
+      set({ error: null });
       try {
         await deleteTree(tree);
         if (get().selectedTreeId === tree.id) {
           set({ selectedTreeId: null, people: [], relationships: [] });
           stopTreeSubscriptions();
         }
-        set({ mutating: false });
+
       } catch (error) {
-        set({ mutating: false, error: normaliseError(error) });
+        set({ error: normaliseError(error) });
         throw error;
       }
     },
 
     createPerson: async (ownerId, treeId, input, newPhotos) => {
-      set({ mutating: true, error: null });
+      set({ error: null });
       try {
         const person = await createPerson(ownerId, treeId, input, newPhotos);
-        set({ mutating: false });
+
         return person;
       } catch (error) {
-        set({ mutating: false, error: normaliseError(error) });
+        set({ error: normaliseError(error) });
         throw error;
       }
     },
 
     createPersonWithRelationships: async (ownerId, treeId, input, newPhotos, pendingRelationships, options) => {
-      set({ mutating: true, error: null });
+      set({ error: null });
       try {
         const result = await createPersonWithRelationships(ownerId, treeId, input, newPhotos, pendingRelationships, options);
-        set({ mutating: false, notice: result.message });
+        set({ notice: result.message });
         return result.person ?? null;
       } catch (error) {
-        set({ mutating: false, error: normaliseError(error) });
+        set({ error: normaliseError(error) });
         throw error;
       }
     },
 
     updatePerson: async (ownerId, person, input) => {
-      set({ mutating: true, error: null });
+      set({ error: null });
       try {
         const result = await updatePerson(ownerId, person, input);
-        set({ mutating: false, notice: result.message });
+        set({ notice: result.message });
       } catch (error) {
-        set({ mutating: false, error: normaliseError(error) });
+        set({ error: normaliseError(error) });
         throw error;
       }
     },
 
     removePerson: async (actorUserId, person) => {
-      set({ mutating: true, error: null });
+      set({ error: null });
       try {
         const result = await deletePerson(actorUserId, person);
-        set({ mutating: false, notice: result.message });
+        set({ notice: result.message });
       } catch (error) {
-        set({ mutating: false, error: normaliseError(error) });
+        set({ error: normaliseError(error) });
         throw error;
       }
     },
 
     addParentChildRelationship: async (ownerId, treeId, parentId, childId, parentChildKind) => {
-      set({ mutating: true, error: null });
+      set({ error: null });
       try {
         const result = await createParentChildRelationship(ownerId, treeId, parentId, childId, parentChildKind);
-        set({ mutating: false, notice: result.message });
+        set({ notice: result.message });
       } catch (error) {
-        set({ mutating: false, error: normaliseError(error) });
+        set({ error: normaliseError(error) });
         throw error;
       }
     },
 
     addSpouseRelationship: async (ownerId, treeId, personAId, personBId, relationshipStatus) => {
-      set({ mutating: true, error: null });
+      set({ error: null });
       try {
         const result = await createSpouseRelationship(ownerId, treeId, personAId, personBId, relationshipStatus);
-        set({ mutating: false, notice: result.message });
+        set({ notice: result.message });
       } catch (error) {
-        set({ mutating: false, error: normaliseError(error) });
+        set({ error: normaliseError(error) });
         throw error;
       }
     },
 
     editRelationship: async (actorUserId, relationship, updates) => {
-      set({ mutating: true, error: null });
+      set({ error: null });
       try {
         const result = await updateRelationship(actorUserId, relationship, updates);
-        set({ mutating: false, notice: result.message });
+        set({ notice: result.message });
       } catch (error) {
-        set({ mutating: false, error: normaliseError(error) });
+        set({ error: normaliseError(error) });
         throw error;
       }
     },
 
     removeRelationship: async (actorUserId, relationshipId) => {
-      set({ mutating: true, error: null });
+      set({ error: null });
       try {
         const result = await deleteRelationship(actorUserId, relationshipId);
-        set({ mutating: false, notice: result.message });
+        set({ notice: result.message });
       } catch (error) {
-        set({ mutating: false, error: normaliseError(error) });
+        set({ error: normaliseError(error) });
         throw error;
       }
     },
 
     approveApprovalRequest: async (actorUserId, requestId) => {
-      set({ mutating: true, error: null });
+      set({ error: null });
       try {
         await decideApprovalRequest(actorUserId, requestId, 'approve');
-        set({ mutating: false, notice: 'Approval request approved.' });
+        set({ notice: 'Approval request approved.' });
       } catch (error) {
-        set({ mutating: false, error: normaliseError(error) });
+        set({ error: normaliseError(error) });
         throw error;
       }
     },
 
     rejectApprovalRequest: async (actorUserId, requestId) => {
-      set({ mutating: true, error: null });
+      set({ error: null });
       try {
         await decideApprovalRequest(actorUserId, requestId, 'reject');
-        set({ mutating: false, notice: 'Approval request rejected.' });
+        set({ notice: 'Approval request rejected.' });
       } catch (error) {
-        set({ mutating: false, error: normaliseError(error) });
+        set({ error: normaliseError(error) });
         throw error;
       }
     },
 
     createMergeRequest: async (actorUserId, sourceTreeId, targetTreeId) => {
-      set({ mutating: true, error: null });
+      set({ error: null });
       try {
         await createMergeRequest(actorUserId, sourceTreeId, targetTreeId);
-        set({ mutating: false, notice: 'Merge request submitted for review.' });
+        set({ notice: 'Merge request submitted for review.' });
       } catch (error) {
-        set({ mutating: false, error: normaliseError(error) });
+        set({ error: normaliseError(error) });
         throw error;
       }
     },
 
     sendMergeInvite: async (actorUserId, sourceTreeId, identifier) => {
-      set({ mutating: true, error: null });
+      set({ error: null });
       try {
         await sendMergeInviteByIdentifier(actorUserId, sourceTreeId, identifier);
-        set({ mutating: false, notice: 'Merge invitation sent.' });
+        set({ notice: 'Merge invitation sent.' });
       } catch (error) {
-        set({ mutating: false, error: normaliseError(error) });
+        set({ error: normaliseError(error) });
         throw error;
       }
     },
 
     requestTreeAccess: async (actorUserId, treeId) => {
-      set({ mutating: true, error: null });
+      set({ error: null });
       try {
         await requestAccessToTree(actorUserId, treeId);
-        set({ mutating: false, notice: 'Access request sent.' });
+        set({ notice: 'Access request sent.' });
       } catch (error) {
-        set({ mutating: false, error: normaliseError(error) });
+        set({ error: normaliseError(error) });
         throw error;
       }
     },
 
     requestTreeAccessByIdentifier: async (actorUserId, identifier) => {
-      set({ mutating: true, error: null });
+      set({ error: null });
       try {
         await requestAccessFromIdentifier(actorUserId, identifier);
-        set({ mutating: false, notice: 'Access request sent.' });
+        set({ notice: 'Access request sent.' });
       } catch (error) {
-        set({ mutating: false, error: normaliseError(error) });
+        set({ error: normaliseError(error) });
         throw error;
       }
     },
 
     cancelTreeAccessRequest: async (actorUserId, notificationId) => {
-      set({ mutating: true, error: null });
+      set({ error: null });
       try {
         await cancelTreeAccessRequest(actorUserId, notificationId);
-        set({ mutating: false, notice: 'Access request cancelled.' });
+        set({ notice: 'Access request cancelled.' });
       } catch (error) {
-        set({ mutating: false, error: normaliseError(error) });
+        set({ error: normaliseError(error) });
         throw error;
       }
     },
 
     respondToMergeInvite: async (actorUserId, notificationId, status) => {
-      set({ mutating: true, error: null });
+      set({ error: null });
       try {
         await respondToMergeInvite(actorUserId, notificationId, status);
-        set({ mutating: false, notice: status === 'accepted' ? 'Merge invitation accepted.' : 'Merge invitation dismissed.' });
+        set({ notice: status === 'accepted' ? 'Merge invitation accepted.' : 'Merge invitation dismissed.' });
       } catch (error) {
-        set({ mutating: false, error: normaliseError(error) });
+        set({ error: normaliseError(error) });
         throw error;
       }
     },
 
     respondToTreeAccessRequest: async (actorUserId, notificationId, status) => {
-      set({ mutating: true, error: null });
+      set({ error: null });
       try {
         await respondToTreeAccessRequest(actorUserId, notificationId, status);
-        set({ mutating: false, notice: status === 'accepted' ? 'Access request approved.' : 'Access request declined.' });
+        set({ notice: status === 'accepted' ? 'Access request approved.' : 'Access request declined.' });
       } catch (error) {
-        set({ mutating: false, error: normaliseError(error) });
+        set({ error: normaliseError(error) });
         throw error;
       }
     },
@@ -870,144 +881,144 @@ export const useTreeStore = create<TreeState>()(persist((set, get) => {
     },
 
     markNotificationSeen: async (actorUserId, notificationId) => {
-      set({ mutating: true, error: null });
+      set({ error: null });
       try {
         await markNotificationSeen(actorUserId, notificationId);
-        set({ mutating: false });
+
       } catch (error) {
-        set({ mutating: false, error: normaliseError(error) });
+        set({ error: normaliseError(error) });
         throw error;
       }
     },
 
     markNotificationOpened: async (actorUserId, notificationId) => {
-      set({ mutating: true, error: null });
+      set({ error: null });
       try {
         await markNotificationOpened(actorUserId, notificationId);
-        set({ mutating: false });
+
       } catch (error) {
-        set({ mutating: false, error: normaliseError(error) });
+        set({ error: normaliseError(error) });
         throw error;
       }
     },
 
     markNotificationActivityActioned: async (actorUserId, sourceKind, sourceId) => {
-      set({ mutating: true, error: null });
+      set({ error: null });
       try {
         await markNotificationActivityActioned(actorUserId, sourceKind, sourceId);
-        set({ mutating: false });
+
       } catch (error) {
-        set({ mutating: false, error: normaliseError(error) });
+        set({ error: normaliseError(error) });
         throw error;
       }
     },
 
     deleteNotification: async (actorUserId, notificationId) => {
-      set({ mutating: true, error: null });
+      set({ error: null });
       try {
         await deleteNotification(actorUserId, notificationId);
-        set({ mutating: false, notice: 'Notification deleted.' });
+        set({ notice: 'Notification deleted.' });
       } catch (error) {
-        set({ mutating: false, error: normaliseError(error) });
+        set({ error: normaliseError(error) });
         throw error;
       }
     },
 
     deleteNotificationActivity: async (actorUserId, sourceKind, sourceId) => {
-      set({ mutating: true, error: null });
+      set({ error: null });
       try {
         await deleteNotificationActivity(actorUserId, sourceKind, sourceId);
-        set({ mutating: false, notice: 'Notification deleted.' });
+        set({ notice: 'Notification deleted.' });
       } catch (error) {
-        set({ mutating: false, error: normaliseError(error) });
+        set({ error: normaliseError(error) });
         throw error;
       }
     },
 
     deleteAllNotifications: async (actorUserId, notificationIds, activityTargets) => {
-      set({ mutating: true, error: null });
+      set({ error: null });
       try {
         await deleteAllNotifications(actorUserId, notificationIds, activityTargets);
-        set({ mutating: false, notice: 'Notifications deleted.' });
+        set({ notice: 'Notifications deleted.' });
       } catch (error) {
-        set({ mutating: false, error: normaliseError(error) });
+        set({ error: normaliseError(error) });
         throw error;
       }
     },
 
     loadMergePreview: async (sourceTreeId, targetTreeId) => {
-      set({ mutating: true, error: null });
+      set({ error: null });
       try {
         const preview = await getMergePreview(sourceTreeId, targetTreeId);
-        set({ mutating: false, mergePreview: preview });
+        set({ mergePreview: preview });
       } catch (error) {
-        set({ mutating: false, error: normaliseError(error) });
+        set({ error: normaliseError(error) });
         throw error;
       }
     },
 
     approveMergeRequest: async (actorUserId, requestId, comment, selectedMatchIds, conflictChoices) => {
-      set({ mutating: true, error: null });
+      set({ error: null });
       try {
         await reviewMergeRequest(actorUserId, requestId, 'approve', comment, conflictChoices, selectedMatchIds);
-        set({ mutating: false, notice: 'Merge request approved.' });
+        set({ notice: 'Merge request approved.' });
       } catch (error) {
-        set({ mutating: false, error: normaliseError(error) });
+        set({ error: normaliseError(error) });
         throw error;
       }
     },
 
     rejectMergeRequest: async (actorUserId, requestId, comment) => {
-      set({ mutating: true, error: null });
+      set({ error: null });
       try {
         await reviewMergeRequest(actorUserId, requestId, 'reject', comment);
-        set({ mutating: false, notice: 'Merge request rejected.' });
+        set({ notice: 'Merge request rejected.' });
       } catch (error) {
-        set({ mutating: false, error: normaliseError(error) });
+        set({ error: normaliseError(error) });
         throw error;
       }
     },
 
     requestMergeChanges: async (actorUserId, requestId, comment, selectedMatchIds, conflictChoices) => {
-      set({ mutating: true, error: null });
+      set({ error: null });
       try {
         await reviewMergeRequest(actorUserId, requestId, 'request-changes', comment, conflictChoices, selectedMatchIds);
-        set({ mutating: false, notice: 'Changes requested for merge.' });
+        set({ notice: 'Changes requested for merge.' });
       } catch (error) {
-        set({ mutating: false, error: normaliseError(error) });
+        set({ error: normaliseError(error) });
         throw error;
       }
     },
 
     undoMerge: async (actorUserId, requestId) => {
-      set({ mutating: true, error: null });
+      set({ error: null });
       try {
         await undoMergeRequest(actorUserId, requestId);
-        set({ mutating: false, notice: 'Merge undo applied.' });
+        set({ notice: 'Merge undo applied.' });
       } catch (error) {
-        set({ mutating: false, error: normaliseError(error) });
+        set({ error: normaliseError(error) });
         throw error;
       }
     },
 
     grantMergeViewerAccess: async (actorUserId, requestId, treeId) => {
-      set({ mutating: true, error: null });
+      set({ error: null });
       try {
         await grantMergeRequesterViewerAccess(actorUserId, requestId, treeId);
-        set({ mutating: false, notice: 'Viewer access granted.' });
+        set({ notice: 'Viewer access granted.' });
       } catch (error) {
-        set({ mutating: false, error: normaliseError(error) });
+        set({ error: normaliseError(error) });
         throw error;
       }
     },
 
     assignPersonToUser: async (actorUserId, treeId, targetUserId, personId) => {
-      set({ mutating: true, error: null });
+      set({ error: null });
       try {
         await assignTreePersonToUser(actorUserId, treeId, targetUserId, personId);
-        set({ mutating: false });
+
       } catch (error) {
-        set({ mutating: false, error: normaliseError(error) });
+        set({ error: normaliseError(error) });
         throw error;
       }
     },
@@ -1017,12 +1028,12 @@ export const useTreeStore = create<TreeState>()(persist((set, get) => {
     },
 
     clearSelfAssignment: async (treeId, userId) => {
-      set({ mutating: true, error: null });
+      set({ error: null });
       try {
         await clearTreePersonAssignment(treeId, userId);
-        set({ mutating: false });
+
       } catch (error) {
-        set({ mutating: false, error: normaliseError(error) });
+        set({ error: normaliseError(error) });
         throw error;
       }
     },
@@ -1054,10 +1065,16 @@ export const useTreeStore = create<TreeState>()(persist((set, get) => {
       });
     },
   };
+  const actions = initialState as unknown as Record<string, (...args: unknown[]) => Promise<unknown>>;
+  for (const name of ["createTree","createTreeFromSurname","renameTree","setTreeDiscoverability","setApprovalWindowHours","setTreeKinshipSystem","setSurnameVariantGroups","addCollaborator","removeCollaborator","removeTree","createPerson","createPersonWithRelationships","updatePerson","removePerson","addParentChildRelationship","addSpouseRelationship","editRelationship","removeRelationship","approveApprovalRequest","rejectApprovalRequest","createMergeRequest","sendMergeInvite","requestTreeAccess","requestTreeAccessByIdentifier","cancelTreeAccessRequest","respondToMergeInvite","respondToTreeAccessRequest","searchDiscoverableTrees","searchDiscoverableTreesByUsername","markNotificationSeen","markNotificationOpened","markNotificationActivityActioned","deleteNotification","deleteNotificationActivity","deleteAllNotifications","loadMergePreview","approveMergeRequest","rejectMergeRequest","requestMergeChanges","undoMerge","grantMergeViewerAccess","assignPersonToUser","assignSelfToPerson","clearSelfAssignment"]) {
+    const action = actions[name];
+    actions[name] = (...args) => trackOperation(name, () => action(...args), (mutating) => set({ mutating }));
+  }
+  return initialState;
 }, {
   name: TREE_STORE_STORAGE_KEY,
   version: TREE_STORE_CACHE_VERSION,
-  storage: createJSONStorage(() => AsyncStorage),
+  storage: selectiveStorage(createJSONStorage<PersistedTreeState>(() => AsyncStorage)!),
   partialize: (state): PersistedTreeState => ({
     currentUserId: state.currentUserId,
     trees: state.trees,

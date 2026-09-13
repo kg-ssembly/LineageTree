@@ -4,49 +4,284 @@
       "collectionGroup": "relationships",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "treeId", "order": "ASCENDING" },
-        { "fieldPath": "type", "order": "ASCENDING" },
-        { "fieldPath": "toPersonId", "order": "ASCENDING" }
+        {
+          "fieldPath": "treeId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "type",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "toPersonId",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "relationships",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "treeId", "order": "ASCENDING" },
-        { "fieldPath": "fromPersonId", "order": "ASCENDING" }
+        {
+          "fieldPath": "treeId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "fromPersonId",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "relationships",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "treeId", "order": "ASCENDING" },
-        { "fieldPath": "toPersonId", "order": "ASCENDING" }
+        {
+          "fieldPath": "treeId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "toPersonId",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "approvalRequests",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "treeId", "order": "ASCENDING" },
-        { "fieldPath": "status", "order": "ASCENDING" }
+        {
+          "fieldPath": "treeId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        }
       ]
     },
     {
       "collectionGroup": "trees",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "discoverable", "order": "ASCENDING" },
-        { "fieldPath": "searchKeywords", "arrayConfig": "CONTAINS" }
+        {
+          "fieldPath": "discoverable",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "searchKeywords",
+          "arrayConfig": "CONTAINS"
+        }
       ]
     },
     {
       "collectionGroup": "trees",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "ownerId", "order": "ASCENDING" },
-        { "fieldPath": "discoverable", "order": "ASCENDING" }
+        {
+          "fieldPath": "ownerId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "discoverable",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "approvalRequests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "treeId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "updatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "mergeRequests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "involvedTreeIds",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "updatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "mergeRequests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "involvedTreeIds",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "mergeHistory",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "involvedTreeIds",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "updatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "notifications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "userId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "updatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "notifications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "userId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "approvalRequests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "expiresAtMillis",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "persons",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "treeMembershipIds",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "treeId",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "mergeRequests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "sourceTreeId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "updatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "mergeRequests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "sourceTreeId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "mergeRequests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "targetTreeId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "updatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "mergeRequests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "targetTreeId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "mergeHistory",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "sourceTreeId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "updatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "mergeHistory",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "targetTreeId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "updatedAt",
+          "order": "DESCENDING"
+        }
       ]
     }
   ],

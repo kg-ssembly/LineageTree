@@ -1,3 +1,4 @@
+import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { requestTreeAccess, respondToAccess } from './services/tree-access-function';
 import { archivePerson, restoreDeletedPerson } from './services/person-recovery-function';
 import { initializeApp } from 'firebase-admin/app';
@@ -470,4 +471,8 @@ export const requestTreeAccessServer = onCall(async (request) => {
 export const respondToTreeAccessServer = onCall(async (request) => {
   if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in to respond.');
   return respondToAccess(db, request.auth.uid, String(request.data?.notificationId ?? ''), String(request.data?.status ?? ''));
+});
+
+export const expireApprovalRequests = onSchedule({ schedule: "every 5 minutes", timeZone: "UTC", timeoutSeconds: 540, maxInstances: 1, retryCount: 3 }, async () => {
+  await approvalDecisionFunction.processScheduledExpirations();
 });

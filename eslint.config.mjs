@@ -12,11 +12,15 @@ export default [
       '.expo/**',
       '.test-dist/**',
       'dist/**',
+      'functions/lib/**',
+      'playwright-report/**',
+      'test-results/**',
       'node_modules/**',
       'web-build/**',
     ],
   },
   js.configs.recommended,
+  { files: ['**/*.{js,cjs,mjs}'], languageOptions: { globals: { ...globals.node } } },
   {
     files: ['**/*.{ts,tsx}'],
     languageOptions: {

@@ -13,7 +13,7 @@ import {
 import type { PersonLifeEvent, PersonRecord } from '../components/dto/person';
 import type { UserProfile } from '../components/dto/user';
 import { formatPersonName, mapLifeEvent, mapPerson, mapRelationship, mapTreeData, mergeUniqueById, normaliseLifeEvents } from './family-tree-mappers';
-import { db } from './firebase-provider';
+import { auth, db } from './firebase-provider';
 import { personRecordBelongsToTree } from './family-tree-membership';
 import { nowIso } from './family-tree-shared';
 
@@ -48,7 +48,7 @@ function normaliseDisplayName(displayName: string) {
 }
 
 function needsTreeMembershipBackfill(data: DocumentData, treeId: string) {
-  return !personRecordBelongsToTree(data, treeId);
+  return data.treeId === treeId && !Array.isArray(data.treeMembershipIds);
 }
 
 export async function getLegacyPeopleNeedingBackfill(treeId: string) {
@@ -313,10 +313,13 @@ export async function getTreeById(treeId: string) {
 }
 
 export async function getPeopleByTreeId(treeId: string) {
-  const [membershipSnapshot, legacyPeople] = await Promise.all([
-    getDocs(query(collection(db, PEOPLE_COLLECTION), where('treeMembershipIds', 'array-contains', treeId))),
-    getLegacyPeopleNeedingBackfill(treeId),
-  ]);
+  if (!auth.currentUser) throw new Error('Sign in to load this family tree.');
+  const trees = await getDocs(query(collection(db, TREES_COLLECTION), where('memberIds', 'array-contains', auth.currentUser.uid)));
+  const ids = trees.docs.map((tree) => tree.id);
+  const chunks = Array.from({ length: Math.ceil(ids.length / 10) }, (_, i) => ids.slice(i * 10, (i + 1) * 10));
+  const snapshots = await Promise.all(chunks.map((ids) => getDocs(query(collection(db, PEOPLE_COLLECTION), where('treeMembershipIds', 'array-contains', treeId), where('treeId', 'in', ids)))));
+  const membershipSnapshot = { docs: snapshots.flatMap((snapshot) => snapshot.docs) };
+  const legacyPeople = process.env.EXPO_PUBLIC_MEMBERSHIP_MIGRATED === 'true' ? [] : await getLegacyPeopleNeedingBackfill(treeId);
 
   return mergeUniqueById([
     ...membershipSnapshot.docs.map(mapPerson),

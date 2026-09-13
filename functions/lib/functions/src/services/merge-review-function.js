@@ -470,6 +470,7 @@ class MergeReviewFunction {
         batch.set(this.db.collection(admin_family_tree_utils_1.MERGE_HISTORY_COLLECTION).doc(mergeRequestId), {
             mergeRequestId,
             involvedTreeIds: request.involvedTreeIds,
+            sourceTreeId: request.sourceTreeId, targetTreeId: request.targetTreeId,
             summary: `${request.preview.duplicateCount} duplicate relatives merged between ${request.preview.sourceTree.treeName} and ${request.preview.targetTree.treeName}.`,
             status: 'applied',
             preview: request.preview,

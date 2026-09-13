@@ -1,3 +1,4 @@
+import { startMetric, finishMetric } from './components/performance-metrics';
 import React, { Component, type ErrorInfo, type ReactNode, useEffect, useState } from 'react';
 import { ActivityIndicator, Platform, ScrollView, Text, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
@@ -70,6 +71,7 @@ function RootNavigatorLoader() {
   return <RootNavigator />;
 }
 
+startMetric('startup.ready.ms');
 function AppShell() {
   const authLoading = useAuthStore((state) => state.loading);
   const initAuth = useAuthStore((state) => state.init);
@@ -129,6 +131,8 @@ function AppShell() {
   useEffect(() => {
     setActiveLanguage(language);
   }, [language]);
+
+  useEffect(() => { if (fontsLoaded && authReady && updateCheckComplete) finishMetric('startup.ready.ms'); }, [fontsLoaded, authReady, updateCheckComplete]);
 
   if (!fontsLoaded || !authReady || !updateCheckComplete) {
     return (

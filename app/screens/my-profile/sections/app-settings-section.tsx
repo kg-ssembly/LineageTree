@@ -1,3 +1,4 @@
+import { PerformanceDiagnostics } from '../../../../components/performance-diagnostics';
 import React, { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { Button, Dialog, Portal, RadioButton, SegmentedButtons, Text, TextInput, useTheme } from 'react-native-paper';
@@ -160,6 +161,7 @@ export function AppSettingsSection({ onSignOut, authLoading }: UserProfileTabPro
         </SectionCard>
       </Reveal>
 
+      <PerformanceDiagnostics />
       <Button mode="outlined" icon="logout" onPress={onSignOut} disabled={authLoading} contentStyle={styles.signOutButtonContent} style={styles.signOutButton} buttonColor={theme.colors.surface} textColor={theme.colors.primary}>
         {t(K.common.logOut)}
       </Button>

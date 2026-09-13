@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { AppState } from 'react-native';
 
 /** Account/record-scoped drafts. Existing drafts are offered, never silently applied. */
 export function useFormDraft<T>(key: string, visible: boolean, value: T) {
@@ -18,6 +19,8 @@ export function useFormDraft<T>(key: string, visible: boolean, value: T) {
     if (!visible) { setReady(false); return; }
     let active = true;
     completed.current = false;
+    generation.current += 1;
+    setError('');
     setReady(false);
     setAvailable(null);
     // Let the form initialise its fields before recording its unchanged baseline.
@@ -36,6 +39,14 @@ export function useFormDraft<T>(key: string, visible: boolean, value: T) {
     queue.current = queue.current.catch(() => {}).then(() => AsyncStorage.setItem(key, raw));
     await queue.current;
   }, [key]);
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state !== 'active' && visible && ready && !available && !completed.current && JSON.stringify(latest.current) !== baseline.current) {
+        void save().catch(() => setError('Draft could not be saved on this device.'));
+      }
+    });
+    return () => subscription.remove();
+  }, [visible, ready, available, save]);
   const clear = async (submitted = false) => {
     completed.current = submitted;
     generation.current += 1;

@@ -81,7 +81,7 @@ export function ApprovalsSection({
                             {canReview ? t(K.treeSettings.needsYourReview) : t(K.treeSettings.awaitingReview)}
                           </Chip>
                           <Chip compact icon={expiresSoon ? 'timer-alert-outline' : 'timer-outline'}>
-                            {t(K.treeSettings.autoApprovesAt, { date: request.expiresAt.slice(0, 16).replace('T', ' ') })}
+                            {expiresSoon ? t('Approval deadline reached. Waiting for automatic processing.') : t(K.treeSettings.autoApprovesAt, { date: new Date(request.expiresAtMillis).toLocaleString() })}
                           </Chip>
                         </View>
                         <Text variant="titleMedium" style={styles.selfAssignmentTitle}>{request.title}</Text>

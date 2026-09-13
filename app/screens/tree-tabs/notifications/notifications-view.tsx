@@ -1,3 +1,5 @@
+import { ACTIVITY_OPERATIONS, isOperationPending, useOperationStore } from '../../../../stores/operation-store';
+import { loadMoreActivity, useActivityPaginationStore } from '../../../../stores/activity-pagination-store';
 import { needsNotificationAction } from '../../../../components/notification-attention';
 import { canUserReviewApprovalRequest } from '../../../../components/dto/approval';
 import { canEditTreeContent } from '../../../../components/dto/tree';
@@ -123,7 +125,6 @@ export function NotificationsView({
   notificationActivityStates,
   trees,
   userId,
-  mutating,
   loadingTreeData,
   loadingNotifications = false,
   openConfirm,
@@ -141,6 +142,10 @@ export function NotificationsView({
   scrollable = !embedded,
   navigation,
 }: SharedTabProps & { embedded?: boolean; scrollable?: boolean; navigation: { navigate: (name: keyof MainTabParamList) => void } }) {
+  const mutating = useOperationStore((state) => isOperationPending(state.pending, ACTIVITY_OPERATIONS));
+  const historyPages = useActivityPaginationStore((state) => state.pages);
+  const hasMoreHistory = Object.values(historyPages).some((page) => page.hasMore);
+  const loadingHistory = Object.values(historyPages).some((page) => page.loading);
   const theme = useTheme();
   const { t } = useI18n();
   const [selectedNotification, setSelectedNotification] = useState<NotificationFeedItem | null>(null);
@@ -855,6 +860,7 @@ export function NotificationsView({
   return (
     <ScrollView contentContainerStyle={styles.content}>
       {content}
+      {hasMoreHistory ? <Button loading={loadingHistory} disabled={loadingHistory} onPress={loadMoreActivity}>{t("Load older activity")}</Button> : null}
     </ScrollView>
   );
 }

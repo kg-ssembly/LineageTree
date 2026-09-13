@@ -910,36 +910,30 @@ export function useMainScreenController({ navigation }: Props) {
 
   const handlePersonSubmit = useCallback(async (payload: PersonFormSubmission) => {
     if (!user?.id || !selectedTree) {
-      return;
+      throw new Error('Your session or selected tree changed. Sign in and reopen this draft before saving.');
     }
 
-    try {
-      if (personDialog.mode === 'create') {
-        await createPersonFromPayload(payload);
-      } else if (personDialog.person) {
-        await updatePerson(user.id, personDialog.person, payload);
-      }
-      closePersonDialog();
-    } catch (error) {
-      throw error; // Keep form and draft available for retry.
+    if (personDialog.mode === 'create') {
+      await createPersonFromPayload(payload);
+    } else if (personDialog.person) {
+      await updatePerson(user.id, personDialog.person, payload);
     }
+    closePersonDialog();
+
   }, [closePersonDialog, createPersonFromPayload, personDialog.mode, personDialog.person, selectedTree, updatePerson, user?.id]);
 
   const handleSelfPersonSubmit = useCallback(async (payload: PersonFormSubmission) => {
     if (!user?.id || !selectedTree) {
-      return;
+      throw new Error('Your session or selected tree changed. Sign in and reopen this draft before saving.');
     }
 
-    try {
-      const created = await createSelfPersonFromPayload(payload);
-      if (created) {
-        await assignPersonToUser(user.id, selectedTree.id, user.id, created.id);
-        setFollowUpTreePromptsPending(true);
-      }
-      setSelfPersonDialogVisible(false);
-    } catch (error) {
-      throw error; // Keep form and draft available for retry.
+    const created = await createSelfPersonFromPayload(payload);
+    if (created) {
+      await assignPersonToUser(user.id, selectedTree.id, user.id, created.id);
+      setFollowUpTreePromptsPending(true);
     }
+    setSelfPersonDialogVisible(false);
+
   }, [assignPersonToUser, createSelfPersonFromPayload, selectedTree, user?.id]);
 
   const handleAssignPersonToUser = useCallback(async (targetUserId: string, personId: string) => {
@@ -1341,6 +1335,9 @@ export function useMainScreenController({ navigation }: Props) {
     );
 
     const directAlerts = notifications.flatMap<PriorityAlertState>((notification) => {
+      // Closing an alert acknowledges its presentation, not the pending decision.
+      // Keep it actionable in Inbox without reopening the modal after every reload.
+      if (notification.status === 'pending' && (notification.seenAt || notification.openedAt)) return [];
       if (notification.type === 'tree-access-request' && notification.status === 'pending') {
         return [{
           id: `priority-notification-${notification.id}`,

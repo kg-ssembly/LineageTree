@@ -2,6 +2,9 @@
 
 A React Native + Expo family tree app backed by Firebase Authentication, Firestore, and Storage.
 
+See [reliability release and rollout](docs/reliability-release.md) for the release gate,
+local browser/emulator tests, performance diagnostics, and migration/deployment order.
+
 ## Implemented features
 
 - Multiple family trees per signed-in user

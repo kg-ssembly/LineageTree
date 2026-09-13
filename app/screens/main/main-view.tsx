@@ -1,4 +1,6 @@
+import { PERSON_OPERATIONS, RELATIONSHIP_OPERATIONS, isOperationPending, useOperationStore } from '../../../stores/operation-store';
 import React from 'react';
+import { SyncStatusBanner } from '../../../components/sync-status-banner';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import {
   CollaboratorDialog,
@@ -65,9 +67,13 @@ const dialogChrome = StyleSheet.create({
 });
 
 export function MainScreenView({ controller }: { controller: ReturnType<typeof useMainScreenController> }) {
+  const personBusy = useOperationStore((state) => isOperationPending(state.pending, PERSON_OPERATIONS));
+  const relationshipBusy = useOperationStore((state) => isOperationPending(state.pending, RELATIONSHIP_OPERATIONS));
+  const treeBusy = useOperationStore((state) => isOperationPending(state.pending, ['createTree', 'renameTree', 'removeTree', 'createTreeFromSurname']));
+  const collaboratorBusy = useOperationStore((state) => isOperationPending(state.pending, ['addCollaborator', 'removeCollaborator']));
   const isWaitingForInitialTreeSelection = controller.loadingTrees
     || (controller.trees.length > 0 && !controller.selectedTree && !controller.sharedTabProps);
-  const isSharedLoaderVisible = controller.mutating || controller.startupModal.loading || controller.discoverabilityPrompt.loading;
+  const isSharedLoaderVisible = controller.startupModal.loading || controller.discoverabilityPrompt.loading;
 
   const noTreeGate = (
     <MainNoTreeGate
@@ -80,6 +86,7 @@ export function MainScreenView({ controller }: { controller: ReturnType<typeof u
   return (
     <View style={[styles.container, { backgroundColor: controller.theme.colors.background }]}>
       <ScreenBackground />
+      <SyncStatusBanner />
       <MainTabNavigator controller={controller} noTreeGate={noTreeGate} styles={styles} />
       {isWaitingForInitialTreeSelection ? <View style={[StyleSheet.absoluteFillObject, { zIndex: 10, backgroundColor: controller.theme.colors.background, justifyContent: 'center', alignItems: 'center' }]}>
         <ActivityIndicator size="large" color={controller.theme.colors.primary} />
@@ -87,7 +94,7 @@ export function MainScreenView({ controller }: { controller: ReturnType<typeof u
 
       <CollaboratorDialog
         visible={controller.collaboratorDialogVisible && !isSharedLoaderVisible}
-        loading={controller.mutating}
+        loading={collaboratorBusy}
         onDismiss={controller.closeCollaboratorDialog}
         onSubmit={controller.dialogActions.handleCollaboratorSubmit}
       />
@@ -109,7 +116,7 @@ export function MainScreenView({ controller }: { controller: ReturnType<typeof u
         mode={controller.personDialog.mode}
         person={controller.personDialog.person}
         initialPendingRelationships={controller.personDialog.initialPendingRelationships}
-        loading={controller.mutating}
+        loading={personBusy}
         existingLastNames={controller.existingLastNames}
         relationshipCandidates={controller.personDialogRelationshipCandidates}
         relationships={controller.relationships}
@@ -126,7 +133,7 @@ export function MainScreenView({ controller }: { controller: ReturnType<typeof u
         visible={controller.selfPersonDialogVisible}
         mode="create"
         initialValues={controller.selfInitialValues}
-        loading={controller.mutating}
+        loading={personBusy}
         existingLastNames={controller.existingLastNames}
         relationshipCandidates={controller.sharedTabProps?.people ?? []}
         onDismiss={controller.closeSelfPersonDialog}
@@ -137,7 +144,7 @@ export function MainScreenView({ controller }: { controller: ReturnType<typeof u
         visible={controller.relationshipDialogVisible && !isSharedLoaderVisible}
         people={controller.sharedTabProps?.people ?? []}
         relationships={controller.relationships}
-        loading={controller.mutating}
+        loading={relationshipBusy}
         onDismiss={controller.closeRelationshipDialog}
         onSubmit={controller.dialogActions.handleRelationshipSubmit}
       />
@@ -146,7 +153,7 @@ export function MainScreenView({ controller }: { controller: ReturnType<typeof u
         visible={controller.treeDialog.visible && !isSharedLoaderVisible}
         mode={controller.treeDialog.mode}
         tree={controller.treeDialog.tree}
-        loading={controller.mutating}
+        loading={treeBusy}
         onDismiss={controller.closeTreeDialog}
         onSubmit={controller.dialogActions.handleTreeDialogSubmit}
         onDelete={controller.treeDialog.mode === 'edit' && controller.treeDialog.tree && canManageTree(controller.treeDialog.tree, controller.user?.id)

@@ -1,358 +1,191 @@
-import { archivePerson } from './person-recovery-function';
 import { HttpsError } from 'firebase-functions/v2/https';
-import type { Firestore } from 'firebase-admin/firestore';
-import type { ApprovalRequest, ApprovalRequestPayload } from '../../../components/dto/approval';
-import type { PersonRecord, PersonPhoto } from '../../../components/dto/person';
-import { DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND, DEFAULT_SPOUSE_RELATIONSHIP_STATUS } from '../../../components/dto/relationship';
-import {
-  APPROVAL_REQUESTS_COLLECTION,
-  PEOPLE_COLLECTION,
-  RELATIONSHIPS_COLLECTION,
-  TREES_COLLECTION,
-  deleteDocumentRefs,
-  deleteStoragePhotos,
-  formatPersonName,
-  getParentIdsForChild,
-  getRelationshipsTouchingPerson,
-  getTreeById,
-  mapApprovalRequestData,
-  normaliseLifeEvents,
-  nowIso,
-  updateParentLifeEventsForChild,
-} from '../shared/admin-family-tree-utils';
+import { logger } from 'firebase-functions';
+import type { Firestore, Transaction, DocumentData } from 'firebase-admin/firestore';
+import type { ApprovalRequestPayload } from '../../../components/dto/approval';
+import { archivePerson } from './person-recovery-function';
+import { mapApprovalRequestData, normaliseLifeEvents, deleteStoragePhotos } from '../shared/admin-family-tree-utils';
+
+type Write = () => void;
 
 export class ApprovalDecisionFunction {
   constructor(private readonly db: Firestore) {}
 
   async decide(actorUserId: string, requestId: string, decision: 'approve' | 'reject', auto = false) {
-    const requestRef = this.db.collection(APPROVAL_REQUESTS_COLLECTION).doc(requestId);
-    const requestSnapshot = await requestRef.get();
-    if (!requestSnapshot.exists) {
-      throw new HttpsError('not-found', 'That approval request no longer exists.');
-    }
-
-    const request = mapApprovalRequestData(requestSnapshot.id, requestSnapshot.data() ?? {});
-    if (request.status !== 'pending') {
-      return { ok: true };
-    }
-
-    if (!auto && !request.eligibleApproverIds.includes(actorUserId)) {
-      throw new HttpsError('permission-denied', 'You cannot review this approval request.');
-    }
-
-    const decisionTime = nowIso();
-    if (decision === 'reject') {
-      await this.handleRejectedRequest(request);
-      await requestRef.update({
-        status: 'rejected',
-        decisionMode: auto ? 'auto' : 'manual',
-        decidedAt: decisionTime,
+    const requestRef = this.db.collection('approvalRequests').doc(requestId);
+    const cleanup = await this.db.runTransaction(async (tx) => {
+      const snapshot = await tx.get(requestRef);
+      if (!snapshot.exists) throw new HttpsError('not-found', 'That approval request no longer exists.');
+      const request = mapApprovalRequestData(snapshot.id, snapshot.data() ?? {});
+      const tree = await tx.get(this.db.collection('trees').doc(request.treeId));
+      if (!tree.exists) throw new HttpsError('not-found', 'That tree no longer exists.');
+      if (!auto && (!tree.data()?.memberIds?.includes(actorUserId) || !request.eligibleApproverIds.includes(actorUserId) || actorUserId === request.requestedByUserId)) {
+        throw new HttpsError('permission-denied', 'You cannot review this approval request.');
+      }
+      if (request.status !== 'pending') return [];
+      if (decision === 'approve' && !tree.data()?.editorIds?.includes(request.requestedByUserId)) {
+        throw new HttpsError('failed-precondition', 'The requester no longer has permission to change this tree.');
+      }
+      if (auto && (!Number.isFinite(request.expiresAtMillis) || request.expiresAtMillis <= 0 || request.expiresAtMillis > Date.now())) {
+        throw new HttpsError('failed-precondition', 'This approval is not due yet.');
+      }
+      const timestamp = new Date().toISOString();
+      const label = tree.data()?.collaborators?.find((entry: { userId: string }) => entry.userId === actorUserId);
+      if (decision === 'approve') {
+        await this.apply(tx, request.treeId, request.operation, request.payload, timestamp);
+      }
+      // The domain mutations and terminal status commit together. Retries cannot reapply a change.
+      tx.update(requestRef, {
+        status: decision === 'approve' ? 'applied' : 'rejected',
+        decisionMode: auto ? 'auto' : 'manual', decidedAt: timestamp,
         decidedByUserId: auto ? '' : actorUserId,
-        decidedByLabel: auto ? 'Automatic approval timer' : await this.getRequesterLabel(request.treeId, actorUserId),
-        updatedAt: decisionTime,
+        decidedByLabel: auto ? 'Automatic approval timer' : label?.displayName || label?.email || 'A collaborator',
+        ...(decision === 'approve' ? { appliedAt: timestamp } : {}), updatedAt: timestamp,
       });
-      return { ok: true };
-    }
-
-    await this.applyApprovedRequest(request);
-    const appliedAt = nowIso();
-    await requestRef.update({
-      status: 'applied',
-      decisionMode: auto ? 'auto' : 'manual',
-      decidedAt: decisionTime,
-      decidedByUserId: auto ? '' : actorUserId,
-      decidedByLabel: auto ? 'Automatic approval timer' : await this.getRequesterLabel(request.treeId, actorUserId),
-      appliedAt,
-      updatedAt: appliedAt,
+      return decision === 'reject' ? [...(request.payload.uploadedPhotos ?? []), ...(request.payload.cleanupPhotos ?? [])] : [];
     });
-
+    // Storage cleanup must never cause the committed decision to be reported as failed.
+    if (cleanup.length) {
+      try { await deleteStoragePhotos(cleanup); }
+      catch { logger.warn('Approval photo cleanup requires retry', { requestId }); }
+    }
     return { ok: true };
   }
 
   async processExpired(actorUserId: string, treeId: string) {
-    const tree = await getTreeById(this.db, treeId);
-    if (!tree.editorIds.includes(actorUserId)) {
-      throw new HttpsError('permission-denied', 'Only a tree editor can process expired approvals.');
+    const tree = await this.db.collection('trees').doc(treeId).get();
+    if (!tree.exists || !tree.data()?.editorIds?.includes(actorUserId)) throw new HttpsError('permission-denied', 'Only a tree editor can process expired approvals.');
+    const snapshot = await this.db.collection('approvalRequests').where('treeId', '==', treeId).where('status', '==', 'pending').get();
+    for (const doc of snapshot.docs) {
+      const expires = Number(doc.data().expiresAtMillis);
+      if (expires > 0 && expires <= Date.now()) await this.decide('', doc.id, 'approve', true);
     }
-
-    const snapshot = await this.db.collection(APPROVAL_REQUESTS_COLLECTION)
-      .where('treeId', '==', treeId)
-      .where('status', '==', 'pending')
-      .get();
-    const now = Date.now();
-
-    for (const docSnapshot of snapshot.docs) {
-      const request = mapApprovalRequestData(docSnapshot.id, docSnapshot.data());
-      if (request.status === 'pending' && request.expiresAtMillis <= now) {
-        await this.decide(actorUserId, request.id, 'approve', true);
-      }
-    }
-
     return { ok: true };
   }
 
-  private async getRequesterLabel(treeId: string, userId: string) {
-    const tree = await getTreeById(this.db, treeId);
-    const collaborator = tree.collaborators.find((entry) => entry.userId === userId);
-    return collaborator?.displayName || collaborator?.email || 'A collaborator';
-  }
-
-  private async applyApprovedCreatePerson(payload: ApprovalRequestPayload) {
-    const person = payload.afterPerson;
-    if (!person) {
-      throw new HttpsError('failed-precondition', 'The approved family member creation is missing its target data.');
+  async processScheduledExpirations() {
+    // Bounded pages, but failed requests do not starve later records. A fresh run retries failures.
+    let cursor: FirebaseFirestore.QueryDocumentSnapshot | undefined;
+    let applied = 0;
+    let failed = 0;
+    const dueAt = Date.now();
+    for (let page = 0; page < 10; page += 1) {
+      let query = this.db.collection('approvalRequests').where('status', '==', 'pending')
+        .where('expiresAtMillis', '>', 0).where('expiresAtMillis', '<=', dueAt)
+        .orderBy('expiresAtMillis').limit(50);
+      if (cursor) query = query.startAfter(cursor);
+      const snapshot = await query.get();
+      if (!snapshot.docs.length) break;
+      for (const doc of snapshot.docs) {
+        try { await this.decide('', doc.id, 'approve', true); applied += 1; }
+        catch (error) {
+          failed += 1;
+          logger.error('Scheduled approval failed', { requestId: doc.id, code: (error as { code?: string }).code ?? 'unknown' });
+        }
+      }
+      cursor = snapshot.docs[snapshot.docs.length - 1];
+      if (snapshot.docs.length < 50) break;
     }
-
-    const bundledRelationships = payload.relationships ?? [];
-    const batch = this.db.batch();
-    batch.set(this.db.collection(PEOPLE_COLLECTION).doc(person.id), {
-      treeId: person.treeId,
-      treeMembershipIds: person.treeMembershipIds,
-      treeMemberships: person.treeMemberships,
-      ownerId: person.ownerId,
-      firstName: person.firstName,
-      middleNames: person.middleNames ?? '',
-      lastName: person.lastName,
-      maidenName: person.maidenName ?? '',
-      nicknames: person.nicknames ?? [],
-      clanName: person.clanName ?? '',
-      familyBranch: person.familyBranch ?? '',
-      hometown: person.hometown ?? '',
-      birthPlace: person.birthPlace ?? '',
-      surnameVariantHints: person.surnameVariantHints ?? [],
-      canonicalPersonId: person.canonicalPersonId ?? '',
-      duplicatePersonIds: person.duplicatePersonIds ?? [],
-      birthDate: person.birthDate,
-      deathDate: person.deathDate,
-      lifeStatus: person.lifeStatus ?? (person.deathDate ? 'deceased' : 'living'),
-      gender: person.gender,
-      notes: person.notes,
-      lifeEvents: normaliseLifeEvents(person.lifeEvents),
-      photos: person.photos,
-      preferredPhotoId: person.preferredPhotoId,
-      createdAt: person.createdAt,
-      updatedAt: nowIso(),
-    });
-
-    bundledRelationships.forEach((relationship) => {
-      batch.set(this.db.collection(RELATIONSHIPS_COLLECTION).doc(relationship.id), {
-        treeId: relationship.treeId,
-        ownerId: relationship.ownerId,
-        type: relationship.type,
-        fromPersonId: relationship.fromPersonId,
-        toPersonId: relationship.toPersonId,
-        relationshipStatus: relationship.type === 'spouse'
-          ? relationship.relationshipStatus ?? DEFAULT_SPOUSE_RELATIONSHIP_STATUS
-          : '',
-        parentChildKind: relationship.type === 'parent-child'
-          ? relationship.parentChildKind ?? DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND
-          : '',
-        createdAt: relationship.createdAt,
-      });
-    });
-
-    await batch.commit();
-
-    const parentIds = bundledRelationships
-      .filter((relationship) => relationship.type === 'parent-child' && relationship.toPersonId === person.id)
-      .map((relationship) => relationship.fromPersonId);
-    await updateParentLifeEventsForChild(this.db, parentIds, {
-      id: person.id,
-      treeId: person.treeId,
-      firstName: person.firstName,
-      lastName: person.lastName,
-      birthDate: person.birthDate,
-    });
+    logger.info('Approval expiry run completed', { applied, failed });
+    return { applied, failed };
   }
 
-  private async rejectApprovedCreatePerson(payload: ApprovalRequestPayload) {
-    await deleteStoragePhotos(payload.uploadedPhotos ?? []);
-    await deleteStoragePhotos(payload.cleanupPhotos ?? []);
-  }
-
-  private async applyApprovedPersonUpdate(payload: ApprovalRequestPayload) {
-    const nextPerson = payload.afterPerson;
-    if (!nextPerson) {
-      throw new HttpsError('failed-precondition', 'The approved family member update is missing its target data.');
+  private async apply(tx: Transaction, treeId: string, operation: string, payload: ApprovalRequestPayload, timestamp: string) {
+    const writes: Write[] = [];
+    const personRef = (id: string) => this.db.collection('persons').doc(id);
+    const relationshipRef = (id: string) => this.db.collection('relationships').doc(id);
+    const checkTree = (record: { treeId: string }) => {
+      if (record.treeId !== treeId) throw new HttpsError('permission-denied', 'This change belongs to another tree.');
+    };
+    const parentEvents = async (parentIds: string[], child: { id: string; firstName: string; lastName: string; birthDate: string }) => {
+      for (const id of new Set(parentIds)) {
+        const parent = await tx.get(personRef(id));
+        if (!parent.exists) continue;
+        const data = parent.data()!;
+        if (data.treeId !== treeId && !data.treeMembershipIds?.includes(treeId)) continue;
+        const eventId = `child-born-${child.id}`;
+        const events = (data.lifeEvents ?? []).filter((event: { id: string }) => event.id !== eventId);
+        if (child.birthDate) {
+          const name = `${child.firstName} ${child.lastName}`.trim();
+          events.push({ id: eventId, type: 'child-born', title: `Welcomed ${name}`, date: child.birthDate, description: `${name} was born on ${child.birthDate}.` });
+        }
+        writes.push(() => tx.update(parent.ref, { lifeEvents: normaliseLifeEvents(events), updatedAt: timestamp }));
+      }
+    };
+    if (operation === 'delete-person') {
+      const person = payload.deletedPerson;
+      if (!person) throw new HttpsError('failed-precondition', 'The deleted profile is missing.');
+      checkTree(person);
+      await archivePerson(this.db, treeId, person.id, undefined, tx);
+      return;
     }
-
-    await this.db.runTransaction(async (transaction) => {
-      const personRef = this.db.collection(PEOPLE_COLLECTION).doc(nextPerson.id);
-      const current = await transaction.get(personRef);
-      if (!current.exists || current.data()?.updatedAt !== payload.beforePerson?.updatedAt) {
+    if (operation === 'create-person' || operation === 'update-person') {
+      const next = payload.afterPerson;
+      if (!next) throw new HttpsError('failed-precondition', 'The changed profile is missing.');
+      checkTree(next);
+      const ref = personRef(next.id);
+      const current = await tx.get(ref);
+      if (operation === 'create-person' && current.exists) throw new HttpsError('already-exists', 'This family member already exists.');
+      if (operation === 'update-person' && (!current.exists || current.data()?.updatedAt !== payload.beforePerson?.updatedAt)) {
         throw new HttpsError('failed-precondition', 'This profile changed after the request. Submit a fresh change from the latest profile.');
       }
-      transaction.update(personRef, {
-      firstName: nextPerson.firstName,
-      middleNames: nextPerson.middleNames ?? '',
-      lastName: nextPerson.lastName,
-      maidenName: nextPerson.maidenName ?? '',
-      hometown: nextPerson.hometown ?? '',
-      birthPlace: nextPerson.birthPlace ?? '',
-      birthDate: nextPerson.birthDate,
-      deathDate: nextPerson.deathDate,
-      lifeStatus: nextPerson.lifeStatus ?? (nextPerson.deathDate ? 'deceased' : 'living'),
-      gender: nextPerson.gender,
-      notes: nextPerson.notes,
-      lifeEvents: normaliseLifeEvents(nextPerson.lifeEvents),
-      photos: nextPerson.photos,
-      preferredPhotoId: nextPerson.preferredPhotoId,
-      updatedAt: nowIso(),
-      });
-    });
-
-    // Keep previous photos available for revision recovery.
-
-    const parentIds = await getParentIdsForChild(this.db, nextPerson.treeId, nextPerson.id);
-    await updateParentLifeEventsForChild(this.db, parentIds, {
-      id: nextPerson.id,
-      treeId: nextPerson.treeId,
-      firstName: nextPerson.firstName,
-      lastName: nextPerson.lastName,
-      birthDate: nextPerson.birthDate,
-    });
-  }
-
-  private async rejectApprovedPersonUpdate(payload: ApprovalRequestPayload) {
-    await deleteStoragePhotos(payload.uploadedPhotos ?? []);
-    await deleteStoragePhotos(payload.cleanupPhotos ?? []);
-  }
-
-  private async deletePersonDirect(person: PersonRecord) {
-    await archivePerson(this.db, person.treeId, person.id);
-  }
-
-  private async applyApprovedDeletePerson(payload: ApprovalRequestPayload) {
-    const person = payload.deletedPerson;
-    if (!person) {
-      throw new HttpsError('failed-precondition', 'The approved family member deletion is missing its target data.');
-    }
-
-    await this.deletePersonDirect(person);
-  }
-
-  private async createRelationshipDirect(relationship: NonNullable<ApprovalRequestPayload['relationship']>) {
-    await this.db.collection(RELATIONSHIPS_COLLECTION).doc(relationship.id).set({
-      treeId: relationship.treeId,
-      ownerId: relationship.ownerId,
-      type: relationship.type,
-      fromPersonId: relationship.fromPersonId,
-      toPersonId: relationship.toPersonId,
-      relationshipStatus: relationship.type === 'spouse'
-        ? relationship.relationshipStatus ?? DEFAULT_SPOUSE_RELATIONSHIP_STATUS
-        : '',
-      parentChildKind: relationship.type === 'parent-child'
-        ? relationship.parentChildKind ?? DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND
-        : '',
-      createdAt: relationship.createdAt,
-    });
-
-    if (relationship.type === 'parent-child') {
-      const childSnapshot = await this.db.collection(PEOPLE_COLLECTION).doc(relationship.toPersonId).get();
-      if (childSnapshot.exists) {
-        const childData = childSnapshot.data() ?? {};
-        await updateParentLifeEventsForChild(this.db, [relationship.fromPersonId], {
-          id: childSnapshot.id,
-          treeId: childData.treeId ?? relationship.treeId,
-          firstName: childData.firstName ?? '',
-          lastName: childData.lastName ?? '',
-          birthDate: childData.birthDate ?? '',
-        });
+      if (current.exists && current.data()?.treeId !== treeId) throw new HttpsError('permission-denied', 'This profile belongs to another tree.');
+      // Only editable profile fields; memberships and ownership are not supplied by an approval.
+      const fields: DocumentData = {};
+      for (const key of ['firstName', 'middleNames', 'lastName', 'maidenName', 'nicknames', 'clanName', 'familyBranch', 'hometown', 'birthPlace', 'surnameVariantHints', 'birthDate', 'deathDate', 'lifeStatus', 'gender', 'notes', 'photos', 'preferredPhotoId'] as const) {
+        if (next[key] !== undefined) fields[key] = next[key];
       }
-    }
-  }
-
-  private async applyApprovedCreateRelationship(payload: ApprovalRequestPayload) {
-    const relationship = payload.relationship;
-    if (!relationship) {
-      throw new HttpsError('failed-precondition', 'The approved relationship is missing its target data.');
-    }
-
-    await this.createRelationshipDirect(relationship);
-  }
-
-  private async applyApprovedUpdateRelationship(payload: ApprovalRequestPayload) {
-    const relationship = payload.relationship;
-    if (!relationship) {
-      throw new HttpsError('failed-precondition', 'The approved relationship update is missing its target data.');
-    }
-
-    await this.db.collection(RELATIONSHIPS_COLLECTION).doc(relationship.id).update({
-      relationshipStatus: relationship.type === 'spouse'
-        ? relationship.relationshipStatus ?? DEFAULT_SPOUSE_RELATIONSHIP_STATUS
-        : '',
-      parentChildKind: relationship.type === 'parent-child'
-        ? relationship.parentChildKind ?? DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND
-        : '',
-    });
-  }
-
-  private async deleteRelationshipDirect(relationshipId: string) {
-    const relationshipRef = this.db.collection(RELATIONSHIPS_COLLECTION).doc(relationshipId);
-    const relationshipSnapshot = await relationshipRef.get();
-
-    if (relationshipSnapshot.exists) {
-      const relationshipData = relationshipSnapshot.data() ?? {};
-      if (relationshipData.type === 'parent-child') {
-        const childSnapshot = await this.db.collection(PEOPLE_COLLECTION).doc(relationshipData.toPersonId).get();
-        if (childSnapshot.exists) {
-          const childData = childSnapshot.data() ?? {};
-          await updateParentLifeEventsForChild(this.db, [relationshipData.fromPersonId], {
-            id: childSnapshot.id,
-            treeId: childData.treeId ?? relationshipData.treeId,
-            firstName: childData.firstName ?? '',
-            lastName: childData.lastName ?? '',
-            birthDate: '',
-          });
+      fields.lifeEvents = normaliseLifeEvents(next.lifeEvents);
+      fields.updatedAt = timestamp;
+      if (operation === 'create-person') {
+        Object.assign(fields, { treeId, treeMembershipIds: [treeId], treeMemberships: next.treeMemberships ?? [], ownerId: next.ownerId, createdAt: next.createdAt });
+        writes.push(() => tx.create(ref, fields));
+        for (const relationship of payload.relationships ?? []) {
+          checkTree(relationship);
+          const existing = await tx.get(relationshipRef(relationship.id));
+          if (existing.exists) throw new HttpsError('already-exists', 'A proposed relationship already exists.');
+          for (const id of new Set([relationship.fromPersonId, relationship.toPersonId])) {
+            if (id === next.id) continue;
+            const relative = await tx.get(personRef(id));
+            if (!relative.exists || (relative.data()?.treeId !== treeId && !relative.data()?.treeMembershipIds?.includes(treeId))) {
+              throw new HttpsError('failed-precondition', 'A connected family member is missing or belongs to another tree.');
+            }
+          }
+          writes.push(() => tx.create(existing.ref, relationship));
+        }
+        await parentEvents((payload.relationships ?? []).filter((r) => r.type === 'parent-child' && r.toPersonId === next.id).map((r) => r.fromPersonId), next);
+      } else {
+        writes.push(() => tx.update(ref, fields));
+        const parents = await tx.get(this.db.collection('relationships').where('treeId', '==', treeId).where('type', '==', 'parent-child').where('toPersonId', '==', next.id));
+        await parentEvents(parents.docs.map((r) => String(r.data().fromPersonId)), next);
+      }
+    } else {
+      const relationship = payload.relationship;
+      if (!relationship) throw new HttpsError('failed-precondition', 'The changed relationship is missing.');
+      checkTree(relationship);
+      const ref = relationshipRef(relationship.id);
+      const current = await tx.get(ref);
+      if (current.exists && current.data()?.treeId !== treeId) throw new HttpsError('permission-denied', 'This relationship belongs to another tree.');
+      if (operation === 'create-relationship') {
+        if (current.exists) throw new HttpsError('already-exists', 'This relationship already exists.');
+        const [from, to] = await Promise.all([tx.get(personRef(relationship.fromPersonId)), tx.get(personRef(relationship.toPersonId))]);
+        if (!from.exists || !to.exists) throw new HttpsError('failed-precondition', 'A connected family member no longer exists.');
+        if ([from, to].some((person) => person.data()?.treeId !== treeId && !person.data()?.treeMembershipIds?.includes(treeId))) throw new HttpsError('permission-denied', 'A connected family member belongs to another tree.');
+        writes.push(() => tx.create(ref, relationship));
+      } else if (operation === 'update-relationship') {
+        if (!current.exists) throw new HttpsError('not-found', 'This relationship no longer exists.');
+        writes.push(() => tx.update(ref, { relationshipStatus: relationship.relationshipStatus ?? '', parentChildKind: relationship.parentChildKind ?? '', updatedAt: timestamp }));
+      } else if (operation === 'delete-relationship') {
+        writes.push(() => tx.delete(ref));
+      } else throw new HttpsError('invalid-argument', 'Unsupported approval request.');
+      if (relationship.type === 'parent-child' && operation !== 'update-relationship') {
+        const child = await tx.get(personRef(relationship.toPersonId));
+        if (child.exists) {
+          const data = child.data()!;
+          await parentEvents([relationship.fromPersonId], { id: child.id, firstName: data.firstName ?? '', lastName: data.lastName ?? '', birthDate: operation === 'delete-relationship' ? '' : data.birthDate ?? '' });
         }
       }
     }
-
-    await relationshipRef.delete();
-  }
-
-  private async applyApprovedDeleteRelationship(payload: ApprovalRequestPayload) {
-    const relationship = payload.relationship;
-    if (!relationship) {
-      throw new HttpsError('failed-precondition', 'The approved relationship deletion is missing its target data.');
-    }
-
-    await this.deleteRelationshipDirect(relationship.id);
-  }
-
-  private async applyApprovedRequest(request: ApprovalRequest) {
-    switch (request.operation) {
-      case 'create-person':
-        await this.applyApprovedCreatePerson(request.payload);
-        return;
-      case 'update-person':
-        await this.applyApprovedPersonUpdate(request.payload);
-        return;
-      case 'delete-person':
-        await this.applyApprovedDeletePerson(request.payload);
-        return;
-      case 'create-relationship':
-        await this.applyApprovedCreateRelationship(request.payload);
-        return;
-      case 'update-relationship':
-        await this.applyApprovedUpdateRelationship(request.payload);
-        return;
-      case 'delete-relationship':
-        await this.applyApprovedDeleteRelationship(request.payload);
-        return;
-      default:
-        throw new HttpsError('invalid-argument', 'Unsupported approval request.');
-    }
-  }
-
-  private async handleRejectedRequest(request: ApprovalRequest) {
-    if (request.operation === 'create-person') {
-      await this.rejectApprovedCreatePerson(request.payload);
-      return;
-    }
-
-    if (request.operation === 'update-person') {
-      await this.rejectApprovedPersonUpdate(request.payload);
-    }
+    if (writes.length > 400) throw new HttpsError('failed-precondition', 'This change needs administrator assistance.');
+    writes.forEach((write) => write());
   }
 }

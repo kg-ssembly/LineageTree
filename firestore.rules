@@ -150,7 +150,9 @@ service cloud.firestore {
     }
 
     match /mergeHistory/{historyId} {
-      allow read: if (
+      allow read: if ('sourceTreeId' in resource.data && isTreeMemberById(resource.data.sourceTreeId))
+        || ('targetTreeId' in resource.data && isTreeMemberById(resource.data.targetTreeId))
+        || (
           resource.data.involvedTreeIds.size() > 0
           && isTreeMemberById(resource.data.involvedTreeIds[0])
         ) || (

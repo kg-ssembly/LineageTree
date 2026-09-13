@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useRef } from 'react';
+import { recordMetric } from './performance-metrics';
 import { Image as ExpoImage, type ImageContentFit, type ImageStyle } from 'expo-image';
 import type { StyleProp } from 'react-native';
 
@@ -19,6 +20,7 @@ export function CachedImage({
   recyclingKey,
   onError,
 }: CachedImageProps) {
+  const started = useRef(0);
   return (
     <ExpoImage
       source={{ uri }}
@@ -29,6 +31,8 @@ export function CachedImage({
       recyclingKey={recyclingKey ?? uri}
       transition={0}
       onError={onError}
+      onLoadStart={() => { started.current = performance.now(); }}
+      onLoadEnd={() => { if (started.current) recordMetric('image.load.ms', performance.now() - started.current); }}
     />
   );
 }

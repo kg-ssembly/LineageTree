@@ -1,3 +1,7 @@
+import { connectAuthEmulator } from '@firebase/auth';
+import { connectFirestoreEmulator } from 'firebase/firestore';
+import { connectStorageEmulator } from 'firebase/storage';
+import { connectFunctionsEmulator } from 'firebase/functions';
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import {
   browserLocalPersistence,
@@ -64,3 +68,11 @@ export const storage = getStorage(app);
 export const functionsApi = getFunctions(app, process.env.EXPO_PUBLIC_FIREBASE_FUNCTIONS_REGION || 'us-central1');
 export { auth };
 export default app;
+
+if (process.env.EXPO_PUBLIC_USE_EMULATORS === 'true' && isNewApp) {
+  if (!firebaseConfig.projectId?.startsWith('demo-')) throw new Error('Emulator mode requires a demo- project.');
+  connectAuthEmulator(auth, 'http://127.0.0.1:9098', { disableWarnings: true });
+  connectFirestoreEmulator(db, '127.0.0.1', 8089);
+  connectStorageEmulator(storage, '127.0.0.1', 9198);
+  connectFunctionsEmulator(functionsApi, '127.0.0.1', 5009);
+}

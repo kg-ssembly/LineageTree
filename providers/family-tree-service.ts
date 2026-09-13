@@ -1,4 +1,7 @@
-import { useSyncStatusStore } from '../stores/sync-status-store';
+import { aggregateSyncSources, type SyncSource } from '../components/sync-state';
+import { setSyncSource } from '../stores/sync-status-store';
+import { trackedSubscription } from './tracked-subscription';
+import { subscribeToActivity } from './activity-subscription';
 import {
   collection,
   doc,
@@ -6,6 +9,7 @@ import {
   getDocs,
   limit,
   onSnapshot,
+  or,
   query,
   setDoc,
   updateDoc,
@@ -110,8 +114,6 @@ export interface DiscoverableTreeSummary {
   matchedLabel: string;
 }
 
-const ACTIVITY_SUBSCRIPTION_LIMIT = 80;
-const NOTIFICATION_SUBSCRIPTION_LIMIT = 120;
 
 export {
   addCollaboratorToTree,
@@ -195,11 +197,9 @@ export function subscribeToTrees(
   onError?: (error: Error) => void,
 ) {
   const treesQuery = query(collection(db, TREES_COLLECTION), where('memberIds', 'array-contains', userId));
-  return onSnapshot(
-    treesQuery,
-     { includeMetadataChanges: true },
+  return trackedSubscription(
+    'trees', treesQuery,
     (snapshot) => {
-      useSyncStatusStore.setState({ source: snapshot.metadata.fromCache ? 'cache' : 'server', pendingWrites: snapshot.metadata.hasPendingWrites });
       onChange(sortByNewest(snapshot.docs.map(mapTree)));
     },
     onError,
@@ -210,43 +210,65 @@ export function subscribeToPeople(
   treeId: string,
   onChange: (people: PersonRecord[]) => void,
   onError?: (error: Error) => void,
+  accessiblePrimaryTreeIds: string[] = [treeId],
 ) {
   let membershipPeople: PersonRecord[] = [];
   let legacyPeople: PersonRecord[] = [];
   let active = true;
+  let membershipReady = false;
+  let legacyReady = false;
 
   const emit = () => {
-    if (!active) {
+    if (!active || !membershipReady || !legacyReady) {
       return;
     }
 
     onChange(sortByNewest(mergeUniqueById([...membershipPeople, ...legacyPeople])));
   };
 
-  const unsubscribeMembership = onSnapshot(
-    query(collection(db, PEOPLE_COLLECTION), where('treeMembershipIds', 'array-contains', treeId)),
+  const primaryIds = [...new Set([treeId, ...accessiblePrimaryTreeIds])];
+  const chunks = Array.from({ length: Math.ceil(primaryIds.length / 10) }, (_, i) => primaryIds.slice(i * 10, (i + 1) * 10));
+  const records = new Map<number, PersonRecord[]>();
+  const statuses: Record<string, SyncSource> = Object.fromEntries(chunks.map((_, i) => [i, { source: 'connecting', pendingWrites: false }]));
+  setSyncSource('people', aggregateSyncSources(statuses));
+  const stops = chunks.map((ids, index) => onSnapshot(
+    query(collection(db, PEOPLE_COLLECTION), where('treeMembershipIds', 'array-contains', treeId), where('treeId', 'in', ids)),
+    { includeMetadataChanges: true },
     (snapshot) => {
-      membershipPeople = snapshot.docs.map(mapPerson);
-      if (legacyPeople.length > 0) {
-        const membershipIds = new Set(membershipPeople.map((person) => person.id));
-        legacyPeople = legacyPeople.filter((person) => !membershipIds.has(person.id));
-      }
+      if (!active) return;
+      statuses[index] = { source: snapshot.metadata.fromCache ? 'cache' : 'server', pendingWrites: snapshot.metadata.hasPendingWrites };
+      setSyncSource('people', aggregateSyncSources(statuses));
+      records.set(index, snapshot.docs.map(mapPerson));
+      if (records.size !== chunks.length) return;
+      membershipReady = true;
+      membershipPeople = [...records.values()].flat();
+      const membershipIds = new Set(membershipPeople.map((person) => person.id));
+      legacyPeople = legacyPeople.filter((person) => !membershipIds.has(person.id));
       emit();
+    }, (error) => {
+      if (!active) return;
+      statuses[index] = { source: 'error', pendingWrites: false };
+      setSyncSource('people', aggregateSyncSources(statuses)); onError?.(error);
     },
-    onError,
-  );
+  ));
+  const unsubscribeMembership = () => { stops.forEach((stop) => stop()); setSyncSource('people', null); };
 
-  void getLegacyPeopleNeedingBackfill(treeId)
+  void (process.env.EXPO_PUBLIC_MEMBERSHIP_MIGRATED === 'true' ? Promise.resolve([]) : getLegacyPeopleNeedingBackfill(treeId))
     .then((peopleNeedingBackfill) => {
-      if (!active || peopleNeedingBackfill.length === 0) {
+      if (!active) {
         return;
       }
 
+      legacyReady = true;
       const membershipIds = new Set(membershipPeople.map((person) => person.id));
       legacyPeople = peopleNeedingBackfill.filter((person) => !membershipIds.has(person.id));
       emit();
     })
-    .catch((error) => onError?.(error as Error));
+    .catch((error) => {
+      if (!active) return;
+      setSyncSource('people', { source: 'error', pendingWrites: false });
+      onError?.(error as Error);
+    });
 
   return () => {
     active = false;
@@ -260,8 +282,8 @@ export function subscribeToRelationships(
   onError?: (error: Error) => void,
 ) {
   const relationshipsQuery = query(collection(db, RELATIONSHIPS_COLLECTION), where('treeId', '==', treeId));
-  return onSnapshot(
-    relationshipsQuery,
+  return trackedSubscription(
+    'relationships', relationshipsQuery,
     (snapshot) => {
       const relationships = snapshot.docs.map(mapRelationship).sort((left, right) => right.createdAt.localeCompare(left.createdAt));
       onChange(relationships);
@@ -270,77 +292,20 @@ export function subscribeToRelationships(
   );
 }
 
-export function subscribeToApprovalRequests(
-  treeId: string,
-  onChange: (requests: ApprovalRequest[]) => void,
-  onError?: (error: Error) => void,
-) {
-  const approvalRequestsQuery = query(
-    collection(db, APPROVAL_REQUESTS_COLLECTION),
-    where('treeId', '==', treeId),
-    limit(ACTIVITY_SUBSCRIPTION_LIMIT),
-  );
-  return onSnapshot(
-    approvalRequestsQuery,
-    (snapshot) => {
-      const approvalRequests = snapshot.docs
-        .map(mapApprovalRequest)
-        .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
-      onChange(approvalRequests);
-    },
-    onError,
-  );
+export function subscribeToApprovalRequests(treeId: string, onChange: (records: ApprovalRequest[]) => void, onError?: (error: Error) => void) {
+  return subscribeToActivity('ApprovalRequests', query(collection(db, APPROVAL_REQUESTS_COLLECTION), where('treeId', '==', treeId)), mapApprovalRequest, onChange, onError, 80, where('status', '==', 'pending'));
 }
 
-export function subscribeToMergeRequests(
-  treeId: string,
-  onChange: (requests: MergeRequestRecord[]) => void,
-  onError?: (error: Error) => void,
-) {
-  const mergeRequestsQuery = query(
-    collection(db, MERGE_REQUESTS_COLLECTION),
-    where('involvedTreeIds', 'array-contains', treeId),
-    limit(ACTIVITY_SUBSCRIPTION_LIMIT),
-  );
-  return onSnapshot(
-    mergeRequestsQuery,
-    (snapshot) => onChange(snapshot.docs.map(mapMergeRequest).sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))),
-    onError,
-  );
+export function subscribeToMergeRequests(treeId: string, onChange: (records: MergeRequestRecord[]) => void, onError?: (error: Error) => void) {
+  return subscribeToActivity('MergeRequests', query(collection(db, MERGE_REQUESTS_COLLECTION), or(where('sourceTreeId', '==', treeId), where('targetTreeId', '==', treeId))), mapMergeRequest, onChange, onError, 80, where('status', 'in', ['pending', 'changes-requested', 'approved']));
 }
 
-export function subscribeToMergeHistory(
-  treeId: string,
-  onChange: (history: MergeHistoryRecord[]) => void,
-  onError?: (error: Error) => void,
-) {
-  const mergeHistoryQuery = query(
-    collection(db, MERGE_HISTORY_COLLECTION),
-    where('involvedTreeIds', 'array-contains', treeId),
-    limit(ACTIVITY_SUBSCRIPTION_LIMIT),
-  );
-  return onSnapshot(
-    mergeHistoryQuery,
-    (snapshot) => onChange(snapshot.docs.map(mapMergeHistory).sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))),
-    onError,
-  );
+export function subscribeToMergeHistory(treeId: string, onChange: (records: MergeHistoryRecord[]) => void, onError?: (error: Error) => void) {
+  return subscribeToActivity('MergeHistory', query(collection(db, MERGE_HISTORY_COLLECTION), or(where('sourceTreeId', '==', treeId), where('targetTreeId', '==', treeId))), mapMergeHistory, onChange, onError, 80);
 }
 
-export function subscribeToNotifications(
-  userId: string,
-  onChange: (notifications: AppNotification[]) => void,
-  onError?: (error: Error) => void,
-) {
-  const notificationsQuery = query(
-    collection(db, NOTIFICATIONS_COLLECTION),
-    where('userId', '==', userId),
-    limit(NOTIFICATION_SUBSCRIPTION_LIMIT),
-  );
-  return onSnapshot(
-    notificationsQuery,
-    (snapshot) => onChange(snapshot.docs.map(mapNotification).sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))),
-    onError,
-  );
+export function subscribeToNotifications(userId: string, onChange: (records: AppNotification[]) => void, onError?: (error: Error) => void) {
+  return subscribeToActivity('Notifications', query(collection(db, NOTIFICATIONS_COLLECTION), where('userId', '==', userId)), mapNotification, onChange, onError, 120, where('status', '==', 'pending'));
 }
 
 export function subscribeToNotificationActivityStates(
@@ -351,7 +316,6 @@ export function subscribeToNotificationActivityStates(
   const activityQuery = query(
     collection(db, NOTIFICATION_ACTIVITY_COLLECTION),
     where('userId', '==', userId),
-    limit(NOTIFICATION_SUBSCRIPTION_LIMIT),
   );
   return onSnapshot(
     activityQuery,

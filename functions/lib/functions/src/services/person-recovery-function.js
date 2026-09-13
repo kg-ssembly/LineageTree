@@ -4,8 +4,8 @@ exports.archivePerson = archivePerson;
 exports.restoreDeletedPerson = restoreDeletedPerson;
 const https_1 = require("firebase-functions/v2/https");
 const family_tree_validation_1 = require("../../../components/family-tree-validation");
-async function archivePerson(db, treeId, personId, actorId) {
-    return db.runTransaction(async (tx) => {
+async function archivePerson(db, treeId, personId, actorId, transaction) {
+    const apply = async (tx) => {
         const treeRef = db.doc(`trees/${treeId}`);
         const personRef = db.doc(`persons/${personId}`);
         const [tree, person, outgoing, incoming] = await Promise.all([
@@ -42,7 +42,8 @@ async function archivePerson(db, treeId, personId, actorId) {
             delete assignments[id]; });
         tx.update(treeRef, { personAssignments: assignments, updatedAt: new Date().toISOString() });
         return { ok: true };
-    });
+    };
+    return transaction ? apply(transaction) : db.runTransaction(apply);
 }
 async function restoreDeletedPerson(db, actorId, treeId, personId, restoreLinks = true) {
     if (!treeId || !personId || treeId.includes('/') || personId.includes('/'))

@@ -25,5 +25,13 @@
     "components/dto/person.ts",
     "components/dto/relationship.ts",
     "components/dto/tree.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "tests/e2e",
+    "tests/integration",
+    "functions",
+    "dist",
+    ".test-dist"
   ]
 }
