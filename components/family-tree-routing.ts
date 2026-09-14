@@ -154,6 +154,7 @@ export function buildConnectorPaths(routes: ConnectorRoute[]): Connector[] {
       key, stroke: route.stroke, strokeWidth: route.strokeWidth, dashArray: route.dashArray,
       personIds: [...peopleByNetwork.get(route.networkId)!],
       relationshipType: route.relationshipType,
+      parentChildKind: route.parentChildKind,
       d: roundedRuns(points, (point) => canRound(point, route.networkId)),
       bounds: { x: minX, y: minY, w: Math.max(...xs) - minX, h: Math.max(...ys) - minY },
       label: route.label, labelPosition: route.labelPosition,

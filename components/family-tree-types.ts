@@ -26,6 +26,7 @@ export type Connector = {
   /** Actual relationship endpoints, used for interactive highlighting. */
   personIds?: string[];
   relationshipType?: RelationshipRecord['type'];
+  parentChildKind?: RelationshipRecord['parentChildKind'];
   d: string;
   stroke: string;
   strokeWidth: number;

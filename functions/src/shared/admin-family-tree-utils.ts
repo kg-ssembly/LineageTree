@@ -176,6 +176,7 @@ export function mapPersonData(id: string, data: DocumentData): PersonRecord {
     middleNames: asSafeString(data.middleNames),
     lastName: asSafeString(data.lastName),
     maidenName: asSafeString(data.maidenName),
+    birthSurnameStatus: data.birthSurnameStatus === 'same' || data.birthSurnameStatus === 'different' ? data.birthSurnameStatus : (asSafeString(data.maidenName) ? 'different' : 'unknown'),
     nicknames: Array.isArray(data.nicknames) ? data.nicknames.filter((value): value is string => typeof value === 'string') : [],
     clanName: asSafeString(data.clanName),
     familyBranch: asSafeString(data.familyBranch),

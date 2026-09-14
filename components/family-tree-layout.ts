@@ -58,6 +58,7 @@ function buildSpouseGroups(
     spouseIdsByPerson.get(relationship.toPersonId)?.add(relationship.fromPersonId);
   });
 
+  const peopleWithParents = new Set(relationships.filter(r => r.type === 'parent-child').map(r => r.toPersonId));
   const groups = new Map<string, SpouseGroup>();
   const groupIdByPerson = new Map<string, string>();
   // Partnership families share a generation, including multiple marriages.
@@ -76,12 +77,9 @@ function buildSpouseGroups(
     }
     members.sort();
     const groupId = `${members.length === 1 ? 'solo' : members.length === 2 ? 'pair' : 'family'}:${members.join('|')}`;
-    if (members.length > 2) {
-      const hub = [...members].sort((a, b) =>
-        spouseIdsByPerson.get(b)!.size - spouseIdsByPerson.get(a)!.size || a.localeCompare(b))[0];
-      members.splice(members.indexOf(hub), 1);
-      members.splice(Math.floor(members.length / 2), 0, hub);
-    }
+    // Recorded ancestry gives a placement hint, never surname or gender.
+    // If ancestry is recorded for neither partner, retain stable ID order.
+    members.sort((a, b) => Number(peopleWithParents.has(a)) - Number(peopleWithParents.has(b)) || a.localeCompare(b));
     groups.set(groupId, { id: groupId, memberIds: members });
     members.forEach((id) => groupIdByPerson.set(id, groupId));
   }

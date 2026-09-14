@@ -131,7 +131,7 @@ export class ApprovalDecisionFunction {
       if (current.exists && current.data()?.treeId !== treeId) throw new HttpsError('permission-denied', 'This profile belongs to another tree.');
       // Only editable profile fields; memberships and ownership are not supplied by an approval.
       const fields: DocumentData = {};
-      for (const key of ['firstName', 'middleNames', 'lastName', 'maidenName', 'nicknames', 'clanName', 'familyBranch', 'hometown', 'birthPlace', 'surnameVariantHints', 'birthDate', 'deathDate', 'lifeStatus', 'gender', 'notes', 'photos', 'preferredPhotoId'] as const) {
+      for (const key of ['firstName', 'middleNames', 'lastName', 'maidenName', 'birthSurnameStatus', 'nicknames', 'clanName', 'familyBranch', 'hometown', 'birthPlace', 'surnameVariantHints', 'birthDate', 'deathDate', 'lifeStatus', 'gender', 'notes', 'photos', 'preferredPhotoId'] as const) {
         if (next[key] !== undefined) fields[key] = next[key];
       }
       fields.lifeEvents = normaliseLifeEvents(next.lifeEvents);

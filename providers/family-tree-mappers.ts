@@ -234,6 +234,7 @@ export function mapPerson(snapshot: QueryDocumentSnapshot): PersonRecord {
     middleNames: data.middleNames ?? '',
     lastName: data.lastName ?? '',
     maidenName: data.maidenName ?? '',
+    birthSurnameStatus: data.birthSurnameStatus ?? (data.maidenName?.trim() ? 'different' : 'unknown'),
     nicknames: Array.isArray(data.nicknames) ? data.nicknames.filter((value) => typeof value === 'string') : [],
     clanName: data.clanName ?? '',
     familyBranch: data.familyBranch ?? '',

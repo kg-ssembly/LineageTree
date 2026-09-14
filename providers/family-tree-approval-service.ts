@@ -250,6 +250,9 @@ async function preparePersonUpdatePreview(
     middleNames: input.middleNames?.trim() ?? person.middleNames ?? '',
     lastName: input.lastName.trim(),
     maidenName: input.maidenName?.trim() ?? person.maidenName ?? '',
+    birthSurnameStatus: input.birthSurnameStatus ?? (input.maidenName === undefined
+      ? person.birthSurnameStatus ?? (person.maidenName?.trim() ? 'different' : 'unknown')
+      : input.maidenName.trim() ? 'different' : person.birthSurnameStatus === 'same' ? 'same' : 'unknown'),
     hometown: input.hometown?.trim() ?? '',
     birthPlace: input.birthPlace?.trim() ?? '',
     birthDate: input.birthDate.trim(),
@@ -374,6 +377,7 @@ async function applyApprovedCreatePerson(payload: ApprovalRequestPayload) {
     middleNames: person.middleNames ?? '',
     lastName: person.lastName,
     maidenName: person.maidenName ?? '',
+    birthSurnameStatus: person.birthSurnameStatus ?? (person.maidenName?.trim() ? 'different' : 'unknown'),
     birthDate: person.birthDate,
     deathDate: person.deathDate,
     lifeStatus: person.lifeStatus ?? (person.deathDate ? 'deceased' : 'living'),
@@ -392,6 +396,7 @@ async function applyApprovedCreatePerson(payload: ApprovalRequestPayload) {
     middleNames: person.middleNames ?? '',
     lastName: person.lastName,
     maidenName: person.maidenName ?? '',
+    birthSurnameStatus: person.birthSurnameStatus ?? (person.maidenName?.trim() ? 'different' : 'unknown'),
     nicknames: person.nicknames ?? [],
     clanName: person.clanName ?? '',
     familyBranch: person.familyBranch ?? '',
@@ -465,6 +470,7 @@ async function applyApprovedPersonUpdate(payload: ApprovalRequestPayload) {
     middleNames: nextPerson.middleNames ?? '',
     lastName: nextPerson.lastName,
     maidenName: nextPerson.maidenName ?? '',
+    birthSurnameStatus: nextPerson.birthSurnameStatus ?? (nextPerson.maidenName?.trim() ? 'different' : 'unknown'),
     hometown: nextPerson.hometown ?? '',
     birthPlace: nextPerson.birthPlace ?? '',
     birthDate: nextPerson.birthDate,
@@ -679,6 +685,7 @@ export async function submitCreatePersonApproval(
     middleNames: input.middleNames ?? '',
     lastName: input.lastName,
     maidenName: input.maidenName ?? '',
+    birthSurnameStatus: input.birthSurnameStatus ?? (input.maidenName?.trim() ? 'different' : 'unknown'),
     birthDate: input.birthDate,
     deathDate: input.deathDate,
     lifeStatus: input.lifeStatus ?? (input.deathDate ? 'deceased' : 'living'),
@@ -707,6 +714,7 @@ export async function submitCreatePersonApproval(
       middleNames: input.middleNames?.trim() ?? '',
       lastName: input.lastName.trim(),
       maidenName: input.maidenName?.trim() ?? '',
+      birthSurnameStatus: input.birthSurnameStatus ?? (input.maidenName?.trim() ? 'different' : 'unknown'),
       nicknames: [],
       clanName: '',
       familyBranch: '',
@@ -1285,6 +1293,7 @@ export async function validatePersonCreation(treeId: string, person: {
   middleNames?: string;
   lastName: string;
   maidenName?: string;
+  birthSurnameStatus?: PersonRecord['birthSurnameStatus'];
   birthDate: string;
   deathDate: string;
   lifeStatus?: PersonRecord['lifeStatus'];

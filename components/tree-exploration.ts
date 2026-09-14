@@ -8,6 +8,7 @@ export type TreePersonActions = {
   onTrace: () => void;
   onCompare: () => void;
   onClose: () => void;
+  onFocusBranch?: () => void;
   branchCollapsed: boolean;
   canCollapse: boolean;
   onToggleBranch: () => void;
@@ -40,7 +41,53 @@ export function describeFamilyStep(step: FamilyPathStep, people: Map<string, Pic
   return template.replace('{person}', to.firstName).replace('{relative}', from.firstName).replace('{relationship}', relation);
 }
 
-export type TreeScope = 'full' | 'close' | 'ancestors' | 'descendants';
+export type TreeScope = 'full' | 'close' | 'branch' | 'ancestors' | 'descendants';
+
+/** Start with two generations in each direction; keep wide child sets expandable. */
+export function branchIds(root: string, relationships: RelationshipRecord[], direction: 'branch' | 'ancestors' | 'descendants' = 'branch') {
+  const ids = new Set([root]);
+  for (const way of ['ancestors', 'descendants'] as const) {
+    if (direction !== 'branch' && direction !== way) continue;
+    let frontier = [root];
+    const visited = new Set(frontier);
+    for (let depth = 0; depth < 2; depth++) {
+      const next: string[] = [];
+      for (const id of frontier) {
+        const neighbours = [...new Set(relationships.filter(r => r.type === 'parent-child' &&
+          (way === 'ancestors' ? r.toPersonId : r.fromPersonId) === id)
+          .map(r => way === 'ancestors' ? r.fromPersonId : r.toPersonId))].sort();
+        for (const neighbour of way === 'descendants' ? neighbours.slice(0, 4) : neighbours) {
+          ids.add(neighbour);
+          if (!visited.has(neighbour)) { visited.add(neighbour); next.push(neighbour); }
+        }
+      }
+      frontier = next;
+    }
+  }
+  if (direction === 'branch') {
+    const parents = new Set(relationships.filter(r => r.type === 'parent-child' && r.toPersonId === root).map(r => r.fromPersonId));
+    relationships.forEach(r => {
+      if (r.type === 'parent-child' && parents.has(r.fromPersonId)) ids.add(r.toPersonId);
+    });
+  }
+  // Partners supply family context without recursively importing their ancestry.
+  const lineage = new Set(ids);
+  relationships.filter(r => r.type === 'spouse').forEach(r => {
+    if (lineage.has(r.fromPersonId)) ids.add(r.toPersonId);
+    if (lineage.has(r.toPersonId)) ids.add(r.fromPersonId);
+  });
+  return ids;
+}
+
+export function hiddenChildIds(personId: string, relationships: RelationshipRecord[], visible: Set<string>) {
+  return [...new Set(relationships.filter(r => r.type === 'parent-child' && r.fromPersonId === personId)
+    .map(r => r.toPersonId))].filter(id => !visible.has(id)).sort();
+}
+
+export function hiddenParentIds(personId: string, relationships: RelationshipRecord[], visible: Set<string>) {
+  return [...new Set(relationships.filter(r => r.type === 'parent-child' && r.toPersonId === personId)
+    .map(r => r.fromPersonId))].filter(id => !visible.has(id)).sort();
+}
 
 export function lineageIds(root: string, relationships: RelationshipRecord[], direction: 'ancestors' | 'descendants') {
   const neighbours = new Map<string, string[]>();
@@ -70,6 +117,7 @@ export function connectorOnPath(personIds: string[] | undefined, path: string[])
 
 export function scopeIds(root: string, relationships: RelationshipRecord[], scope: TreeScope): Set<string> | null {
   if (scope === 'full') return null;
+  if (scope === 'branch') return branchIds(root, relationships);
   if (scope !== 'close') return lineageIds(root, relationships, scope);
   const ids = new Set([root]);
   const parents = new Set(relationships.filter(r => r.type === 'parent-child' && r.toPersonId === root).map(r => r.fromPersonId));

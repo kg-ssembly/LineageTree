@@ -166,13 +166,15 @@ function getParentChildConnectorStyle(
 ) {
   const kind = relationship.parentChildKind ?? DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND;
   switch (kind) {
+    case 'non-biological':
+      return { stroke: colors.secondaryParent, strokeWidth: 2.4, dashArray: '1,6' };
     case 'step':
-      return { stroke: colors.stepChild, strokeWidth: isPrimary ? 2.2 : 1.5, dashArray: '8,5' };
+      return { stroke: colors.stepChild, strokeWidth: isPrimary ? 2.2 : 1.5, dashArray: '1,6' };
     case 'adopted':
-      return { stroke: colors.adoptedChild, strokeWidth: isPrimary ? 2.4 : 1.6, dashArray: undefined };
+      return { stroke: colors.adoptedChild, strokeWidth: isPrimary ? 2.4 : 1.6, dashArray: '1,6' };
     case 'foster':
     case 'guardian':
-      return { stroke: colors.guardianChild, strokeWidth: isPrimary ? 2 : 1.4, dashArray: '3,5' };
+      return { stroke: colors.guardianChild, strokeWidth: isPrimary ? 2 : 1.4, dashArray: '1,6' };
     case 'biological':
     default:
       return { stroke: isPrimary ? colors.parentChild : colors.secondaryParent, strokeWidth: isPrimary ? 2.5 : 1.5, dashArray: undefined };
@@ -394,9 +396,9 @@ export function buildConnectors(
     if (childLevel === undefined || parentLevel === undefined || !parentBounds || !parentPos || !childPos) continue;
     const kind = r.parentChildKind ?? DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND;
     const parents = parentsByChildKind.get(`${r.toPersonId}:${kind}`)!;
-    const wholeCouple = spouseGroupsById.get(parentGid)!.memberIds.length <= 2
+    const wholeCouple = kind !== 'biological' && spouseGroupsById.get(parentGid)!.memberIds.length <= 2
       && spouseGroupsById.get(parentGid)!.memberIds.every((id) => parents.has(id));
-    const marriage = parents.size === 2 ? marriageJunctions.get(pairKey([...parents])) : undefined;
+    const marriage = kind !== 'biological' && parents.size === 2 ? marriageJunctions.get(pairKey([...parents])) : undefined;
     const network = networkByRelationship.get(r.id)!;
     const lanes = networksByLevel.get(childLevel)!;
     const routePoints = buildParentChildRoute(
@@ -420,7 +422,7 @@ export function buildConnectors(
     }
     const connectorStyle = getParentChildConnectorStyle(r, colors, true);
     parentRoutes.push({
-      key: `pc-${r.id}`, networkId: network, relationshipType: 'parent-child',
+      key: `pc-${r.id}`, networkId: network, relationshipType: 'parent-child', parentChildKind: kind,
       personIds: [r.fromPersonId, r.toPersonId], points: routePoints,
       junctions: marriage || (wholeCouple && spouseGroupsById.get(parentGid)!.memberIds.length === 2) ? [routePoints[0]] : [],
       ...connectorStyle,

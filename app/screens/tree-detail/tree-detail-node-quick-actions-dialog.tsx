@@ -59,19 +59,13 @@ export function TreeDetailNodeQuickActionsDialog({
   const toggleSection = (section: 'relationship' | 'family' | 'add') => {
     setExpandedSection(current => current === section ? null : section);
   };
-  const hasFamilyOptions = treeActions?.canCollapse || !!person?.maidenName?.trim()
+  const hasFamilyOptions = !!treeActions?.onFocusBranch || treeActions?.canCollapse || !!person?.maidenName?.trim()
     || !!(person && crossSurnameChildIds.has(person.id) && canvasActiveFamilyRef.current !== extractSurname(person));
   const dismiss = () => { treeActions?.onClose(); closeNodeQuickActions(); };
   return (
     <>
       <AdaptiveDialog visible={visible && viewerIndex === null} onDismiss={dismiss} title={person ? formatPersonName(person) : t(K.relationship.quickActions)} actions={person ? <>
         <Button mode="contained" icon="account-arrow-right-outline" style={BUTTON_CHROME} contentStyle={compactButtonContent} onPress={() => { dismiss(); openPersonProfile(person); }}>{t(K.relationship.openProfile)}</Button>
-                  {canEdit && person ? (
-            <>
-              <Button mode="outlined" icon={expandedSection === 'add' ? 'chevron-up' : 'account-plus-outline'} compact style={BUTTON_CHROME} contentStyle={compactButtonContent} disabled={mutating} accessibilityState={{ expanded: expandedSection === 'add' }} onPress={() => toggleSection('add')}>{t('Add relative')}</Button>
-
-            </>
-          ) : null}
 
       </> : undefined}>
         {person ? <View style={{ alignItems: 'center', gap: 10 }}>
@@ -83,16 +77,6 @@ export function TreeDetailNodeQuickActionsDialog({
           {treeActions?.relationshipSentences.length === 1 ? <Text variant="bodyMedium" style={{ textAlign: 'center', color: theme.colors.primary }}>{treeActions.relationshipSentences[0]}</Text> : null}
           {!photo && canEdit ? <Button mode="text" icon="camera-plus-outline" contentStyle={compactButtonContent} disabled={mutating} onPress={() => { dismiss(); openPersonPhotos(person); }}>{t(K.personProfile.addPhotoTitle)}</Button> : null}
         </View> : null}
-              {canEdit && person && expandedSection === 'add' ? <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingLeft: 8 }}>
-                {([
-                  { mode: 'parent-of', label: K.relationship.addParent, icon: 'account-arrow-up-outline' },
-                  { mode: 'child-of', label: K.relationship.addChild, icon: 'account-arrow-down-outline' },
-                  { mode: 'spouse-of', label: K.relationship.addSpouse, icon: 'account-heart-outline' },
-                ] as const).map(action => <Button key={action.mode} mode="text" icon={action.icon} compact style={compactButton} contentStyle={compactButtonContent} disabled={mutating} onPress={() => { dismiss(); openCreateRelativeDialog(action.mode, person); }}>{t(action.label)}</Button>)}
-                <Button mode="text" icon="account-multiple-outline" disabled={mutating || !hasParents} onPress={() => { dismiss(); openCreateRelativeDialog('sibling-of', person); }}>{t('Add sibling')}</Button>
-                {!hasParents ? <Text variant="bodySmall">{t('Record a shared parent first to add a sibling.')}</Text> : null}
-                {treeActions?.siblings.map(sibling => <Button key={sibling.label} mode="text" icon="account-multiple-plus-outline" compact style={compactButton} contentStyle={compactButtonContent} disabled={mutating} onPress={() => { dismiss(); sibling.onPress(); }}>{sibling.label}</Button>)}
-              </View> : null}
           {treeActions ? <>
             <Button mode={expandedSection === 'relationship' ? 'contained-tonal' : 'text'} icon={expandedSection === 'relationship' ? 'chevron-up' : 'chevron-down'} compact style={compactButton} contentStyle={compactButtonContent} accessibilityState={{ expanded: expandedSection === 'relationship' }} onPress={() => { toggleSection('relationship'); if (expandedSection !== 'relationship') treeActions.onTrace(); }}>{t('How are we related?')}</Button>
             {expandedSection === 'relationship' ?
@@ -105,6 +89,7 @@ export function TreeDetailNodeQuickActionsDialog({
           {hasFamilyOptions ? <>
             <Button mode={expandedSection === 'family' ? 'contained-tonal' : 'text'} icon={expandedSection === 'family' ? 'chevron-up' : 'chevron-down'} compact style={compactButton} contentStyle={compactButtonContent} accessibilityState={{ expanded: expandedSection === 'family' }} onPress={() => toggleSection('family')}>{t('Family tree options')}</Button>
             {expandedSection === 'family' ? <View style={{ gap: 6, paddingLeft: 8 }}>
+            {treeActions?.onFocusBranch ? <Button mode="text" icon="family-tree" compact style={compactButton} contentStyle={compactButtonContent} onPress={() => { closeNodeQuickActions(); treeActions.onFocusBranch?.(); }}>{t('Focus family branch')}</Button> : null}
             {treeActions?.canCollapse ? <Button mode="text" icon="unfold-more-horizontal" compact style={compactButton} contentStyle={compactButtonContent} onPress={() => { closeNodeQuickActions(); treeActions.onToggleBranch(); }}>{t(treeActions.branchCollapsed ? 'Expand branch' : 'Collapse descendants')}</Button> : null}
           {person?.maidenName?.trim() ? (() => {
             const maiden = person.maidenName!.trim();
@@ -134,6 +119,21 @@ export function TreeDetailNodeQuickActionsDialog({
           })() : null}
             </View> : null}
           </> : null}
+          <View style={{ gap: 8 }}>
+            {canEdit && person ? (
+              <Button mode="outlined" icon={expandedSection === 'add' ? 'chevron-up' : 'account-plus-outline'} compact style={BUTTON_CHROME} contentStyle={compactButtonContent} disabled={mutating} accessibilityState={{ expanded: expandedSection === 'add' }} onPress={() => toggleSection('add')}>{t('Add relative')}</Button>
+            ) : null}
+              {canEdit && person && expandedSection === 'add' ? <View style={{ gap: 6, padding: 12, borderRadius: 16, backgroundColor: theme.colors.surfaceVariant }}>
+                {([
+                  { mode: 'parent-of', label: K.relationship.addParent, icon: 'account-arrow-up-outline' },
+                  { mode: 'child-of', label: K.relationship.addChild, icon: 'account-arrow-down-outline' },
+                  { mode: 'spouse-of', label: K.relationship.addSpouse, icon: 'account-heart-outline' },
+                ] as const).map(action => <Button key={action.mode} mode="text" icon={action.icon} compact style={compactButton} contentStyle={compactButtonContent} disabled={mutating} onPress={() => { dismiss(); openCreateRelativeDialog(action.mode, person); }}>{t(action.label)}</Button>)}
+                <Button mode="text" icon="account-multiple-outline" compact style={compactButton} contentStyle={compactButtonContent} disabled={mutating || !hasParents} onPress={() => { dismiss(); openCreateRelativeDialog('sibling-of', person); }}>{t('Add sibling')}</Button>
+                {!hasParents ? <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, lineHeight: 20, paddingHorizontal: 12, paddingBottom: 6 }}>{t('Add a parent first, then connect a sibling through that shared parent.')}</Text> : null}
+                {treeActions?.siblings.map(sibling => <Button key={sibling.label} mode="text" icon="account-multiple-plus-outline" compact style={compactButton} contentStyle={compactButtonContent} disabled={mutating} onPress={() => { dismiss(); sibling.onPress(); }}>{sibling.label}</Button>)}
+              </View> : null}
+          </View>
       </AdaptiveDialog>
       {person && visible && viewerIndex !== null ? <PersonPhotoViewerModal person={person} viewerIndex={viewerIndex} setViewerIndex={setViewerIndex} /> : null}
     </>

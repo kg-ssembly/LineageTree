@@ -150,7 +150,7 @@ class ApprovalDecisionFunction {
                 throw new https_1.HttpsError('permission-denied', 'This profile belongs to another tree.');
             // Only editable profile fields; memberships and ownership are not supplied by an approval.
             const fields = {};
-            for (const key of ['firstName', 'middleNames', 'lastName', 'maidenName', 'nicknames', 'clanName', 'familyBranch', 'hometown', 'birthPlace', 'surnameVariantHints', 'birthDate', 'deathDate', 'lifeStatus', 'gender', 'notes', 'photos', 'preferredPhotoId']) {
+            for (const key of ['firstName', 'middleNames', 'lastName', 'maidenName', 'birthSurnameStatus', 'nicknames', 'clanName', 'familyBranch', 'hometown', 'birthPlace', 'surnameVariantHints', 'birthDate', 'deathDate', 'lifeStatus', 'gender', 'notes', 'photos', 'preferredPhotoId']) {
                 if (next[key] !== undefined)
                     fields[key] = next[key];
             }

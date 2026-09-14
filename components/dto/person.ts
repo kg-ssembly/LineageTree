@@ -52,6 +52,7 @@ export interface PersonRecord {
   lastName: string;
   /** Maiden name (birth surname before marriage). Optional. */
   maidenName?: string;
+  birthSurnameStatus?: 'same' | 'different' | 'unknown';
   nicknames?: string[];
   clanName?: string;
   familyBranch?: string;
@@ -78,6 +79,7 @@ export interface PersonInput {
   lastName: string;
   /** Maiden name (birth surname before marriage). Optional. */
   maidenName?: string;
+  birthSurnameStatus?: 'same' | 'different' | 'unknown';
   hometown?: string;
   birthPlace?: string;
   surnameVariantHints?: string[];

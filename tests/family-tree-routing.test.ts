@@ -115,18 +115,19 @@ test('a parent’s partner is not implicitly drawn as a second parent', () => {
   assert.ok(paths[0].d.startsWith(`M ${64 + C.NODE_WIDTH / 2} ${64 + C.NODE_HEIGHT}`));
 });
 
-test('recorded co-parents share a bus connected to the couple midpoint', () => {
+test('biological co-parents each connect directly to the shared child bus', () => {
   const paths = fixture([parent('parent'), parent('partner')]).parentChildConnectors;
   assert.equal(paths.length, 1);
   assert.deepEqual(new Set(paths[0].personIds), new Set(['parent', 'partner', 'child']));
-  assert.ok(paths[0].d.includes(`${64 + C.NODE_WIDTH + C.SPOUSE_GAP / 2} ${64 + C.NODE_HEIGHT / 2}`));
+  assert.ok(paths[0].d.includes(`${64 + C.NODE_WIDTH / 2} ${64 + C.NODE_HEIGHT}`));
+  assert.ok(paths[0].d.includes(`${64 + C.NODE_WIDTH + C.SPOUSE_GAP + C.NODE_WIDTH / 2} ${64 + C.NODE_HEIGHT}`));
 });
 
 test('different parent-child kinds retain separate styles', () => {
   const paths = fixture([parent('parent'), parent('partner', 'step')]).parentChildConnectors;
   assert.equal(paths.length, 2);
   assert.deepEqual(new Set(paths.map((p) => p.stroke)), new Set(['green', 'orange']));
-  assert.equal(paths.find((p) => p.stroke === 'orange')?.dashArray, '8,5');
+  assert.equal(paths.find((p) => p.stroke === 'orange')?.dashArray, '1,6');
 });
 
 
@@ -146,4 +147,22 @@ test('corner smoothing cannot introduce a crossing with a nearby unrelated run',
   ]);
   assert.ok(paths[0].d.includes('Q 60 0 60 0'));
   assert.equal(paths[1].d, 'M 45 5 L 59 5');
+});
+
+test('all non-biological parent kinds remain dotted and carry their kind through routing', () => {
+  const { people, relationships } = multipleMarriageFamily();
+  const layout = layoutFamilyTree(people, relationships);
+  for (const kind of ['non-biological', 'step', 'adopted', 'foster', 'guardian'] as const) {
+    const paths = buildConnectors([{ ...relationships[0], parentChildKind: kind }], layout, C, colors).parentChildConnectors;
+    assert.ok(paths.length);
+    for (const path of paths) {
+      assert.equal(path.parentChildKind, kind);
+      assert.equal(path.dashArray, '1,6');
+    }
+  }
+});
+test('incoming spouses sit left of the partner with recorded ancestry', () => {
+  const { people, relationships } = multipleMarriageFamily();
+  const positions = layoutFamilyTree(people, relationships).positionsByPersonId;
+  for (const spouse of ['wife1', 'wife2', 'wife3']) assert.ok(positions.get(spouse)!.x < positions.get('sebabole')!.x);
 });

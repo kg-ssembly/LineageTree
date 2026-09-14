@@ -181,6 +181,7 @@ export function buildMergedTargetPersonUpdate(
     middleNames: targetSnapshot.middleNames || sourceSnapshot.middleNames || '',
     lastName: resolveMergeConflictValue(match.id, 'surname', request, sourceSnapshot, targetSnapshot) ?? targetSnapshot.lastName ?? sourceSnapshot.lastName ?? '',
     maidenName: targetSnapshot.maidenName || sourceSnapshot.maidenName || '',
+    birthSurnameStatus: targetSnapshot.maidenName || sourceSnapshot.maidenName ? 'different' : targetSnapshot.birthSurnameStatus ?? sourceSnapshot.birthSurnameStatus ?? 'unknown',
     nicknames: mergeUniqueStrings(targetSnapshot.nicknames, sourceSnapshot.nicknames),
     clanName: targetSnapshot.clanName || sourceSnapshot.clanName || '',
     familyBranch: targetSnapshot.familyBranch || sourceSnapshot.familyBranch || '',
