@@ -3,7 +3,7 @@ import { useAuthStore } from '../stores/auth-store';
 import { useTreeStore } from '../stores/tree-store';
 import { personDateBounds } from './person-date';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, ScrollView, View } from 'react-native';
+import { ScrollView, View } from 'react-native';
 import {
   ActivityIndicator,
   Button,
@@ -32,6 +32,7 @@ import AddPersonEntryDialog from './add-person-entry-dialog';
 import RelationshipSuggestionsDialog from './relationship-suggestions-dialog';
 import RelationshipVisualPreviewDialog from './relationship-visual-preview-dialog';
 import { buildRelationshipSuggestions } from './relationship-suggestions';
+import ConfirmDialog from './confirm-dialog';
 
 const styles = GlobalStyles.personFormDialog;
 const dialogChrome = GlobalStyles.dialogChrome;
@@ -357,6 +358,7 @@ function PersonFormDialogContent({
   const [addConnectionInitialMode, setAddConnectionInitialMode] = useState<PendingRelationshipMode | null>(null);
   const [relationshipSuggestionsVisible, setRelationshipSuggestionsVisible] = useState(false);
   const [surnameVariantConfirmDialogVisible, setSurnameVariantConfirmDialogVisible] = useState(false);
+  const [deleteConfirmDialogVisible, setDeleteConfirmDialogVisible] = useState(false);
   const [proposedSurnameVariant, setProposedSurnameVariant] = useState<string | null>(null);
   const [surnameVariantHints, setSurnameVariantHints] = useState<string[]>([]);
   const [currentStep, setCurrentStep] = useState<1 | 2>(1);
@@ -431,6 +433,7 @@ function PersonFormDialogContent({
     setAddConnectionDialogVisible(false);
     setRelationshipSuggestionsVisible(false);
     setSurnameVariantConfirmDialogVisible(false);
+    setDeleteConfirmDialogVisible(false);
     setProposedSurnameVariant(null);
     setSurnameVariantHints([]);
     setCurrentStep(isRelationshipOnlyFlow ? 2 : initialStep);
@@ -1544,16 +1547,7 @@ function PersonFormDialogContent({
                 icon="trash-can-outline"
                 iconColor={theme.colors.error}
                 disabled={isBusy}
-                onPress={() => {
-                  Alert.alert(
-                    t(K.personForm.deleteFamilyMember),
-                    t(K.personForm.removePersonAndRelationships),
-                    [
-                      { text: t(K.common.cancel), style: 'cancel' },
-                      { text: t(K.common.delete), style: 'destructive', onPress: () => void onDelete() },
-                    ],
-                  );
-                }}
+                onPress={() => setDeleteConfirmDialogVisible(true)}
                 accessibilityLabel={t(K.personForm.deleteMember)}
               />
             ) : (
@@ -1580,8 +1574,20 @@ function PersonFormDialogContent({
               </Button>
             </View>
           </Dialog.Actions>
-        </Dialog>
-      </Portal>
+      </Dialog>
+      <ConfirmDialog
+        visible={deleteConfirmDialogVisible}
+        title={t(K.personForm.deleteFamilyMember)}
+        message={t(K.personForm.removePersonAndRelationships)}
+        confirmLabel={K.common.delete}
+        loading={isBusy}
+        onDismiss={() => setDeleteConfirmDialogVisible(false)}
+        onConfirm={async () => {
+          await onDelete?.();
+          setDeleteConfirmDialogVisible(false);
+        }}
+      />
+    </Portal>
 
       <DatePickerModal
         locale={language}

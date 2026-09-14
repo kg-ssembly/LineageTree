@@ -96,10 +96,12 @@ function buildParentChildRoute(
   laneFraction: number,
   occupiedRoutes: { x: number; top: number; bottom: number; network: string }[],
   network: string,
+  minimumExitY = startY,
 ) {
   const totalGap = endY - startY;
   const laneInset = Math.max(16, Math.min(32, totalGap / 4));
   let exitY = startY + laneInset + Math.max(0, Math.min(totalGap, 100) - 2 * laneInset) * laneFraction;
+  exitY = Math.max(exitY, minimumExitY);
   let approachY = endY - laneInset;
   if (exitY > approachY) {
     const midY = (startY + endY) / 2;
@@ -188,9 +190,24 @@ export function buildConnectors(
 
   // ---- Spouse connectors ----
   // Adjacent spouses (same group, side-by-side): straight horizontal line.
-  // Non-adjacent spouses (rare — e.g. remarriage drawn far away): routed
-  // ABOVE the row in a dedicated lane.
+  // Non-adjacent same-row spouses use separate lanes below the cards.
+  // Cross-row bridges retain their route above the cards.
   const spouseRoutes: ConnectorRoute[] = [];
+  const marriageJunctions = new Map<string, { x: number; y: number }>();
+  const pairKey = (ids: string[]) => [...ids].sort().join('|');
+  const spousePorts = new Map<string, string[]>();
+  relationships.filter((r) => r.type === 'spouse').forEach((r) => {
+    for (const id of [r.fromPersonId, r.toPersonId]) {
+      const ports = spousePorts.get(id) ?? [];
+      ports.push(r.id);
+      spousePorts.set(id, ports);
+    }
+  });
+  spousePorts.forEach((ports) => ports.sort());
+  const marriagePort = (id: string, relationshipId: string) => {
+    const ports = spousePorts.get(id)!;
+    return (ports.indexOf(relationshipId) - (ports.length - 1) / 2) * Math.min(14, 80 / ports.length);
+  };
 
   // Group non-adjacent spouse pairs by row to allocate lanes.
   type SpousePair = { rel: RelationshipRecord; leftX: number; rightX: number; rowY: number; adjacent: boolean };
@@ -246,17 +263,26 @@ export function buildConnectors(
         { x: left.x + C.NODE_WIDTH, y: left.y + C.NODE_HEIGHT / 2 },
         { x: right.x, y: right.y + C.NODE_HEIGHT / 2 },
       ];
+      marriageJunctions.set(pairKey([pair.rel.fromPersonId, pair.rel.toPersonId]), {
+        x: (left.x + C.NODE_WIDTH + right.x) / 2, y: left.y + C.NODE_HEIGHT / 2,
+      });
     } else {
       const lane = laneByPairKey.get(pair.rel.id) ?? 1;
-      const yTop = left.y - 14 - lane * 8;
-      const startX = left.x + C.NODE_WIDTH / 2;
-      const endX = right.x + C.NODE_WIDTH / 2;
+      // Same-row marriages run below their cards, leaving ancestry above.
+      // Separate card ports prevent several marriages sharing a false trunk.
+      const sameRow = a.y === b.y;
+      const laneY = sameRow ? left.y + C.NODE_HEIGHT + 16 + lane * 14 : Math.min(a.y, b.y) - 14 - lane * 8;
+      const startX = a.x + C.NODE_WIDTH / 2 + marriagePort(pair.rel.fromPersonId, pair.rel.id);
+      const endX = b.x + C.NODE_WIDTH / 2 + marriagePort(pair.rel.toPersonId, pair.rel.id);
       pts = [
-        { x: startX, y: left.y },
-        { x: startX, y: yTop },
-        { x: endX, y: yTop },
-        { x: endX, y: right.y },
+        { x: startX, y: a.y + (sameRow ? C.NODE_HEIGHT : 0) },
+        { x: startX, y: laneY },
+        { x: endX, y: laneY },
+        { x: endX, y: b.y + (sameRow ? C.NODE_HEIGHT : 0) },
       ];
+      if (sameRow) marriageJunctions.set(pairKey([pair.rel.fromPersonId, pair.rel.toPersonId]), {
+        x: (startX + endX) / 2, y: laneY,
+      });
     }
 
     // Compute label midpoint for bridge connectors.
@@ -368,29 +394,35 @@ export function buildConnectors(
     if (childLevel === undefined || parentLevel === undefined || !parentBounds || !parentPos || !childPos) continue;
     const kind = r.parentChildKind ?? DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND;
     const parents = parentsByChildKind.get(`${r.toPersonId}:${kind}`)!;
-    const wholeCouple = spouseGroupsById.get(parentGid)!.memberIds.every((id) => parents.has(id));
+    const wholeCouple = spouseGroupsById.get(parentGid)!.memberIds.length <= 2
+      && spouseGroupsById.get(parentGid)!.memberIds.every((id) => parents.has(id));
+    const marriage = parents.size === 2 ? marriageJunctions.get(pairKey([...parents])) : undefined;
     const network = networkByRelationship.get(r.id)!;
     const lanes = networksByLevel.get(childLevel)!;
     const routePoints = buildParentChildRoute(
-      wholeCouple ? parentBounds.centerX : parentPos.x + C.NODE_WIDTH / 2 + portOffset(r.fromPersonId, 'out', network),
-      parentBounds.bottomY, parentLevel,
+      marriage?.x ?? (wholeCouple ? parentBounds.centerX : parentPos.x + C.NODE_WIDTH / 2 + portOffset(r.fromPersonId, 'out', network)),
+      Math.max(parentBounds.bottomY, marriage?.y ?? 0), parentLevel,
       childPos.x + C.NODE_WIDTH / 2 + portOffset(r.toPersonId, 'in', network), childPos.y, childLevel,
       occupiedIntervalsByLevel, contentWidth,
       lanes.indexOf(network) / Math.max(1, lanes.length - 1),
       occupiedRoutes, network,
+      parentBounds.bottomY + (nonAdjacentByRow.has(parentPos.y)
+        ? 36 + nonAdjacentByRow.get(parentPos.y)!.length * 14 : 0),
     );
     for (let i = 1; i < routePoints.length; i++) {
       const a = routePoints[i - 1], b = routePoints[i];
       if (a.x === b.x) occupiedRoutes.push({ x: a.x, top: Math.min(a.y, b.y), bottom: Math.max(a.y, b.y), network });
     }
-    if (wholeCouple && spouseGroupsById.get(parentGid)!.memberIds.length === 2) {
+    if (marriage && marriage.y < parentBounds.bottomY) {
+      routePoints.unshift(marriage);
+    } else if (!marriage && wholeCouple && spouseGroupsById.get(parentGid)!.memberIds.length === 2) {
       routePoints.unshift({ x: parentBounds.centerX, y: parentPos.y + C.NODE_HEIGHT / 2 });
     }
     const connectorStyle = getParentChildConnectorStyle(r, colors, true);
     parentRoutes.push({
       key: `pc-${r.id}`, networkId: network, relationshipType: 'parent-child',
       personIds: [r.fromPersonId, r.toPersonId], points: routePoints,
-      junctions: wholeCouple && spouseGroupsById.get(parentGid)!.memberIds.length === 2 ? [routePoints[0]] : [],
+      junctions: marriage || (wholeCouple && spouseGroupsById.get(parentGid)!.memberIds.length === 2) ? [routePoints[0]] : [],
       ...connectorStyle,
     });
   }

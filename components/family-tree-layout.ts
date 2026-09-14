@@ -1,6 +1,6 @@
 // Tidy-tree (Walker / Reingold–Tilford) layout for a family graph.
 //
-// We treat each spouse-group (a couple, or solo person) as one virtual
+// We treat each spouse-group (a partnership family, couple, or solo person) as one virtual
 // node whose width = (memberCount * NODE_WIDTH) + (memberCount-1) * SPOUSE_GAP.
 // Subtree non-overlap is guaranteed by the algorithm.
 //
@@ -58,48 +58,33 @@ function buildSpouseGroups(
     spouseIdsByPerson.get(relationship.toPersonId)?.add(relationship.fromPersonId);
   });
 
-  const groupMembers = new Map<string, string[]>();
-  const groupIdByPerson = new Map<string, string>();
-  const groupedPersonIds = new Set<string>();
-
-  relationships
-    .filter((relationship) => relationship.type === 'spouse')
-    .forEach((relationship) => {
-      const leftSpouses = spouseIdsByPerson.get(relationship.fromPersonId) ?? new Set<string>();
-      const rightSpouses = spouseIdsByPerson.get(relationship.toPersonId) ?? new Set<string>();
-      const isExclusivePair = leftSpouses.size === 1
-        && rightSpouses.size === 1
-        && leftSpouses.has(relationship.toPersonId)
-        && rightSpouses.has(relationship.fromPersonId);
-
-      if (!isExclusivePair || groupedPersonIds.has(relationship.fromPersonId) || groupedPersonIds.has(relationship.toPersonId)) {
-        return;
-      }
-
-      const members = [relationship.fromPersonId, relationship.toPersonId].sort();
-      const groupId = `pair:${members.join('|')}`;
-      groupMembers.set(groupId, members);
-      members.forEach((memberId) => {
-        groupIdByPerson.set(memberId, groupId);
-        groupedPersonIds.add(memberId);
-      });
-    });
-
-  people.forEach((person) => {
-    if (groupedPersonIds.has(person.id)) {
-      return;
-    }
-    const groupId = `solo:${person.id}`;
-    groupMembers.set(groupId, [person.id]);
-    groupIdByPerson.set(person.id, groupId);
-  });
-
-  // Stable ordering inside a group (alpha by name id for determinism).
   const groups = new Map<string, SpouseGroup>();
-  groupMembers.forEach((members, id) => {
+  const groupIdByPerson = new Map<string, string>();
+  // Partnership families share a generation, including multiple marriages.
+  // Grouping controls placement only; it never implies shared parentage.
+  for (const person of [...people].sort((a, b) => a.id.localeCompare(b.id))) {
+    if (groupIdByPerson.has(person.id)) continue;
+    const members: string[] = [];
+    const seen = new Set<string>();
+    const pending = [person.id];
+    while (pending.length) {
+      const id = pending.pop()!;
+      if (seen.has(id) || !spouseIdsByPerson.has(id)) continue;
+      seen.add(id);
+      members.push(id);
+      spouseIdsByPerson.get(id)!.forEach((spouse) => pending.push(spouse));
+    }
     members.sort();
-    groups.set(id, { id, memberIds: members });
-  });
+    const groupId = `${members.length === 1 ? 'solo' : members.length === 2 ? 'pair' : 'family'}:${members.join('|')}`;
+    if (members.length > 2) {
+      const hub = [...members].sort((a, b) =>
+        spouseIdsByPerson.get(b)!.size - spouseIdsByPerson.get(a)!.size || a.localeCompare(b))[0];
+      members.splice(members.indexOf(hub), 1);
+      members.splice(Math.floor(members.length / 2), 0, hub);
+    }
+    groups.set(groupId, { id: groupId, memberIds: members });
+    members.forEach((id) => groupIdByPerson.set(id, groupId));
+  }
 
   return { groups, groupIdByPerson };
 }
@@ -443,9 +428,10 @@ export function layoutFamilyTree(
     fullChildMap.get(pGid)!.add(cGid);
   });
 
-  // Converging BFS: push child.level above parent.level wherever violated.
+  // Push children below parents. Bound passes so inconsistent imported
+  // ancestry/partnership cycles cannot keep the canvas in an infinite loop.
   let correcting = true;
-  while (correcting) {
+  for (let pass = 0; correcting && pass < nodesById.size; pass += 1) {
     correcting = false;
     fullChildMap.forEach((childGids, pGid) => {
       const parent = nodesById.get(pGid);
