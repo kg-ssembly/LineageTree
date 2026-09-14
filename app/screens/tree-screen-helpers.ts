@@ -188,6 +188,29 @@ export async function createPersonFromFormSubmission(
     return null;
   }
 
+  if (payload.existingPersonId) {
+    const existing = peopleForValidation.find((person) => person.id === payload.existingPersonId);
+    if (!existing) throw new Error('This person is no longer available in the selected tree.');
+    const remaining = payload.pendingRelationships.filter((connection) => !relationshipsForValidation.some((r) => {
+      if (connection.mode === 'spouse-of') return r.type === 'spouse' &&
+        [r.fromPersonId, r.toPersonId].includes(existing.id) && [r.fromPersonId, r.toPersonId].includes(connection.relatedPersonId);
+      return r.type === 'parent-child' && r.fromPersonId === (connection.mode === 'child-of' ? connection.relatedPersonId : existing.id)
+        && r.toPersonId === (connection.mode === 'child-of' ? existing.id : connection.relatedPersonId);
+    }));
+    const error = getFirstPendingRelationshipValidationError({ subjectPerson: existing, pendingRelationships: remaining, people: peopleForValidation, relationships: relationshipsForValidation });
+    if (error) throw new Error(error);
+    for (const connection of remaining) {
+      if (connection.mode === 'spouse-of') {
+        await addSpouseRelationship(userId, selectedTree.id, existing.id, connection.relatedPersonId, connection.relationshipStatus);
+      } else {
+        await addParentChildRelationship(userId, selectedTree.id,
+          connection.mode === 'child-of' ? connection.relatedPersonId : existing.id,
+          connection.mode === 'child-of' ? existing.id : connection.relatedPersonId, connection.parentChildKind);
+      }
+    }
+    return existing;
+  }
+
   if (payload.pendingRelationships.length > 0 && peopleForValidation.length > 0) {
     const validationError = getFirstPendingRelationshipValidationError({
       subjectPerson: {

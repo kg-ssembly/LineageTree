@@ -3,7 +3,7 @@ import { useAuthStore } from '../stores/auth-store';
 import { useTreeStore } from '../stores/tree-store';
 import { personDateBounds } from './person-date';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import {
   ActivityIndicator,
   Button,
@@ -11,6 +11,7 @@ import {
   Dialog,
   HelperText,
   IconButton,
+  Icon,
   List,
   Menu,
   Portal,
@@ -33,9 +34,40 @@ import RelationshipSuggestionsDialog from './relationship-suggestions-dialog';
 import RelationshipVisualPreviewDialog from './relationship-visual-preview-dialog';
 import { buildRelationshipSuggestions } from './relationship-suggestions';
 import ConfirmDialog from './confirm-dialog';
+import { PersonPortrait } from './ui/person-portrait';
+import { findFamilyMatches, nextFamilyEntries, possibleFamilyConnections, type FamilyEntryChoice } from './family-entry-guidance';
 
 const styles = GlobalStyles.personFormDialog;
 const dialogChrome = GlobalStyles.dialogChrome;
+const entryStyles = StyleSheet.create({
+  section: { gap: 10 },
+  panel: { padding: 14, borderRadius: 16, gap: 10 },
+  choices: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  helper: { lineHeight: 19 },
+  memberRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 12, borderWidth: 1, minHeight: 72 },
+  memberText: { flex: 1, minWidth: 0, gap: 3 },
+  name: { lineHeight: 21 },
+  textAction: { alignSelf: 'flex-start', marginLeft: -8 },
+  actionLabel: { fontSize: 13, lineHeight: 18 },
+});
+
+function ExistingMemberChoice({ person, onPress, accessibilityLabel, disabled = false }: {
+  person: PersonRecord; onPress: () => void; accessibilityLabel: string; disabled?: boolean;
+}) {
+  const theme = useTheme();
+  const { t } = useI18n();
+  const details = [person.birthDate ? formatPersonDate(person.birthDate) : '', person.birthPlace].filter(Boolean).join(' · ');
+  return <Pressable accessibilityRole="button" accessibilityLabel={accessibilityLabel} accessibilityState={{ disabled }} disabled={disabled} onPress={onPress}
+    style={({ pressed }) => [entryStyles.memberRow, { backgroundColor: pressed ? theme.colors.surfaceVariant : theme.colors.surface, borderColor: theme.colors.outlineVariant, opacity: disabled ? 0.5 : 1 }]}>
+    <PersonPortrait person={person} size={44} />
+    <View style={entryStyles.memberText}>
+      <Text variant="titleSmall" style={entryStyles.name}>{formatPersonName(person)}</Text>
+      {details ? <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>{details}</Text> : null}
+      <Text variant="labelMedium" style={{ color: theme.colors.primary }}>{t('Review connection')}</Text>
+    </View>
+    <Icon source="chevron-right" size={20} color={theme.colors.onSurfaceVariant} />
+  </Pressable>;
+}
 export type PendingRelationshipMode = 'parent-of' | 'child-of' | 'spouse-of';
 
 export interface PendingRelationshipSubmission {
@@ -51,6 +83,7 @@ interface PendingRelationshipDraft extends PendingRelationshipSubmission {
 
 export interface PersonFormSubmission extends PersonMutationPayload {
   pendingRelationships: PendingRelationshipSubmission[];
+  existingPersonId?: string;
 }
 
 interface PersonFormDialogProps {
@@ -71,7 +104,7 @@ interface PersonFormDialogProps {
   relationships?: RelationshipRecord[];
   onSelectRelationshipAttempt?: (mode: PendingRelationshipMode, relatedPerson: PersonRecord) => Promise<boolean> | boolean;
   onDismiss: () => void;
-  onSubmit: (payload: PersonFormSubmission, options?: { keepOpen: boolean }) => void | Promise<void>;
+  onSubmit: (payload: PersonFormSubmission, options?: { keepOpen: boolean }) => void | PersonRecord | null | Promise<void | PersonRecord | null>;
   onDelete?: () => void | Promise<void>;
 }
 
@@ -282,17 +315,76 @@ function getRelationshipModeForPerson(personId: string, relationship: Relationsh
 }
 
 export default function PersonFormDialog(props: PersonFormDialogProps) {
-  const [nextEntry, setNextEntry] = useState<{ sequence: number; payload: PersonFormSubmission } | null>(null);
+  const { t } = useI18n();
+  const theme = useTheme();
+  const [nextEntry, setNextEntry] = useState<{ sequence: number; values: Partial<PersonMutationPayload>; connections: PendingRelationshipSubmission[] } | null>(null);
+  const [completed, setCompleted] = useState<PersonFormSubmission | null>(null);
+  const [existing, setExisting] = useState<PersonRecord | null>(null);
+  const [sessionPeople, setSessionPeople] = useState<PersonRecord[]>([]);
+  const [sessionRelationships, setSessionRelationships] = useState<RelationshipRecord[]>([]);
+  const resultRef = useRef<PersonRecord | null>(null);
+  const approvals = useTreeStore((state) => state.approvalRequests);
+  const pendingPeople = approvals.filter((a) => a.status === 'pending').flatMap((a) => a.payload.afterPerson ? [a.payload.afterPerson] : []);
+  const people = [...new Map([...(props.relationshipCandidates ?? []), ...sessionPeople].map((p) => [p.id, p])).values()];
+  const relationships = [...(props.relationships ?? []), ...sessionRelationships];
+  const guidanceRelationships = [...relationships, ...approvals.filter((a) => a.status === 'pending').flatMap((a) => [...(a.payload.relationships ?? []), ...(a.payload.relationship ? [a.payload.relationship] : [])])];
+  const choices = completed ? nextFamilyEntries(resultRef.current ?? { id: '', gender: completed.gender }, completed.pendingRelationships, [...people, ...pendingPeople], guidanceRelationships) : [];
+  const restart = (choice: FamilyEntryChoice) => {
+    setNextEntry((previous) => ({ sequence: (previous?.sequence ?? 0) + 1, values: { gender: choice.gender ?? 'unspecified' }, connections: choice.connections }));
+    setExisting(null);
+    setCompleted(null);
+  };
   useEffect(() => {
-    if (!props.visible) setNextEntry(null);
+    if (!props.visible) { setNextEntry(null); setCompleted(null); setExisting(null); setSessionPeople([]); setSessionRelationships([]); resultRef.current = null; }
   }, [props.visible]);
-  return <PersonFormDialogContent
+  return <>{!completed ? <PersonFormDialogContent
     {...props}
-    key={nextEntry?.sequence ?? 0}
-    initialValues={nextEntry ? { lastName: nextEntry.payload.lastName } : props.initialValues}
-    initialPendingRelationships={nextEntry?.payload.pendingRelationships ?? props.initialPendingRelationships}
-    onRestart={(payload) => setNextEntry((previous) => ({ sequence: (previous?.sequence ?? 0) + 1, payload }))}
-  />;
+    key={`${nextEntry?.sequence ?? 0}:${existing?.id ?? 'new'}`}
+    visible={props.visible && !completed}
+    person={existing ?? props.person}
+    relationshipOnly={!!existing || props.relationshipOnly}
+    initialStep={existing ? 2 : props.initialStep}
+    initialValues={nextEntry?.values ?? props.initialValues}
+    initialPendingRelationships={nextEntry?.connections ?? props.initialPendingRelationships}
+    relationshipCandidates={people}
+    relationships={guidanceRelationships}
+    pendingPeople={pendingPeople}
+    onConnectExisting={(person, connections) => {
+      const remaining = connections.filter((c) => !guidanceRelationships.some((r) => c.mode === 'spouse-of'
+        ? r.type === 'spouse' && [r.fromPersonId, r.toPersonId].includes(person.id) && [r.fromPersonId, r.toPersonId].includes(c.relatedPersonId)
+        : r.type === 'parent-child' && r.fromPersonId === (c.mode === 'child-of' ? c.relatedPersonId : person.id) && r.toPersonId === (c.mode === 'child-of' ? person.id : c.relatedPersonId)));
+      setNextEntry((previous) => ({ sequence: (previous?.sequence ?? 0) + 1, values: {}, connections: remaining })); setExisting(person);
+    }}
+    onSubmit={async (payload, options) => {
+      const result = await props.onSubmit(existing ? { ...payload, existingPersonId: existing.id } : payload, options);
+      resultRef.current = result ?? null;
+      if (result) {
+        setSessionPeople((previous) => [...previous, result]);
+        setSessionRelationships((previous) => [...previous, ...payload.pendingRelationships.map((c, index): RelationshipRecord => ({
+          id: `session:${result.id}:${index}`, treeId: result.treeId, ownerId: result.ownerId, createdAt: '',
+          type: c.mode === 'spouse-of' ? 'spouse' : 'parent-child',
+          fromPersonId: c.mode === 'child-of' ? c.relatedPersonId : result.id,
+          toPersonId: c.mode === 'child-of' ? result.id : c.relatedPersonId,
+          parentChildKind: c.parentChildKind, relationshipStatus: c.relationshipStatus,
+        }))]);
+      }
+      return result;
+    }}
+    onRestart={setCompleted}
+  /> : null}
+    <Portal><Dialog visible={props.visible && !!completed} onDismiss={props.onDismiss} style={dialogChrome.dialog}>
+      <Dialog.Title style={dialogChrome.dialogTitle}>{t('Continue building your family')}</Dialog.Title>
+      <Dialog.Content style={entryStyles.section}>
+        <Text variant="titleMedium">{completed ? formatPreviewName(completed) : ''}</Text>
+        <Text variant="bodySmall" style={[entryStyles.helper, { color: theme.colors.onSurfaceVariant }]}>{t('Details submitted. Who would you like to add next?')}</Text>
+      </Dialog.Content>
+      <Dialog.ScrollArea style={dialogChrome.scrollArea}><ScrollView contentContainerStyle={{ padding: 16, gap: 10 }}>
+        {choices.map((choice, index) => <Button key={choice.label} mode={index === 0 ? 'contained' : 'outlined'} contentStyle={{ minHeight: 44 }} onPress={() => restart(choice)}>{t(choice.label)}</Button>)}
+        {completed ? <Button onPress={() => restart({ label: '', connections: [] })}>{t('Add another relative')}</Button> : null}
+      </ScrollView></Dialog.ScrollArea>
+      <Dialog.Actions><Button onPress={props.onDismiss}>{t(K.common.done)}</Button></Dialog.Actions>
+    </Dialog></Portal>
+  </>;
 }
 
 function PersonFormDialogContent({
@@ -315,11 +407,14 @@ function PersonFormDialogContent({
   onDismiss,
   onSubmit,
   onDelete,
-}: PersonFormDialogProps & { onRestart: (payload: PersonFormSubmission) => void }) {
+  onConnectExisting,
+  pendingPeople,
+}: PersonFormDialogProps & { onRestart: (payload: PersonFormSubmission) => void; onConnectExisting: (person: PersonRecord, connections: PendingRelationshipSubmission[]) => void; pendingPeople: PersonRecord[] }) {
   const theme = useTheme();
   const { t, language } = useI18n();
   const isRelationshipOnlyFlow = mode === 'create' && relationshipOnly;
   const [useDetailedFlow, setUseDetailedFlow] = useState(false);
+  const [newPersonChosen, setNewPersonChosen] = useState(false);
   const quickAdd = enableQuickAdd && mode === 'create' && !relationshipOnly && !useDetailedFlow && initialPendingRelationships.length > 0;
   const submissionLock = useRef(false);
   const [lifeStatus, setLifeStatus] = useState<PersonLifeStatus>('living');
@@ -416,6 +511,7 @@ function PersonFormDialogContent({
     setLastNameError(null);
     setBirthDateError(null);
     setDeathDateError(null);
+    setNewPersonChosen(false);
     setBirthDatePickerVisible(false);
     setDeathDatePickerVisible(false);
     setPendingRelationships(
@@ -503,7 +599,7 @@ function PersonFormDialogContent({
       return '';
     }
 
-    const byPriority: PendingRelationshipMode[] = ['spouse-of', 'child-of', 'parent-of'];
+    const byPriority: PendingRelationshipMode[] = ['child-of', 'parent-of'];
 
     for (const relationshipMode of byPriority) {
       const matchedDraft = pendingRelationships.find((draft) => draft.mode === relationshipMode && draft.relatedPersonId);
@@ -761,6 +857,30 @@ function PersonFormDialogContent({
     || isBusy
   );
 
+  const entryAnchor = pendingRelationships[0];
+  const matches = mode === 'create' && !isRelationshipOnlyFlow
+    ? findFamilyMatches(firstName, lastName, relationshipCandidates).filter((p) => !pendingRelationships.some((c) => c.relatedPersonId === p.id)) : [];
+  const pendingMatches = mode === 'create' && !isRelationshipOnlyFlow ? findFamilyMatches(firstName, lastName, pendingPeople) : [];
+  const otherParentCandidates = entryAnchor?.mode === 'child-of'
+    ? relationshipCandidates.filter((p) => p.id !== entryAnchor.relatedPersonId && relationships.some((r) => r.type === 'spouse'
+      && [r.fromPersonId, r.toPersonId].includes(entryAnchor.relatedPersonId) && [r.fromPersonId, r.toPersonId].includes(p.id))) : [];
+  const possibleConnections = possibleFamilyConnections(entryAnchor, relationshipCandidates, relationships).filter((p) => {
+    if (!entryAnchor) return false;
+    return getRelationshipValidationFeedback({ people: relationshipCandidates, relationships,
+      type: entryAnchor.mode === 'spouse-of' ? 'spouse' : 'parent-child',
+      fromPersonId: entryAnchor.mode === 'child-of' ? entryAnchor.relatedPersonId : p.id,
+      toPersonId: entryAnchor.mode === 'child-of' ? p.id : entryAnchor.relatedPersonId,
+      parentChildKind: entryAnchor.parentChildKind, relationshipStatus: entryAnchor.relationshipStatus,
+    }).errors.length === 0;
+  });
+  const showExistingChoicesFirst = quickAdd && possibleConnections.length > 0 && !newPersonChosen && !firstName.trim();
+  const chooseOtherParent = async (parent: PersonRecord) => {
+    if (!entryAnchor) return;
+    if (onSelectRelationshipAttempt && !await onSelectRelationshipAttempt('child-of', parent)) return;
+    setPendingRelationships((previous) => [...previous.filter((c) => c.mode !== 'child-of' || c.relatedPersonId === entryAnchor.relatedPersonId),
+      createPendingRelationshipDraftFromSubmission({ mode: 'child-of', relatedPersonId: parent.id, parentChildKind: entryAnchor.parentChildKind ?? 'biological' })]);
+  };
+
   const handleSubmit = async () => {
     if (birthDate && !personDateBounds(birthDate)) { setShowOptionalDetails(true); setBirthDateError(t('Enter a valid date, year, or approximate year (~1940).')); return; }
     if (!isPresent && deathDate && !personDateBounds(deathDate)) { setShowOptionalDetails(true); setDeathDateError(t('Enter a valid date, year, or approximate year (~1940).')); return; }
@@ -938,7 +1058,7 @@ function PersonFormDialogContent({
     )
   );
 
-  const getPendingRelationshipDetail = (relationshipDraft: PendingRelationshipDraft) => {
+  const getPendingRelationshipDetail = (relationshipDraft: PendingRelationshipSubmission) => {
     if (relationshipDraft.mode === 'spouse-of') {
       return relationshipDraft.relationshipStatus === 'married'
         ? t(K.relationship.marriedLabel)
@@ -1053,6 +1173,7 @@ function PersonFormDialogContent({
   const restoreDraft = () => {
     const saved = draft.available;
     if (!saved) return;
+    setNewPersonChosen(true);
     setUseDetailedFlow(true);
     setShowOptionalDetails(true);
     setFirstName(saved.firstName); setMiddleNames(saved.middleNames); setLastName(saved.lastName); setLastNameTouched(true);
@@ -1076,10 +1197,11 @@ function PersonFormDialogContent({
     setSubmitPending(true);
 
     try {
-      await onSubmit(payload, { keepOpen: addAnother });
+      const guided = enableQuickAdd && mode === 'create' && !isRelationshipOnlyFlow;
+      await onSubmit(payload, { keepOpen: addAnother || guided });
       // A local cleanup failure must not turn a successful create into a retry.
       await draft.clear(true).catch(() => {});
-      if (addAnother) onRestart(payload);
+      if (addAnother || guided) onRestart(payload);
     } catch (error) {
       setRelationshipError(error instanceof Error ? error.message : t("Save failed. Your changes are still here; try again."));
       void draft.save().catch(() => {});
@@ -1112,6 +1234,17 @@ function PersonFormDialogContent({
           <IconButton icon="close" onPress={handleClose} disabled={isBusy} accessibilityLabel={t(K.common.cancel)} style={dialogChrome.closeButton} />
           <Dialog.ScrollArea style={[dialogChrome.scrollArea, styles.scrollArea]}>
             <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+              {showExistingChoicesFirst ? <View style={{ gap: 16, paddingBottom: 12 }}>
+                <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, lineHeight: 22 }}>{t('Is this someone already in your tree?')}</Text>
+                <View style={[entryStyles.panel, { backgroundColor: theme.colors.elevation.level1 }]}>
+                  <Text variant="titleSmall">{t('Possible connections')}</Text>
+                  <Text variant="bodySmall" style={[entryStyles.helper, { color: theme.colors.onSurfaceVariant }]}>{t(entryAnchor?.mode === 'spouse-of' ? 'Shared children suggest a possible connection.'
+                    : entryAnchor?.mode === 'parent-of' ? 'Suggested from recorded family connections.' : 'Suggested from a partner’s recorded children.')}</Text>
+                  {possibleConnections.map((p) => <ExistingMemberChoice key={p.id} person={p} accessibilityLabel={t('Connect {name}', { name: formatPersonName(p) })} onPress={() => onConnectExisting(p, pendingRelationships)} />)}
+                </View>
+                <Text variant="bodySmall" style={[entryStyles.helper, { color: theme.colors.onSurfaceVariant }]}>{t('You can review the relationship before saving.')}</Text>
+                {draft.available ? <Button onPress={restoreDraft}>{t('Restore draft')}</Button> : null}
+              </View> : <>
               {draft.available ? <View>
                 <Text>{t('An unfinished draft is available. Restoring it replaces the fields below.')}</Text>
                 <Button onPress={restoreDraft}>{t('Restore draft')}</Button>
@@ -1125,17 +1258,32 @@ function PersonFormDialogContent({
                 </Text>
               ) : null}
 
-              {quickAdd ? <View style={{ gap: 8 }}>
-                <Text variant="titleSmall">{t('Quick add')}</Text>
-                {pendingRelationships.map((connection) => {
-                  const relative = relationshipCandidatesById.get(connection.relatedPersonId);
-                  return (
-                    <Text key={connection.key}>
+              {quickAdd ? <View style={{ gap: 16, marginBottom: 16 }}>
+                <View style={entryStyles.section}>
+                  <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant }}>{t('Quick add')}</Text>
+                  {entryAnchor && entryAnchor.mode !== 'spouse-of' ? <View style={entryStyles.choices}>
+                    {([{ gender: 'male', label: entryAnchor.mode === 'parent-of' ? 'Father' : 'Son', action: entryAnchor.mode === 'parent-of' ? 'Add father' : 'Add son' },
+                      { gender: 'female', label: entryAnchor.mode === 'parent-of' ? 'Mother' : 'Daughter', action: entryAnchor.mode === 'parent-of' ? 'Add mother' : 'Add daughter' },
+                      { gender: 'unspecified', label: entryAnchor.mode === 'parent-of' ? 'Parent' : 'Child', action: entryAnchor.mode === 'parent-of' ? 'Add parent' : 'Add child' }] as const).map((option) =>
+                      <Chip key={option.gender} accessibilityLabel={t(option.action)} selected={gender === option.gender} onPress={() => setGender(option.gender)}>{t(option.label)}</Chip>)}
+                  </View> : null}
+                  {pendingRelationships.map((connection) => {
+                    const relative = relationshipCandidatesById.get(connection.relatedPersonId);
+                    return <Text variant="bodySmall" style={[entryStyles.helper, { color: theme.colors.onSurfaceVariant }]} key={connection.key}>
                       {getRelationshipPreviewLabel(connection.mode)} {relative ? formatPersonName(relative) : connection.relatedPersonId} · {getPendingRelationshipDetail(connection)}
-                    </Text>
-                  );
-                })}
-                <Button onPress={() => { setUseDetailedFlow(true); setCurrentStep(2); }} disabled={isBusy}>{t('Review or change relationships')}</Button>
+                    </Text>;
+                  })}
+                </View>
+                {entryAnchor?.mode === 'child-of' ? <View style={[entryStyles.panel, { backgroundColor: theme.colors.elevation.level1 }]}>
+                  <Text variant="titleSmall">{t('Other parent')}</Text>
+                  <Text variant="bodySmall" style={[entryStyles.helper, { color: theme.colors.onSurfaceVariant }]}>{t('Choose who to connect, or leave this unrecorded.')}</Text>
+                  <View style={entryStyles.choices}>
+                    {otherParentCandidates.map((p) => <Chip key={p.id} selected={pendingRelationships.some((c) => c.mode === 'child-of' && c.relatedPersonId === p.id)} onPress={() => { void chooseOtherParent(p); }}>{formatPersonName(p)}</Chip>)}
+                    <Chip selected={pendingRelationships.filter((c) => c.mode === 'child-of').length === 1} onPress={() => setPendingRelationships((previous) => previous.filter((c) => c.mode !== 'child-of' || c.relatedPersonId === entryAnchor.relatedPersonId))}>{t('Not recorded')}</Chip>
+                    <Chip icon="account-search-outline" onPress={() => openAddConnectionDialog('child-of')}>{t('Someone else')}</Chip>
+                  </View>
+                </View> : null}
+                <Button compact icon="pencil-outline" style={entryStyles.textAction} labelStyle={entryStyles.actionLabel} accessibilityLabel={t('Review or change relationships')} onPress={() => { setUseDetailedFlow(true); setCurrentStep(2); }} disabled={isBusy}>{t('Edit connections')}</Button>
               </View> : null}
               {mode === 'create' && currentStep === 2 ? (
                 <>
@@ -1302,6 +1450,11 @@ function PersonFormDialogContent({
                   <HelperText type="error" visible={!!firstNameError}>
                     {firstNameError}
                   </HelperText>
+                  {matches.length ? <View style={[entryStyles.panel, { backgroundColor: theme.colors.elevation.level1, marginBottom: 12 }]}>
+                    <Text variant="titleSmall">{t('Already in your tree?')}</Text>
+                    {matches.map((p) => <ExistingMemberChoice key={p.id} person={p} disabled={!pendingRelationships.length} accessibilityLabel={t('Connect existing person')} onPress={() => onConnectExisting(p, pendingRelationships)} />)}
+                  </View> : null}
+                  {pendingMatches.map((p) => <HelperText key={p.id} type="info" visible>{t('Awaiting approval: {name}. Review the pending request before creating another person.', { name: formatPersonName(p) })}</HelperText>)}
                   <HelperText type="info" visible={personValidationFeedback.warnings.length > 0}>
                     {personValidationFeedback.warnings[0] ?? ''}
                   </HelperText>
@@ -1539,6 +1692,7 @@ function PersonFormDialogContent({
                   </> : null}
                 </>
               )}
+              </>}
             </ScrollView>
           </Dialog.ScrollArea>
           <Dialog.Actions style={[dialogChrome.dialogActions, styles.dialogActions, { borderTopColor: theme.colors.outlineVariant, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
@@ -1553,7 +1707,7 @@ function PersonFormDialogContent({
             ) : (
               <View />
             )}
-            <View style={{ flexDirection: 'row', gap: 8 }}>
+            {showExistingChoicesFirst ? <Button mode="outlined" icon="account-plus-outline" onPress={() => setNewPersonChosen(true)}>{t('Add someone new')}</Button> : <View style={{ flexDirection: 'row', gap: 8 }}>
               {mode === 'create' && currentStep === 2 && !isRelationshipOnlyFlow ? (
                 <Button onPress={() => setCurrentStep(1)} disabled={isBusy}>
                   {t(K.common.back)}
@@ -1572,7 +1726,7 @@ function PersonFormDialogContent({
                       : t(K.common.create)
                   : t(K.common.save)}
               </Button>
-            </View>
+            </View>}
           </Dialog.Actions>
       </Dialog>
       <ConfirmDialog
@@ -1664,10 +1818,11 @@ function PersonFormDialogContent({
                         const relatedPerson = relationshipCandidatesById.get(relationship.relatedPersonId);
                         return (
                           <Text key={`${relationship.relatedPersonId}-${index}`} variant="bodyMedium">
-                            {index + 1}. {getRelationshipPreviewLabel(relationship.mode)} {relatedPerson ? formatPersonName(relatedPerson) : relationship.relatedPersonId}
+                            {index + 1}. {formatPreviewName(previewState.payload!)}: {getRelationshipPreviewLabel(relationship.mode)} {relatedPerson ? formatPersonName(relatedPerson) : relationship.relatedPersonId} · {getPendingRelationshipDetail(relationship)}
                           </Text>
                         );
                       })}
+                      <Button onPress={() => { setPreviewState({ visible: false, payload: null, warnings: [] }); setUseDetailedFlow(true); setCurrentStep(2); }}>{t('Review or change relationships')}</Button>
                     </View>
                   ) : null}
                 </>

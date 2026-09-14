@@ -1,3 +1,4 @@
+import { recordedParents } from '../../../components/family-entry-guidance';
 import type { TreePersonActions } from '../../../components/tree-exploration';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useIsFocused } from '@react-navigation/native';
@@ -674,11 +675,11 @@ export function useMainScreenController({ navigation }: Props) {
     setTreeDialog({ visible: true, mode: 'create', tree: null });
   }, []);
 
-  const openCreateRelativeDialog = useCallback((mode: PendingRelationshipSubmission['mode'], relatedPerson: PersonRecord) => {
+  const openCreateRelativeDialog = useCallback((mode: PendingRelationshipSubmission['mode'] | 'sibling-of', relatedPerson: PersonRecord) => {
     setNodeQuickActionState({ visible: false, person: null });
 
     void (async () => {
-      const shouldContinue = await handleMaidenParentSelectionAttempt(mode, relatedPerson);
+      const shouldContinue = mode === 'sibling-of' || await handleMaidenParentSelectionAttempt(mode, relatedPerson);
       if (!shouldContinue) {
         return;
       }
@@ -687,10 +688,10 @@ export function useMainScreenController({ navigation }: Props) {
         visible: true,
         mode: 'create',
         person: null,
-        initialPendingRelationships: [{ mode, relatedPersonId: relatedPerson.id }],
+        initialPendingRelationships: mode === 'sibling-of' ? recordedParents(relatedPerson.id, relationships) : [{ mode, relatedPersonId: relatedPerson.id }],
       });
     })();
-  }, [handleMaidenParentSelectionAttempt]);
+  }, [handleMaidenParentSelectionAttempt, relationships]);
 
   const handleTreeDialogSubmit = useCallback(async (name: string) => {
     if (!user) {
@@ -915,12 +916,14 @@ export function useMainScreenController({ navigation }: Props) {
       throw new Error('Your session or selected tree changed. Sign in and reopen this draft before saving.');
     }
 
+    let created: PersonRecord | null = null;
     if (personDialog.mode === 'create') {
-      await createPersonFromPayload(payload);
+      created = await createPersonFromPayload(payload);
     } else if (personDialog.person) {
       await updatePerson(user.id, personDialog.person, payload);
     }
     if (!options?.keepOpen || personDialog.mode !== 'create') closePersonDialog();
+    return created;
 
   }, [closePersonDialog, createPersonFromPayload, personDialog.mode, personDialog.person, selectedTree, updatePerson, user?.id]);
 

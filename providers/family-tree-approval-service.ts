@@ -1007,9 +1007,9 @@ export async function submitCreateRelationshipApproval(
   const relationshipId = type === 'spouse'
     ? buildSpouseRelationshipId(normalizedEndpoints.fromPersonId, normalizedEndpoints.toPersonId)
     : buildParentChildRelationshipId(normalizedEndpoints.fromPersonId, normalizedEndpoints.toPersonId);
-  const relationshipRef = doc(db, RELATIONSHIPS_COLLECTION, relationshipId);
-  const existingRelationship = await getDoc(relationshipRef);
-  if (existingRelationship.exists()) {
+  // Reads of missing documents cannot satisfy the tree-scoped read rule.
+  // Reuse the authorized tree query above rather than probing an absent ID.
+  if (existingRelationships.some((relationship) => relationship.id === relationshipId)) {
     throw new Error(type === 'spouse' ? 'That spouse relationship already exists.' : 'That parent-child relationship already exists.');
   }
 

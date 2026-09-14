@@ -99,6 +99,7 @@ test('quick add repeats a child without copying personal details and retains dra
     await expect(page.getByLabel('First name *', { exact: true })).toHaveCount(0);
     await page.screenshot({ path: testInfo.outputPath('quick-add-review.png'), animations: 'disabled' });
     await page.getByRole('button', { name: 'Save and add another', exact: true }).click();
+    await page.getByRole('button', { name: 'Add sibling', exact: true }).click();
     await expect(page.getByLabel('First name *', { exact: true })).toHaveValue('');
     await expect(page.getByText('Quick add', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Quickfamily', exact: true })).toBeVisible();
@@ -129,6 +130,64 @@ test('quick add repeats a child without copying personal details and retains dra
     const links = await db.collection('relationships').where('fromPersonId', '==', parentId).get();
     expect(links.size).toBe(2);
     expect(links.docs.every((doc: { data: () => { parentChildKind: string } }) => doc.data().parentChildKind === 'biological')).toBe(true);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+  } finally {
+    for (const collection of ['persons', 'relationships']) {
+      const docs = await db.collection(collection).where('treeId', '==', 'journey-tree').get();
+      const batch = db.batch(); docs.docs.forEach((doc: { ref: unknown }) => batch.delete(doc.ref)); if (docs.size) await batch.commit();
+    }
+  }
+});
+
+
+test('guided parents preselect gender and a single co-parent can be connected as a spouse', async ({ page }, testInfo) => {
+  const db = getFirestore(getApps()[0]);
+  const childId = 'guided-child-' + testInfo.project.name;
+  const stamp = new Date().toISOString();
+  await db.doc('persons/' + childId).set({ treeId: 'journey-tree', treeMembershipIds: ['journey-tree'], ownerId: 'journey-owner', firstName: 'Anchor', lastName: 'Guidedfamily', birthDate: '2000', deathDate: '', gender: 'unspecified', notes: '', photos: [], lifeEvents: [], createdAt: stamp, updatedAt: stamp });
+  try {
+    await openWorkspace(page);
+    const close = page.getByRole('button', { name: 'Close', exact: true });
+    if (await close.isVisible()) await close.click();
+    await page.getByRole('tab', { name: 'Members', exact: true }).or(page.getByRole('button', { name: 'Members', exact: true })).click();
+    await page.getByRole('button', { name: 'Add', exact: true }).click();
+    await page.getByRole('button', { name: 'Parent', exact: true }).click();
+    await page.getByText('Anchor Guidedfamily', { exact: true }).last().click();
+    await page.getByRole('button', { name: 'Add father', exact: true }).click();
+    await page.getByLabel('First name *', { exact: true }).fill('Father');
+    await page.getByRole('button', { name: 'Create', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Create', exact: true })).toHaveCount(1);
+    await page.getByRole('button', { name: 'Create', exact: true }).click();
+    await expect(page.getByText('Continue building your family', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Add mother', exact: true }).click();
+    await page.getByLabel('First name *', { exact: true }).fill('Mother');
+    await page.getByRole('button', { name: 'Create', exact: true }).click();
+    await expect(page.getByText('Gender: female', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Create', exact: true })).toHaveCount(1);
+    await page.getByRole('button', { name: 'Create', exact: true }).click();
+    await page.getByRole('button', { name: 'Done', exact: true }).click();
+    await page.getByRole('button', { name: 'Add', exact: true }).click();
+    await page.getByRole('button', { name: 'Spouse', exact: true }).click();
+    await page.getByText('Father Guidedfamily', { exact: true }).last().click();
+    await expect(page.getByText('Possible connections', { exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Connect Mother Guidedfamily', exact: true })).toBeVisible();
+    await expect(page.getByLabel('First name *', { exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Create', exact: true })).toHaveCount(0);
+    await page.screenshot({ path: testInfo.outputPath('possible-spouse.png'), animations: 'disabled' });
+    await page.getByRole('button', { name: 'Add someone new', exact: true }).click();
+    await expect(page.getByLabel('First name *', { exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await page.getByRole('button', { name: 'Add', exact: true }).click();
+    await page.getByRole('button', { name: 'Spouse', exact: true }).click();
+    await page.getByText('Father Guidedfamily', { exact: true }).last().click();
+    await expect(page.getByLabel('First name *', { exact: true })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Connect Mother Guidedfamily', exact: true }).click();
+    await expect(page.getByText('Mother Guidedfamily', { exact: true }).first()).toBeVisible();
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Save', exact: true })).toHaveCount(1);
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect.poll(async () => (await db.collection('relationships').where('treeId', '==', 'journey-tree').get()).docs.filter((d: { data: () => { type: string } }) => d.data().type === 'spouse').length).toBe(1);
+    expect((await db.collection('persons').where('lastName', '==', 'Guidedfamily').get()).size).toBe(3);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
   } finally {
     for (const collection of ['persons', 'relationships']) {

@@ -10,6 +10,7 @@ import type { PersonRecord } from '../../../components/dto/person';
 import { extractSurname } from '../../../components/family-tree-surname-clusters';
 import { formatPersonName } from '../../../components/person-formatting';
 import { I18N_KEYS as K } from '../../../i18n/keys';
+import { useTreeStore } from '../../../stores/tree-store';
 
 const compactButton = { ...BUTTON_CHROME, alignSelf: 'flex-start' as const, maxWidth: '100%' as const };
 const compactButtonContent = { minHeight: 44, paddingHorizontal: 4 };
@@ -41,13 +42,14 @@ export function TreeDetailNodeQuickActionsDialog({
   closeNodeQuickActions: () => void;
   openPersonProfile: (person: PersonRecord) => void;
   openPersonPhotos: (person: PersonRecord) => void;
-  openCreateRelativeDialog: (mode: 'parent-of' | 'child-of' | 'spouse-of', person: PersonRecord) => void;
+  openCreateRelativeDialog: (mode: 'parent-of' | 'child-of' | 'spouse-of' | 'sibling-of', person: PersonRecord) => void;
   crossSurnameChildIds: Set<string>;
   canvasActiveFamilyRef: React.MutableRefObject<string | null>;
   canvasFamilySwitchRef: React.MutableRefObject<((surname: string) => void) | null>;
   onOpenMaidenFamilyTree: (person: PersonRecord, maidenSurname: string, maritalSurname: string, isViewingMaiden: boolean) => void;
 }) {
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
+  const hasParents = useTreeStore((state) => state.relationships.some((r) => r.type === 'parent-child' && r.toPersonId === person?.id));
   const photo = getDisplayPersonPhoto(person);
   const [expandedSection, setExpandedSection] = useState<'relationship' | 'family' | 'add' | null>(null);
   useEffect(() => {
@@ -87,6 +89,8 @@ export function TreeDetailNodeQuickActionsDialog({
                   { mode: 'child-of', label: K.relationship.addChild, icon: 'account-arrow-down-outline' },
                   { mode: 'spouse-of', label: K.relationship.addSpouse, icon: 'account-heart-outline' },
                 ] as const).map(action => <Button key={action.mode} mode="text" icon={action.icon} compact style={compactButton} contentStyle={compactButtonContent} disabled={mutating} onPress={() => { dismiss(); openCreateRelativeDialog(action.mode, person); }}>{t(action.label)}</Button>)}
+                <Button mode="text" icon="account-multiple-outline" disabled={mutating || !hasParents} onPress={() => { dismiss(); openCreateRelativeDialog('sibling-of', person); }}>{t('Add sibling')}</Button>
+                {!hasParents ? <Text variant="bodySmall">{t('Record a shared parent first to add a sibling.')}</Text> : null}
                 {treeActions?.siblings.map(sibling => <Button key={sibling.label} mode="text" icon="account-multiple-plus-outline" compact style={compactButton} contentStyle={compactButtonContent} disabled={mutating} onPress={() => { dismiss(); sibling.onPress(); }}>{sibling.label}</Button>)}
               </View> : null}
           {treeActions ? <>
