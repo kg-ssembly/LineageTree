@@ -28,6 +28,8 @@ export type Connector = {
   relationshipType?: RelationshipRecord['type'];
   parentChildKind?: RelationshipRecord['parentChildKind'];
   d: string;
+  /** Continuous path used when this relationship is highlighted above other lines. */
+  highlightedD?: string;
   stroke: string;
   strokeWidth: number;
   /** Bounding box in canvas coordinates — used for viewport culling. */

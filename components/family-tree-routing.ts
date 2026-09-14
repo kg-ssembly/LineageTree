@@ -128,11 +128,14 @@ export function buildConnectorPaths(routes: ConnectorRoute[]): Connector[] {
     }
   }
 
-  const groups = new Map<string, { route: ConnectorRoute; points: NodePosition[][] }>();
+  const groups = new Map<string, { route: ConnectorRoute; points: NodePosition[][]; uncut: NodePosition[][] }>();
   for (const segment of segments) {
     const key = JSON.stringify([segment.route.networkId, segment.route.stroke, segment.route.strokeWidth, segment.route.dashArray]);
     let group = groups.get(key);
-    if (!group) { group = { route: segment.route, points: [] }; groups.set(key, group); }
+    if (!group) { group = { route: segment.route, points: [], uncut: [] }; groups.set(key, group); }
+    group.uncut.push(segment.horizontal
+      ? [{ x: segment.start, y: segment.fixed }, { x: segment.end, y: segment.fixed }]
+      : [{ x: segment.fixed, y: segment.start }, { x: segment.fixed, y: segment.end }]);
     let cursor = segment.start;
     const emit = (start: number, end: number) => {
       if (end <= start) return;
@@ -146,8 +149,8 @@ export function buildConnectorPaths(routes: ConnectorRoute[]): Connector[] {
     }
     emit(cursor, segment.end);
   }
-  return [...groups.entries()].map(([key, { route, points }]) => {
-    const all = points.flat();
+  return [...groups.entries()].map(([key, { route, points, uncut }]) => {
+    const all = uncut.flat();
     const xs = all.map((p) => p.x), ys = all.map((p) => p.y);
     const minX = Math.min(...xs), minY = Math.min(...ys);
     return {
@@ -156,6 +159,7 @@ export function buildConnectorPaths(routes: ConnectorRoute[]): Connector[] {
       relationshipType: route.relationshipType,
       parentChildKind: route.parentChildKind,
       d: roundedRuns(points, (point) => canRound(point, route.networkId)),
+      highlightedD: roundedRuns(uncut, (point) => canRound(point, route.networkId)),
       bounds: { x: minX, y: minY, w: Math.max(...xs) - minX, h: Math.max(...ys) - minY },
       label: route.label, labelPosition: route.labelPosition,
     };

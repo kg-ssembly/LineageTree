@@ -75,6 +75,7 @@ test('unrelated perpendicular relationships have a gap, not a false junction', (
   ]);
   assert.equal(paths[0].d, 'M 0 50 L 43 50 M 57 50 L 100 50');
   assert.equal(paths[1].d, 'M 50 0 L 50 100');
+  assert.equal(paths[0].highlightedD, 'M 0 50 L 100 50');
 });
 
 test('shared family runs are drawn once and retain all member identities', () => {

@@ -1209,10 +1209,13 @@ function FamilyTreeCanvas({
               style={[StyleSheet.absoluteFill, { zIndex: 0 }]}
               pointerEvents="none"
           >
-            {visibleConnectors.map((c) => (
+            {[...visibleConnectors].sort((a, b) => {
+              const active = (c: typeof a) => highlightedPathIds ? connectorOnPath(c.personIds, highlightedPathIds) : !!activeInspectionId && !!c.personIds?.includes(activeInspectionId);
+              return Number(active(a)) - Number(active(b));
+            }).map((c) => (
                 <React.Fragment key={c.key}>
                   <Path
-                      d={c.d}
+                      d={(highlightedPathIds ? connectorOnPath(c.personIds, highlightedPathIds) : activeInspectionId && c.personIds?.includes(activeInspectionId)) ? c.highlightedD ?? c.d : c.d}
                       fill="none"
                       stroke={c.stroke}
                       strokeWidth={c.strokeWidth + (highlightedPathIds && connectorOnPath(c.personIds, highlightedPathIds) ? 2 : activeInspectionId && c.personIds?.includes(activeInspectionId) ? 1.5 : 0)}
