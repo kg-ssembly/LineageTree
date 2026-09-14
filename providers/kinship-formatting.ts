@@ -1,4 +1,5 @@
 import type { PersonGender, PersonRecord } from '../components/dto/person';
+import type { ParentChildRelationshipKind, SpouseRelationshipStatus } from '../components/dto/relationship';
 import type { KinshipSystem } from '../components/dto/tree';
 import { parsePersonDate } from '../components/dto/person';
 import { getActiveLanguage, type AppLanguage } from '../i18n';
@@ -9,9 +10,10 @@ export type KinshipSeniority = 'older' | 'younger' | 'same' | 'unknown';
 export type KinshipDescriptor =
   | { kind: 'self' }
   | { kind: 'spouse'; targetGender: PersonGender }
-  | { kind: 'direct-descendant'; targetGender: PersonGender; generations: number }
-  | { kind: 'direct-ancestor'; targetGender: PersonGender; generations: number }
-  | { kind: 'sibling'; targetGender: PersonGender; siblingKind: 'full' | 'half' }
+  | { kind: 'former-spouse'; targetGender: PersonGender; status: Extract<SpouseRelationshipStatus, 'separated' | 'divorced' | 'widowed'> }
+  | { kind: 'direct-descendant'; targetGender: PersonGender; generations: number; parentChildKind?: ParentChildRelationshipKind }
+  | { kind: 'direct-ancestor'; targetGender: PersonGender; generations: number; parentChildKind?: ParentChildRelationshipKind }
+  | { kind: 'sibling'; targetGender: PersonGender; siblingKind: 'full' | 'half'; parentChildKind?: ParentChildRelationshipKind }
   | { kind: 'in-law'; targetGender: PersonGender; relation: 'child' | 'parent' | 'sibling' }
   | { kind: 'step'; targetGender: PersonGender; relation: 'child' | 'parent' | 'sibling' }
   | {
@@ -81,6 +83,22 @@ function formatGreatPrefix(count: number) {
   return count > 0 ? `${'Great-'.repeat(count)}` : '';
 }
 
+function formatParentChildQualifier(kind?: ParentChildRelationshipKind) {
+  switch (kind) {
+    case 'non-biological': return 'Non-biological';
+    case 'step': return 'Step';
+    case 'adopted': return 'Adoptive';
+    case 'foster': return 'Foster';
+    case 'guardian': return 'Guardian';
+    default: return '';
+  }
+}
+
+function withParentChildQualifier(label: string, kind?: ParentChildRelationshipKind) {
+  const qualifier = formatParentChildQualifier(kind);
+  return qualifier ? `${qualifier} ${label}` : label;
+}
+
 function isKinshipLocale(language: AppLanguage): language is KinshipLocale {
   return language === 'nso'
     || language === 'ss'
@@ -97,20 +115,25 @@ function formatGenericKinshipDescriptor(descriptor: KinshipDescriptor) {
       return 'Self';
     case 'spouse':
       return genderedLabel(descriptor.targetGender, 'Husband', 'Wife', 'Spouse');
+    case 'former-spouse':
+      if (descriptor.status === 'widowed') {
+        return genderedLabel(descriptor.targetGender, 'Late husband', 'Late wife', 'Late spouse');
+      }
+      return genderedLabel(descriptor.targetGender, 'Former husband', 'Former wife', 'Former spouse');
     case 'direct-descendant':
-      return descriptor.generations === 1
+      return withParentChildQualifier(descriptor.generations === 1
         ? genderedLabel(descriptor.targetGender, 'Son', 'Daughter', 'Child')
         : descriptor.generations === 2
           ? genderedLabel(descriptor.targetGender, 'Grandson', 'Granddaughter', 'Grandchild')
-          : `${formatGreatPrefix(descriptor.generations - 2)}${genderedLabel(descriptor.targetGender, 'Grandson', 'Granddaughter', 'Grandchild')}`;
+          : `${formatGreatPrefix(descriptor.generations - 2)}${genderedLabel(descriptor.targetGender, 'Grandson', 'Granddaughter', 'Grandchild')}`, descriptor.parentChildKind);
     case 'direct-ancestor':
-      return descriptor.generations === 1
+      return withParentChildQualifier(descriptor.generations === 1
         ? genderedLabel(descriptor.targetGender, 'Father', 'Mother', 'Parent')
         : descriptor.generations === 2
           ? genderedLabel(descriptor.targetGender, 'Grandfather', 'Grandmother', 'Grandparent')
-          : `${formatGreatPrefix(descriptor.generations - 2)}${genderedLabel(descriptor.targetGender, 'Grandfather', 'Grandmother', 'Grandparent')}`;
+          : `${formatGreatPrefix(descriptor.generations - 2)}${genderedLabel(descriptor.targetGender, 'Grandfather', 'Grandmother', 'Grandparent')}`, descriptor.parentChildKind);
     case 'sibling':
-      return `${descriptor.siblingKind === 'half' ? 'Half-' : ''}${genderedLabel(descriptor.targetGender, 'Brother', 'Sister', 'Sibling')}`;
+      return withParentChildQualifier(`${descriptor.siblingKind === 'half' ? 'Half-' : ''}${genderedLabel(descriptor.targetGender, 'Brother', 'Sister', 'Sibling')}`, descriptor.parentChildKind);
     case 'in-law':
       if (descriptor.relation === 'child') {
         return genderedLabel(descriptor.targetGender, 'Son-in-law', 'Daughter-in-law', 'Child-in-law');
@@ -390,28 +413,40 @@ function formatLocalizedLabel(
       return labels.self;
     case 'spouse':
       return genderedLabel(descriptor.targetGender, labels.spouse.male, labels.spouse.female, labels.spouse.neutral);
+    case 'former-spouse':
+      return null;
     case 'direct-descendant':
       if (descriptor.generations === 1) {
-        return genderedLabel(descriptor.targetGender, labels.directDescendant.male, labels.directDescendant.female, labels.directDescendant.neutral);
+        return descriptor.parentChildKind && descriptor.parentChildKind !== 'biological'
+          ? null
+          : genderedLabel(descriptor.targetGender, labels.directDescendant.male, labels.directDescendant.female, labels.directDescendant.neutral);
       }
 
       if (language === 'nso') {
         return 'setlogolo';
       }
 
-      return `${formatGreatPrefix(descriptor.generations - 2)}Grand-${genderedLabel(descriptor.targetGender, labels.directDescendant.male, labels.directDescendant.female, labels.directDescendant.neutral)}`;
+      // Do not synthesize mixed-language labels such as "Grand-indodana".
+      // A culturally reviewed multi-generation term can replace this fallback.
+      return null;
     case 'direct-ancestor':
       if (descriptor.generations === 1) {
-        return genderedLabel(descriptor.targetGender, labels.directAncestor.male, labels.directAncestor.female, labels.directAncestor.neutral);
+        return descriptor.parentChildKind && descriptor.parentChildKind !== 'biological'
+          ? null
+          : genderedLabel(descriptor.targetGender, labels.directAncestor.male, labels.directAncestor.female, labels.directAncestor.neutral);
       }
 
       if (language === 'nso') {
         return 'koko';
       }
 
-      return `${formatGreatPrefix(descriptor.generations - 2)}Grand-${genderedLabel(descriptor.targetGender, labels.directAncestor.male, labels.directAncestor.female, labels.directAncestor.neutral)}`;
+      // Do not synthesize mixed-language labels such as "Grand-ubaba".
+      // A culturally reviewed multi-generation term can replace this fallback.
+      return null;
     case 'sibling':
-      return `${descriptor.siblingKind === 'half' ? 'Half-' : ''}${genderedLabel(descriptor.targetGender, labels.sibling.male, labels.sibling.female, labels.sibling.neutral)}`;
+      return descriptor.parentChildKind && descriptor.parentChildKind !== 'biological'
+        ? null
+        : `${descriptor.siblingKind === 'half' ? 'Half-' : ''}${genderedLabel(descriptor.targetGender, labels.sibling.male, labels.sibling.female, labels.sibling.neutral)}`;
     case 'in-law':
       if (descriptor.relation === 'child') {
         return genderedLabel(descriptor.targetGender, labels.inLawChild.male, labels.inLawChild.female, labels.inLawChild.neutral);

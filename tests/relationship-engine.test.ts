@@ -189,6 +189,63 @@ test('returns stepparent labels from the selected source person perspective', ()
   assert.equal(insight?.relationship, 'Stepfather');
 });
 
+test('does not treat a separated partner as a current step-parent or in-law', () => {
+  const people = [
+    makePerson('parent', 'Alex', 'female'),
+    makePerson('former-partner', 'Blair', 'male'),
+    makePerson('child', 'Casey', 'female'),
+  ];
+  const relationships = [
+    makeRelationship('parent-child', 'parent-child', 'parent', 'child'),
+    { ...makeRelationship('former-partner', 'spouse', 'parent', 'former-partner'), relationshipStatus: 'separated' as const },
+  ];
+
+  const directInsight = computeRelationshipInsight(people, relationships, 'parent', 'former-partner');
+  const familyInsight = computeRelationshipInsight(people, relationships, 'former-partner', 'child');
+
+  assert.equal(directInsight?.relationship, 'Former husband');
+  assert.equal(familyInsight?.relationship, 'Extended family');
+});
+
+test('labels adopted connections without treating them as biological lineage', () => {
+  const people = [
+    makePerson('adoptive-parent', 'Alex', 'female'),
+    makePerson('adopted-child', 'Blair', 'female'),
+    makePerson('other-child', 'Casey', 'male'),
+  ];
+  const relationships = [
+    { ...makeRelationship('adopted-child', 'parent-child', 'adoptive-parent', 'adopted-child'), parentChildKind: 'adopted' as const },
+    { ...makeRelationship('other-child', 'parent-child', 'adoptive-parent', 'other-child'), parentChildKind: 'adopted' as const },
+  ];
+
+  const directInsight = computeRelationshipInsight(people, relationships, 'adoptive-parent', 'adopted-child');
+  const siblingInsight = computeRelationshipInsight(people, relationships, 'adopted-child', 'other-child');
+
+  assert.equal(directInsight?.relationship, 'Adoptive Daughter');
+  assert.equal(siblingInsight?.relationship, 'Adoptive Brother');
+});
+
+test('keeps siblings full when they share both biological parents and one has a guardian', () => {
+  const people = [
+    makePerson('parent-a', 'Alex', 'male'),
+    makePerson('parent-b', 'Blair', 'female'),
+    makePerson('guardian', 'Casey', 'other'),
+    makePerson('child-a', 'Jordan', 'male'),
+    makePerson('child-b', 'Taylor', 'female'),
+  ];
+  const relationships = [
+    makeRelationship('a-a', 'parent-child', 'parent-a', 'child-a'),
+    makeRelationship('b-a', 'parent-child', 'parent-b', 'child-a'),
+    makeRelationship('a-b', 'parent-child', 'parent-a', 'child-b'),
+    makeRelationship('b-b', 'parent-child', 'parent-b', 'child-b'),
+    { ...makeRelationship('guardian-a', 'parent-child', 'guardian', 'child-a'), parentChildKind: 'guardian' as const },
+  ];
+
+  const insight = computeRelationshipInsight(people, relationships, 'child-a', 'child-b');
+
+  assert.equal(insight?.relationship, 'Sister');
+});
+
 test('returns stepsibling labels when people share only a step-parent connection', () => {
   const people = [
     makePerson('parent-a', 'Alex', 'male'),
@@ -462,6 +519,25 @@ test('localizes simple kinship labels in isiZulu when the app language is isiZul
 
   assert.equal(insight?.relationship, 'udadewethu');
 
+  setActiveLanguage('en');
+});
+
+test('uses a generic multi-generation label instead of mixing English prefixes into isiZulu', () => {
+  setActiveLanguage('zu');
+
+  const people = [
+    makePerson('grandparent', 'Alex', 'female'),
+    makePerson('parent', 'Blair', 'female'),
+    makePerson('child', 'Casey', 'female'),
+  ];
+  const relationships = [
+    makeRelationship('grandparent-parent', 'parent-child', 'grandparent', 'parent'),
+    makeRelationship('parent-child', 'parent-child', 'parent', 'child'),
+  ];
+
+  const insight = computeRelationshipInsight(people, relationships, 'grandparent', 'child');
+
+  assert.equal(insight?.relationship, 'Granddaughter');
   setActiveLanguage('en');
 });
 

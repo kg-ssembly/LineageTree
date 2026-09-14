@@ -1,6 +1,6 @@
 import type { PersonGender, PersonRecord } from '../components/dto/person';
 import type { KinshipSystem } from '../components/dto/tree';
-import type { RelationshipRecord } from '../components/dto/relationship';
+import type { ParentChildRelationshipKind, RelationshipRecord, SpouseRelationshipStatus } from '../components/dto/relationship';
 import { formatKinshipDescriptor, getRelativeSeniority, type KinshipDescriptor, type KinshipSide } from './kinship-formatting';
 
 type ConnectionRelation = 'parent' | 'child' | 'spouse';
@@ -9,6 +9,9 @@ type FamilyIndex = {
   personById: Map<string, PersonRecord>;
   parentIdsByChildId: Map<string, Set<string>>;
   childIdsByParentId: Map<string, Set<string>>;
+  biologicalParentIdsByChildId: Map<string, Set<string>>;
+  biologicalChildIdsByParentId: Map<string, Set<string>>;
+  currentSpouseIdsByPersonId: Map<string, Set<string>>;
   spouseIdsByPersonId: Map<string, Set<string>>;
 };
 
@@ -27,24 +30,45 @@ function ensureSet(map: Map<string, Set<string>>, key: string) {
   return map.get(key)!;
 }
 
+function isBiologicalParentChild(relationship: RelationshipRecord) {
+  return relationship.type === 'parent-child'
+    && (!relationship.parentChildKind || relationship.parentChildKind === 'biological');
+}
+
+function isCurrentSpouse(relationship: RelationshipRecord) {
+  return relationship.type === 'spouse'
+    && (!relationship.relationshipStatus || relationship.relationshipStatus === 'partner' || relationship.relationshipStatus === 'married');
+}
+
 function buildFamilyIndex(people: PersonRecord[], relationships: RelationshipRecord[]): FamilyIndex {
   const personById = new Map(people.map((person) => [person.id, person]));
   const parentIdsByChildId = new Map<string, Set<string>>();
   const childIdsByParentId = new Map<string, Set<string>>();
+  const biologicalParentIdsByChildId = new Map<string, Set<string>>();
+  const biologicalChildIdsByParentId = new Map<string, Set<string>>();
+  const currentSpouseIdsByPersonId = new Map<string, Set<string>>();
   const spouseIdsByPersonId = new Map<string, Set<string>>();
 
   relationships.forEach((relationship) => {
     if (relationship.type === 'parent-child') {
       ensureSet(parentIdsByChildId, relationship.toPersonId).add(relationship.fromPersonId);
       ensureSet(childIdsByParentId, relationship.fromPersonId).add(relationship.toPersonId);
+      if (isBiologicalParentChild(relationship)) {
+        ensureSet(biologicalParentIdsByChildId, relationship.toPersonId).add(relationship.fromPersonId);
+        ensureSet(biologicalChildIdsByParentId, relationship.fromPersonId).add(relationship.toPersonId);
+      }
       return;
     }
 
     ensureSet(spouseIdsByPersonId, relationship.fromPersonId).add(relationship.toPersonId);
     ensureSet(spouseIdsByPersonId, relationship.toPersonId).add(relationship.fromPersonId);
+    if (isCurrentSpouse(relationship)) {
+      ensureSet(currentSpouseIdsByPersonId, relationship.fromPersonId).add(relationship.toPersonId);
+      ensureSet(currentSpouseIdsByPersonId, relationship.toPersonId).add(relationship.fromPersonId);
+    }
   });
 
-  return { personById, parentIdsByChildId, childIdsByParentId, spouseIdsByPersonId };
+  return { personById, parentIdsByChildId, childIdsByParentId, biologicalParentIdsByChildId, biologicalChildIdsByParentId, currentSpouseIdsByPersonId, spouseIdsByPersonId };
 }
 
 function getParents(index: FamilyIndex, personId: string) {
@@ -56,13 +80,25 @@ function getChildren(index: FamilyIndex, personId: string) {
 }
 
 function getSpouses(index: FamilyIndex, personId: string) {
+  return [...(index.currentSpouseIdsByPersonId.get(personId) ?? new Set<string>())];
+}
+
+function getRecordedSpouses(index: FamilyIndex, personId: string) {
   return [...(index.spouseIdsByPersonId.get(personId) ?? new Set<string>())];
+}
+
+function getBiologicalParents(index: FamilyIndex, personId: string) {
+  return [...(index.biologicalParentIdsByChildId.get(personId) ?? new Set<string>())];
+}
+
+function getBiologicalChildren(index: FamilyIndex, personId: string) {
+  return [...(index.biologicalChildIdsByParentId.get(personId) ?? new Set<string>())];
 }
 
 function getSiblings(index: FamilyIndex, personId: string): string[] {
   const siblingsSet = new Set<string>();
-  for (const parentId of getParents(index, personId)) {
-    for (const childId of getChildren(index, parentId)) {
+  for (const parentId of getBiologicalParents(index, personId)) {
+    for (const childId of getBiologicalChildren(index, parentId)) {
       if (childId !== personId) {
         siblingsSet.add(childId);
       }
@@ -73,8 +109,8 @@ function getSiblings(index: FamilyIndex, personId: string): string[] {
 }
 
 function shareAnyParent(index: FamilyIndex, personAId: string, personBId: string) {
-  const aParents = new Set(getParents(index, personAId));
-  return getParents(index, personBId).some((parentId) => aParents.has(parentId));
+  const aParents = new Set(getBiologicalParents(index, personAId));
+  return getBiologicalParents(index, personBId).some((parentId) => aParents.has(parentId));
 }
 
 function findAncestorDistance(index: FamilyIndex, ancestorId: string, descendantId: string) {
@@ -88,7 +124,7 @@ function findAncestorDistance(index: FamilyIndex, ancestorId: string, descendant
   while (queue.length > 0) {
     const current = queue.shift()!;
 
-    for (const parentId of getParents(index, current.personId)) {
+    for (const parentId of getBiologicalParents(index, current.personId)) {
       if (parentId === ancestorId) {
         return current.distance + 1;
       }
@@ -111,7 +147,7 @@ function getAncestorDistances(index: FamilyIndex, personId: string) {
   while (queue.length > 0) {
     const current = queue.shift()!;
 
-    for (const parentId of getParents(index, current.currentPersonId)) {
+    for (const parentId of getBiologicalParents(index, current.currentPersonId)) {
       const nextDistance = current.distance + 1;
       if (!distances.has(parentId) || nextDistance < distances.get(parentId)!) {
         distances.set(parentId, nextDistance);
@@ -125,6 +161,38 @@ function getAncestorDistances(index: FamilyIndex, personId: string) {
   }
 
   return distances;
+}
+
+function getDirectParentChildKind(relationships: RelationshipRecord[], fromPersonId: string, toPersonId: string): ParentChildRelationshipKind | null {
+  return relationships.find((relationship) => relationship.type === 'parent-child'
+    && relationship.fromPersonId === fromPersonId
+    && relationship.toPersonId === toPersonId)?.parentChildKind ?? null;
+}
+
+function getSharedCareParentKind(index: FamilyIndex, relationships: RelationshipRecord[], firstPersonId: string, secondPersonId: string) {
+  const secondParents = new Set(getParents(index, secondPersonId));
+  for (const parentId of getParents(index, firstPersonId)) {
+    if (!secondParents.has(parentId)) {
+      continue;
+    }
+
+    const firstKind = getDirectParentChildKind(relationships, parentId, firstPersonId);
+    const secondKind = getDirectParentChildKind(relationships, parentId, secondPersonId);
+    if (firstKind && firstKind !== 'biological') {
+      return firstKind;
+    }
+    if (secondKind && secondKind !== 'biological') {
+      return secondKind;
+    }
+  }
+
+  return null;
+}
+
+function getDirectSpouseRelationship(relationships: RelationshipRecord[], fromPersonId: string, toPersonId: string) {
+  return relationships.find((relationship) => relationship.type === 'spouse'
+    && ((relationship.fromPersonId === fromPersonId && relationship.toPersonId === toPersonId)
+      || (relationship.fromPersonId === toPersonId && relationship.toPersonId === fromPersonId))) ?? null;
 }
 
 function findConnectionPath(index: FamilyIndex, fromPersonId: string, toPersonId: string) {
@@ -141,7 +209,7 @@ function findConnectionPath(index: FamilyIndex, fromPersonId: string, toPersonId
     const neighbors: Array<{ personId: string; relation: ConnectionRelation }> = [
       ...getParents(index, currentPersonId).map((personId) => ({ personId, relation: 'parent' as const })),
       ...getChildren(index, currentPersonId).map((personId) => ({ personId, relation: 'child' as const })),
-      ...getSpouses(index, currentPersonId).map((personId) => ({ personId, relation: 'spouse' as const })),
+      ...getRecordedSpouses(index, currentPersonId).map((personId) => ({ personId, relation: 'spouse' as const })),
     ];
 
     for (const neighbor of neighbors) {
@@ -182,7 +250,7 @@ function getParentSiblingContext(
   fromPersonId: string,
   toPersonId: string,
 ) {
-  const parents = getParents(index, fromPersonId)
+  const parents = getBiologicalParents(index, fromPersonId)
     .map((parentId) => index.personById.get(parentId))
     .filter((person): person is PersonRecord => Boolean(person));
 
@@ -226,26 +294,44 @@ export function computeRelationshipInsight(
     return null;
   }
 
-  const path = findConnectionPath(index, fromPersonId, toPersonId);
-  if (!path) {
-    return null;
-  }
-
   const formatRelationship = (descriptor: KinshipDescriptor) => formatKinshipDescriptor(descriptor, options);
 
   // ── Self ─────────────────────────────────────────────────────────────────
   if (fromPersonId === toPersonId) {
     const descriptor: KinshipDescriptor = { kind: 'self' };
-    return { relationship: formatRelationship(descriptor), descriptor, ...path };
+    return { relationship: formatRelationship(descriptor), descriptor, pathPersonIds: [fromPersonId], pathRelations: [] };
+  }
+
+  const path = findConnectionPath(index, fromPersonId, toPersonId);
+  if (!path) {
+    return null;
   }
 
   // ── Spouse ───────────────────────────────────────────────────────────────
+  const directSpouse = getDirectSpouseRelationship(relationships, fromPersonId, toPersonId);
+  if (directSpouse && !isCurrentSpouse(directSpouse)) {
+    const status = directSpouse.relationshipStatus as Extract<SpouseRelationshipStatus, 'separated' | 'divorced' | 'widowed'>;
+    const descriptor: KinshipDescriptor = { kind: 'former-spouse', targetGender: toPerson.gender, status };
+    return { relationship: formatRelationship(descriptor), descriptor, ...path };
+  }
+
   if (getSpouses(index, fromPersonId).includes(toPersonId)) {
     const descriptor: KinshipDescriptor = { kind: 'spouse', targetGender: toPerson.gender };
     return { relationship: formatRelationship(descriptor), descriptor, ...path };
   }
 
   // ── Direct line: descendant of fromPerson ────────────────────────────────
+  const directChildKind = getDirectParentChildKind(relationships, fromPersonId, toPersonId);
+  if (directChildKind && directChildKind !== 'biological') {
+    const descriptor: KinshipDescriptor = { kind: 'direct-descendant', targetGender: toPerson.gender, generations: 1, parentChildKind: directChildKind };
+    return { relationship: formatRelationship(descriptor), descriptor, ...path };
+  }
+  const directParentKind = getDirectParentChildKind(relationships, toPersonId, fromPersonId);
+  if (directParentKind && directParentKind !== 'biological') {
+    const descriptor: KinshipDescriptor = { kind: 'direct-ancestor', targetGender: toPerson.gender, generations: 1, parentChildKind: directParentKind };
+    return { relationship: formatRelationship(descriptor), descriptor, ...path };
+  }
+
   const ancestorDistance = findAncestorDistance(index, fromPersonId, toPersonId);
   if (ancestorDistance) {
     const descriptor: KinshipDescriptor = {
@@ -267,8 +353,8 @@ export function computeRelationshipInsight(
     return { relationship: formatRelationship(descriptor), descriptor, ...path };
   }
 
-  const fromParentIds = new Set(getParents(index, fromPersonId));
-  const toParentIds = new Set(getParents(index, toPersonId));
+  const fromParentIds = new Set(getBiologicalParents(index, fromPersonId));
+  const toParentIds = new Set(getBiologicalParents(index, toPersonId));
   const sharedParentIds = [...fromParentIds].filter((p) => toParentIds.has(p));
 
   // ── Full / Half sibling ───────────────────────────────────────────────────
@@ -276,7 +362,18 @@ export function computeRelationshipInsight(
     const descriptor: KinshipDescriptor = {
       kind: 'sibling',
       targetGender: toPerson.gender,
-      siblingKind: sharedParentIds.length < Math.max(fromParentIds.size, toParentIds.size) ? 'half' : 'full',
+      siblingKind: sharedParentIds.length === fromParentIds.size && sharedParentIds.length === toParentIds.size ? 'full' : 'half',
+    };
+    return { relationship: formatRelationship(descriptor), descriptor, ...path };
+  }
+
+  const sharedCareParentKind = getSharedCareParentKind(index, relationships, fromPersonId, toPersonId);
+  if (sharedCareParentKind) {
+    const descriptor: KinshipDescriptor = {
+      kind: 'sibling',
+      targetGender: toPerson.gender,
+      siblingKind: 'full',
+      parentChildKind: sharedCareParentKind,
     };
     return { relationship: formatRelationship(descriptor), descriptor, ...path };
   }
