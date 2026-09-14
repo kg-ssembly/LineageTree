@@ -15,25 +15,29 @@ export default function JoinTreeScreen({ route, navigation }: NativeStackScreenP
   const user = useAuthStore((state) => state.user);
   const { t } = useI18n();
   const userId = user?.id;
+  // Deep links can be opened without the required path segment (for example,
+  // from an old or manually entered invitation URL). Navigation types cannot
+  // guarantee params exist at runtime, so keep this screen renderable.
+  const treeId = route.params?.treeId?.trim();
   const [signup, setSignup] = useState(false);
   const [tree, setTree] = useState<{ id: string; name: string } | null>(null);
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
   const [resolving, setResolving] = useState(false);
   const [attempt, setAttempt] = useState(0);
-  const existingTree = useTreeStore((state) => state.trees.find((item) => item.id === route.params.treeId));
+  const existingTree = useTreeStore((state) => state.trees.find((item) => item.id === treeId));
   const selectTree = useTreeStore((state) => state.selectTree);
   useEffect(() => {
-    if (!userId || existingTree) return;
+    if (!userId || !treeId || existingTree) return;
     let active = true;
     setTree(null); setMessage(''); setResolving(true);
-    void resolveAccessCandidates(route.params.treeId, userId).then((results) => {
+    void resolveAccessCandidates(treeId, userId).then((results) => {
       if (!active) return;
       setTree(results[0] ?? null);
       if (!results.length) setMessage('This invitation is unavailable or you already have access.');
     }).catch((e) => { if (active) setMessage(e.message); }).finally(() => { if (active) setResolving(false); });
     return () => { active = false; };
-  }, [userId, route.params.treeId, existingTree, attempt]);
+  }, [userId, treeId, existingTree, attempt]);
   // Keep the invitation route mounted through authentication, including sign-up.
   if (!user) return signup
     ? <SignUpScreen navigation={{ navigate: () => setSignup(false) }} />
@@ -52,8 +56,8 @@ export default function JoinTreeScreen({ route, navigation }: NativeStackScreenP
         try { await requestAccessToTree(user.id, tree.id); setMessage('Access requested. You can follow its progress in Notifications.'); setTree(null); }
         catch (e) { setMessage(e instanceof Error ? e.message : 'Request failed. Try again.'); } finally { setBusy(false); }
       }}>{t('Request access')}</Button></> : null}
-    {!existingTree ? <Text accessibilityLiveRegion="polite">{t(message)}</Text> : null}
-    {!existingTree && !resolving && message ? <Button disabled={busy} onPress={() => setAttempt((value) => value + 1)}>{t('Check again')}</Button> : null}
+    {!existingTree ? <Text accessibilityLiveRegion="polite">{t(treeId ? message : 'This invitation link is incomplete. Ask the family tree owner to send a new link.')}</Text> : null}
+    {!existingTree && Boolean(treeId) && !resolving && message ? <Button disabled={busy} onPress={() => setAttempt((value) => value + 1)}>{t('Check again')}</Button> : null}
     <Button onPress={() => navigation.replace('Main', { screen: message.startsWith('Access requested') ? 'notifications' : 'home' })}>{t('Open my workspace')}</Button>
   </SectionCard></ScrollView>;
 }

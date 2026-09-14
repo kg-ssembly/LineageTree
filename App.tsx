@@ -98,10 +98,10 @@ function AppShell() {
     let cancelled = false;
 
     async function updateBeforeStartup() {
-      // Expo Updates is unavailable for the web bundle and disabled in local
-      // development/Expo Go. Native release builds check the configured EAS
-      // channel and reload once the downloaded bundle is ready.
-      if (Platform.OS === 'web' || !Updates.isEnabled) {
+      // Development builds run a JS bundle from Metro and reject this API.
+      // Native release builds check the configured EAS channel and reload once
+      // the downloaded bundle is ready.
+      if (__DEV__ || Platform.OS === 'web' || !Updates.isEnabled) {
         if (!cancelled) setUpdateCheckComplete(true);
         return;
       }
