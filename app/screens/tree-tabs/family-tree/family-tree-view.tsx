@@ -1,4 +1,5 @@
 import { expandTreeGraph, loadCompleteTreeGraph, searchTreeGraph } from '../../../../providers/tree-graph-service';
+import { remainingRelativeIds } from '../../../../components/hidden-relative-ids';
 import { useTreeStore } from '../../../../stores/tree-store';
 import React, { useEffect, useMemo, useState } from 'react';
 import { ScrollView, View } from 'react-native';
@@ -28,7 +29,7 @@ export function FamilyTreeView({
   onOpenRelationshipDialog,
 }: SharedTabProps) {
   const theme = useTheme();
-  const graphMore = useTreeStore(state => state.graphMore);
+  const graphRelatives = useTreeStore(state => state.graphRelatives);
   const graphComplete = useTreeStore(state => state.graphComplete);
   const [pageLoading, setPageLoading] = useState(false);
   const [pageError, setPageError] = useState('');
@@ -81,17 +82,17 @@ export function FamilyTreeView({
   }, [visiblePeople, relationships]);
   const visibleIds = useMemo(() => new Set(visiblePeople.map(p => p.id)), [visiblePeople]);
   const moreChildren = useMemo(() => new Map(visiblePeople.map(p => [p.id,
-    [...hiddenChildIds(p.id, relationships, visibleIds).filter(id => peopleById.has(id)), ...(!graphComplete && graphMore[p.id + ':children'] !== null ? ['__unloaded__'] : [])]])), [visiblePeople, relationships, visibleIds, peopleById, graphMore, graphComplete]);
+    remainingRelativeIds(hiddenChildIds(p.id, relationships, visibleIds), !graphComplete ? graphRelatives[p.id]?.children : undefined, visibleIds)])), [visiblePeople, relationships, visibleIds, graphRelatives, graphComplete]);
   const hiddenParents = useMemo(() => new Map(visiblePeople.map(p => [p.id,
-    [...hiddenParentIds(p.id, relationships, visibleIds).filter(id => peopleById.has(id)), ...(!graphComplete && graphMore[p.id + ':parents'] !== null ? ['__unloaded__'] : [])]])), [visiblePeople, relationships, visibleIds, peopleById, graphMore, graphComplete]);
+    remainingRelativeIds(hiddenParentIds(p.id, relationships, visibleIds), !graphComplete ? graphRelatives[p.id]?.parents : undefined, visibleIds)])), [visiblePeople, relationships, visibleIds, graphRelatives, graphComplete]);
   const revealParents = (personId: string) => { void load(async () => {
-    const next = [...(hiddenParents.get(personId) ?? []).filter(id => id !== '__unloaded__'), ...await expandTreeGraph(selectedTree.id, personId, 'parents')];
+    const next = [...(hiddenParents.get(personId) ?? []).filter(id => peopleById.has(id)), ...await expandTreeGraph(selectedTree.id, personId, 'parents')];
     setRevealed(current => [...new Set([...current, ...next])]);
     setCollapsed(current => current.filter(id => !next.some(parentId => lineageIds(id, relationships, 'descendants').has(parentId))));
     setTraceFrom(null); setTraceTo(null);
   }); };
   const revealChildren = (personId: string) => { void load(async () => {
-    const hiddenIds = (moreChildren.get(personId) ?? []).filter(id => id !== '__unloaded__');
+    const hiddenIds = (moreChildren.get(personId) ?? []).filter(id => peopleById.has(id));
     const next = hiddenIds.length ? hiddenIds.slice(0, 4) : await expandTreeGraph(selectedTree.id, personId, 'children');
     setRevealed(current => [...new Set([...current, ...next])]);
     setCollapsed(current => current.filter(id => !next.some(nextId => lineageIds(id, relationships, 'descendants').has(nextId))));

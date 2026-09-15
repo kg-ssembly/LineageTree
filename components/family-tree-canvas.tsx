@@ -483,8 +483,8 @@ const PersonNode = React.memo(function PersonNode(props: PersonNodeProps) {
         </View>
       </Pressable>
       {hasHiddenParents ? <Button compact mode="contained-tonal" icon="arrow-up" onPress={() => onShowParents?.(person.id)} style={{ position: 'absolute', top: -48, width: C.NODE_WIDTH }} contentStyle={{ minHeight: 44 }} accessibilityLabel={translate('Show parents') + ': ' + formatPersonName(person)}>{translate('Show parents')}</Button> : null}
-      {moreCount > 0 ? <Button compact mode="contained-tonal" icon="plus" accessibilityLabel={translate('Show more children') + ' (' + moreCount + ')'} onPress={() => onReveal?.(person.id)} style={{ position: 'absolute', bottom: 0, width: C.NODE_WIDTH }} contentStyle={{ minHeight: 44 }}>
-        {translate('Show more children')}
+      {moreCount > 0 ? <Button compact mode="contained-tonal" icon="plus" accessibilityLabel={translate(moreCount === 1 ? 'Show 1 more child' : 'Show {count} more children').replace('{count}', String(moreCount))} onPress={() => onReveal?.(person.id)} style={{ position: 'absolute', bottom: 0, width: C.NODE_WIDTH }} contentStyle={{ minHeight: 44 }}>
+        {translate(moreCount === 1 ? 'Show 1 more child' : 'Show {count} more children').replace('{count}', String(moreCount))}
       </Button> : null}
       </View>
   );

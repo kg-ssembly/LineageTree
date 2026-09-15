@@ -5,7 +5,7 @@ import type { RelationshipRecord } from '../components/dto/relationship';
 import { auth, db, functionsApi } from './firebase-provider';
 import { mapPerson, mapRelationship } from './family-tree-mappers';
 
-type Page = { people: PersonRecord[]; relationships: RelationshipRecord[]; more: Record<string, string | null>; cursor: string | null };
+type Page = { people: PersonRecord[]; relationships: RelationshipRecord[]; more: Record<string, string | null>; relatives?: Record<string, { parents: string[]; children: string[] }>; cursor: string | null };
 type Input = { treeId: string; personId?: string; direction?: 'parents' | 'children' | 'spouses'; cursor?: string; mode?: 'page' | 'search' | 'edges'; term?: string };
 const read = async (input: Input) => (await httpsCallable<Input, Page>(functionsApi, 'readTreeGraphServer')(input)).data;
 let session: GraphSession | null = null;
@@ -14,6 +14,7 @@ class GraphSession {
   people = new Map<string, PersonRecord>();
   relationships = new Map<string, RelationshipRecord>();
   more: Record<string, string | null> = {};
+  relatives: NonNullable<Page['relatives']> = {};
   stopped = false;
   complete = false;
   private stops: Array<() => void> = [];
@@ -22,9 +23,10 @@ class GraphSession {
   private pending = new Map<string, Promise<string[]>>();
   constructor(readonly treeId: string, readonly actor: string, readonly emit: (page: Page, complete: boolean) => void, readonly fail: (error: Error) => void) {}
   valid() { return !this.stopped && auth.currentUser?.uid === this.actor; }
-  publish() { if (this.valid()) this.emit({ people: [...this.people.values()], relationships: [...this.relationships.values()], more: { ...this.more }, cursor: null }, this.complete); }
+  publish() { if (this.valid()) this.emit({ people: [...this.people.values()], relationships: [...this.relationships.values()], more: { ...this.more }, relatives: { ...this.relatives }, cursor: null }, this.complete); }
   merge(page: Page) {
     if (!this.valid()) return;
+    Object.assign(this.relatives, page.relatives);
     page.people.forEach(p => this.people.set(p.id, p)); page.relationships.forEach(r => this.relationships.set(r.id, r)); Object.assign(this.more, page.more);
     this.publish();
     // Watch only records already fetched. New branches are loaded explicitly.

@@ -56,5 +56,17 @@ export async function readTreeGraph(db: Firestore, actor: string, input: { treeI
   const records = await db.getAll(...ids.map(id => db.collection('persons').doc(id)));
   const people = records.filter(p => p.exists && p.data()?.treeId === tree.id).map(p => mapPersonData(p.id, p.data()!));
   const visible = new Set(people.map(p => p.id));
-  return { people, relationships: edges.map(d => mapRelationshipData(d.id, d.data())).filter(r => visible.has(r.fromPersonId) && visible.has(r.toPersonId)), more, cursor: null };
+  const relatives: Record<string, { parents: string[]; children: string[] }> = {};
+  await Promise.all(people.map(async person => {
+    const base = db.collection('relationships').where('treeId', '==', tree.id).where('type', '==', 'parent-child');
+    const [parents, children] = await Promise.all([
+      base.where('toPersonId', '==', person.id).select('fromPersonId').get(),
+      base.where('fromPersonId', '==', person.id).select('toPersonId').get(),
+    ]);
+    relatives[person.id] = {
+      parents: [...new Set(parents.docs.map(d => d.data().fromPersonId as string))],
+      children: [...new Set(children.docs.map(d => d.data().toPersonId as string))],
+    };
+  }));
+  return { people, relationships: edges.map(d => mapRelationshipData(d.id, d.data())).filter(r => visible.has(r.fromPersonId) && visible.has(r.toPersonId)), more, relatives, cursor: null };
 }
