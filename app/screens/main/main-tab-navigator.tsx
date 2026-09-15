@@ -151,6 +151,7 @@ function WebMainTabBar({
           accessibilityState={isNotificationsFocused ? { selected: true } : {}}
           style={[
             webTabBarStyles.menuChip,
+            webTabBarStyles.iconChip,
             {
               backgroundColor: isNotificationsFocused ? controller.theme.colors.primaryContainer : controller.theme.colors.surface,
             },
@@ -161,9 +162,8 @@ function WebMainTabBar({
             size={18}
             color={isNotificationsFocused ? controller.theme.colors.primary : controller.theme.colors.onSurfaceVariant}
           />
-          <Text variant="labelLarge" style={{ color: controller.theme.colors.onSurface }}>{controller.t(K.notifications.notifications)}</Text>
           {controller.notificationBadgeCount > 0 ? (
-            <View style={[webTabBarStyles.badge, { backgroundColor: controller.theme.colors.primary }]}>
+            <View style={[webTabBarStyles.badge, webTabBarStyles.iconBadge, { backgroundColor: controller.theme.colors.primary }]}>
               <Text variant="labelSmall" style={{ color: controller.theme.colors.onPrimary }}>
                 {controller.notificationBadgeCount > 99 ? '99+' : controller.notificationBadgeCount}
               </Text>
