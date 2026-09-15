@@ -161,7 +161,7 @@ function getSpouseConnectorStyle(
 
 function getParentChildConnectorStyle(
   relationship: RelationshipRecord,
-  colors: { parentChild: string; secondaryParent: string; stepChild: string; adoptedChild: string; guardianChild: string },
+  colors: { parentChild: string; secondaryParent: string; stepChild: string; adoptedChild: string; fosterChild?: string; guardianChild: string },
   isPrimary: boolean,
 ) {
   const kind = relationship.parentChildKind ?? DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND;
@@ -173,6 +173,7 @@ function getParentChildConnectorStyle(
     case 'adopted':
       return { stroke: colors.adoptedChild, strokeWidth: isPrimary ? 2.4 : 1.6, dashArray: '1,6' };
     case 'foster':
+      return { stroke: colors.fosterChild ?? colors.guardianChild, strokeWidth: isPrimary ? 2 : 1.4, dashArray: '1,6' };
     case 'guardian':
       return { stroke: colors.guardianChild, strokeWidth: isPrimary ? 2 : 1.4, dashArray: '1,6' };
     case 'biological':
@@ -185,7 +186,7 @@ export function buildConnectors(
   relationships: RelationshipRecord[],
   layout: LayoutResult,
   C: LayoutConstants,
-  colors: { parentChild: string; spouse: string; secondaryParent: string; stepChild: string; adoptedChild: string; guardianChild: string },
+  colors: { parentChild: string; spouse: string; secondaryParent: string; stepChild: string; adoptedChild: string; fosterChild?: string; guardianChild: string },
   ghostPersonIds?: Set<string>,
 ): { spouseConnectors: Connector[]; parentChildConnectors: Connector[] } {
   const { positionsByPersonId, spouseGroupIdByPersonId, spouseGroupsById, levelBySpouseGroupId, contentWidth } = layout;

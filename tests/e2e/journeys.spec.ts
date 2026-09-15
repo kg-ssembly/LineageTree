@@ -229,6 +229,7 @@ test('tree line filters reveal selected connections and add-relative choices exp
     const close = page.getByRole('button', { name: 'Close', exact: true });
     if (await close.isVisible()) await close.click();
     await page.getByRole('tab', { name: 'Tree', exact: true }).or(page.getByRole('button', { name: 'Tree', exact: true })).click();
+    await page.getByRole('button', { name: 'Tree tools', exact: true }).click();
     await page.getByRole('button', { name: 'Fit tree to screen', exact: true }).click();
     const dotted = page.locator('path[stroke-dasharray="1,6"]');
     await expect(dotted.first()).toBeAttached();
@@ -248,6 +249,13 @@ test('tree line filters reveal selected connections and add-relative choices exp
     await expect(page.getByText('Add a parent first, then connect a sibling through that shared parent.', { exact: true })).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath('relative-menu.png'), animations: 'disabled' });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+    await page.getByRole('button', { name: 'Close', exact: true }).click();
+    await page.getByRole('button', { name: 'Tree tools', exact: true }).click();
+    await page.getByRole('button', { name: 'Fullscreen', exact: true }).click();
+    await expect(page.getByRole('dialog', { name: 'Tree tools', exact: true })).toBeHidden();
+    await page.getByRole('button', { name: 'Tree tools', exact: true }).last().click();
+    await expect(page.getByRole('button', { name: 'Exit fullscreen', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Exit fullscreen', exact: true }).click();
   } finally {
     for (const path of ['persons/line-parent', 'persons/line-child', 'relationships/line-adopted']) await db.doc(path).delete();
   }

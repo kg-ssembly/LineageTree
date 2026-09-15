@@ -37,7 +37,7 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import { Button, Chip, IconButton, Menu, Searchbar, Text, useTheme } from 'react-native-paper';
+import { Button, Chip, IconButton, Searchbar, Text, useTheme } from 'react-native-paper';
 import { translate } from '../i18n';
 import { I18N_KEYS as K } from '../i18n/keys';
 import Svg, { Path, Text as SvgText } from 'react-native-svg';
@@ -80,6 +80,15 @@ const PORTRAIT_SIZE = {
   regular: 92,
   regularHighlighted: 104,
 } as const;
+const RELATIONSHIP_LINE_COLORS = {
+  biological: '#176B45',
+  spouse: '#A13C6A',
+  nonBiological: '#4057A8',
+  step: '#C05A10',
+  adopted: '#007C83',
+  foster: '#7952A4',
+  guardian: '#785548',
+} as const;
 const MIN_SCALE = 0.05;
 const MAX_SCALE = 1.8;
 const AUTO_FIT_MAX_SCALE = 0.8; // default zoom cap on initial fit
@@ -120,6 +129,14 @@ interface FamilyTreeCanvasProps {
   floatingControls?: boolean;
   /** Optional view controls displayed with the tree search in both canvas modes. */
   searchControls?: React.ReactNode;
+  /** Actions supplied by the host screen and shown in the bottom More menu. */
+  moreMenuItems?: Array<{
+    key: string;
+    label: string;
+    icon: string;
+    selected?: boolean;
+    onPress: () => void;
+  }>;
   fillAvailableSpace?: boolean;
   showControls?: boolean;
   disableSurnameClustering?: boolean;
@@ -500,6 +517,7 @@ function FamilyTreeCanvas({
                             allowFullscreen = true,
                             floatingControls = false,
                             searchControls,
+                            moreMenuItems,
                             fillAvailableSpace = false,
                             showControls = true,
                             disableSurnameClustering = false,
@@ -510,7 +528,7 @@ function FamilyTreeCanvas({
   const C = compactCards ? COMPACT_LAYOUT : DEFAULT_LAYOUT_CONSTANTS;
   const theme = useTheme();
   const { t } = useI18n();
-  const { height: windowHeight, width: windowWidth } = useWindowDimensions();
+  const { height: windowHeight } = useWindowDimensions();
   const inlineViewportHeight = inlineViewportHeightOverride ?? Math.max(420, windowHeight - 360);
 
   const [scale, setScale] = useState(1);
@@ -521,17 +539,17 @@ function FamilyTreeCanvas({
   const [activeSurnames, setActiveSurnames] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchExpanded, setSearchExpanded] = useState(false);
-  const [toolsVisible, setToolsVisible] = useState(false);
+  const [toolsVisibleFor, setToolsVisibleFor] = useState<'inline' | 'fullscreen' | null>(null);
   const [lineOptionsVisible, setLineOptionsVisible] = useState(false);
   const [hiddenLineKinds, setHiddenLineKinds] = useState<Set<string>>(new Set());
   const lineOptions = [
-    { key: 'biological', label: 'Biological · solid', color: theme.colors.primary },
-    { key: 'non-biological', label: 'Non-biological · dotted', color: theme.colors.tertiary },
-    { key: 'step', label: 'Step-parent · dotted', color: '#B7791F' },
-    { key: 'adopted', label: 'Adoptive · dotted', color: '#2E7D6B' },
-    { key: 'foster', label: 'Foster · dotted', color: theme.colors.outline },
-    { key: 'guardian', label: 'Guardian · dotted', color: theme.colors.outline },
-    { key: 'spouse', label: 'Spouse / partner', color: theme.colors.secondary },
+    { key: 'biological', label: 'Biological · solid', color: RELATIONSHIP_LINE_COLORS.biological },
+    { key: 'non-biological', label: 'Non-biological · dotted', color: RELATIONSHIP_LINE_COLORS.nonBiological },
+    { key: 'step', label: 'Step-parent · dotted', color: RELATIONSHIP_LINE_COLORS.step },
+    { key: 'adopted', label: 'Adoptive · dotted', color: RELATIONSHIP_LINE_COLORS.adopted },
+    { key: 'foster', label: 'Foster · dotted', color: RELATIONSHIP_LINE_COLORS.foster },
+    { key: 'guardian', label: 'Guardian · dotted', color: RELATIONSHIP_LINE_COLORS.guardian },
+    { key: 'spouse', label: 'Spouse / partner', color: RELATIONSHIP_LINE_COLORS.spouse },
   ];
 
   const restoredViewportKey = useRef<string | undefined>(undefined);
@@ -716,23 +734,19 @@ function FamilyTreeCanvas({
     getObjectIdentity(layout),
     getObjectIdentity(clusterRelationships),
     [...ghostPersonIds].sort().join('|'),
-    theme.colors.primary,
-    theme.colors.secondary,
-    theme.colors.tertiary ?? theme.colors.outline,
-    '#B7791F',
-    '#2E7D6B',
-    theme.colors.outline,
-  ].join('::'), [clusterRelationships, ghostPersonIds, layout, theme.colors.outline, theme.colors.primary, theme.colors.secondary, theme.colors.tertiary]);
+    ...Object.values(RELATIONSHIP_LINE_COLORS),
+  ].join('::'), [clusterRelationships, ghostPersonIds, layout]);
   const { spouseConnectors, parentChildConnectors } = useMemo(
       () => getCachedValue(connectorCache, connectorCacheKey, () => buildConnectors(clusterRelationships, layout, C, {
-        parentChild: theme.colors.primary,
-        spouse: theme.colors.secondary,
-        secondaryParent: theme.colors.tertiary ?? theme.colors.outline,
-        stepChild: '#B7791F',
-        adoptedChild: '#2E7D6B',
-        guardianChild: theme.colors.outline,
+        parentChild: RELATIONSHIP_LINE_COLORS.biological,
+        spouse: RELATIONSHIP_LINE_COLORS.spouse,
+        secondaryParent: RELATIONSHIP_LINE_COLORS.nonBiological,
+        stepChild: RELATIONSHIP_LINE_COLORS.step,
+        adoptedChild: RELATIONSHIP_LINE_COLORS.adopted,
+        fosterChild: RELATIONSHIP_LINE_COLORS.foster,
+        guardianChild: RELATIONSHIP_LINE_COLORS.guardian,
       }, ghostPersonIds)),
-      [C, clusterRelationships, connectorCacheKey, ghostPersonIds, layout, theme.colors.outline, theme.colors.primary, theme.colors.secondary, theme.colors.tertiary],
+      [C, clusterRelationships, connectorCacheKey, ghostPersonIds, layout],
   );
   const allConnectors = useMemo(() => [...parentChildConnectors, ...spouseConnectors], [parentChildConnectors, spouseConnectors]);
   const activeInspectionId = inspectedPersonId ?? highlightedPersonId;
@@ -1124,6 +1138,40 @@ function FamilyTreeCanvas({
     if (positionsByPersonId.has(person.id)) fitTo(activeViewportSize.width, activeViewportSize.height, person.id, mode);
   };
 
+  const openToolsDialog = (mode: 'inline' | 'fullscreen') => {
+    setSearchExpanded(false);
+    setToolsVisibleFor(mode);
+  };
+
+  const renderToolsDialog = () => {
+    const mode = toolsVisibleFor ?? 'inline';
+
+    return <AdaptiveDialog visible={toolsVisibleFor !== null} onDismiss={() => setToolsVisibleFor(null)} title={t('Tree tools')}>
+      {moreMenuItems?.map((item) => (
+        <Button key={item.key} mode={item.selected ? 'contained-tonal' : 'outlined'} icon={item.icon} accessibilityState={{ selected: item.selected }} onPress={() => {
+          setToolsVisibleFor(null);
+          item.onPress();
+        }}>
+          {t(item.label)}
+        </Button>
+      ))}
+      {currentUserPersonId && renderedPeopleById.has(currentUserPersonId) ? <Button mode="outlined" icon="account-star-outline" onPress={() => {
+        setToolsVisibleFor(null);
+        focusPerson(renderedPeopleById.get(currentUserPersonId)!, mode);
+      }}>{t('Find me in the tree')}</Button> : null}
+      <Button mode="outlined" icon="fit-to-screen-outline" onPress={() => {
+        setToolsVisibleFor(null);
+        fitTo(activeViewportSize.width, activeViewportSize.height, undefined, mode);
+      }}>{t('Fit tree to screen')}</Button>
+      {allowFullscreen ? <Button mode="outlined" icon={mode === 'fullscreen' ? 'fullscreen-exit' : 'fullscreen'} onPress={() => {
+        setToolsVisibleFor(null);
+        // Native modals must unmount before the fullscreen modal opens. When both
+        // updates are batched, the tools backdrop can remain above the canvas.
+        setTimeout(() => setIsFullscreen(mode !== 'fullscreen'), 0);
+      }}>{t(mode === 'fullscreen' ? 'Exit fullscreen' : 'Fullscreen')}</Button> : null}
+    </AdaptiveDialog>;
+  };
+
   const renderFloatingControls = (mode: 'inline' | 'fullscreen') => (
       <View pointerEvents="box-none" style={styles.viewportOverlay}>
         <View style={[styles.floatingHintCard, { backgroundColor: theme.colors.surface, width: searchExpanded ? 360 : 'auto', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 28 }]}>
@@ -1138,6 +1186,19 @@ function FamilyTreeCanvas({
             searchAccessibilityLabel={t('Close search')}
             style={{ backgroundColor: theme.colors.surface, height: 44 }}
             inputStyle={{ minHeight: 44, fontSize: 14 }}
+            traileringIcon="magnify"
+            traileringIconColor={theme.colors.primary}
+            traileringIconAccessibilityLabel={t('Search family members')}
+            onTraileringIconPress={() => {
+              const firstResult = searchResults[0];
+              if (!firstResult) return;
+              if (onSearchPerson) {
+                setSearchQuery('');
+                onSearchPerson(firstResult.id);
+              } else {
+                focusPerson(firstResult, mode);
+              }
+            }}
           /> : <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
             {!searchControls ? <Text numberOfLines={1} variant="titleSmall" style={{ color: theme.colors.primary, flexShrink: 1, paddingHorizontal: 8 }}>{activeSurnames[0] || t('Family tree')}</Text> : null}
             {searchControls}
@@ -1157,16 +1218,12 @@ function FamilyTreeCanvas({
         </View>
         <View style={[styles.floatingControlsCard, { backgroundColor: theme.colors.surface, borderWidth: 0, borderRadius: 28 }]}>
           <Chip compact icon="magnify">{Math.round(scale * 100)}%</Chip>
-          {currentUserPersonId && renderedPeopleById.has(currentUserPersonId) ? (
-            windowWidth >= 900 ? <Button icon="account-star-outline" contentStyle={{ minHeight: 44 }} onPress={() => focusPerson(renderedPeopleById.get(currentUserPersonId)!, mode)}>{t('Find me in the tree')}</Button> : <IconButton icon="account-star-outline" size={24} accessibilityLabel={t('Find me in the tree')} onPress={() => focusPerson(renderedPeopleById.get(currentUserPersonId)!, mode)} />
-          ) : null}
           <IconButton icon="minus" size={24} accessibilityLabel={t('Zoom out')} disabled={scale <= MIN_SCALE} mode="contained-tonal" onPress={() => zoomBy(-0.15)} />
           <IconButton icon="plus" size={24} accessibilityLabel={t('Zoom in')} disabled={scale >= MAX_SCALE} mode="contained-tonal" onPress={() => zoomBy(0.15)} />
-          {windowWidth >= 900 ? <Button icon="fit-to-screen-outline" contentStyle={{ minHeight: 44 }} onPress={() => fitTo(activeViewportSize.width, activeViewportSize.height, undefined, mode)}>{t('Fit tree to screen')}</Button> : <IconButton icon="fit-to-screen-outline" size={24} mode="contained-tonal" accessibilityLabel={t('Fit tree to screen')} onPress={() => fitTo(activeViewportSize.width, activeViewportSize.height, undefined, mode)} />}
           <IconButton icon="vector-line" accessibilityLabel={t('Relationship lines')} onPress={() => setLineOptionsVisible(true)} />
-          {allowFullscreen ? <Menu visible={toolsVisible} onDismiss={() => setToolsVisible(false)} anchor={<IconButton icon="dots-horizontal" accessibilityLabel={t('Tree tools')} onPress={() => setToolsVisible(true)} />}>
-            <Menu.Item title={t(mode === 'fullscreen' ? 'Exit fullscreen' : 'Fullscreen')} leadingIcon="fullscreen" onPress={() => { setToolsVisible(false); setIsFullscreen(mode !== 'fullscreen'); }} />
-          </Menu> : null}
+          {(allowFullscreen || moreMenuItems?.length || (currentUserPersonId && renderedPeopleById.has(currentUserPersonId))) ? <>
+            <IconButton icon="dots-horizontal" accessibilityLabel={t('Tree tools')} onPress={() => openToolsDialog(mode)} />
+          </> : null}
         </View>
       </View>
   );
@@ -1328,6 +1385,7 @@ function FamilyTreeCanvas({
             {isFullscreen ? renderLineOptions() : null}
           </View>
         </Modal>
+        {renderToolsDialog()}
       </View>
   );
 }

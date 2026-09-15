@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ScrollView, View, useWindowDimensions } from 'react-native';
-import { ActivityIndicator, Button, IconButton, Text, Tooltip, useTheme } from 'react-native-paper';
+import { ScrollView, View } from 'react-native';
+import { ActivityIndicator, Button, IconButton, Text, useTheme } from 'react-native-paper';
 import { EmptyState, FamilyTreeCanvas, GlobalStyles, ScreenBackground, BUTTON_CHROME, BUTTON_CONTENT_CHROME } from '../../../../components';
 import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
@@ -26,7 +26,6 @@ export function FamilyTreeView({
   onOpenRelationshipDialog,
 }: SharedTabProps) {
   const theme = useTheme();
-  const { width } = useWindowDimensions();
   const { t } = useI18n();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [scope, setScope] = useState<TreeScope>('branch');
@@ -150,20 +149,12 @@ export function FamilyTreeView({
           currentUserPersonId={currentAssignedPerson?.id ?? undefined}
           initialFocusPersonId={scope === 'full' ? currentAssignedPerson?.id : focusRoot}
           floatingControls
-          searchControls={<View style={{ flexShrink: 1, gap: 2 }}>
-            {scope !== 'full' ? <Text variant="labelSmall" style={{ paddingHorizontal: 8 }}>{peopleById.get(focusRoot)?.firstName} · {t(scope === 'close' ? 'Close family' : 'Starts with 2 generations')} · {visiblePeople.length}/{people.length}</Text> : null}
-            {selectedId && selectedId !== focusRoot ? <Button compact onPress={() => focusBranch(selectedId)}>{t('Focus family branch')}</Button> : null}
-            {width < 900 ? <Text variant="labelMedium" style={{ paddingHorizontal: 8, color: theme.colors.primary }}>{t(scope === 'branch' ? 'Family branch' : scope === 'close' ? 'Close family' : scope === 'ancestors' ? 'Ancestors' : scope === 'descendants' ? 'Descendants' : 'Full tree')}</Text> : null}
-            <View accessibilityRole="tablist" style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 0 }}>
-              {([
-                { key: 'branch', label: 'Family branch', icon: 'family-tree' },
-                { key: 'ancestors', label: 'Ancestors', icon: 'arrow-up-bold-outline' },
-                { key: 'descendants', label: 'Descendants', icon: 'arrow-down-bold-outline' },
-              ] as const).map(item => width >= 900 ? <Button key={item.key} compact icon={item.icon} mode={scope === item.key ? 'contained-tonal' : 'text'} accessibilityRole="tab" accessibilityLabel={t(item.label)} accessibilityState={{ selected: scope === item.key }} onPress={() => changeScope(item.key)} contentStyle={{ minHeight: 44 }} style={{ borderRadius: 24 }}>{t(item.label)}</Button> : <Tooltip key={item.key} title={t(item.label)}>
-                <IconButton icon={item.icon} size={23} mode={scope === item.key ? 'contained' : undefined} containerColor={scope === item.key ? theme.colors.primaryContainer : undefined} iconColor={scope === item.key ? theme.colors.primary : theme.colors.onSurfaceVariant} accessibilityRole="tab" accessibilityLabel={t(item.label)} accessibilityState={{ selected: scope === item.key }} onPress={() => changeScope(item.key)} style={{ margin: 0, width: 44, height: 44 }} />
-              </Tooltip>)}
-            </View>
-          </View>}
+          moreMenuItems={[
+            { key: 'branch', label: 'Family branch', icon: 'family-tree', selected: scope === 'branch', onPress: () => changeScope('branch') },
+            { key: 'ancestors', label: 'Ancestors', icon: 'arrow-up-bold-outline', selected: scope === 'ancestors', onPress: () => changeScope('ancestors') },
+            { key: 'descendants', label: 'Descendants', icon: 'arrow-down-bold-outline', selected: scope === 'descendants', onPress: () => changeScope('descendants') },
+            ...(selectedId && selectedId !== focusRoot ? [{ key: 'focus-branch', label: 'Focus family branch', icon: 'crosshairs-gps', onPress: () => focusBranch(selectedId) }] : []),
+          ]}
           fillAvailableSpace
           familySwitchRef={familySwitchRef}
           activeFamilyRef={activeFamilyRef}
