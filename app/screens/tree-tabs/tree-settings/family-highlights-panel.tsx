@@ -1,9 +1,10 @@
+import { upcomingOccasions } from '../home/dashboard-helpers';
 import React, { useMemo, useState } from 'react';
 import { View } from 'react-native';
 import { Button, IconButton, Text, useTheme } from 'react-native-paper';
 import { GlobalStyles, InfoDialog, Reveal, SectionCard } from '../../../../components';
-import type { PersonLifeEvent, PersonRecord } from '../../../../components/dto/person';
-import { formatPersonDate, parsePersonDate } from '../../../../components/dto/person';
+import type { PersonRecord } from '../../../../components/dto/person';
+import { formatPersonDate } from '../../../../components/dto/person';
 import { formatPersonName } from '../../../../components/person-formatting';
 import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
@@ -28,25 +29,6 @@ type HighlightSuggestion = {
   action: () => void;
 };
 
-function getAnniversaryDateForYear(dateValue: string, year: number) {
-  if (!dateValue) {
-    return null;
-  }
-
-  const parsed = parsePersonDate(dateValue);
-  if (!parsed) {
-    return null;
-  }
-
-  return new Date(year, parsed.getMonth(), parsed.getDate());
-}
-
-function getDaysUntil(date: Date, now: Date) {
-  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
-  const end = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
-  return Math.round((end - start) / (1000 * 60 * 60 * 24));
-}
-
 function paginateItems<T>(items: T[], page: number, pageSize: number) {
   const start = page * pageSize;
   return items.slice(start, start + pageSize);
@@ -57,52 +39,12 @@ function buildUpcomingAnniversaries(
   t: (message: string, params?: Record<string, string | number | null | undefined>) => string,
   limit?: number,
 ) {
-  const now = new Date();
-  const candidates: Array<HighlightAnniversary & { daysUntil: number }> = [];
-
-  people.forEach((person) => {
-    const birthThisYear = getAnniversaryDateForYear(person.birthDate, now.getFullYear());
-    if (birthThisYear) {
-      let date = birthThisYear;
-      if (getDaysUntil(date, now) < 0) {
-        date = getAnniversaryDateForYear(person.birthDate, now.getFullYear() + 1) ?? birthThisYear;
-      }
-      const daysUntil = getDaysUntil(date, now);
-      if (daysUntil >= 0 && daysUntil <= 90) {
-        candidates.push({
-          id: `birth-${person.id}`,
-          date: date.toISOString(),
-          title: t(K.home.birthdayTitle, { name: formatPersonName(person) }),
-          subtitle: person.birthDate ? t(K.home.bornOnDate, { date: formatPersonDate(person.birthDate) }) : t(K.home.birthdayRememberedInTheTree),
-          daysUntil,
-        });
-      }
-    }
-
-    person.lifeEvents.forEach((event: PersonLifeEvent) => {
-      const eventThisYear = getAnniversaryDateForYear(event.date, now.getFullYear());
-      if (!eventThisYear) {
-        return;
-      }
-      let date = eventThisYear;
-      if (getDaysUntil(date, now) < 0) {
-        date = getAnniversaryDateForYear(event.date, now.getFullYear() + 1) ?? eventThisYear;
-      }
-      const daysUntil = getDaysUntil(date, now);
-      if (daysUntil >= 0 && daysUntil <= 90) {
-        candidates.push({
-          id: `${person.id}-${event.id}`,
-          date: date.toISOString(),
-          title: event.title || t(K.home.memoryLabel, { name: formatPersonName(person) }),
-          subtitle: `${formatPersonName(person)} • ${event.description || t(K.memories.rememberedFamilyMoment)}`,
-          daysUntil,
-        });
-      }
-    });
-  });
-
-  candidates.sort((left, right) => left.daysUntil - right.daysUntil);
-  const sorted = candidates.map(({ daysUntil: _daysUntil, ...item }) => item);
+  const sorted = upcomingOccasions(people).map(event => ({
+    id: event.person.id + '-' + event.id,
+    date: event.next.toISOString(),
+    title: event.birthday ? t(K.home.birthdayTitle, { name: formatPersonName(event.person) }) : event.title,
+    subtitle: event.birthday ? t(K.home.bornOnDate, { date: formatPersonDate(event.person.birthDate) }) : formatPersonName(event.person),
+  }));
   return typeof limit === 'number' ? sorted.slice(0, limit) : sorted;
 }
 

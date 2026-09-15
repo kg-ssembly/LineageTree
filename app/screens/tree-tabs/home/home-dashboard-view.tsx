@@ -1,3 +1,5 @@
+import { canEditTreeContent } from '../../../../components/dto/tree';
+import { canUserReviewApprovalRequest } from '../../../../components/dto/approval';
 import { FamilyWelcome } from './family-welcome';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from 'react-native';
@@ -7,7 +9,6 @@ import { ActivityIndicator, Button, Chip, Icon, IconButton, Text, useTheme } fro
 import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, FloatingSnackbar, GlobalStyles, HorizontalTabStrip, InfoDialog, Reveal, ScreenBackground, SectionCard, SuggestionList, TabStripCard, type SuggestionActionTarget } from '../../../../components';
 import type { MainTabParamList } from '../../../../components/dto/navigation';
 import { getThemeChrome } from '../../../../constants/styles';
-import type { AppTheme } from '../../../../constants/theme';
 import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
 import { formatPersonName } from '../../../../components/person-formatting';
@@ -20,7 +21,7 @@ const styles = GlobalStyles.treeDetail;
 const profileStyles = GlobalStyles.personProfile;
 const DASHBOARD_PROMPTS_STORAGE_KEY = 'lineagetree-dashboard-hidden-prompts';
 const DASHBOARD_LAST_VISIT_STORAGE_KEY = 'lineagetree-dashboard-last-visit';
-const MIN_TREE_MEMBERS_FOR_PROGRESS = 10;
+
 
 type SetupStep = {
   id: string;
@@ -198,30 +199,6 @@ type DashboardSuggestionActionContext = Pick<
   peopleById: Map<string, SharedTabProps['people'][number]>;
 };
 
-function getUrgencyTone(theme: AppTheme, level: 'urgent' | 'attention' | 'calm') {
-  if (level === 'urgent') {
-    return {
-      backgroundColor: theme.colors.errorContainer,
-      textColor: theme.colors.onErrorContainer,
-      borderColor: theme.colors.error,
-    };
-  }
-
-  if (level === 'attention') {
-    return {
-      backgroundColor: theme.colors.secondaryContainer,
-      textColor: theme.colors.onSecondaryContainer,
-      borderColor: theme.colors.secondary,
-    };
-  }
-
-  return {
-    backgroundColor: theme.colors.tertiaryContainer,
-    textColor: theme.colors.onTertiaryContainer,
-    borderColor: theme.colors.tertiary,
-  };
-}
-
 type DashboardCardProps = {
   children: React.ReactNode;
   style?: StyleProp<ViewStyle>;
@@ -341,7 +318,6 @@ export function HomeDashboardView(props: SharedTabProps) {
     onConsumeFollowUpTreePrompts,
   } = props;
   const peopleById = useMemo(() => new Map(people.map((person) => [person.id, person])), [people]);
-  const spotlightTextColor = theme.colors.onPrimaryContainer;
   const spotlightSubtextColor = theme.dark ? theme.colors.onPrimaryContainer : '#345447';
   const [showFollowUpTreePrompts, setShowFollowUpTreePrompts] = useState(false);
   const suggestionActionContext = useMemo<DashboardSuggestionActionContext>(() => ({
@@ -478,7 +454,7 @@ export function HomeDashboardView(props: SharedTabProps) {
     }
 
     for (const request of approvalRequests) {
-      if (request.status !== 'pending') {
+      if (!canUserReviewApprovalRequest(request, userId)) {
         continue;
       }
 
@@ -500,6 +476,7 @@ export function HomeDashboardView(props: SharedTabProps) {
         continue;
       }
 
+      if (!(trees ?? [selectedTree]).some(tree => request.involvedTreeIds.includes(tree.id) && canEditTreeContent(tree, userId))) continue;
       activeMergeReviews += 1;
       if (!firstPendingMergeReview) {
         firstPendingMergeReview = request;
@@ -524,7 +501,7 @@ export function HomeDashboardView(props: SharedTabProps) {
       needsAttentionCount: pendingApprovals + pendingInvites + activeMergeReviews,
       latestActivityAttentionItem: activityAttentionItems[0] ?? null,
     };
-  }, [approvalRequests, mergeRequests, notifications, t]);
+  }, [approvalRequests, mergeRequests, notifications, selectedTree, t, trees, userId]);
   const {
     pendingApprovals,
     pendingInvites,
@@ -534,9 +511,6 @@ export function HomeDashboardView(props: SharedTabProps) {
     needsAttentionCount,
     latestActivityAttentionItem,
   } = activityMetrics;
-  const approvalsTone = pendingApprovals > 0 ? getUrgencyTone(theme, pendingApprovals > 2 ? 'urgent' : 'attention') : getUrgencyTone(theme, 'calm');
-  const invitesTone = pendingInvites > 0 ? getUrgencyTone(theme, 'attention') : getUrgencyTone(theme, 'calm');
-  const mergeTone = activeMergeReviews > 0 ? getUrgencyTone(theme, activeMergeReviews > 1 ? 'urgent' : 'attention') : getUrgencyTone(theme, 'calm');
   const activityNotificationCount = useMemo(() => {
     return getActivityNotificationCount({
       approvalRequests,
@@ -558,7 +532,7 @@ export function HomeDashboardView(props: SharedTabProps) {
   const hasUserSelectedDashboardTabRef = useRef(false);
   const previousFocusRef = useRef(isFocused);
   const promptStorageId = `${selectedTree.id}:${currentAssignedPerson?.id ?? 'unlinked'}`;
-  const dashboardVisitStorageId = `${selectedTree.id}:${currentAssignedPerson?.id ?? 'unlinked'}`;
+  const dashboardVisitStorageId = `${userId ?? 'anonymous'}:${selectedTree.id}`;
   const isEmptyTree = people.length === 0;
   const scrollRef = useRef<ScrollView | null>(null);
   const sectionOffsetsRef = useRef<Record<DashboardSectionKey, number>>({
@@ -619,24 +593,18 @@ export function HomeDashboardView(props: SharedTabProps) {
   useEffect(() => {
     let cancelled = false;
 
+    setLastVisitAt(null);
     const hydrateLastVisit = async () => {
       try {
         const stored = await AsyncStorage.getItem(DASHBOARD_LAST_VISIT_STORAGE_KEY);
-        if (!stored) {
-          if (!cancelled) {
-            setLastVisitAt(null);
-          }
-          return;
-        }
-
-        const parsed = JSON.parse(stored) as Record<string, string>;
-        if (!cancelled) {
-          setLastVisitAt(parsed[dashboardVisitStorageId] ?? null);
-        }
+        const parsed = stored ? JSON.parse(stored) as Record<string, string> : {};
+        if (cancelled) return;
+        setLastVisitAt(parsed[dashboardVisitStorageId] ?? null);
+        await AsyncStorage.setItem(DASHBOARD_LAST_VISIT_STORAGE_KEY, JSON.stringify({
+          ...parsed, [dashboardVisitStorageId]: new Date().toISOString(),
+        }));
       } catch {
-        if (!cancelled) {
-          setLastVisitAt(null);
-        }
+        // A missing device history must not block the dashboard.
       }
     };
 
@@ -756,6 +724,7 @@ export function HomeDashboardView(props: SharedTabProps) {
       setDashboardTab('highlights');
     }
     if (key === 'keep-building') {
+      setShowTreeProgress(true);
       setDashboardTab('overview');
       setDeeperExpanded(true);
     }
@@ -774,10 +743,9 @@ export function HomeDashboardView(props: SharedTabProps) {
       { key: 'overview', label: t('Our family'), icon: 'view-dashboard-outline' },
       { key: 'highlights', label: t('Family occasions'), icon: 'star-four-points-outline' },
     ],
-    [activityNotificationCount, t],
+    [t],
   );
   const isOverviewTab = dashboardTab === 'overview';
-  const isActivityTab = dashboardTab === 'activity';
 
   const openFamilyActivity = useCallback(() => {
     navigation.navigate('notifications');
@@ -991,22 +959,6 @@ export function HomeDashboardView(props: SharedTabProps) {
       .slice(0, 3);
   }, [people, relationships, suggestionActionContext, t]);
 
-  const treeStrengthChecks = useMemo(() => {
-    const remainingObjectiveTreeTasks = treeTasks.filter((task) => !task.done).length;
-    const checks = [
-      Boolean(currentAssignedPerson),
-      people.length >= MIN_TREE_MEMBERS_FOR_PROGRESS,
-      relationships.length > 0,
-      missingMemberDetails.length === 0,
-      remainingObjectiveTreeTasks === 0,
-    ];
-    const completed = checks.filter(Boolean).length;
-    return {
-      completed,
-      total: checks.length,
-      percent: Math.round((completed / checks.length) * 100),
-    };
-  }, [currentAssignedPerson, missingMemberDetails.length, people.length, relationships.length, treeTasks]);
   const overviewStats = useMemo(() => ([
     { id: 'people', label: t(K.home.familyMembersMetric), value: String(people.length) },
     { id: 'connections', label: t(K.home.connectFamily), value: String(relationships.length) },
@@ -1099,15 +1051,15 @@ export function HomeDashboardView(props: SharedTabProps) {
   ]);
 
   const sinceLastVisit = useMemo(() => {
-    if (!isActivityTab || !lastVisitAt) {
+    if (!lastVisitAt) {
       return [];
     }
 
     const items: Array<{ id: string; label: string; onPress: () => void }> = [];
     const newPeopleCount = people.filter((person) => person.createdAt > lastVisitAt).length;
     const updatedRelationshipCount = relationships.filter((relationship) => relationship.createdAt > lastVisitAt).length;
-    const pendingApprovalCount = approvalRequests.filter((request) => request.updatedAt > lastVisitAt && request.status === 'pending').length;
-    const newInviteCount = notifications.filter((notification) => notification.createdAt > lastVisitAt && notification.type === 'merge-invite').length;
+    const pendingApprovalCount = approvalRequests.filter((request) => request.updatedAt > lastVisitAt && canUserReviewApprovalRequest(request, userId)).length;
+    const newInviteCount = notifications.filter((notification) => notification.createdAt > lastVisitAt && notification.type === 'merge-invite' && notification.status === 'pending').length;
 
     if (newPeopleCount > 0) {
       items.push({ id: 'people', label: t(K.home.newFamilyMembersCount, { count: newPeopleCount }), onPress: () => focusSection('family-highlights') });
@@ -1123,7 +1075,7 @@ export function HomeDashboardView(props: SharedTabProps) {
     }
 
     return items;
-  }, [approvalRequests, focusSection, isActivityTab, lastVisitAt, navigation, notifications, openApprovals, openMergeInvites, people, relationships, t]);
+  }, [approvalRequests, focusSection, lastVisitAt, navigation, notifications, openApprovals, openMergeInvites, people, relationships, t, userId]);
 
   if (loadingTreeData) {
     return (
@@ -1157,7 +1109,29 @@ export function HomeDashboardView(props: SharedTabProps) {
             />
           </TabStripCard>
         </Reveal>
-        {dashboardTab === 'overview' ? <FamilyWelcome {...props} onOpenOccasions={() => setDashboardTab('highlights')} /> : null}
+        {dashboardTab === 'overview' ? <FamilyWelcome
+          key={dashboardVisitStorageId}
+          {...props}
+          onOpenOccasions={() => setDashboardTab('highlights')}
+          updates={!props.loadingNotifications ? <>
+            {activityNotificationCount > 0 ? <SectionCard style={{ gap: 8 }}>
+              <Text variant="titleMedium">{t(K.home.whatNeedsReview)} · {activityNotificationCount}</Text>
+              <Button mode="contained" onPress={firstPendingApproval ? openApprovals : firstPendingMergeReview ? openMergeReviews : openFamilyActivity}>{t('Review')}</Button>
+              {firstPendingApproval ? <Text>{firstPendingApproval.title}</Text> : null}
+              {activityNotificationCount > 1 ? <Button onPress={openFamilyActivity}>{t(K.home.viewFamilyActivity)}</Button> : null}
+            </SectionCard> : null}
+            {sinceLastVisit.length > 0 ? <SectionCard style={{ gap: 8 }}>
+              <Text variant="titleMedium">{t('Since your last visit')}</Text>
+              {sinceLastVisit.map(item => <Button key={item.id} onPress={item.onPress}>{item.label}</Button>)}
+            </SectionCard> : null}
+          </> : <ActivityIndicator accessibilityLabel={t('Loading family updates')} />}
+          nextStep={canEdit && !isEmptyTree ? <SectionCard style={{ gap: 8 }}>
+            <Text variant="titleMedium">{t('One useful next step')}</Text>
+            <Text>{heroTitle}</Text>
+            <Button mode="outlined" onPress={heroAction.action}>{heroAction.buttonLabel ?? heroAction.label}</Button>
+            {heroAction.taskId && tasks.some(task => task.id === heroAction.taskId) ? <Button onPress={() => dismissTask(heroAction.taskId!)}>{t(K.home.hide)}</Button> : null}
+          </SectionCard> : null}
+        /> : null}
 
       {dashboardTab === 'overview' && !isEmptyTree ? <Button icon={showTreeProgress ? 'chevron-up' : 'chevron-down'} onPress={() => setShowTreeProgress(value => !value)} style={{ alignSelf: 'flex-start', marginVertical: 12 }}>{t('Help our family tree grow')}</Button> : null}
       {dashboardTab === 'overview' && !isEmptyTree && showTreeProgress ? (
@@ -1197,38 +1171,13 @@ export function HomeDashboardView(props: SharedTabProps) {
                   </Text>
                 </View>
 
-                <View style={[localStyles.strengthMetricWrap, { backgroundColor: chrome.primaryCardBackground }]}>
-                  <Text variant="headlineMedium" style={{ color: spotlightTextColor }}>
-                    {treeStrengthChecks.percent}%
-                  </Text>
-                  <Text variant="labelMedium" style={{ color: spotlightSubtextColor }}>
-                    {t(K.home.progressLabel)}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={[localStyles.strengthProgressTrack, { backgroundColor: theme.colors.outlineVariant }]}>
-                <View
-                  style={[
-                    localStyles.strengthProgressFill,
-                    {
-                      width: `${Math.max(8, treeStrengthChecks.percent)}%`,
-                      backgroundColor: theme.colors.primary,
-                    },
-                  ]}
-                />
               </View>
 
               <View style={localStyles.strengthChipRow}>
                 <Chip compact icon={isSetupMode ? 'rocket-launch-outline' : 'check-decagram'}>
-                  {isSetupMode ? t(K.home.continueSetup) : t(K.home.profileLookingStrong)}
+                  {isSetupMode ? t(K.home.continueSetup) : t(K.home.buildYourFamily)}
                 </Chip>
-                <Chip compact icon="check-circle-outline">
-                  {t(K.home.treeBuildingStepsFinishedCount, {
-                    completed: treeStrengthChecks.completed,
-                    total: treeStrengthChecks.total,
-                  })}
-                </Chip>
+
                 {needsAttentionCount > 0 ? (
                   <Chip
                     compact
