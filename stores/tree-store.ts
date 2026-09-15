@@ -1,3 +1,4 @@
+import { subscribeToTreeGraph } from '../providers/tree-graph-service';
 import { trackOperation } from './operation-store';
 import { selectiveStorage } from './selective-storage';
 import { startMetric, finishMetric } from '../components/performance-metrics';
@@ -149,6 +150,8 @@ function stopAllSubscriptions() {
 }
 
 interface TreeState {
+  graphMore: Record<string, string | null>;
+  graphComplete: boolean;
   trees: FamilyTree[];
   selectedTreeId: string | null;
   currentUserId: string | null;
@@ -343,52 +346,17 @@ export const useTreeStore = create<TreeState>()(persist((set, get) => {
     const keepCached = get().treeDataTreeId === treeId;
     set({ treeDataTreeId: treeId, people: keepCached ? get().people : [], relationships: keepCached ? get().relationships : [], approvalRequests: [], mergeRequests: [], mergeHistory: [], mergePreview: null, loadingTreeData: !keepCached });
     subscribeToTreeAuxiliaryData(treeId);
-    let hasLoadedPeople = false;
-    let hasLoadedRelationships = false;
-
-    const updateInitialLoadState = () => {
-      if (hasLoadedPeople && hasLoadedRelationships) {
-        finishMetric('tree.ready.ms');
-        set({ loadingTreeData: false });
-      }
-    };
-
-    unsubscribePeople = subscribeToPeople(
-      treeId,
-      (people) => {
-        if (useSyncStatusStore.getState().sources.people?.source === 'cache' && people.length === 0 && get().people.length) return;
-        hasLoadedPeople = true;
-        if (!haveSameRecordVersions(get().people, people)) {
-          set({ people });
-        }
-        updateInitialLoadState();
-      },
-      (error) => set({
-        error: normaliseError(error), loadingTreeData: false,
-        ...((error as { code?: string }).code === 'permission-denied' ? { people: [], relationships: [], treeDataTreeId: null } : {}),
-      }),
-      primaryIds,
-    );
-
-    unsubscribeRelationships = subscribeToRelationships(
-      treeId,
-      (relationships) => {
-        if (useSyncStatusStore.getState().sources.relationships?.source === 'cache' && relationships.length === 0 && get().relationships.length) return;
-        hasLoadedRelationships = true;
-        if (!haveSameRecordVersions(get().relationships, relationships, getRelationshipVersion)) {
-          set({ relationships });
-        }
-        updateInitialLoadState();
-      },
-      (error) => set({
-        error: normaliseError(error), loadingTreeData: false,
-        ...((error as { code?: string }).code === 'permission-denied' ? { people: [], relationships: [], treeDataTreeId: null } : {}),
-      }),
-    );
+    set({graphMore: {}, graphComplete: false});
+    unsubscribePeople = subscribeToTreeGraph(treeId, (page, complete) => {
+      if (get().selectedTreeId !== treeId) return;
+      set({ people: page.people, relationships: page.relationships, graphMore: page.more, graphComplete: complete, loadingTreeData: false });
+      finishMetric('tree.ready.ms');
+    }, error => set({error: normaliseError(error), loadingTreeData: false}));
 
   };
 
   const initialState: TreeState = {
+    graphMore: {}, graphComplete: false,
     trees: [],
     selectedTreeId: null,
     currentUserId: null,

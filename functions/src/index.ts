@@ -1,11 +1,18 @@
 import { onSchedule } from 'firebase-functions/v2/scheduler';
+import { searchTreeDirectory, lookupAccount } from './services/tree-directory-function';
+import { consumeLimit } from './services/request-limits';
+import { ApprovalSubmissionFunction } from './services/approval-submission-function';
+import { readTreeGraph } from './services/tree-graph-function';
+import { createTreeRecord, createSurnameTree } from './services/tree-creation-function';
+import { manageCollaborator } from './services/collaborator-function';
 import { requestTreeAccess, respondToAccess } from './services/tree-access-function';
 import { archivePerson, restoreDeletedPerson } from './services/person-recovery-function';
 import { initializeApp } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore, Timestamp } from 'firebase-admin/firestore';
 import sgMail from '@sendgrid/mail';
-import { onDocumentCreated } from 'firebase-functions/v2/firestore';
+import { onDocumentCreated, onDocumentUpdated } from 'firebase-functions/v2/firestore';
+import { proposeLinkedUpdates, unlinkProfiles } from './services/linked-profile-function';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { defineSecret, defineString } from 'firebase-functions/params';
 import {
@@ -25,6 +32,47 @@ const adminAuth = getAuth();
 const approvalDecisionFunction = new ApprovalDecisionFunction(db);
 const mergeReviewFunction = new MergeReviewFunction(db);
 const treeDeletionFunction = new TreeDeletionFunction(db);
+
+export const createTreeServer = onCall({ region: 'us-central1' }, async request => {
+  if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in to create a tree.');
+  return createTreeRecord(db, request.auth.uid, request.data ?? {});
+});
+export const createSurnameTreeServer = onCall({ region: 'us-central1', timeoutSeconds: 540 }, async request => {
+  if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in to create a tree.');
+  return createSurnameTree(db, request.auth.uid, String(request.data?.sourceTreeId ?? ''), String(request.data?.surname ?? ''));
+});
+
+export const readTreeGraphServer = onCall({ region: 'us-central1' }, async request => {
+  if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in to view a family tree.');
+  return readTreeGraph(db, request.auth.uid, request.data ?? {});
+});
+export const manageCollaboratorServer = onCall({ region: 'us-central1' }, async request => {
+  if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in to manage collaborators.');
+  return manageCollaborator(db, request.auth.uid, request.data ?? {});
+});
+
+export const proposeLinkedProfileUpdates = onDocumentUpdated({ document: 'persons/{personId}', region: 'us-central1', retry: true }, async event => {
+  if (event.data) await proposeLinkedUpdates(db, event.params.personId, event.data.before.data(), event.data.after.data(), event.id);
+});
+export const unlinkProfilesServer = onCall({ region: 'us-central1' }, async request => {
+  if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in to unlink profiles.');
+  await unlinkProfiles(db, request.auth.uid, String(request.data?.requestId ?? ''));
+  return { ok: true };
+});
+
+export const submitFamilyChangeServer = onCall({ region: 'us-central1' }, async request => {
+  if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in to submit a change.');
+  return new ApprovalSubmissionFunction(db).submit(request.auth.uid, request.data);
+});
+
+export const searchTreeDirectoryServer = onCall({ region: 'us-central1' }, async request => {
+  if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in to find a tree.');
+  return searchTreeDirectory(db, request.auth.uid, request.data ?? {});
+});
+export const lookupAccountServer = onCall({ region: 'us-central1' }, async request => {
+  if (!request.auth) throw new HttpsError('unauthenticated', 'Sign in to find an account.');
+  return lookupAccount(db, request.auth.uid, request.data ?? {});
+});
 
 const SENDGRID_API_KEY = defineSecret('SENDGRID_API_KEY');
 const SENDGRID_FROM_EMAIL = defineString('SENDGRID_FROM_EMAIL');
@@ -283,6 +331,8 @@ export const sendPasswordResetEmail = onCall(
       throw new HttpsError('invalid-argument', 'An email address is required.');
     }
 
+    await consumeLimit(db, 'password-reset-address', email, 3, 3_600_000);
+    await consumeLimit(db, 'password-reset-origin', request.rawRequest.ip ?? 'unknown', 10, 3_600_000);
     try {
       const resetUrl = await adminAuth.generatePasswordResetLink(email);
       const template = buildPasswordResetEmailTemplate({
@@ -299,11 +349,11 @@ export const sendPasswordResetEmail = onCall(
         category: 'password-reset',
       });
 
-      return { ok: true, emailRegistered: true };
+      return { ok: true };
     } catch (error: any) {
       const authCode = typeof error?.code === 'string' ? error.code : '';
       if (authCode === 'auth/user-not-found') {
-        return { ok: true, emailRegistered: false };
+        return { ok: true };
       }
 
       throw error;
@@ -408,13 +458,15 @@ export const decideApprovalRequestServer = onCall(
 
     const requestId = typeof request.data?.requestId === 'string' ? request.data.requestId.trim() : '';
     const decision = request.data?.decision;
-    const auto = request.data?.auto === true;
+    if (request.data?.auto === true) {
+      throw new HttpsError('permission-denied', 'Automatic decisions are performed by the scheduler.');
+    }
 
     if (!requestId || (decision !== 'approve' && decision !== 'reject')) {
       throw new HttpsError('invalid-argument', 'A valid approval decision payload is required.');
     }
 
-    return approvalDecisionFunction.decide(request.auth!.uid, requestId, decision, auto);
+    return approvalDecisionFunction.decide(request.auth!.uid, requestId, decision);
   },
 );
 

@@ -1,3 +1,5 @@
+import { httpsCallable } from 'firebase/functions';
+import { functionsApi } from './firebase-provider';
 import {
   collection,
   doc,
@@ -189,112 +191,19 @@ export async function deleteDocumentRefs(refs: Array<ReturnType<typeof doc>>) {
   }
 }
 
-export async function findUserByEmail(email: string) {
-  const trimmedEmail = email.trim();
-  const normalizedEmail = normaliseEmail(trimmedEmail);
-
-  let userSnapshot = await getDocs(
-    query(collection(db, USERS_COLLECTION), where('normalizedEmail', '==', normalizedEmail), limit(1)),
-  );
-
-  if (userSnapshot.empty) {
-    userSnapshot = await getDocs(
-      query(collection(db, USERS_COLLECTION), where('email', '==', trimmedEmail), limit(1)),
-    );
-  }
-
-  if (userSnapshot.empty) {
-    throw new Error('No account was found with that email address.');
-  }
-
-  const userDoc = userSnapshot.docs[0];
-  const userData = userDoc.data();
-
-  return {
-    id: userDoc.id,
-    email: userData.email,
-    displayName: userData.displayName ?? '',
-  };
+export async function findUserByEmail(identifier: string) {
+ const result = await httpsCallable<{identifier: string}, ResolvedUserAccount>(functionsApi, 'lookupAccountServer')({identifier});
+ return result.data;
 }
 
 export async function findUserByIdentifier(identifier: string) {
-  const trimmedIdentifier = identifier.trim();
-  const normalizedEmail = normaliseEmail(trimmedIdentifier);
-  const normalizedDisplayName = normaliseDisplayName(trimmedIdentifier);
-  const normalizedUsername = trimmedIdentifier.trim().toLowerCase().replace(/\s+/g, '');
-
-  let userSnapshot = await getDocs(
-    query(collection(db, USERS_COLLECTION), where('normalizedEmail', '==', normalizedEmail), limit(1)),
-  );
-
-  if (!userSnapshot.empty) {
-    const userDoc = userSnapshot.docs[0];
-    const userData = userDoc.data();
-    return {
-      id: userDoc.id,
-      email: userData.email,
-      displayName: userData.displayName ?? '',
-      username: userData.username ?? '',
-      defaultTreeId: userData.defaultTreeId ?? '',
-    };
-  }
-
-  userSnapshot = await getDocs(
-    query(collection(db, USERS_COLLECTION), where('username', '==', normalizedUsername), limit(2)),
-  );
-
-  if (userSnapshot.empty) {
-    userSnapshot = await getDocs(
-      query(collection(db, USERS_COLLECTION), where('normalizedDisplayName', '==', normalizedDisplayName), limit(2)),
-    );
-  }
-
-  if (userSnapshot.empty) {
-    throw new Error('No registered account was found with that email address or username.');
-  }
-
-  if (userSnapshot.docs.length > 1) {
-    throw new Error('More than one user matches that username. Ask them for their tree ID or email address instead.');
-  }
-
-  const userDoc = userSnapshot.docs[0];
-  const userData = userDoc.data();
-  return {
-    id: userDoc.id,
-    email: userData.email,
-    displayName: userData.displayName ?? '',
-    username: userData.username ?? '',
-    defaultTreeId: userData.defaultTreeId ?? '',
-  };
+ const result = await httpsCallable<{identifier: string}, ResolvedUserAccount>(functionsApi, 'lookupAccountServer')({identifier});
+ return result.data;
 }
 
-export async function findUserByUsernameExact(username: string) {
-  const normalizedUsername = username.trim().toLowerCase().replace(/\s+/g, '');
-  if (!normalizedUsername) {
-    throw new Error('Username is required.');
-  }
-
-  const userSnapshot = await getDocs(
-    query(collection(db, USERS_COLLECTION), where('username', '==', normalizedUsername), limit(2)),
-  );
-
-  if (userSnapshot.empty) {
-    throw new Error('No registered account was found with that username.');
-  }
-
-  if (userSnapshot.docs.length > 1) {
-    throw new Error('More than one user matches that username. Ask them for their tree ID or email address instead.');
-  }
-
-  const userDoc = userSnapshot.docs[0];
-  const userData = userDoc.data();
-  return {
-    id: userDoc.id,
-    email: userData.email,
-    displayName: userData.displayName ?? '',
-    username: userData.username ?? '',
-    defaultTreeId: userData.defaultTreeId ?? '',
-  };
+export async function findUserByUsernameExact(identifier: string) {
+ const result = await httpsCallable<{identifier: string}, ResolvedUserAccount>(functionsApi, 'lookupAccountServer')({identifier});
+ return result.data;
 }
 
 export async function getTreeById(treeId: string) {
@@ -336,19 +245,8 @@ export async function getTreeBundle(treeId: string) {
 }
 
 export async function getUserProfileById(userId: string): Promise<Pick<UserProfile, 'id' | 'email' | 'displayName' | 'username' | 'defaultTreeId'>> {
-  const userSnapshot = await getDoc(doc(db, USERS_COLLECTION, userId));
-  if (!userSnapshot.exists()) {
-    throw new Error('That user account no longer exists.');
-  }
-
-  const userData = userSnapshot.data();
-  return {
-    id: userSnapshot.id,
-    email: userData.email ?? '',
-    displayName: userData.displayName ?? '',
-    username: userData.username ?? '',
-    defaultTreeId: userData.defaultTreeId ?? '',
-  };
+ const result = await httpsCallable<{userId: string}, ResolvedUserAccount>(functionsApi, 'lookupAccountServer')({userId});
+ return result.data;
 }
 
 export async function getUserProfileByIdOptional(userId: string) {

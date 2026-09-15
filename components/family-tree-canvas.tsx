@@ -106,6 +106,7 @@ const LARGE_TREE_CONNECTOR_THRESHOLD = 220;
 interface FamilyTreeCanvasProps {
   compactCards?: boolean;
   searchPeople?: PersonRecord[];
+  onSearchQueryChange?: (query: string) => void;
   onSearchPerson?: (personId: string) => void;
   hiddenParents?: Map<string, string[]>;
   onRevealParents?: (personId: string) => void;
@@ -483,7 +484,7 @@ const PersonNode = React.memo(function PersonNode(props: PersonNodeProps) {
       </Pressable>
       {hasHiddenParents ? <Button compact mode="contained-tonal" icon="arrow-up" onPress={() => onShowParents?.(person.id)} style={{ position: 'absolute', top: -48, width: C.NODE_WIDTH }} contentStyle={{ minHeight: 44 }} accessibilityLabel={translate('Show parents') + ': ' + formatPersonName(person)}>{translate('Show parents')}</Button> : null}
       {moreCount > 0 ? <Button compact mode="contained-tonal" icon="plus" accessibilityLabel={translate('Show more children') + ' (' + moreCount + ')'} onPress={() => onReveal?.(person.id)} style={{ position: 'absolute', bottom: 0, width: C.NODE_WIDTH }} contentStyle={{ minHeight: 44 }}>
-        {moreCount} {translate(moreCount === 1 ? 'more child' : 'more children')}
+        {translate('Show more children')}
       </Button> : null}
       </View>
   );
@@ -495,6 +496,7 @@ const PersonNode = React.memo(function PersonNode(props: PersonNodeProps) {
 function FamilyTreeCanvas({
                             compactCards = false,
                             searchPeople,
+                            onSearchQueryChange,
                             onSearchPerson,
                             hiddenParents,
                             onRevealParents,
@@ -538,6 +540,7 @@ function FamilyTreeCanvas({
   const [fullscreenViewportSize, setFullscreenViewportSize] = useState({ width: 0, height: 0 });
   const [activeSurnames, setActiveSurnames] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  useEffect(() => { onSearchQueryChange?.(searchQuery); }, [searchQuery, onSearchQueryChange]);
   const [searchExpanded, setSearchExpanded] = useState(false);
   const [toolsVisibleFor, setToolsVisibleFor] = useState<'inline' | 'fullscreen' | null>(null);
   const [lineOptionsVisible, setLineOptionsVisible] = useState(false);

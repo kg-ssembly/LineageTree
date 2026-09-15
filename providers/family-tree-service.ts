@@ -324,44 +324,9 @@ export function subscribeToNotificationActivityStates(
   );
 }
 
-export async function createTree(
-  owner: Pick<UserProfile, 'id' | 'email' | 'displayName'>,
-  name: string,
-): Promise<FamilyTree> {
-  const treeRef = doc(collection(db, TREES_COLLECTION));
-  const timestamp = nowIso();
-  const trimmedName = name.trim();
-  const ownerEmail = asSafeString(owner.email);
-  const ownerDisplayName = asSafeString(owner.displayName);
-  const ownerCollaborator = buildOwnerCollaborator(owner);
-  const tree: Omit<FamilyTree, 'id'> & { ownerEmail: string; ownerDisplayName: string } = {
-    ownerId: owner.id,
-    ownerEmail,
-    ownerDisplayName,
-    name: trimmedName,
-    kinshipSystem: 'auto',
-    discoverable: true,
-    searchKeywords: buildTreeSearchKeywords(trimmedName, []),
-    memberIds: [owner.id],
-    editorIds: [owner.id],
-    collaborators: [ownerCollaborator],
-    personAssignments: {},
-    approvalWindowHours: 24,
-    surnameVariantGroups: [],
-    connectedTreeIds: [],
-    membershipHistory: [{
-      id: `${treeRef.id}-owner-joined`,
-      userId: owner.id,
-      role: 'owner',
-      action: 'joined',
-      createdAt: timestamp,
-    }],
-    createdAt: timestamp,
-    updatedAt: timestamp,
-  };
-
-  await setDoc(treeRef, tree);
-  return { id: treeRef.id, ...tree };
+export async function createTree(owner: Pick<UserProfile, 'id' | 'email' | 'displayName'>, name: string): Promise<FamilyTree> {
+ const operationId = doc(collection(db, TREES_COLLECTION)).id;
+ return (await httpsCallable<object, FamilyTree>(functionsApi, 'createTreeServer')({name, operationId})).data;
 }
 
 export async function updateTreeName(treeId: string, name: string) {
@@ -438,178 +403,8 @@ function treeMatchesSurname(tree: FamilyTree, surname: string) {
   ));
 }
 
-export async function createSuggestedSurnameTree(
-  owner: Pick<UserProfile, 'id' | 'email' | 'displayName'>,
-  sourceTreeId: string,
-  surname: string,
-) {
-  const trimmedSurname = surname.trim();
-  const surnameKey = normaliseSurnameKey(trimmedSurname);
-  if (!surnameKey) {
-    throw new Error('Surname is required.');
-  }
-
-  const [sourceTree, sourcePeople, sourceRelationships] = await Promise.all([
-    getTreeById(sourceTreeId),
-    getPeopleByTreeId(sourceTreeId),
-    getRelationshipsByTreeId(sourceTreeId),
-  ]);
-
-  const connectedTrees = (await Promise.all(
-    sourceTree.connectedTreeIds.map(async (treeId) => {
-      try {
-        return await getTreeById(treeId);
-      } catch {
-        return null;
-      }
-    }),
-  )).filter((tree): tree is FamilyTree => Boolean(tree));
-  const existingConnectedTree = connectedTrees.find((tree) => treeMatchesSurname(tree, trimmedSurname));
-
-  if (existingConnectedTree) {
-    return existingConnectedTree;
-  }
-
-  const bridgePeople = sourcePeople.filter((person) => normaliseSurnameKey(person.maidenName ?? '') === surnameKey);
-  const surnameMembers = sourcePeople.filter((person) => normaliseSurnameKey(person.lastName) === surnameKey);
-  const newTreePersonIds = new Set([...bridgePeople, ...surnameMembers].map((person) => person.id));
-  const bridgePersonIds = new Set(bridgePeople.map((person) => person.id));
-  const movedPersonIds = new Set(
-    surnameMembers
-      .map((person) => person.id)
-      .filter((personId) => !bridgePersonIds.has(personId)),
-  );
-
-  const createdTree = await createTree(owner, trimmedSurname);
-  const createdAt = nowIso();
-  const newTreeRef = doc(db, TREES_COLLECTION, createdTree.id);
-  const sourceTreeRef = doc(db, TREES_COLLECTION, sourceTree.id);
-  const batch = writeBatch(db);
-  const copiedCollaborators = sortCollaborators([
-    buildOwnerCollaborator(owner),
-    ...sourceTree.collaborators
-      .filter((collaborator) => collaborator.userId !== owner.id)
-      .map((collaborator) => ({
-        ...collaborator,
-        role: collaborator.role === 'owner' ? 'editor' : collaborator.role,
-      })),
-  ]);
-  const copiedMemberIds = [...new Set([owner.id, ...sourceTree.memberIds])];
-  const copiedEditorIds = [...new Set([owner.id, ...sourceTree.editorIds])];
-
-  const copiedAssignments = Object.fromEntries(
-    Object.entries(sourceTree.personAssignments).filter(([, personId]) => newTreePersonIds.has(personId)),
-  );
-  const retainedAssignments = Object.fromEntries(
-    Object.entries(sourceTree.personAssignments).filter(([, personId]) => !movedPersonIds.has(personId)),
-  );
-
-  batch.update(newTreeRef, {
-    collaborators: copiedCollaborators,
-    memberIds: copiedMemberIds,
-    editorIds: copiedEditorIds,
-    personAssignments: copiedAssignments,
-    approvalWindowHours: sourceTree.approvalWindowHours,
-    kinshipSystem: sourceTree.kinshipSystem ?? 'auto',
-    surnameVariantGroups: [{
-      id: `${createdTree.id}-surname-variants`,
-      primarySurname: trimmedSurname,
-      variants: [],
-      notes: '',
-      createdAt,
-      updatedAt: createdAt,
-    }],
-    connectedTreeIds: [...new Set([...(createdTree.connectedTreeIds ?? []), sourceTree.id])],
-    updatedAt: createdAt,
-  });
-
-  batch.update(sourceTreeRef, {
-    connectedTreeIds: [...new Set([...(sourceTree.connectedTreeIds ?? []), createdTree.id])],
-    personAssignments: retainedAssignments,
-    updatedAt: createdAt,
-  });
-
-  sourcePeople.forEach((person) => {
-    if (!newTreePersonIds.has(person.id)) {
-      return;
-    }
-
-    const nextMembershipIds = person.treeMembershipIds.filter((treeId) => treeId !== sourceTree.id);
-    const nextMemberships = person.treeMemberships.filter((membership) => membership.treeId !== sourceTree.id);
-    const personRef = doc(db, PEOPLE_COLLECTION, person.id);
-
-    if (bridgePersonIds.has(person.id)) {
-      batch.update(personRef, {
-        treeMembershipIds: [...new Set([...person.treeMembershipIds, createdTree.id])],
-        treeMemberships: upsertTreeMembership(
-          person.treeMemberships,
-          buildTreeMembershipEntry(createdTree.id, 'branch-member', owner.id),
-        ),
-        updatedAt: createdAt,
-      });
-      return;
-    }
-
-    const replacedMembershipIds = [...new Set([...nextMembershipIds, createdTree.id])];
-    const replacedMemberships = upsertTreeMembership(
-      nextMemberships,
-      buildTreeMembershipEntry(createdTree.id, 'subject', owner.id),
-    );
-    batch.update(personRef, {
-      treeId: person.treeId === sourceTree.id ? createdTree.id : person.treeId,
-      treeMembershipIds: replacedMembershipIds,
-      treeMemberships: replacedMemberships,
-      updatedAt: createdAt,
-    });
-  });
-
-  sourceRelationships.forEach((relationship) => {
-    const endpointsInNewTree = newTreePersonIds.has(relationship.fromPersonId) && newTreePersonIds.has(relationship.toPersonId);
-    const endpointsRemainInSource = !movedPersonIds.has(relationship.fromPersonId) && !movedPersonIds.has(relationship.toPersonId);
-
-    if (endpointsInNewTree) {
-      const relationshipRef = doc(collection(db, RELATIONSHIPS_COLLECTION));
-      batch.set(relationshipRef, {
-        type: relationship.type,
-        treeId: createdTree.id,
-        ownerId: owner.id,
-        fromPersonId: relationship.fromPersonId,
-        toPersonId: relationship.toPersonId,
-        relationshipStatus: relationship.type === 'spouse'
-          ? relationship.relationshipStatus ?? DEFAULT_SPOUSE_RELATIONSHIP_STATUS
-          : null,
-        parentChildKind: relationship.type === 'parent-child'
-          ? relationship.parentChildKind ?? DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND
-          : null,
-        createdAt,
-      });
-    }
-
-    if (!endpointsRemainInSource) {
-      batch.delete(doc(db, RELATIONSHIPS_COLLECTION, relationship.id));
-    }
-  });
-
-  await batch.commit();
-  return {
-    ...createdTree,
-    collaborators: copiedCollaborators,
-    memberIds: copiedMemberIds,
-    editorIds: copiedEditorIds,
-    personAssignments: copiedAssignments,
-    approvalWindowHours: sourceTree.approvalWindowHours,
-    kinshipSystem: sourceTree.kinshipSystem ?? 'auto',
-    surnameVariantGroups: [{
-      id: `${createdTree.id}-surname-variants`,
-      primarySurname: trimmedSurname,
-      variants: [],
-      notes: '',
-      createdAt,
-      updatedAt: createdAt,
-    }],
-    connectedTreeIds: [...new Set([...(createdTree.connectedTreeIds ?? []), sourceTree.id])],
-    updatedAt: createdAt,
-  };
+export async function createSuggestedSurnameTree(owner: Pick<UserProfile, 'id' | 'email' | 'displayName'>, sourceTreeId: string, surname: string) {
+ return (await httpsCallable<object, FamilyTree>(functionsApi, 'createSurnameTreeServer')({sourceTreeId, surname})).data;
 }
 
 export async function updateTreeApprovalWindow(treeId: string, approvalWindowHours: number) {
@@ -700,57 +495,14 @@ function buildDiscoverableTreeSummary(
 }
 
 export async function searchDiscoverableTrees(searchTerm: string, actorUserId: string) {
-  const trimmedSearchTerm = searchTerm.trim();
-  const keyword = pickPrimarySearchKeyword(trimmedSearchTerm);
-  if (!keyword) {
-    return [] as DiscoverableTreeSummary[];
-  }
-
-  const snapshot = await getDocs(query(
-    collection(db, TREES_COLLECTION),
-    where('discoverable', '==', true),
-    where('searchKeywords', 'array-contains', keyword),
-    limit(12),
-  ));
-
-  const trees = snapshot.docs
-    .map(mapTree)
-    .filter((tree) => tree.ownerId !== actorUserId && !tree.memberIds.includes(actorUserId));
-  const owners = await Promise.all(trees.map((tree) => getUserProfileByIdOptional(tree.ownerId)));
-  const normalizedSearch = normaliseSearchValue(trimmedSearchTerm);
-
-  return trees
-    .map((tree, index) => {
-      const candidateValues = [
-        tree.name,
-        ...tree.surnameVariantGroups.flatMap((group) => [group.primarySurname, ...group.variants]),
-      ];
-      const matchedLabel = candidateValues.find((value) => normaliseSearchValue(value).includes(normalizedSearch)) ?? tree.name;
-      const matchedBy = normaliseSearchValue(tree.name).includes(normalizedSearch) ? 'tree-name' : 'surname';
-      return buildDiscoverableTreeSummary(tree, owners[index], matchedBy, matchedLabel);
-    })
-    .sort((left, right) => left.name.localeCompare(right.name));
+ const result = await httpsCallable<{term: string}, {trees: DiscoverableTreeSummary[]}>(functionsApi, 'searchTreeDirectoryServer')({term: searchTerm});
+ return result.data.trees;
 }
 
 export async function searchDiscoverableTreesByOwnerUsername(username: string, actorUserId: string) {
-  const trimmedUsername = username.trim().toLowerCase();
-  if (!trimmedUsername) {
-    return [] as DiscoverableTreeSummary[];
-  }
-
-  const targetUser = await findUserByUsernameExact(trimmedUsername);
-  const treeSnapshot = await getDocs(query(
-    collection(db, TREES_COLLECTION),
-    where('ownerId', '==', targetUser.id),
-    where('discoverable', '==', true),
-    limit(12),
-  ));
-
-  return treeSnapshot.docs
-    .map(mapTree)
-    .filter((tree) => tree.ownerId !== actorUserId && !tree.memberIds.includes(actorUserId))
-    .map((tree) => buildDiscoverableTreeSummary(tree, targetUser, 'username', targetUser.username?.trim() || trimmedUsername))
-    .sort((left, right) => left.name.localeCompare(right.name));
+ const owner = await findUserByUsernameExact(username);
+ const result = await httpsCallable<{ownerId: string}, {trees: DiscoverableTreeSummary[]}>(functionsApi, 'searchTreeDirectoryServer')({ownerId: owner.id});
+ return result.data.trees;
 }
 
 export async function deleteTree(tree: FamilyTree) {
@@ -760,84 +512,10 @@ export async function deleteTree(tree: FamilyTree) {
   )({ treeId: tree.id });
 }
 
-export async function createPerson(
-  actorUserId: string,
-  treeId: string,
-  input: PersonInput,
-  newPhotos: NewPersonPhotoInput[],
-): Promise<PersonRecord> {
-  const personRef = doc(collection(db, PEOPLE_COLLECTION));
-  const timestamp = nowIso();
-  const newPhotoUris = newPhotos.map((photo) => photo.uri);
-  await validatePersonCreation(treeId, {
-    firstName: input.firstName,
-    middleNames: input.middleNames ?? '',
-    lastName: input.lastName,
-    maidenName: input.maidenName ?? '',
-    birthSurnameStatus: input.birthSurnameStatus ?? (input.maidenName?.trim() ? 'different' : 'unknown'),
-    birthDate: input.birthDate,
-    deathDate: input.deathDate,
-    notes: input.notes,
-    lifeEvents: input.lifeEvents,
-  }, newPhotoUris);
-
-  let uploadedPhotos: PersonPhoto[] = [];
-  let preferredDisplayPhoto: { url: string; path: string } | null = null;
-
-  try {
-    uploadedPhotos = await uploadPersonPhotos(actorUserId, treeId, personRef.id, newPhotos);
-    const preferredPhotoId = resolvePreferredPhotoId(input.preferredPhotoRef, [], newPhotoUris, uploadedPhotos);
-    const preferredPhotoSourceUri = resolvePreferredPhotoSourceUri(input.preferredPhotoRef, [], newPhotos);
-    preferredDisplayPhoto = preferredPhotoId && preferredPhotoSourceUri && input.cropPreferredPhotoRef === input.preferredPhotoRef
-      ? await uploadPreferredPhotoDisplayVariant(actorUserId, treeId, personRef.id, preferredPhotoId, preferredPhotoSourceUri)
-      : null;
-    const nextPhotos = applyPreferredPhotoDisplayVariant(uploadedPhotos, preferredPhotoId, preferredDisplayPhoto);
-
-    const person: Omit<PersonRecord, 'id'> = {
-      treeId,
-      treeMembershipIds: [treeId],
-      treeMemberships: [{ treeId, role: 'subject', joinedAt: timestamp, addedByUserId: actorUserId, source: 'manual' }],
-      ownerId: actorUserId,
-      firstName: input.firstName.trim(),
-      middleNames: input.middleNames?.trim() ?? '',
-      lastName: input.lastName.trim(),
-      maidenName: input.maidenName?.trim() ?? '',
-      birthSurnameStatus: input.birthSurnameStatus ?? (input.maidenName?.trim() ? 'different' : 'unknown'),
-      nicknames: [],
-      clanName: '',
-      familyBranch: '',
-      hometown: input.hometown?.trim() ?? '',
-      birthPlace: input.birthPlace?.trim() ?? '',
-      surnameVariantHints: Array.isArray(input.surnameVariantHints)
-        ? [...new Set(input.surnameVariantHints.map((value) => value.trim()).filter(Boolean))]
-        : [],
-      canonicalPersonId: '',
-      duplicatePersonIds: [],
-      birthDate: input.birthDate.trim(),
-      deathDate: input.deathDate.trim(),
-      gender: input.gender,
-      notes: input.notes.trim(),
-      lifeEvents: normaliseLifeEvents(input.lifeEvents),
-      photos: nextPhotos,
-      preferredPhotoId,
-      createdAt: timestamp,
-      updatedAt: timestamp,
-    };
-
-    await setDoc(personRef, person);
-    return { id: personRef.id, ...person };
-  } catch (error) {
-    await deletePhotos([
-      ...uploadedPhotos,
-      ...(preferredDisplayPhoto ? [{
-        id: `${personRef.id}-preferred-cleanup`,
-        url: preferredDisplayPhoto.url,
-        path: preferredDisplayPhoto.path,
-        createdAt: timestamp,
-      } satisfies PersonPhoto] : []),
-    ]);
-    throw error;
-  }
+export async function createPerson(actorUserId: string, treeId: string, input: PersonInput, newPhotos: NewPersonPhotoInput[]): Promise<PersonRecord> {
+ const result = await submitCreatePersonApproval(actorUserId, treeId, input, newPhotos);
+ if (!result.person) throw new Error(result.message);
+ return result.person;
 }
 
 export async function createPersonWithRelationships(

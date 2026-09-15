@@ -136,15 +136,12 @@ export async function requestAccessToTree(actorUserId: string, treeId: string) {
 }
 
 export async function resolveAccessCandidates(identifier: string, actorUserId: string) {
-  const value = parseTreeInvitationIdentifier(identifier);
-  try {
-    const tree = await getTreeById(value);
-    return tree.discoverable === true && !tree.memberIds.includes(actorUserId) ? [{ id: tree.id, name: tree.name }] : [];
-  } catch { /* A username/email is resolved below; private trees remain undisclosed. */ }
-  const targetUser = await findUserByIdentifier(value);
-  const snapshot = await getDocs(query(collection(db, TREES_COLLECTION),
-    where('ownerId', '==', targetUser.id), where('discoverable', '==', true), limit(50)));
-  return snapshot.docs.map(mapTree).filter((tree) => !tree.memberIds.includes(actorUserId)).map((tree) => ({ id: tree.id, name: tree.name }));
+ const value = parseTreeInvitationIdentifier(identifier);
+ const search = httpsCallable<{treeId?: string; ownerId?: string}, {trees: Array<{id: string; name: string}>}>(functionsApi, 'searchTreeDirectoryServer');
+ const direct = await search({treeId: value});
+ if (direct.data.trees.length) return direct.data.trees;
+ const user = await findUserByIdentifier(value);
+ return (await search({ownerId: user.id})).data.trees;
 }
 
 export async function requestAccessFromIdentifier(actorUserId: string, identifier: string) {

@@ -29,7 +29,7 @@
     "update:production": "eas update --channel production --message \"Production update\"",
     "submit:android": "eas submit --platform android",
     "test:integration": "npm run build:functions && firebase emulators:exec --project demo-lineagetree --config firebase.test.json --only firestore,auth,storage \"node --test tests/integration/*.test.cjs\"",
-    "test:e2e": "firebase emulators:exec --project demo-lineagetree --config firebase.test.json --only firestore,auth \"playwright test\"",
+    "test:e2e": "npm run build:functions && firebase emulators:exec --project demo-lineagetree --config firebase.test.json --only firestore,auth,functions \"playwright test\"",
     "test:functions": "npm --prefix functions test",
     "migrate:family-data": "node scripts/migrate-family-data.cjs"
   },

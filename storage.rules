@@ -28,7 +28,10 @@ service firebase.storage {
 
     match /treePhotos/{treeId}/{personId}/{allPaths=**} {
       allow read: if isTreeMember(treeId);
-      allow write: if isTreeMember(treeId);
+      allow create, update: if isTreeEditor(treeId)
+        && request.resource.size <= 2 * 1024 * 1024
+        && request.resource.contentType.matches('image/(jpeg|png|webp|heic|heif)');
+      allow delete: if isTreeEditor(treeId);
     }
   }
 }

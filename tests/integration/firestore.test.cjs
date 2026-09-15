@@ -2,7 +2,7 @@ const { readFileSync } = require('node:fs');
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { initializeTestEnvironment, assertSucceeds, assertFails } = require('@firebase/rules-unit-testing');
-const { doc, getDoc, updateDoc, collection, query, where, orderBy, limit, getDocs, or } = require('firebase/firestore');
+const { doc, getDoc, updateDoc, setDoc, collection, query, where, orderBy, limit, getDocs, or } = require('firebase/firestore');
 const { createRequire } = require('node:module');
 const backend = createRequire(require('node:path').resolve('functions/package.json'));
 const { initializeApp, deleteApp } = backend('firebase-admin/app');
@@ -25,12 +25,38 @@ test('viewer can read but cannot change family data; outsider cannot read privat
   await assertFails(updateDoc(doc(viewer, 'persons/test'), { firstName: 'Forbidden' }));
   await assertFails(getDoc(doc(env.authenticatedContext('outsider').firestore(), 'persons/test')));
 });
+
+test('clients cannot forge trees, memberships, approvals, or family records', async () => {
+  const editor = env.authenticatedContext('editor').firestore();
+  await assertFails(setDoc(doc(editor, 'trees/forged'), { ownerId: 'editor', memberIds: ['editor'], editorIds: ['editor'] }));
+  await assertFails(updateDoc(doc(editor, 'trees/test'), { memberIds: ['owner', 'editor', 'viewer', 'outsider'] }));
+  await assertFails(setDoc(doc(editor, 'persons/forged'), { treeId: 'test', ownerId: 'editor' }));
+  await assertFails(setDoc(doc(editor, 'relationships/forged'), { treeId: 'test', ownerId: 'editor' }));
+  await assertFails(setDoc(doc(editor, 'approvalRequests/forged'), { treeId: 'test', requestedByUserId: 'editor' }));
+  await assertFails(setDoc(doc(editor, 'mergeHistory/forged'), { involvedTreeIds: ['test'] }));
+});
+
+test('discoverability does not expose private tree or account documents', async () => {
+  await admin.doc('trees/discoverable').set({ ...tree, ownerId: 'owner', memberIds: ['owner'], editorIds: ['owner'], discoverable: true });
+  await admin.doc('users/owner').set({ email: 'owner@example.test', displayName: 'Owner' });
+  const outsider = env.authenticatedContext('outsider').firestore();
+  await assertFails(getDoc(doc(outsider, 'trees/discoverable')));
+  await assertFails(getDoc(doc(outsider, 'users/owner')));
+});
 test('private user photo folders reject reads and writes from other accounts', async () => {
   const owner = env.authenticatedContext('owner').storage();
   const outsider = env.authenticatedContext('outsider').storage();
   await assertSucceeds(uploadBytes(ref(owner, 'users/owner/test.jpg'), new Uint8Array([1, 2, 3])));
   await assertFails(getBytes(ref(outsider, 'users/owner/test.jpg')));
   await assertFails(uploadBytes(ref(outsider, 'users/owner/forbidden.jpg'), new Uint8Array([1])));
+});
+
+test('tree viewers cannot upload or replace photos', async () => {
+  const viewer = env.authenticatedContext('viewer').storage();
+  const editor = env.authenticatedContext('editor').storage();
+  await assertFails(uploadBytes(ref(viewer, 'treePhotos/test/test/viewer-photo.jpg'), new Uint8Array([1])));
+  await assertSucceeds(uploadBytes(ref(editor, 'treePhotos/test/test/editor-photo.jpg'), new Uint8Array([1]), { contentType: 'image/jpeg' }));
+  await assertFails(uploadBytes(ref(editor, 'treePhotos/test/test/oversize.jpg'), new Uint8Array(2 * 1024 * 1024 + 1), { contentType: 'image/jpeg' }));
 });
 test('ordered activity includes newest records and pending work remains separately accessible', async () => {
   const batch = admin.batch();

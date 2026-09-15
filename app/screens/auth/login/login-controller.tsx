@@ -63,10 +63,8 @@ export function useLoginScreenController(navigation: LoginNavigation) {
     }
 
     try {
-      const result = await requestPasswordReset(email.trim());
-      const nextMessage = result.emailRegistered
-        ? t(K.auth.passwordResetEmailSent)
-        : t(K.auth.passwordResetEmailNotRegistered);
+      await requestPasswordReset(email.trim());
+      const nextMessage = t('If an account exists for this email, password reset instructions will be sent.');
       setInlineNoticeMessage(nextMessage);
       setSnackbarMessage(nextMessage);
       setSnackVisible(true);

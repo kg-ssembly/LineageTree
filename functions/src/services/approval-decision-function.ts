@@ -3,7 +3,8 @@ import { logger } from 'firebase-functions';
 import type { Firestore, Transaction, DocumentData } from 'firebase-admin/firestore';
 import type { ApprovalRequestPayload } from '../../../components/dto/approval';
 import { archivePerson } from './person-recovery-function';
-import { mapApprovalRequestData, normaliseLifeEvents, deleteStoragePhotos } from '../shared/admin-family-tree-utils';
+import { mapApprovalRequestData, mapPersonData, mapRelationshipData, normaliseLifeEvents, deleteStoragePhotos } from '../shared/admin-family-tree-utils';
+import { getPersonValidationFeedback, validateProposedRelationship } from '../../../components/family-tree-validation';
 
 type Write = () => void;
 
@@ -16,13 +17,24 @@ export class ApprovalDecisionFunction {
       const snapshot = await tx.get(requestRef);
       if (!snapshot.exists) throw new HttpsError('not-found', 'That approval request no longer exists.');
       const request = mapApprovalRequestData(snapshot.id, snapshot.data() ?? {});
+      const linkId = snapshot.data()?.linkId as string | undefined;
       const tree = await tx.get(this.db.collection('trees').doc(request.treeId));
-      if (!tree.exists) throw new HttpsError('not-found', 'That tree no longer exists.');
+      if (!tree.exists || tree.data()?.deleting) throw new HttpsError('not-found', 'That tree is unavailable.');
       if (!auto && (!tree.data()?.memberIds?.includes(actorUserId) || !request.eligibleApproverIds.includes(actorUserId) || actorUserId === request.requestedByUserId)) {
         throw new HttpsError('permission-denied', 'You cannot review this approval request.');
       }
       if (request.status !== 'pending') return [];
-      if (decision === 'approve' && !tree.data()?.editorIds?.includes(request.requestedByUserId)) {
+      if (linkId && decision === 'approve') {
+        const link = await tx.get(this.db.collection('personLinks').doc(linkId));
+        const data = link.data();
+        if (!data?.active || ![data.sourcePersonId, data.targetPersonId].includes(request.targetId) || ![data.sourceTreeId, data.targetTreeId].includes(request.treeId)) {
+          throw new HttpsError('failed-precondition', 'The profile link is no longer active.');
+        }
+        const otherTreeId = data.sourceTreeId === request.treeId ? data.targetTreeId : data.sourceTreeId;
+        const otherTree = await tx.get(this.db.collection('trees').doc(otherTreeId));
+        if (!otherTree.exists || otherTree.data()?.deleting) throw new HttpsError('failed-precondition', 'The linked tree is unavailable.');
+      }
+      if (decision === 'approve' && !linkId && !tree.data()?.editorIds?.includes(request.requestedByUserId)) {
         throw new HttpsError('failed-precondition', 'The requester no longer has permission to change this tree.');
       }
       if (auto && (!Number.isFinite(request.expiresAtMillis) || request.expiresAtMillis <= 0 || request.expiresAtMillis > Date.now())) {
@@ -31,7 +43,9 @@ export class ApprovalDecisionFunction {
       const timestamp = new Date().toISOString();
       const label = tree.data()?.collaborators?.find((entry: { userId: string }) => entry.userId === actorUserId);
       if (decision === 'approve') {
+        await this.validate(tx, request.treeId, request.operation, request.payload);
         await this.apply(tx, request.treeId, request.operation, request.payload, timestamp);
+        if (linkId && request.payload.afterPerson) tx.update(this.db.collection('persons').doc(request.targetId), { linkedOrigin: requestId });
       }
       // The domain mutations and terminal status commit together. Retries cannot reapply a change.
       tx.update(requestRef, {
@@ -41,6 +55,7 @@ export class ApprovalDecisionFunction {
         decidedByLabel: auto ? 'Automatic approval timer' : label?.displayName || label?.email || 'A collaborator',
         ...(decision === 'approve' ? { appliedAt: timestamp } : {}), updatedAt: timestamp,
       });
+      tx.update(tree.ref, { updatedAt: timestamp });
       return decision === 'reject' ? [...(request.payload.uploadedPhotos ?? []), ...(request.payload.cleanupPhotos ?? [])] : [];
     });
     // Storage cleanup must never cause the committed decision to be reported as failed.
@@ -79,6 +94,17 @@ export class ApprovalDecisionFunction {
         try { await this.decide('', doc.id, 'approve', true); applied += 1; }
         catch (error) {
           failed += 1;
+          const attempts = Number(doc.data().autoAttempts ?? 0) + 1;
+          const code = (error as { code?: string }).code ?? 'unknown';
+          const needsAttention = attempts >= 5 || ['failed-precondition', 'permission-denied', 'invalid-argument', 'not-found'].includes(code);
+          await this.db.runTransaction(async tx => {
+            const fresh = await tx.get(doc.ref);
+            if (fresh.data()?.status !== 'pending') return;
+            tx.update(doc.ref, { autoAttempts: attempts, needsAttention,
+              expiresAtMillis: needsAttention ? 0 : Date.now() + Math.min(60, 2 ** attempts) * 60_000,
+              ...(needsAttention ? { description: 'This change could not be applied automatically. Review or reject it and submit a fresh change.', updatedAt: new Date().toISOString() } : {}),
+            });
+          });
           logger.error('Scheduled approval failed', { requestId: doc.id, code: (error as { code?: string }).code ?? 'unknown' });
         }
       }
@@ -89,7 +115,35 @@ export class ApprovalDecisionFunction {
     return { applied, failed };
   }
 
-  private async apply(tx: Transaction, treeId: string, operation: string, payload: ApprovalRequestPayload, timestamp: string) {
+  async validate(tx: Transaction, treeId: string, operation: string, payload: ApprovalRequestPayload) {
+    const [persons, edges] = await Promise.all([
+      tx.get(this.db.collection('persons').where('treeId', '==', treeId)),
+      tx.get(this.db.collection('relationships').where('treeId', '==', treeId)),
+    ]);
+    const people = persons.docs.map(d => mapPersonData(d.id, d.data()));
+    const relationships = edges.docs.map(d => mapRelationshipData(d.id, d.data()));
+    if (payload.afterPerson) {
+      // Approval requests can predate newer optional profile fields. Normalise the
+      // proposed record before applying the shared client/server validation so a
+      // valid legacy profile is not rejected merely because a field is absent.
+      const next = mapPersonData(payload.afterPerson.id, payload.afterPerson as unknown as DocumentData);
+      payload.afterPerson = next;
+      const feedback = getPersonValidationFeedback({ people, person: next, existingPhotos: next.photos, ignorePersonId: operation === 'update-person' ? next.id : undefined });
+      if (feedback.errors.length) throw new HttpsError('invalid-argument', feedback.errors[0]);
+      if (operation === 'create-person') people.push(next);
+      else { const index = people.findIndex(p => p.id === next.id); if (index >= 0) people[index] = next; }
+    }
+    for (const relationship of [...(payload.relationships ?? []), ...(payload.relationship && operation !== 'delete-relationship' ? [payload.relationship] : [])]) {
+      if (relationship.treeId !== treeId || !people.some(p => p.id === relationship.fromPersonId) || !people.some(p => p.id === relationship.toPersonId)) {
+        throw new HttpsError('permission-denied', 'Choose relatives in this tree.');
+      }
+      const message = validateProposedRelationship({ people, relationships, ...relationship, ignoreRelationshipId: operation === 'update-relationship' ? relationship.id : undefined });
+      if (message) throw new HttpsError('invalid-argument', message);
+      if (operation !== 'update-relationship') relationships.push(relationship);
+    }
+  }
+
+  async apply(tx: Transaction, treeId: string, operation: string, payload: ApprovalRequestPayload, timestamp: string) {
     const writes: Write[] = [];
     const personRef = (id: string) => this.db.collection('persons').doc(id);
     const relationshipRef = (id: string) => this.db.collection('relationships').doc(id);
@@ -136,6 +190,7 @@ export class ApprovalDecisionFunction {
       }
       fields.lifeEvents = normaliseLifeEvents(next.lifeEvents);
       fields.updatedAt = timestamp;
+      fields.linkedOrigin = '';
       if (operation === 'create-person') {
         Object.assign(fields, { treeId, treeMembershipIds: [treeId], treeMemberships: next.treeMemberships ?? [], ownerId: next.ownerId, createdAt: next.createdAt });
         writes.push(() => tx.create(ref, fields));

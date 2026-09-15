@@ -320,167 +320,42 @@ class MergeReviewFunction {
         }
         return { ok: true };
     }
-    async captureMergeSnapshot(sourceTreeId, targetTreeId, matches) {
-        const personIds = [...new Set(matches.flatMap((match) => [match.sourcePersonId, match.targetPersonId]))];
-        const personIdSet = new Set(personIds);
-        const [sourceRelationships, targetRelationships] = await Promise.all([
-            (0, admin_family_tree_utils_1.getRelationshipsByTreeId)(this.db, sourceTreeId),
-            (0, admin_family_tree_utils_1.getRelationshipsByTreeId)(this.db, targetTreeId),
-        ]);
-        const sourceRelationshipIds = sourceRelationships
-            .filter((relationship) => personIdSet.has(relationship.fromPersonId) || personIdSet.has(relationship.toPersonId))
-            .map((relationship) => relationship.id);
-        const targetRelationshipIds = targetRelationships
-            .filter((relationship) => personIdSet.has(relationship.fromPersonId) || personIdSet.has(relationship.toPersonId))
-            .map((relationship) => relationship.id);
-        const [treeSnapshots, personSnapshots, sourceTreeRelationshipSnapshots, targetTreeRelationshipSnapshots] = await Promise.all([
-            Promise.all([
-                this.db.collection(admin_family_tree_utils_1.TREES_COLLECTION).doc(sourceTreeId).get(),
-                this.db.collection(admin_family_tree_utils_1.TREES_COLLECTION).doc(targetTreeId).get(),
-            ]),
-            Promise.all(personIds.map((personId) => this.db.collection(admin_family_tree_utils_1.PEOPLE_COLLECTION).doc(personId).get())),
-            Promise.all(sourceRelationshipIds.map((relationshipId) => this.db.collection(admin_family_tree_utils_1.RELATIONSHIPS_COLLECTION).doc(relationshipId).get())),
-            Promise.all(targetRelationshipIds.map((relationshipId) => this.db.collection(admin_family_tree_utils_1.RELATIONSHIPS_COLLECTION).doc(relationshipId).get())),
-        ]);
-        return {
-            trees: treeSnapshots.filter((snapshot) => snapshot.exists).map((snapshot) => ({ id: snapshot.id, data: snapshot.data() ?? {} })),
-            people: personSnapshots.filter((snapshot) => snapshot.exists).map((snapshot) => ({ id: snapshot.id, data: snapshot.data() ?? {} })),
-            relationships: [...sourceTreeRelationshipSnapshots, ...targetTreeRelationshipSnapshots]
-                .filter((snapshot) => snapshot.exists)
-                .map((snapshot) => ({ id: snapshot.id, data: snapshot.data() ?? {} })),
-        };
-    }
-    async ensureMergePreviewStillMatches(request) {
-        const [source, target] = await Promise.all([
-            (0, admin_family_tree_utils_1.getTreeBundle)(this.db, request.sourceTreeId),
-            (0, admin_family_tree_utils_1.getTreeBundle)(this.db, request.targetTreeId),
-        ]);
-        this.validateTreeEligibility(source.tree, target.tree, source.people, target.people);
-        const currentPreview = (0, merge_intelligence_1.buildMergePreview)(source, target);
-        const currentMatchIds = new Set(currentPreview.matches.map((match) => match.id));
-        const missingMatch = request.selectedMatchIds.find((matchId) => !currentMatchIds.has(matchId));
-        if (missingMatch) {
-            throw new https_1.HttpsError('failed-precondition', 'This merge preview is out of date. Refresh the preview and review the matches again before applying.');
-        }
-    }
-    async applyMergeRequest(mergeRequestId, request) {
-        const latestRequestSnapshot = await this.db.collection(admin_family_tree_utils_1.MERGE_REQUESTS_COLLECTION).doc(mergeRequestId).get();
-        if (!latestRequestSnapshot.exists) {
-            throw new https_1.HttpsError('not-found', 'That merge request no longer exists.');
-        }
-        const latestRequest = (0, admin_family_tree_utils_1.mapMergeRequestData)(latestRequestSnapshot.id, latestRequestSnapshot.data() ?? {});
-        if (latestRequest.status === 'applied') {
-            return;
-        }
-        if (latestRequest.status !== 'approved') {
-            throw new https_1.HttpsError('failed-precondition', 'Only approved merge requests can be applied.');
-        }
-        const timestamp = (0, admin_family_tree_utils_1.nowIso)();
-        (0, family_tree_merge_review_workflow_1.validateSelectedMergeMatches)(request);
-        await this.ensureMergePreviewStillMatches(request);
-        const snapshotBeforeMerge = await this.captureMergeSnapshot(request.sourceTreeId, request.targetTreeId, request.preview.matches);
-        const batch = this.db.batch();
-        const changedPersonIds = new Set();
-        const sourceRelationships = await (0, admin_family_tree_utils_1.getRelationshipsByTreeId)(this.db, request.sourceTreeId);
-        const targetRelationships = await (0, admin_family_tree_utils_1.getRelationshipsByTreeId)(this.db, request.targetTreeId);
-        const selectedMatches = getMergeSelectedMatches(request);
-        const canonicalPersonIdBySourceId = new Map(selectedMatches.map((match) => [match.sourcePersonId, match.targetPersonId]));
-        const snapshotPeopleById = new Map(snapshotBeforeMerge.people.map((entry) => [entry.id, entry.data]));
-        selectedMatches.forEach((match) => {
-            const sourcePersonRef = this.db.collection(admin_family_tree_utils_1.PEOPLE_COLLECTION).doc(match.sourcePersonId);
-            const targetPersonRef = this.db.collection(admin_family_tree_utils_1.PEOPLE_COLLECTION).doc(match.targetPersonId);
-            const sourceSnapshot = snapshotPeopleById.get(match.sourcePersonId) ?? {};
-            const targetSnapshot = snapshotPeopleById.get(match.targetPersonId) ?? {};
-            const sourceTreeMembershipIds = Array.isArray(sourceSnapshot.treeMembershipIds) ? sourceSnapshot.treeMembershipIds : [sourceSnapshot.treeId].filter(Boolean);
-            const targetTreeMembershipIds = Array.isArray(targetSnapshot.treeMembershipIds) ? targetSnapshot.treeMembershipIds : [targetSnapshot.treeId].filter(Boolean);
-            const targetDuplicatePersonIds = Array.isArray(targetSnapshot.duplicatePersonIds) ? targetSnapshot.duplicatePersonIds : [];
-            const sourceTreeMemberships = Array.isArray(sourceSnapshot.treeMemberships) ? sourceSnapshot.treeMemberships : [];
-            const targetTreeMemberships = Array.isArray(targetSnapshot.treeMemberships) ? targetSnapshot.treeMemberships : [];
-            const mergedMembershipsByTreeId = new Map();
-            [...sourceTreeMemberships, ...targetTreeMemberships].forEach((membership) => {
-                if (membership?.treeId) {
-                    mergedMembershipsByTreeId.set(membership.treeId, membership);
-                }
-            });
-            [request.sourceTreeId, request.targetTreeId].forEach((treeId) => {
-                if (!mergedMembershipsByTreeId.has(treeId)) {
-                    mergedMembershipsByTreeId.set(treeId, {
-                        treeId,
-                        role: treeId === request.targetTreeId ? 'canonical' : 'subject',
-                        joinedAt: timestamp,
-                        source: 'merge',
-                    });
-                }
-            });
-            changedPersonIds.add(match.sourcePersonId);
-            changedPersonIds.add(match.targetPersonId);
-            batch.update(sourcePersonRef, {
-                canonicalPersonId: match.targetPersonId,
-                updatedAt: timestamp,
-            });
-            batch.update(targetPersonRef, {
-                ...buildMergedTargetPersonUpdate(request, match, sourceSnapshot, targetSnapshot, timestamp),
-                treeMembershipIds: [...new Set([...sourceTreeMembershipIds, ...targetTreeMembershipIds, request.sourceTreeId, request.targetTreeId])],
-                treeMemberships: [...mergedMembershipsByTreeId.values()],
-                duplicatePersonIds: [...new Set([...targetDuplicatePersonIds, match.sourcePersonId])],
-            });
-        });
-        const seenRelationshipIdsByKey = new Map();
-        [...targetRelationships, ...sourceRelationships].forEach((relationship) => {
-            const fromPersonId = canonicalPersonIdBySourceId.get(relationship.fromPersonId) ?? relationship.fromPersonId;
-            const toPersonId = canonicalPersonIdBySourceId.get(relationship.toPersonId) ?? relationship.toPersonId;
-            const relationshipRef = this.db.collection(admin_family_tree_utils_1.RELATIONSHIPS_COLLECTION).doc(relationship.id);
-            if (fromPersonId === toPersonId) {
-                batch.delete(relationshipRef);
+    async applyMergeRequest(mergeRequestId, _request) {
+        await this.db.runTransaction(async (tx) => {
+            const ref = this.db.collection(admin_family_tree_utils_1.MERGE_REQUESTS_COLLECTION).doc(mergeRequestId);
+            const snapshot = await tx.get(ref);
+            const request = (0, admin_family_tree_utils_1.mapMergeRequestData)(snapshot.id, snapshot.data() ?? {});
+            if (request.status === 'applied')
                 return;
+            if (request.status !== 'approved')
+                throw new https_1.HttpsError('failed-precondition', 'Only reviewed matches can be linked.');
+            (0, family_tree_merge_review_workflow_1.validateSelectedMergeMatches)(request);
+            const trees = await Promise.all([request.sourceTreeId, request.targetTreeId].map(id => tx.get(this.db.collection(admin_family_tree_utils_1.TREES_COLLECTION).doc(id))));
+            for (const tree of trees) {
+                const approval = request.approvals.find(a => a.treeId === tree.id && a.decision === 'approve');
+                if (!tree.exists || tree.data()?.deleting || !approval || !tree.data()?.editorIds?.includes(approval.editorUserId))
+                    throw new https_1.HttpsError('permission-denied', 'Both trees need approval from a current editor.');
             }
-            const nextRelationship = { ...relationship, fromPersonId, toPersonId };
-            const canonicalKey = getRelationshipCanonicalKey(nextRelationship);
-            if (seenRelationshipIdsByKey.has(canonicalKey)) {
-                batch.delete(relationshipRef);
-                return;
-            }
-            seenRelationshipIdsByKey.set(canonicalKey, relationship.id);
-            if (fromPersonId !== relationship.fromPersonId || toPersonId !== relationship.toPersonId) {
-                const normalized = normalizeRelationshipEndpoints(relationship.type, fromPersonId, toPersonId);
-                batch.update(relationshipRef, {
-                    fromPersonId: normalized.fromPersonId,
-                    toPersonId: normalized.toPersonId,
+            const matches = getMergeSelectedMatches(request);
+            const people = await Promise.all(matches.flatMap(m => [m.sourcePersonId, m.targetPersonId]).map(id => tx.get(this.db.collection(admin_family_tree_utils_1.PEOPLE_COLLECTION).doc(id))));
+            const timestamp = (0, admin_family_tree_utils_1.nowIso)();
+            matches.forEach((match, index) => {
+                const source = people[index * 2], target = people[index * 2 + 1];
+                if (!source.exists || !target.exists || source.data()?.treeId !== request.sourceTreeId || target.data()?.treeId !== request.targetTreeId)
+                    throw new https_1.HttpsError('failed-precondition', 'A matched profile moved or was removed. Refresh the review.');
+                tx.set(this.db.collection('personLinks').doc(mergeRequestId + '-' + index), {
+                    sourceTreeId: request.sourceTreeId, targetTreeId: request.targetTreeId,
+                    sourcePersonId: source.id, targetPersonId: target.id, mergeRequestId,
+                    approvals: request.approvals, active: true, createdAt: timestamp, updatedAt: timestamp,
                 });
-            }
+            });
+            tx.update(ref, { status: 'applied', mode: 'linked-profiles', appliedAt: timestamp, updatedAt: timestamp });
+            tx.set(this.db.collection(admin_family_tree_utils_1.MERGE_HISTORY_COLLECTION).doc(mergeRequestId), {
+                mergeRequestId, involvedTreeIds: request.involvedTreeIds, sourceTreeId: request.sourceTreeId, targetTreeId: request.targetTreeId,
+                summary: matches.length + ' profiles linked. Each tree keeps its own records.', status: 'applied',
+                changedPersonIds: [], approvals: request.approvals, createdAt: timestamp, updatedAt: timestamp,
+            });
         });
-        const sourceTreeSnapshot = snapshotBeforeMerge.trees.find((entry) => entry.id === request.sourceTreeId)?.data ?? {};
-        const targetTreeSnapshot = snapshotBeforeMerge.trees.find((entry) => entry.id === request.targetTreeId)?.data ?? {};
-        const sourceConnectedTreeIds = Array.isArray(sourceTreeSnapshot.connectedTreeIds) ? sourceTreeSnapshot.connectedTreeIds : [];
-        const targetConnectedTreeIds = Array.isArray(targetTreeSnapshot.connectedTreeIds) ? targetTreeSnapshot.connectedTreeIds : [];
-        batch.update(this.db.collection(admin_family_tree_utils_1.TREES_COLLECTION).doc(request.sourceTreeId), {
-            connectedTreeIds: [...new Set([...sourceConnectedTreeIds, request.targetTreeId])],
-            updatedAt: timestamp,
-        });
-        batch.update(this.db.collection(admin_family_tree_utils_1.TREES_COLLECTION).doc(request.targetTreeId), {
-            connectedTreeIds: [...new Set([...targetConnectedTreeIds, request.sourceTreeId])],
-            updatedAt: timestamp,
-        });
-        batch.update(this.db.collection(admin_family_tree_utils_1.MERGE_REQUESTS_COLLECTION).doc(mergeRequestId), {
-            status: 'applied',
-            selectedMatchIds: request.selectedMatchIds,
-            snapshotBeforeMerge,
-            appliedAt: timestamp,
-            updatedAt: timestamp,
-        });
-        batch.set(this.db.collection(admin_family_tree_utils_1.MERGE_HISTORY_COLLECTION).doc(mergeRequestId), {
-            mergeRequestId,
-            involvedTreeIds: request.involvedTreeIds,
-            sourceTreeId: request.sourceTreeId, targetTreeId: request.targetTreeId,
-            summary: `${request.preview.duplicateCount} duplicate relatives merged between ${request.preview.sourceTree.treeName} and ${request.preview.targetTree.treeName}.`,
-            status: 'applied',
-            preview: request.preview,
-            changedPersonIds: [...changedPersonIds],
-            approvals: request.approvals,
-            createdAt: timestamp,
-            updatedAt: timestamp,
-        });
-        await batch.commit();
     }
 }
 exports.MergeReviewFunction = MergeReviewFunction;

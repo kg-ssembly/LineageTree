@@ -253,7 +253,7 @@ export async function createPersonFromFormSubmission(
     }
   }
 
-  if (payload.pendingRelationships.length > 0) {
+  {
     return createPersonWithRelationships(
       userId,
       selectedTree.id,
@@ -281,60 +281,4 @@ export async function createPersonFromFormSubmission(
     );
   }
 
-  const createdPerson = await createPerson(
-    userId,
-    selectedTree.id,
-    {
-      firstName: payload.firstName,
-      middleNames: payload.middleNames,
-      lastName: payload.lastName,
-      maidenName: payload.maidenName,
-      birthSurnameStatus: payload.birthSurnameStatus,
-      hometown: payload.hometown,
-      birthPlace: payload.birthPlace,
-      surnameVariantHints: payload.surnameVariantHints,
-      birthDate: payload.birthDate,
-      deathDate: payload.deathDate,
-      lifeStatus: payload.lifeStatus,
-      gender: payload.gender,
-      notes: payload.notes,
-      lifeEvents: payload.lifeEvents,
-      preferredPhotoRef: payload.preferredPhotoRef,
-    },
-    (payload.newPhotos ?? payload.newPhotoUris.map((uri) => ({ uri }))),
-  );
-
-  for (const pendingRelationship of payload.pendingRelationships) {
-    if (pendingRelationship.mode === 'parent-of') {
-      await addParentChildRelationship(
-        userId,
-        selectedTree.id,
-        createdPerson.id,
-        pendingRelationship.relatedPersonId,
-        pendingRelationship.parentChildKind,
-      );
-      continue;
-    }
-
-    if (pendingRelationship.mode === 'child-of') {
-      await addParentChildRelationship(
-        userId,
-        selectedTree.id,
-        pendingRelationship.relatedPersonId,
-        createdPerson.id,
-        pendingRelationship.parentChildKind,
-      );
-      continue;
-    }
-
-    await addSpouseRelationship(
-      userId,
-      selectedTree.id,
-      createdPerson.id,
-      pendingRelationship.relatedPersonId,
-      pendingRelationship.relationshipStatus,
-    );
-  }
-
-  return createdPerson;
 }

@@ -3,8 +3,14 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.expireApprovalRequests = exports.respondToTreeAccessServer = exports.requestTreeAccessServer = exports.archivePersonServer = exports.restorePersonServer = exports.deleteTreeServer = exports.processExpiredApprovalRequestsServer = exports.decideApprovalRequestServer = exports.reviewMergeRequestServer = exports.createMergeRequestServer = exports.sendNotificationEmailOnCreate = exports.sendPasswordResetEmail = exports.sendTreeInviteEmail = exports.sendWelcomeEmail = void 0;
+exports.expireApprovalRequests = exports.respondToTreeAccessServer = exports.requestTreeAccessServer = exports.archivePersonServer = exports.restorePersonServer = exports.deleteTreeServer = exports.processExpiredApprovalRequestsServer = exports.decideApprovalRequestServer = exports.reviewMergeRequestServer = exports.createMergeRequestServer = exports.sendNotificationEmailOnCreate = exports.sendPasswordResetEmail = exports.sendTreeInviteEmail = exports.sendWelcomeEmail = exports.lookupAccountServer = exports.searchTreeDirectoryServer = exports.submitFamilyChangeServer = exports.unlinkProfilesServer = exports.proposeLinkedProfileUpdates = exports.manageCollaboratorServer = exports.readTreeGraphServer = exports.createSurnameTreeServer = exports.createTreeServer = void 0;
 const scheduler_1 = require("firebase-functions/v2/scheduler");
+const tree_directory_function_1 = require("./services/tree-directory-function");
+const request_limits_1 = require("./services/request-limits");
+const approval_submission_function_1 = require("./services/approval-submission-function");
+const tree_graph_function_1 = require("./services/tree-graph-function");
+const tree_creation_function_1 = require("./services/tree-creation-function");
+const collaborator_function_1 = require("./services/collaborator-function");
 const tree_access_function_1 = require("./services/tree-access-function");
 const person_recovery_function_1 = require("./services/person-recovery-function");
 const app_1 = require("firebase-admin/app");
@@ -12,6 +18,7 @@ const auth_1 = require("firebase-admin/auth");
 const firestore_1 = require("firebase-admin/firestore");
 const mail_1 = __importDefault(require("@sendgrid/mail"));
 const firestore_2 = require("firebase-functions/v2/firestore");
+const linked_profile_function_1 = require("./services/linked-profile-function");
 const https_1 = require("firebase-functions/v2/https");
 const params_1 = require("firebase-functions/params");
 const email_templates_1 = require("../../constants/email-templates");
@@ -24,6 +31,51 @@ const adminAuth = (0, auth_1.getAuth)();
 const approvalDecisionFunction = new approval_decision_function_1.ApprovalDecisionFunction(db);
 const mergeReviewFunction = new merge_review_function_1.MergeReviewFunction(db);
 const treeDeletionFunction = new tree_deletion_function_1.TreeDeletionFunction(db);
+exports.createTreeServer = (0, https_1.onCall)({ region: 'us-central1' }, async (request) => {
+    if (!request.auth)
+        throw new https_1.HttpsError('unauthenticated', 'Sign in to create a tree.');
+    return (0, tree_creation_function_1.createTreeRecord)(db, request.auth.uid, request.data ?? {});
+});
+exports.createSurnameTreeServer = (0, https_1.onCall)({ region: 'us-central1', timeoutSeconds: 540 }, async (request) => {
+    if (!request.auth)
+        throw new https_1.HttpsError('unauthenticated', 'Sign in to create a tree.');
+    return (0, tree_creation_function_1.createSurnameTree)(db, request.auth.uid, String(request.data?.sourceTreeId ?? ''), String(request.data?.surname ?? ''));
+});
+exports.readTreeGraphServer = (0, https_1.onCall)({ region: 'us-central1' }, async (request) => {
+    if (!request.auth)
+        throw new https_1.HttpsError('unauthenticated', 'Sign in to view a family tree.');
+    return (0, tree_graph_function_1.readTreeGraph)(db, request.auth.uid, request.data ?? {});
+});
+exports.manageCollaboratorServer = (0, https_1.onCall)({ region: 'us-central1' }, async (request) => {
+    if (!request.auth)
+        throw new https_1.HttpsError('unauthenticated', 'Sign in to manage collaborators.');
+    return (0, collaborator_function_1.manageCollaborator)(db, request.auth.uid, request.data ?? {});
+});
+exports.proposeLinkedProfileUpdates = (0, firestore_2.onDocumentUpdated)({ document: 'persons/{personId}', region: 'us-central1', retry: true }, async (event) => {
+    if (event.data)
+        await (0, linked_profile_function_1.proposeLinkedUpdates)(db, event.params.personId, event.data.before.data(), event.data.after.data(), event.id);
+});
+exports.unlinkProfilesServer = (0, https_1.onCall)({ region: 'us-central1' }, async (request) => {
+    if (!request.auth)
+        throw new https_1.HttpsError('unauthenticated', 'Sign in to unlink profiles.');
+    await (0, linked_profile_function_1.unlinkProfiles)(db, request.auth.uid, String(request.data?.requestId ?? ''));
+    return { ok: true };
+});
+exports.submitFamilyChangeServer = (0, https_1.onCall)({ region: 'us-central1' }, async (request) => {
+    if (!request.auth)
+        throw new https_1.HttpsError('unauthenticated', 'Sign in to submit a change.');
+    return new approval_submission_function_1.ApprovalSubmissionFunction(db).submit(request.auth.uid, request.data);
+});
+exports.searchTreeDirectoryServer = (0, https_1.onCall)({ region: 'us-central1' }, async (request) => {
+    if (!request.auth)
+        throw new https_1.HttpsError('unauthenticated', 'Sign in to find a tree.');
+    return (0, tree_directory_function_1.searchTreeDirectory)(db, request.auth.uid, request.data ?? {});
+});
+exports.lookupAccountServer = (0, https_1.onCall)({ region: 'us-central1' }, async (request) => {
+    if (!request.auth)
+        throw new https_1.HttpsError('unauthenticated', 'Sign in to find an account.');
+    return (0, tree_directory_function_1.lookupAccount)(db, request.auth.uid, request.data ?? {});
+});
 const SENDGRID_API_KEY = (0, params_1.defineSecret)('SENDGRID_API_KEY');
 const SENDGRID_FROM_EMAIL = (0, params_1.defineString)('SENDGRID_FROM_EMAIL');
 const SENDGRID_FROM_NAME = (0, params_1.defineString)('SENDGRID_FROM_NAME');
@@ -203,6 +255,8 @@ exports.sendPasswordResetEmail = (0, https_1.onCall)({
     if (!email) {
         throw new https_1.HttpsError('invalid-argument', 'An email address is required.');
     }
+    await (0, request_limits_1.consumeLimit)(db, 'password-reset-address', email, 3, 3_600_000);
+    await (0, request_limits_1.consumeLimit)(db, 'password-reset-origin', request.rawRequest.ip ?? 'unknown', 10, 3_600_000);
     try {
         const resetUrl = await adminAuth.generatePasswordResetLink(email);
         const template = (0, email_templates_1.buildPasswordResetEmailTemplate)({
@@ -217,12 +271,12 @@ exports.sendPasswordResetEmail = (0, https_1.onCall)({
             text: template.text,
             category: 'password-reset',
         });
-        return { ok: true, emailRegistered: true };
+        return { ok: true };
     }
     catch (error) {
         const authCode = typeof error?.code === 'string' ? error.code : '';
         if (authCode === 'auth/user-not-found') {
-            return { ok: true, emailRegistered: false };
+            return { ok: true };
         }
         throw error;
     }
@@ -302,11 +356,13 @@ exports.decideApprovalRequestServer = (0, https_1.onCall)({
     assertAuthenticated(request.auth?.uid);
     const requestId = typeof request.data?.requestId === 'string' ? request.data.requestId.trim() : '';
     const decision = request.data?.decision;
-    const auto = request.data?.auto === true;
+    if (request.data?.auto === true) {
+        throw new https_1.HttpsError('permission-denied', 'Automatic decisions are performed by the scheduler.');
+    }
     if (!requestId || (decision !== 'approve' && decision !== 'reject')) {
         throw new https_1.HttpsError('invalid-argument', 'A valid approval decision payload is required.');
     }
-    return approvalDecisionFunction.decide(request.auth.uid, requestId, decision, auto);
+    return approvalDecisionFunction.decide(request.auth.uid, requestId, decision);
 });
 exports.processExpiredApprovalRequestsServer = (0, https_1.onCall)({
     region: 'us-central1',

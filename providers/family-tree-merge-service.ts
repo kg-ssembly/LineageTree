@@ -70,30 +70,5 @@ export async function reviewMergeRequest(
 }
 
 export async function undoMergeRequest(actorUserId: string, requestId: string) {
-  const requestRef = doc(db, MERGE_REQUESTS_COLLECTION, requestId);
-  const requestSnapshot = await getDoc(requestRef);
-  if (!requestSnapshot.exists()) {
-    throw new Error('That merge request no longer exists.');
-  }
-
-  const request = mapMergeRequest(requestSnapshot as QueryDocumentSnapshot);
-  if (request.status !== 'applied' || !request.snapshotBeforeMerge) {
-    throw new Error('Only applied merges with snapshots can be undone.');
-  }
-
-  const [sourceTree, targetTree] = await Promise.all([getTreeById(request.sourceTreeId), getTreeById(request.targetTreeId)]);
-  if (!canApproveMergeForTree(sourceTree, actorUserId) && !canApproveMergeForTree(targetTree, actorUserId)) {
-    throw new Error('Only an editor from an affected tree can undo this merge.');
-  }
-
-  const batch = writeBatch(db);
-  request.snapshotBeforeMerge.trees.forEach((entry) => batch.set(doc(db, TREES_COLLECTION, entry.id), entry.data));
-  request.snapshotBeforeMerge.people.forEach((entry) => batch.set(doc(db, PEOPLE_COLLECTION, entry.id), entry.data));
-  request.snapshotBeforeMerge.relationships.forEach((entry) => batch.set(doc(db, RELATIONSHIPS_COLLECTION, entry.id), entry.data));
-  batch.update(requestRef, {
-    status: 'undone',
-    undoneAt: nowIso(),
-    updatedAt: nowIso(),
-  });
-  await batch.commit();
+ await httpsCallable(functionsApi, 'unlinkProfilesServer')({requestId});
 }

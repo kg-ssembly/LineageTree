@@ -1,3 +1,4 @@
+import { CompleteFamilyData } from '../../../components/complete-family-data';
 import React, { useState, type ComponentType } from 'react';
 import { Image, Platform, Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { createBottomTabNavigator, type BottomTabBarProps } from '@react-navigation/bottom-tabs';
@@ -383,7 +384,7 @@ export function MainTabNavigator({
           }
 
           const HomeTabContent = getHomeTabContent();
-          return <HomeTabContent {...controller.sharedTabProps} />;
+          return <CompleteFamilyData treeId={controller.sharedTabProps.selectedTree.id}><HomeTabContent {...controller.sharedTabProps} /></CompleteFamilyData>;
         }}
       </Tab.Screen>
 
@@ -431,7 +432,7 @@ export function MainTabNavigator({
           }
 
           const PeopleRelationshipsTabContent = getPeopleRelationshipsTabContent();
-          return <PeopleRelationshipsTabContent {...controller.sharedTabProps} />;
+          return <CompleteFamilyData treeId={controller.sharedTabProps.selectedTree.id}><PeopleRelationshipsTabContent {...controller.sharedTabProps} /></CompleteFamilyData>;
         }}
       </Tab.Screen>
 
@@ -442,7 +443,7 @@ export function MainTabNavigator({
           }
 
           const TreeSettingsTabContent = getTreeSettingsTabContent();
-          return <TreeSettingsTabContent {...controller.sharedTabProps} />;
+          return <CompleteFamilyData treeId={controller.sharedTabProps.selectedTree.id}><TreeSettingsTabContent {...controller.sharedTabProps} /></CompleteFamilyData>;
         }}
       </Tab.Screen>
 
