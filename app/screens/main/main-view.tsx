@@ -135,6 +135,7 @@ export function MainScreenView({ controller }: { controller: ReturnType<typeof u
         visible={controller.selfPersonDialogVisible}
         mode="create"
         initialValues={controller.selfInitialValues}
+        relationships={controller.relationships}
         loading={personBusy}
         existingLastNames={controller.existingLastNames}
         relationshipCandidates={controller.sharedTabProps?.people ?? []}

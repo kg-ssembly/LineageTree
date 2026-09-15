@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Platform, Pressable, ScrollView, View } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -614,51 +614,54 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
 
   const handlePersonSubmit = async (payload: PersonMutationPayload) => {
     if (!user?.id || !person) {
-      return;
+      throw new Error('Your session or selected person changed. Reopen this draft before saving.');
     }
 
-    try {
-      await updatePerson(user.id, person, payload);
-      setEditorVisible(false);
-    } catch (error) {
-      // surfaced by store snackbar
-    }
+    await updatePerson(user.id, person, payload);
+    setEditorVisible(false);
   };
 
+  const submittedConnections = useRef(new Set<string>());
   const handleCreateRelatedPersonSubmit = async (payload: PersonFormSubmission) => {
     if (!user?.id || !selectedTree || !person) {
-      return;
+      throw new Error('Your session or selected person changed. Reopen this draft before saving.');
     }
 
+    const connectionKey = (c: PersonFormSubmission['pendingRelationships'][number]) => JSON.stringify([user.id, selectedTree.id, person.id, c]);
     try {
+      const remaining = payload.pendingRelationships.filter(c => !submittedConnections.current.has(connectionKey(c)));
       const validationError = getFirstPendingRelationshipValidationError({
         subjectPerson: person,
-        pendingRelationships: payload.pendingRelationships,
+        pendingRelationships: remaining,
         people: people.filter((candidate) => candidate.id !== person.id),
         relationships,
       });
       if (validationError) {
-        Alert.alert(t(K.relationship.addRelationship), validationError);
-        return;
+        throw new Error(validationError);
       }
 
-      for (const pendingRelationship of payload.pendingRelationships) {
+      for (const pendingRelationship of remaining) {
         if (pendingRelationship.mode === 'spouse-of') {
           await addSpouseRelationship(user.id, selectedTree.id, person.id, pendingRelationship.relatedPersonId, pendingRelationship.relationshipStatus);
+          submittedConnections.current.add(connectionKey(pendingRelationship));
           continue;
         }
 
         if (pendingRelationship.mode === 'parent-of') {
           await addParentChildRelationship(user.id, selectedTree.id, person.id, pendingRelationship.relatedPersonId, pendingRelationship.parentChildKind);
+          submittedConnections.current.add(connectionKey(pendingRelationship));
           continue;
         }
 
         await addParentChildRelationship(user.id, selectedTree.id, pendingRelationship.relatedPersonId, person.id, pendingRelationship.parentChildKind);
+        submittedConnections.current.add(connectionKey(pendingRelationship));
       }
 
+      submittedConnections.current.clear();
       setRelationshipAddFlowVisible(false);
     } catch (error) {
-      // surfaced by store snackbar
+      const failure = error instanceof Error ? error : new Error(String(error));
+      throw Object.assign(failure, { remainingRelationships: payload.pendingRelationships.filter(c => !submittedConnections.current.has(connectionKey(c))) });
     }
   };
 

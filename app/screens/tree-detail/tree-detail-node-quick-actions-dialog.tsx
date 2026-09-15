@@ -1,3 +1,5 @@
+import SiblingEntryDialog from '../../../components/sibling-entry-dialog';
+import type { FamilyConnection } from '../../../components/family-entry-guidance';
 import React, { useEffect, useState } from 'react';
 import { Pressable, View } from 'react-native';
 import type { TreePersonActions } from '../../../components/tree-exploration';
@@ -42,12 +44,15 @@ export function TreeDetailNodeQuickActionsDialog({
   closeNodeQuickActions: () => void;
   openPersonProfile: (person: PersonRecord) => void;
   openPersonPhotos: (person: PersonRecord) => void;
-  openCreateRelativeDialog: (mode: 'parent-of' | 'child-of' | 'spouse-of' | 'sibling-of', person: PersonRecord) => void;
+  openCreateRelativeDialog: (mode: 'parent-of' | 'child-of' | 'spouse-of' | 'sibling-of', person: PersonRecord, connections?: FamilyConnection[]) => void;
   crossSurnameChildIds: Set<string>;
   canvasActiveFamilyRef: React.MutableRefObject<string | null>;
   canvasFamilySwitchRef: React.MutableRefObject<((surname: string) => void) | null>;
   onOpenMaidenFamilyTree: (person: PersonRecord, maidenSurname: string, maritalSurname: string, isViewingMaiden: boolean) => void;
 }) {
+  const [siblingPerson, setSiblingPerson] = useState<PersonRecord | null>(null);
+  const people = useTreeStore(state => state.people);
+  const relationships = useTreeStore(state => state.relationships);
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const hasParents = useTreeStore((state) => state.relationships.some((r) => r.type === 'parent-child' && r.toPersonId === person?.id));
   const photo = getDisplayPersonPhoto(person);
@@ -64,6 +69,7 @@ export function TreeDetailNodeQuickActionsDialog({
   const dismiss = () => { treeActions?.onClose(); closeNodeQuickActions(); };
   return (
     <>
+      <SiblingEntryDialog visible={!!siblingPerson} fixedPerson={siblingPerson} people={people} relationships={relationships} onDismiss={() => setSiblingPerson(null)} onSubmit={(sibling, connections) => { setSiblingPerson(null); openCreateRelativeDialog('sibling-of', sibling, connections); }} />
       <AdaptiveDialog visible={visible && viewerIndex === null} onDismiss={dismiss} title={person ? formatPersonName(person) : t(K.relationship.quickActions)} actions={person ? <>
         <Button mode="contained" icon="account-arrow-right-outline" style={BUTTON_CHROME} contentStyle={compactButtonContent} onPress={() => { dismiss(); openPersonProfile(person); }}>{t(K.relationship.openProfile)}</Button>
 
@@ -129,7 +135,7 @@ export function TreeDetailNodeQuickActionsDialog({
                   { mode: 'child-of', label: K.relationship.addChild, icon: 'account-arrow-down-outline' },
                   { mode: 'spouse-of', label: K.relationship.addSpouse, icon: 'account-heart-outline' },
                 ] as const).map(action => <Button key={action.mode} mode="text" icon={action.icon} compact style={compactButton} contentStyle={compactButtonContent} disabled={mutating} onPress={() => { dismiss(); openCreateRelativeDialog(action.mode, person); }}>{t(action.label)}</Button>)}
-                <Button mode="text" icon="account-multiple-outline" compact style={compactButton} contentStyle={compactButtonContent} disabled={mutating || !hasParents} onPress={() => { dismiss(); openCreateRelativeDialog('sibling-of', person); }}>{t('Add sibling')}</Button>
+                <Button mode="text" icon="account-multiple-outline" compact style={compactButton} contentStyle={compactButtonContent} disabled={mutating || !hasParents} onPress={() => { setSiblingPerson(person); dismiss(); }}>{t('Add sibling')}</Button>
                 {!hasParents ? <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, lineHeight: 20, paddingHorizontal: 12, paddingBottom: 6 }}>{t('Add a parent first, then connect a sibling through that shared parent.')}</Text> : null}
                 {treeActions?.siblings.map(sibling => <Button key={sibling.label} mode="text" icon="account-multiple-plus-outline" compact style={compactButton} contentStyle={compactButtonContent} disabled={mutating} onPress={() => { dismiss(); sibling.onPress(); }}>{sibling.label}</Button>)}
               </View> : null}

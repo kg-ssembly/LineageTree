@@ -1070,12 +1070,14 @@ function PersonFormDialogContent({
     setSubmitPending(true);
 
     try {
-      const guided = enableQuickAdd && mode === 'create' && !isRelationshipOnlyFlow;
-      await onSubmit(payload, { keepOpen: addAnother || guided });
+      await onSubmit(payload, { keepOpen: addAnother });
       // A local cleanup failure must not turn a successful create into a retry.
       await draft.clear(true).catch(() => {});
-      if (addAnother || guided) onRestart(payload);
+      if (addAnother) onRestart(payload);
     } catch (error) {
+      if (error instanceof Error && 'remainingRelationships' in error && Array.isArray(error.remainingRelationships)) {
+        setPendingRelationships(error.remainingRelationships.map(createPendingRelationshipDraftFromSubmission));
+      }
       setRelationshipError(error instanceof Error ? error.message : t("Save failed. Your changes are still here; try again."));
       void draft.save().catch(() => {});
     } finally {

@@ -1,3 +1,5 @@
+import SiblingEntryDialog from './sibling-entry-dialog';
+import { entrySubmissionMode, oppositeEntryMode } from './relationship-entry-direction';
 import React, { useEffect, useMemo, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { Button, Dialog, IconButton, List, Portal, Text, TextInput, useTheme } from 'react-native-paper';
@@ -45,7 +47,7 @@ type AddPersonEntryDialogProps = {
   newPersonName?: string;
   conciseRelationshipLabels?: boolean;
   onDismiss: () => void;
-  onSelectRelationship: (mode: PendingRelationshipMode, relatedPerson: PersonRecord) => void;
+  onSelectRelationship: (mode: PendingRelationshipMode, relatedPerson: PersonRecord, connections?: PendingRelationshipSubmission[]) => void;
   onSelectRelationshipAttempt?: (mode: PendingRelationshipMode, relatedPerson: PersonRecord) => Promise<boolean> | boolean;
   onAddFirstFamilyMember?: () => void;
 };
@@ -58,19 +60,7 @@ function resolveSubmissionMode(
     return 'child-of';
   }
 
-  if (perspective === 'new-person') {
-    return mode;
-  }
-
-  if (mode === 'parent-of') {
-    return 'child-of';
-  }
-
-  if (mode === 'child-of') {
-    return 'parent-of';
-  }
-
-  return mode;
+  return entrySubmissionMode(mode, perspective);
 }
 
 function getChooserModeLabel(
@@ -182,7 +172,7 @@ function getRelationshipActionText({
   relatedPersonName: string;
   t: (key: string, values?: Record<string, string | number>) => string;
 }) {
-  const mode = resolveSubmissionMode(rawMode, perspective);
+  const mode = oppositeEntryMode(resolveSubmissionMode(rawMode, perspective));
 
   if (perspective === 'anchor-person' && anchorName?.trim()) {
     return t(
@@ -196,9 +186,9 @@ function getRelationshipActionText({
   }
 
   return t(
-    mode === 'parent-of'
+    mode === 'child-of'
       ? K.relationship.createParentForName
-      : mode === 'child-of'
+      : mode === 'parent-of'
         ? K.relationship.createChildForName
         : K.relationship.createSpouseForName,
     { name: relatedPersonName },
@@ -218,7 +208,7 @@ function getRelationshipAttemptDescription({
   relatedPersonName: string;
   t: (key: string, values?: Record<string, string | number>) => string;
 }) {
-  const mode = resolveSubmissionMode(rawMode, perspective);
+  const mode = oppositeEntryMode(resolveSubmissionMode(rawMode, perspective));
 
   if (perspective === 'anchor-person' && anchorName?.trim()) {
     if (mode === 'parent-of') {
@@ -267,6 +257,7 @@ export default function AddPersonEntryDialog({
   const theme = useTheme();
   const { t } = useI18n();
   const [selectedMode, setSelectedMode] = useState<RelationshipSelectionMode | null>(null);
+  const [siblingVisible, setSiblingVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(0);
   const [reviewState, setReviewState] = useState<ReviewState>(null);
@@ -349,6 +340,7 @@ export default function AddPersonEntryDialog({
   };
 
   const chooseMode = (mode: RelationshipSelectionMode) => {
+    if (mode === 'sibling-of') { setSiblingVisible(true); return; }
     if (fixedRelatedPerson && skipPersonSelectionWhenFixed) {
       resetAndDismiss();
       onSelectRelationship(resolveSubmissionMode(mode, perspective), fixedRelatedPerson);
@@ -441,14 +433,15 @@ export default function AddPersonEntryDialog({
 
   return (
     <Portal>
+      <SiblingEntryDialog visible={visible && siblingVisible} people={relationshipCandidates} relationships={relationships} onDismiss={() => setSiblingVisible(false)} onSubmit={(person, connections) => { setSiblingVisible(false); resetAndDismiss(); onSelectRelationship('child-of', person, connections); }} />
       <Dialog
-        visible={visible}
+        visible={visible && !siblingVisible}
         onDismiss={resetAndDismiss}
         style={[dialogChrome.dialog, { backgroundColor: theme.colors.surface }]}
       >
         <Dialog.Title style={[dialogChrome.dialogTitle, dialogChrome.dialogTitleWithClose]}>
           {selectedMode
-           ? getSelectRelationshipTitle(selectedMode, newPersonName, t)
+           ? getSelectRelationshipTitle(selectedMode === 'sibling-of' ? selectedMode : perspective === 'new-person' ? oppositeEntryMode(selectedMode) : selectedMode, newPersonName, t)
            : chooserTitleKey === K.personForm.addAnotherConnectionTitle && newPersonName
              ? t(K.personForm.addRelationshipsForName, { name: newPersonName })
            : chooserTitleKey

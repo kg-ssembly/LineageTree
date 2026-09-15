@@ -1,4 +1,3 @@
-import { recordedParents } from '../../../components/family-entry-guidance';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, View } from 'react-native';
 import { useIsFocused } from '@react-navigation/native';
@@ -596,7 +595,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     return true;
   }, [searchDiscoverableTrees, selectedTree, trees, user?.id]);
 
-  const openCreateRelativeDialog = useCallback((mode: PendingRelationshipSubmission['mode'] | 'sibling-of', relatedPerson: PersonRecord) => {
+  const openCreateRelativeDialog = useCallback((mode: PendingRelationshipSubmission['mode'] | 'sibling-of', relatedPerson: PersonRecord, connections?: PendingRelationshipSubmission[]) => {
     setNodeQuickActionState({ visible: false, person: null });
 
     void (async () => {
@@ -609,10 +608,10 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
         visible: true,
         mode: 'create',
         person: null,
-        initialPendingRelationships: mode === 'sibling-of' ? recordedParents(relatedPerson.id, relationships) : [{ mode, relatedPersonId: relatedPerson.id }],
+        initialPendingRelationships: mode === 'sibling-of' ? connections ?? [] : [{ mode, relatedPersonId: relatedPerson.id }],
       });
     })();
-  }, [handleMaidenParentSelectionAttempt, relationships]);
+  }, [handleMaidenParentSelectionAttempt]);
 
   const closeMaidenTreeSuggestion = useCallback(() => {
     setMaidenTreeSuggestion({
@@ -764,21 +763,20 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     return created;
   }, [closePersonDialog, createPersonFromPayload, personDialog.mode, personDialog.person, selectedTree, updatePerson, user?.id]);
 
+  const pendingSelfAssignment = useRef<{ key: string; person: PersonRecord } | null>(null);
   const handleSelfPersonSubmit = useCallback(async (payload: PersonFormSubmission) => {
-    if (!user?.id || !selectedTree) {
-      return;
-    }
-
-    try {
-      const createdPerson = await createSelfPersonFromPayload(payload);
-      if (createdPerson) {
-        await assignPersonToUser(user.id, selectedTree.id, user.id, createdPerson.id);
-        setFollowUpTreePromptsPending(true);
-      }
-      setSelfPersonDialogVisible(false);
-    } catch (error) {
-      // surfaced by store snackbar
-    }
+    if (!user?.id || !selectedTree) throw new Error('Your session or selected tree changed. Reopen this draft before saving.');
+    const key = JSON.stringify([user.id, selectedTree.id]);
+    const created = pendingSelfAssignment.current?.key === key
+      ? pendingSelfAssignment.current.person
+      : await createSelfPersonFromPayload(payload);
+    if (!created) throw new Error('The person could not be created. Please try again.');
+    pendingSelfAssignment.current = { key, person: created };
+    await assignPersonToUser(user.id, selectedTree.id, user.id, created.id);
+    pendingSelfAssignment.current = null;
+    setFollowUpTreePromptsPending(true);
+    setSelfPersonDialogVisible(false);
+    return created;
   }, [assignPersonToUser, createSelfPersonFromPayload, selectedTree, user?.id]);
 
   const selfPersonInitialValues = useMemo(
@@ -868,10 +866,10 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     setAddPersonChooserUsesConciseLabels(source === 'members');
     setAddPersonChooserVisible(true);
   }, [openCreatePersonDialog, people.length]);
-  const handleAddPersonEntrySelection = useCallback((mode: PendingRelationshipMode, relatedPerson: PersonRecord) => {
+  const handleAddPersonEntrySelection = useCallback((mode: PendingRelationshipMode, relatedPerson: PersonRecord, connections?: PendingRelationshipSubmission[]) => {
     setAddPersonChooserVisible(false);
     openCreatePersonDialog(
-      [{
+      connections ?? [{
         mode,
         relatedPersonId: relatedPerson.id,
         parentChildKind: mode === 'spouse-of' ? undefined : DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND,
@@ -880,15 +878,13 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     );
   }, [openCreatePersonDialog]);
   const onOpenAddPersonForRelationship = useCallback((mode: PendingRelationshipMode, relatedPerson: PersonRecord) => {
-    openCreatePersonDialog([
-      {
-        mode,
-        relatedPersonId: relatedPerson.id,
-        parentChildKind: mode === 'spouse-of' ? undefined : DEFAULT_PARENT_CHILD_RELATIONSHIP_KIND,
-        relationshipStatus: mode === 'spouse-of' ? 'partner' : undefined,
-      },
-    ]);
-  }, [openCreatePersonDialog]);
+    void (async () => {
+      if (await handleMaidenParentSelectionAttempt(mode, relatedPerson)) {
+        handleAddPersonEntrySelection(mode, relatedPerson);
+      }
+    })();
+  }, [handleAddPersonEntrySelection, handleMaidenParentSelectionAttempt]);
+
   const handleAddFirstFamilyMember = useCallback(() => {
     setAddPersonChooserVisible(false);
     openCreatePersonDialog();
@@ -1270,6 +1266,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
         visible={selfPersonDialogVisible}
         mode="create"
         initialValues={selfPersonInitialValues}
+        relationships={relationships}
         loading={mutating}
         existingLastNames={existingLastNames}
         relationshipCandidates={people}
