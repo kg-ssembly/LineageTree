@@ -58,7 +58,7 @@ export type LayoutConstants = {
 
 export const DEFAULT_LAYOUT_CONSTANTS: LayoutConstants = {
   NODE_WIDTH: 256,
-  NODE_HEIGHT: 116,
+  NODE_HEIGHT: 140,
   HORIZONTAL_GAP: 48,
   SPOUSE_GAP: 12,
   // Wider so each band has enough vertical room to host multiple

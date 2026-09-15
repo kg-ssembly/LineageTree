@@ -73,7 +73,13 @@ import { PersonPortrait } from './ui/person-portrait';
 const styles = GlobalStyles.familyTreeCanvas;
 
 // ---- Tunables ----
-const COMPACT_LAYOUT: LayoutConstants = { ...DEFAULT_LAYOUT_CONSTANTS, NODE_WIDTH: 208, NODE_HEIGHT: 136, HORIZONTAL_GAP: 32 };
+const COMPACT_LAYOUT: LayoutConstants = { ...DEFAULT_LAYOUT_CONSTANTS, NODE_WIDTH: 208, NODE_HEIGHT: 152, HORIZONTAL_GAP: 32 };
+const PORTRAIT_SIZE = {
+  compact: 60,
+  compactHighlighted: 72,
+  regular: 92,
+  regularHighlighted: 104,
+} as const;
 const MIN_SCALE = 0.05;
 const MAX_SCALE = 1.8;
 const AUTO_FIT_MAX_SCALE = 0.8; // default zoom cap on initial fit
@@ -377,6 +383,10 @@ const PersonNode = React.memo(function PersonNode(props: PersonNodeProps) {
   }, [person, onPress]);
 
   const isHighlighted = isMaidenNameMember || isCrossSurnameChild || isFocusedPerson;
+  const portraitHighlighted = isFocusedPerson || isInspected;
+  const portraitSize = compactCards
+    ? portraitHighlighted ? PORTRAIT_SIZE.compactHighlighted : PORTRAIT_SIZE.compact
+    : portraitHighlighted ? PORTRAIT_SIZE.regularHighlighted : PORTRAIT_SIZE.regular;
   const borderColor = isFocusedPerson || isInspected
     ? primaryColor
     : isHighlighted
@@ -440,7 +450,7 @@ const PersonNode = React.memo(function PersonNode(props: PersonNodeProps) {
         ) : null}
         <View style={styles.nodeInnerRow}>
           <View style={styles.nodeAvatarColumn}>
-            <PersonPortrait person={person} size={compactCards ? 48 : 84} highlighted={isFocusedPerson || isInspected} deferPhoto={deferPhoto} />
+            <PersonPortrait person={person} size={portraitSize} highlighted={portraitHighlighted} deferPhoto={deferPhoto} />
           </View>
           <View style={styles.nodeTextWrap}>
             <Text variant="titleSmall" style={styles.nodeTitle} numberOfLines={2}>

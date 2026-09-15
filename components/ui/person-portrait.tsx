@@ -17,7 +17,21 @@ export function PersonPortrait({ person, size = 84, highlighted = false, deferPh
   const initials = [person.firstName, person.lastName].map(part => Array.from(part.trim())[0] ?? '').join('').toLocaleUpperCase() || '?';
   const borderColor = highlighted ? theme.colors.primary : theme.colors.outlineVariant;
   return (
-    <View style={{ width: size, height: size, borderRadius: size / 2, borderWidth: highlighted ? 3 : 2, borderColor, padding: 3, backgroundColor: theme.colors.surface, flexShrink: 0 }}>
+    <View style={{
+      width: size,
+      height: size,
+      borderRadius: size / 2,
+      borderWidth: highlighted ? 4 : 2,
+      borderColor,
+      padding: highlighted ? 4 : 3,
+      backgroundColor: theme.colors.surface,
+      flexShrink: 0,
+      shadowColor: theme.colors.primary,
+      shadowOpacity: highlighted ? 0.24 : 0.08,
+      shadowRadius: highlighted ? 12 : 6,
+      shadowOffset: { width: 0, height: 3 },
+      elevation: highlighted ? 5 : 2,
+    }}>
       <View style={{ flex: 1, borderRadius: size / 2, overflow: 'hidden', backgroundColor: theme.colors.primaryContainer, alignItems: 'center', justifyContent: 'center' }}>
         <Text variant={size > 100 ? 'headlineLarge' : 'titleLarge'} style={{ color: theme.colors.onPrimaryContainer }} accessible={false}>{initials}</Text>
         {photo && !deferPhoto && failedUrl !== photo.url ? (
