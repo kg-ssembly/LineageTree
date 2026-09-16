@@ -152,6 +152,7 @@ function stopAllSubscriptions() {
 interface TreeState {
   graphMore: Record<string, string | null>;
   graphRelatives: Record<string, { parents: string[]; children: string[] }>;
+  graphTotalPeople: number;
   graphComplete: boolean;
   trees: FamilyTree[];
   selectedTreeId: string | null;
@@ -347,17 +348,17 @@ export const useTreeStore = create<TreeState>()(persist((set, get) => {
     const keepCached = get().treeDataTreeId === treeId;
     set({ treeDataTreeId: treeId, people: keepCached ? get().people : [], relationships: keepCached ? get().relationships : [], approvalRequests: [], mergeRequests: [], mergeHistory: [], mergePreview: null, loadingTreeData: !keepCached });
     subscribeToTreeAuxiliaryData(treeId);
-    set({graphMore: {}, graphRelatives: {}, graphComplete: false});
+    set({graphMore: {}, graphRelatives: {}, graphTotalPeople: 0, graphComplete: false});
     unsubscribePeople = subscribeToTreeGraph(treeId, (page, complete) => {
       if (get().selectedTreeId !== treeId) return;
-      set({ people: page.people, relationships: page.relationships, graphMore: page.more, graphRelatives: page.relatives ?? {}, graphComplete: complete, loadingTreeData: false });
+      set({ people: page.people, relationships: page.relationships, graphMore: page.more, graphRelatives: page.relatives ?? {}, graphTotalPeople: page.totalPeople ?? page.people.length, graphComplete: complete, loadingTreeData: false });
       finishMetric('tree.ready.ms');
     }, error => set({error: normaliseError(error), loadingTreeData: false}));
 
   };
 
   const initialState: TreeState = {
-    graphMore: {}, graphRelatives: {}, graphComplete: false,
+    graphMore: {}, graphRelatives: {}, graphTotalPeople: 0, graphComplete: false,
     trees: [],
     selectedTreeId: null,
     currentUserId: null,

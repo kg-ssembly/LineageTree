@@ -6,7 +6,7 @@ import { ScrollView, StyleSheet, View, type LayoutChangeEvent, type StyleProp, t
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
 import { ActivityIndicator, Button, Chip, Icon, IconButton, Text, useTheme } from 'react-native-paper';
-import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, FloatingSnackbar, GlobalStyles, HorizontalTabStrip, InfoDialog, Reveal, ScreenBackground, SectionCard, SuggestionList, TabStripCard, type SuggestionActionTarget } from '../../../../components';
+import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, FloatingSnackbar, GlobalStyles, HorizontalTabStrip, InfoDialog, Reveal, ScreenBackground, SectionCard, SharedLoader, SuggestionList, TabStripCard, type SuggestionActionTarget } from '../../../../components';
 import type { MainTabParamList } from '../../../../components/dto/navigation';
 import { getThemeChrome } from '../../../../constants/styles';
 import { useI18n } from '../../../../hooks/use-i18n';
@@ -1081,7 +1081,7 @@ export function HomeDashboardView(props: SharedTabProps) {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', backgroundColor: theme.colors.background }]}>
         <ScreenBackground />
-        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <SharedLoader visible label={t('Preparing your family home…')} description={t('Loading family members, relationships, memories, and recent activity.')} />
       </View>
     );
   }
