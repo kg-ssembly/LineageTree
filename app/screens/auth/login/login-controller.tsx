@@ -15,9 +15,52 @@ type LoginNavigation = {
 
 const initialWebUrl = typeof window !== 'undefined' ? window.location.href : null;
 
+const PHONE_COUNTRIES = [
+  { label: 'South Africa', dialCode: '+27' },
+  { label: 'United States', dialCode: '+1' },
+  { label: 'United Kingdom', dialCode: '+44' },
+  { label: 'Australia', dialCode: '+61' },
+  { label: 'Botswana', dialCode: '+267' },
+  { label: 'Eswatini', dialCode: '+268' },
+  { label: 'Lesotho', dialCode: '+266' },
+  { label: 'Namibia', dialCode: '+264' },
+  { label: 'Nigeria', dialCode: '+234' },
+  { label: 'Zimbabwe', dialCode: '+263' },
+  { label: 'India', dialCode: '+91' },
+  { label: 'Canada', dialCode: '+1' },
+  { label: 'New Zealand', dialCode: '+64' },
+];
+
+function normalizePhoneNumber(input: string, dialCode: string) {
+  const trimmed = input.trim();
+  const digits = trimmed.replace(/\D/g, '');
+  const countryDigits = dialCode.replace(/\D/g, '');
+
+  if (trimmed.startsWith('+')) {
+    return `+${digits}`;
+  }
+
+  // Also accept the common international format beginning with 00.
+  if (digits.startsWith('00')) {
+    return `+${digits.slice(2)}`;
+  }
+
+  // Do not add the selected country twice when the user enters 27... rather than +27....
+  if (digits.startsWith(countryDigits)) {
+    return `+${digits}`;
+  }
+
+  // Convert a local leading zero to the selected country's international format.
+  if (digits.startsWith('0')) {
+    return `${dialCode}${digits.slice(1)}`;
+  }
+
+  return `${dialCode}${digits}`;
+}
+
 export function useLoginScreenController(navigation: LoginNavigation) {
   const { t } = useI18n();
-  const { signIn, requestPasswordReset, sendMagicLink, completeMagicLink, signInWithGoogle, loading, error, clearError } = useAuthStore();
+  const { signIn, requestPasswordReset, sendMagicLink, completeMagicLink, signInWithGoogle, sendPhoneCode, verifyPhoneCode, loading, error, clearError } = useAuthStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [passwordVisible, setPasswordVisible] = useState(false);
@@ -25,8 +68,13 @@ export function useLoginScreenController(navigation: LoginNavigation) {
   const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
   const [inlineNoticeMessage, setInlineNoticeMessage] = useState<string | null>(null);
   const [emailLinkPending, setEmailLinkPending] = useState(false);
-  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [activeAuthMethod, setActiveAuthMethod] = useState<'magic' | 'phone' | 'password' | null>(null);
   const [magicLinkSent, setMagicLinkSent] = useState(false);
+  const [phone, setPhone] = useState('');
+  const [phoneCode, setPhoneCode] = useState('');
+  const [phoneCodeSent, setPhoneCodeSent] = useState(false);
+  const [showPhoneForm, setShowPhoneForm] = useState(false);
+  const [phoneCountry, setPhoneCountry] = useState(PHONE_COUNTRIES[0]);
   const [detectedEmailLink, setDetectedEmailLink] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState({
     email: null as string | null,
@@ -99,6 +147,12 @@ export function useLoginScreenController(navigation: LoginNavigation) {
   };
 
   const handleMagicLink = async () => {
+    if (activeAuthMethod !== 'magic') {
+      setActiveAuthMethod('magic');
+      setShowPhoneForm(false);
+      setInlineNoticeMessage(null);
+      return;
+    }
     const emailError = validateEmail(email, t);
     setFieldErrors((current) => ({ ...current, email: emailError }));
     if (emailError) return;
@@ -118,6 +172,25 @@ export function useLoginScreenController(navigation: LoginNavigation) {
   const handleGoogleSignIn = async () => {
     try {
       await signInWithGoogle();
+    } catch {
+      // surfaced via store snackbar
+    }
+  };
+
+  const handlePhoneAction = async () => {
+    if (activeAuthMethod !== 'phone') {
+      setActiveAuthMethod('phone');
+      setShowPhoneForm(true);
+      setInlineNoticeMessage(null);
+      return;
+    }
+    try {
+      if (phoneCodeSent) {
+        await verifyPhoneCode(phoneCode);
+      } else {
+        await sendPhoneCode(normalizePhoneNumber(phone, phoneCountry.dialCode));
+        setPhoneCodeSent(true);
+      }
     } catch {
       // surfaced via store snackbar
     }
@@ -166,6 +239,11 @@ export function useLoginScreenController(navigation: LoginNavigation) {
     },
   ], [email, fieldErrors.email, fieldErrors.password, password, passwordVisible, t]);
 
+  const phoneFields = useMemo<AuthFieldConfig[]>(() => [
+    { key: 'phone', label: 'Mobile number', value: phone, onChangeText: setPhone, keyboardType: 'phone-pad', autoCapitalize: 'none', autoComplete: 'tel', textContentType: 'telephoneNumber' },
+    { key: 'phone-code', label: 'SMS verification code', value: phoneCode, onChangeText: setPhoneCode, keyboardType: 'number-pad', autoCapitalize: 'none', autoComplete: 'one-time-code', textContentType: 'oneTimeCode' },
+  ], [phone, phoneCode]);
+
   return {
     chipIcon: 'account-heart',
     chipLabel: t(K.auth.welcomeBack),
@@ -176,6 +254,15 @@ export function useLoginScreenController(navigation: LoginNavigation) {
     submitLabel: t(K.auth.signIn),
     secondaryActionLabel: t(K.auth.dontHaveAccountSignUp),
     submitLoading: loading,
+    activeAuthMethod,
+    backActionLabel: activeAuthMethod ? 'Back to login options' : undefined,
+    onBackAction: activeAuthMethod ? () => {
+      setActiveAuthMethod(null);
+      setShowPhoneForm(false);
+      setPhoneCodeSent(false);
+      setPhoneCode('');
+      setInlineNoticeMessage(null);
+    } : undefined,
     fields,
     snackbarVisible: snackVisible,
     snackbarMessage,
@@ -186,14 +273,24 @@ export function useLoginScreenController(navigation: LoginNavigation) {
     onTertiaryAction: handleForgotPassword,
     googleActionLabel: Platform.OS === 'web' ? t(K.auth.continueWithGoogle) : undefined,
     onGoogleAction: Platform.OS === 'web' ? handleGoogleSignIn : undefined,
+    phoneActionLabel: Platform.OS === 'web' ? 'Sign in with phone' : undefined,
+    onPhoneAction: Platform.OS === 'web' ? handlePhoneAction : undefined,
+    phoneFields: Platform.OS === 'web' && showPhoneForm ? phoneFields : undefined,
+    phoneCountry: Platform.OS === 'web' && showPhoneForm ? phoneCountry : undefined,
+    phoneCountries: PHONE_COUNTRIES,
+    onPhoneCountryChange: (country: { label: string; dialCode: string }) => { setPhoneCountry(country); setShowPhoneForm(true); },
+    phoneCodeSent,
+    onPhoneCodeAction: Platform.OS === 'web' && showPhoneForm ? handlePhoneAction : undefined,
+    phoneCodeActionLabel: phoneCodeSent ? 'Verify code' : 'Send code',
     magicLinkActionLabel: Platform.OS === 'web'
       ? t(emailLinkPending ? K.auth.completeSignInLink : K.auth.sendSignInLink)
       : undefined,
     onMagicLinkAction: Platform.OS === 'web' ? handleMagicLink : undefined,
     passwordSectionLabel: Platform.OS === 'web' ? t(K.auth.useEmailPassword) : undefined,
-    showPasswordForm: Platform.OS !== 'web' || showPasswordForm,
+    showPasswordForm: Platform.OS !== 'web' || activeAuthMethod === 'password',
     onShowPasswordForm: Platform.OS === 'web' ? () => {
-      setShowPasswordForm(true);
+      setActiveAuthMethod('password');
+      setShowPhoneForm(false);
       setMagicLinkSent(false);
       setInlineNoticeMessage(null);
     } : undefined,

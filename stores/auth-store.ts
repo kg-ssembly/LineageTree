@@ -5,6 +5,9 @@ import {
   signInWithEmailAndPassword,
   signInWithEmailLink,
   signInWithPopup,
+  signInWithPhoneNumber,
+  RecaptchaVerifier,
+  type ConfirmationResult,
   isSignInWithEmailLink,
   GoogleAuthProvider,
   signOut as firebaseSignOut,
@@ -43,6 +46,8 @@ export interface AuthState {
   sendMagicLink: (email: string) => Promise<void>;
   completeMagicLink: (email: string, link?: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
+  sendPhoneCode: (phoneNumber: string) => Promise<void>;
+  verifyPhoneCode: (code: string) => Promise<void>;
   signUp: (email: string, password: string, displayName: string) => Promise<void>;
   requestPasswordReset: (email: string) => Promise<{ emailRegistered: boolean }>;
   signOut: () => Promise<void>;
@@ -87,6 +92,14 @@ function humaniseError(code: string): string {
       return 'This sign-in method is not enabled in Firebase yet.';
     case 'auth/unauthorized-domain':
       return 'This website is not authorized for sign-in. Add its domain in Firebase Authentication settings.';
+    case 'auth/invalid-phone-number':
+      return 'Enter a valid phone number.';
+    case 'auth/code-expired':
+      return 'That verification code has expired. Request a new code.';
+    case 'auth/invalid-verification-code':
+      return 'That verification code is incorrect.';
+    case 'auth/missing-phone-number':
+      return 'Enter your phone number first.';
     case 'auth/invalid-continue-uri':
     case 'auth/missing-continue-uri':
       return 'The sign-in link destination is not configured correctly.';
@@ -132,6 +145,9 @@ function isAppLanguage(value: unknown): value is AppLanguage {
     || value === 'de'
     || value === 'pt';
 }
+
+let phoneConfirmationResult: ConfirmationResult | null = null;
+let phoneRecaptchaVerifier: RecaptchaVerifier | null = null;
 
 function isKinshipSystem(value: unknown): value is KinshipSystem {
   return value === 'auto' || value === 'generic' || value === 'northern-sotho'
@@ -540,6 +556,43 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch (err: any) {
       console.error('Google sign-in failed', err?.code, err?.message);
       set({ loading: false, error: humaniseError(err.code ?? '') });
+      throw err;
+    }
+  },
+
+  sendPhoneCode: async (phoneNumber) => {
+    set({ loading: true, error: null });
+    try {
+      if (typeof window === 'undefined') throw new Error('Phone sign-in is available on web only.');
+      const anchor = document.getElementById('phone-recaptcha-anchor');
+      if (!anchor) throw new Error('Phone sign-in could not initialise. Refresh the page and try again.');
+      phoneRecaptchaVerifier?.clear();
+      phoneRecaptchaVerifier = new RecaptchaVerifier(auth, anchor, { size: 'invisible' });
+      phoneConfirmationResult = await signInWithPhoneNumber(auth, phoneNumber.trim(), phoneRecaptchaVerifier);
+      set({ loading: false });
+    } catch (err: any) {
+      phoneConfirmationResult = null;
+      phoneRecaptchaVerifier?.clear();
+      phoneRecaptchaVerifier = null;
+      console.error('Phone sign-in code failed', err?.code, err?.message);
+      set({ loading: false, error: humaniseError(err?.code ?? '') });
+      throw err;
+    }
+  },
+
+  verifyPhoneCode: async (code) => {
+    set({ loading: true, error: null });
+    try {
+      if (!phoneConfirmationResult) throw new Error('Request a verification code first.');
+      const { user: fbUser } = await phoneConfirmationResult.confirm(code.trim());
+      phoneConfirmationResult = null;
+      phoneRecaptchaVerifier?.clear();
+      phoneRecaptchaVerifier = null;
+      const profile = await fetchUserProfile(fbUser.uid, fbUser);
+      set({ firebaseUser: fbUser, user: profile, loading: false });
+    } catch (err: any) {
+      console.error('Phone sign-in verification failed', err?.code, err?.message);
+      set({ loading: false, error: humaniseError(err?.code ?? '') });
       throw err;
     }
   },

@@ -1,11 +1,12 @@
 import React from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import {
   ActivityIndicator,
   Button,
   Chip,
   HelperText,
+  Menu,
   Snackbar,
   Text,
   TextInput,
@@ -46,6 +47,7 @@ const styles = StyleSheet.create({
   linkButton: { marginTop: 12, alignSelf: 'center' },
   dividerRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 24 },
   divider: { flex: 1, height: 1 },
+  recaptchaAnchor: { height: 1, width: 1, opacity: 0, position: 'absolute' as const },
   passwordSectionLabel: { marginTop: 20, marginBottom: 4, fontWeight: '700' },
   passwordRevealButton: { marginTop: 12, alignSelf: 'flex-start' },
 });
@@ -106,6 +108,18 @@ type AuthFormViewProps = {
   onGoogleAction?: () => void;
   magicLinkActionLabel?: string;
   onMagicLinkAction?: () => void;
+  phoneActionLabel?: string;
+  onPhoneAction?: () => void;
+  phoneCodeSent?: boolean;
+  phoneFields?: AuthFieldConfig[];
+  onPhoneCodeAction?: () => void;
+  phoneCodeActionLabel?: string;
+  activeAuthMethod?: 'magic' | 'phone' | 'password' | null;
+  phoneCountry?: { label: string; dialCode: string };
+  phoneCountries?: Array<{ label: string; dialCode: string }>;
+  onPhoneCountryChange?: (country: { label: string; dialCode: string }) => void;
+  backActionLabel?: string;
+  onBackAction?: () => void;
   passwordSectionLabel?: string;
   showPasswordForm?: boolean;
   onShowPasswordForm?: () => void;
@@ -137,6 +151,18 @@ export function AuthFormView({
   onGoogleAction,
   magicLinkActionLabel,
   onMagicLinkAction,
+  phoneActionLabel,
+  onPhoneAction,
+  phoneCodeSent = false,
+  phoneFields = [],
+  onPhoneCodeAction,
+  phoneCodeActionLabel,
+  activeAuthMethod = null,
+  phoneCountry,
+  phoneCountries = [],
+  onPhoneCountryChange,
+  backActionLabel,
+  onBackAction,
   passwordSectionLabel,
   showPasswordForm = true,
   onShowPasswordForm,
@@ -146,8 +172,37 @@ export function AuthFormView({
   const chipColor = variant === 'login'
     ? theme.colors.secondaryContainer
     : theme.colors.tertiaryContainer;
-  const hasAlternativeSignIn = Boolean(googleActionLabel && onGoogleAction) || Boolean(magicLinkActionLabel && onMagicLinkAction);
-  const alternativeActions = hasAlternativeSignIn ? (
+  const hasAlternativeSignIn = Boolean(googleActionLabel && onGoogleAction) || Boolean(magicLinkActionLabel && onMagicLinkAction) || Boolean(phoneActionLabel && onPhoneAction);
+  const [countryMenuVisible, setCountryMenuVisible] = React.useState(false);
+  const renderField = (field: AuthFieldConfig) => (
+    <React.Fragment key={field.key}>
+      <TextInput
+        label={field.label}
+        accessibilityLabel={field.label}
+        value={field.value}
+        onChangeText={field.onChangeText}
+        mode="outlined"
+        outlineStyle={{ borderRadius: 16 }}
+        outlineColor={theme.colors.outlineVariant}
+        keyboardType={field.keyboardType}
+        secureTextEntry={field.secureTextEntry}
+        autoCapitalize={field.autoCapitalize}
+        autoComplete={field.autoComplete}
+        textContentType={field.textContentType}
+        importantForAutofill={field.importantForAutofill}
+        autoCorrect={field.autoCorrect}
+        spellCheck={field.spellCheck}
+        passwordRules={field.passwordRules}
+        style={styles.input}
+        error={!!field.error}
+        right={field.right}
+      />
+      <HelperText type={field.helperTextType ?? 'error'} visible={Boolean(field.helperText ?? field.error)}>
+        {field.helperText ?? field.error ?? ' '}
+      </HelperText>
+    </React.Fragment>
+  );
+  const alternativeActions = hasAlternativeSignIn && activeAuthMethod === null ? (
     <>
       {googleActionLabel && onGoogleAction ? (
         <Button
@@ -172,6 +227,19 @@ export function AuthFormView({
           style={styles.button}
         >
           {magicLinkActionLabel}
+        </Button>
+      ) : null}
+
+      {phoneActionLabel && onPhoneAction ? (
+        <Button
+          mode="outlined"
+          icon="cellphone"
+          onPress={onPhoneAction}
+          disabled={submitLoading}
+          contentStyle={styles.buttonContent}
+          style={styles.button}
+        >
+          {phoneActionLabel}
         </Button>
       ) : null}
     </>
@@ -211,7 +279,27 @@ export function AuthFormView({
               {subtitle}
             </Text>
 
-            {hasAlternativeSignIn ? (
+            {activeAuthMethod === 'magic' ? fields.filter((field) => field.key === 'email').map(renderField) : null}
+            {activeAuthMethod === 'phone' ? (
+              <>
+                {phoneCountry && onPhoneCountryChange ? (
+                  <Menu
+                    visible={countryMenuVisible}
+                    onDismiss={() => setCountryMenuVisible(false)}
+                    anchor={<Button mode="outlined" icon="earth" onPress={() => setCountryMenuVisible(true)} style={styles.input} contentStyle={styles.buttonContent}>{`${phoneCountry.label} (${phoneCountry.dialCode})`}</Button>}
+                  >
+                    {phoneCountries.map((country) => <Menu.Item key={`${country.label}-${country.dialCode}`} title={`${country.label} (${country.dialCode})`} onPress={() => { setCountryMenuVisible(false); onPhoneCountryChange(country); }} />)}
+                  </Menu>
+                ) : null}
+                {phoneFields.filter((field) => field.key === 'phone' || (phoneCodeSent && field.key === 'phone-code')).map(renderField)}
+              </>
+            ) : null}
+            {activeAuthMethod === 'magic' && onMagicLinkAction && magicLinkActionLabel ? (
+              <Button mode="contained" icon="email-fast-outline" onPress={onMagicLinkAction} disabled={submitLoading} contentStyle={styles.buttonContent} style={styles.button}>
+                {submitLoading ? <ActivityIndicator color={theme.colors.onPrimary} size="small" /> : magicLinkActionLabel}
+              </Button>
+            ) : null}
+            {activeAuthMethod === null ? (
               <>
                 {alternativeActions}
                 <View style={styles.dividerRow}>
@@ -232,35 +320,16 @@ export function AuthFormView({
             ) : null}
 
           {fields.map((field) => (
-            (!hasAlternativeSignIn || showPasswordForm || (!magicLinkSent && field.key === 'email')) ? <React.Fragment key={field.key}>
-              <TextInput
-                label={field.label}
-                accessibilityLabel={field.label}
-                value={field.value}
-                onChangeText={field.onChangeText}
-                mode="outlined"
-                outlineStyle={{ borderRadius: 16 }}
-                outlineColor={theme.colors.outlineVariant}
-                keyboardType={field.keyboardType}
-                secureTextEntry={field.secureTextEntry}
-                autoCapitalize={field.autoCapitalize}
-                autoComplete={field.autoComplete}
-                textContentType={field.textContentType}
-                importantForAutofill={field.importantForAutofill}
-                autoCorrect={field.autoCorrect}
-                spellCheck={field.spellCheck}
-                passwordRules={field.passwordRules}
-                style={styles.input}
-                error={!!field.error}
-                right={field.right}
-              />
-              <HelperText type={field.helperTextType ?? 'error'} visible={Boolean(field.helperText ?? field.error)}>
-                {field.helperText ?? field.error ?? ' '}
-              </HelperText>
-            </React.Fragment> : null
+            ((!hasAlternativeSignIn || activeAuthMethod === 'password') && field.key !== 'email' || (!hasAlternativeSignIn && field.key === 'email')) ? renderField(field) : null
           ))}
 
-            {!hasAlternativeSignIn && (
+          {activeAuthMethod === 'phone' && onPhoneCodeAction && phoneCodeActionLabel ? (
+            <Button mode="contained" onPress={onPhoneCodeAction} disabled={submitLoading} contentStyle={styles.buttonContent} style={styles.button}>
+              {submitLoading ? <ActivityIndicator color={theme.colors.onPrimary} size="small" /> : phoneCodeActionLabel}
+            </Button>
+          ) : null}
+
+            {(!hasAlternativeSignIn || activeAuthMethod === 'password') && (
               <Button
                 mode="contained"
                 onPress={onSubmit}
@@ -274,7 +343,7 @@ export function AuthFormView({
               </Button>
             )}
 
-            {hasAlternativeSignIn && showPasswordForm ? (
+            {hasAlternativeSignIn && activeAuthMethod === 'password' ? (
               <Button
                 mode="outlined"
                 onPress={onSubmit}
@@ -288,7 +357,7 @@ export function AuthFormView({
               </Button>
             ) : null}
 
-            {tertiaryActionLabel && onTertiaryAction && showPasswordForm ? (
+            {tertiaryActionLabel && onTertiaryAction && (!hasAlternativeSignIn || activeAuthMethod === 'password') ? (
               <Button mode="text" onPress={onTertiaryAction} style={styles.linkButton}>
                 {tertiaryActionLabel}
               </Button>
@@ -298,9 +367,15 @@ export function AuthFormView({
               {inlineNoticeMessage ?? ' '}
             </HelperText>
 
-            <Button mode="text" onPress={onSecondaryAction} style={styles.linkButton}>
+            {activeAuthMethod && backActionLabel && onBackAction ? (
+              <Button mode="text" icon="arrow-left" onPress={onBackAction} style={styles.linkButton}>
+                {backActionLabel}
+              </Button>
+            ) : null}
+
+            {(!hasAlternativeSignIn || activeAuthMethod === 'password') ? <Button mode="text" onPress={onSecondaryAction} style={styles.linkButton}>
               {secondaryActionLabel}
-            </Button>
+            </Button> : null}
           </SectionCard>
         </Reveal>
       </ScrollView>
@@ -315,6 +390,7 @@ export function AuthFormView({
       </Snackbar>
 
       <SharedLoader visible={submitLoading} />
+      {activeAuthMethod === 'phone' ? <Pressable nativeID="phone-recaptcha-anchor" accessibilityRole="button" style={styles.recaptchaAnchor} onPress={() => undefined} /> : null}
     </KeyboardAvoidingView>
   );
 }
