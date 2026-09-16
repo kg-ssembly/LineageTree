@@ -7,6 +7,7 @@ import { I18N_KEYS as K } from '../../../../i18n/keys';
 import { useAuthStore } from '../../../../stores/auth-store';
 import { type AuthFieldConfig } from '../shared/auth-form-view';
 import { validateEmail, validateLoginPassword } from '../shared/auth-validation';
+import { authErrorCode } from '../../../../providers/account-security';
 import { auth } from '../../../../providers/firebase-provider';
 
 type LoginNavigation = {
@@ -172,8 +173,10 @@ export function useLoginScreenController(navigation: LoginNavigation) {
   const handleGoogleSignIn = async () => {
     try {
       await signInWithGoogle();
-    } catch {
-      // surfaced via store snackbar
+    } catch (error) {
+      if (authErrorCode(error) === 'auth/account-exists-with-different-credential') {
+        setInlineNoticeMessage(t('Sign in with your original method, then connect Google in Account & preferences. Your existing profile has not changed.'));
+      }
     }
   };
 
@@ -296,6 +299,12 @@ export function useLoginScreenController(navigation: LoginNavigation) {
     } : undefined,
     magicLinkSent,
     inlineNoticeMessage,
+    accountLinkingLabel: t('Already have a profile? Connect another sign-in method'),
+    onAccountLinkingHelp: () => {
+      setActiveAuthMethod(null);
+      setShowPhoneForm(false);
+      setInlineNoticeMessage(t('Sign in with your original method first. Then open My Profile, Account & preferences, Sign-in methods to connect another method to that same profile.'));
+    },
     onSecondaryAction: () => navigation.navigate('SignUp'),
   };
 }

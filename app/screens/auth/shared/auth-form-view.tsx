@@ -141,6 +141,8 @@ type AuthFormViewProps = {
   showPasswordForm?: boolean;
   onShowPasswordForm?: () => void;
   magicLinkSent?: boolean;
+  accountLinkingLabel?: string;
+  onAccountLinkingHelp?: () => void;
 };
 
 export function AuthFormView({
@@ -184,6 +186,8 @@ export function AuthFormView({
   showPasswordForm = true,
   onShowPasswordForm,
   magicLinkSent = false,
+  accountLinkingLabel,
+  onAccountLinkingHelp,
 }: AuthFormViewProps) {
   const theme = useTheme();
   const chipColor = variant === 'login'
@@ -369,6 +373,10 @@ export function AuthFormView({
             <HelperText type="info" visible={Boolean(inlineNoticeMessage)}>
               {inlineNoticeMessage ?? ' '}
             </HelperText>
+
+            {accountLinkingLabel && onAccountLinkingHelp ? <Button mode="text" icon="link-variant" disabled={submitLoading} onPress={onAccountLinkingHelp}>
+              {accountLinkingLabel}
+            </Button> : null}
 
             {activeAuthMethod && backActionLabel && onBackAction ? (
               <Button mode="text" icon="arrow-left" onPress={onBackAction} style={styles.linkButton}>

@@ -1,3 +1,4 @@
+import { SignInMethodsSection } from './sign-in-methods-section';
 import { PerformanceDiagnostics } from '../../../../components/performance-diagnostics';
 import React, { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
@@ -60,13 +61,12 @@ export function AppSettingsSection({ onSignOut, authLoading }: UserProfileTabPro
   const [languageError, setLanguageError] = useState('');
   const [savingLanguage, setSavingLanguage] = useState(false);
   const { language, languages, setLanguage, t } = useI18n();
-  const { user, updateDisplayName, updatePreferredLanguage } = useAuthStore();
+  const { user, updateDisplayName, updatePreferredLanguage, accountBusy } = useAuthStore();
   const preference = useThemeStore((state) => state.preference);
   const setPreference = useThemeStore((state) => state.setPreference);
   const [editName, setEditName] = useState(user?.displayName ?? '');
   const [savingName, setSavingName] = useState(false);
   const [nameError, setNameError] = useState<string | null>(null);
-
   useEffect(() => {
     setEditName(user?.displayName ?? '');
   }, [user?.displayName]);
@@ -161,8 +161,10 @@ export function AppSettingsSection({ onSignOut, authLoading }: UserProfileTabPro
         </SectionCard>
       </Reveal>
 
+      <SignInMethodsSection />
+
       <PerformanceDiagnostics />
-      <Button mode="outlined" icon="logout" onPress={onSignOut} disabled={authLoading} contentStyle={styles.signOutButtonContent} style={styles.signOutButton} buttonColor={theme.colors.surface} textColor={theme.colors.primary}>
+      <Button mode="outlined" icon="logout" onPress={onSignOut} disabled={authLoading || accountBusy} contentStyle={styles.signOutButtonContent} style={styles.signOutButton} buttonColor={theme.colors.surface} textColor={theme.colors.primary}>
         {t(K.common.logOut)}
       </Button>
     </>
