@@ -1,5 +1,5 @@
 import React from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import {
   ActivityIndicator,
@@ -21,6 +21,21 @@ const styles = StyleSheet.create({
   heroWrap: {
     marginBottom: 28,
   },
+  logoRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 18 },
+  logoBadge: {
+    width: 92,
+    height: 92,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+    shadowColor: '#35432B',
+    shadowOpacity: 0.12,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 3,
+  },
+  logo: { width: 78, height: 78 },
   heroTitle: {
     marginTop: 14,
     fontWeight: '700',
@@ -51,6 +66,8 @@ const styles = StyleSheet.create({
   passwordSectionLabel: { marginTop: 20, marginBottom: 4, fontWeight: '700' },
   passwordRevealButton: { marginTop: 12, alignSelf: 'flex-start' },
 });
+
+const APP_LOGO = require('../../../../assets/logo-transparent.png');
 
 function GoogleMark() {
   return (
@@ -253,15 +270,15 @@ export function AuthFormView({
       <ScreenBackground />
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <View style={styles.heroWrap}>
-          <Chip icon={chipIcon} style={{ alignSelf: 'flex-start', backgroundColor: chipColor }}>
-            {chipLabel}
-          </Chip>
-          <Text variant="displaySmall" style={[styles.heroTitle, { color: theme.colors.onSurface }]}>
-            {heroTitle}
-          </Text>
-          <Text variant="bodyLarge" style={[styles.heroSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-            {heroSubtitle}
-          </Text>
+          <View style={styles.logoRow}>
+            <View style={[styles.logoBadge, { backgroundColor: theme.colors.secondaryContainer }]}>
+              <Image source={APP_LOGO} style={styles.logo} resizeMode="contain" accessibilityLabel="Lineage Tree logo" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text variant="titleLarge" style={{ color: theme.colors.primary, fontWeight: '800' }}>Lineage Tree - Your family story</Text>
+              <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>Connected across generations.</Text>
+            </View>
+          </View>
         </View>
 
         <Reveal delay={70}>
@@ -320,7 +337,7 @@ export function AuthFormView({
             ) : null}
 
           {fields.map((field) => (
-            ((!hasAlternativeSignIn || activeAuthMethod === 'password') && field.key !== 'email' || (!hasAlternativeSignIn && field.key === 'email')) ? renderField(field) : null
+            (!hasAlternativeSignIn || activeAuthMethod === 'password') ? renderField(field) : null
           ))}
 
           {activeAuthMethod === 'phone' && onPhoneCodeAction && phoneCodeActionLabel ? (
@@ -342,20 +359,6 @@ export function AuthFormView({
                   : submitLabel}
               </Button>
             )}
-
-            {hasAlternativeSignIn && activeAuthMethod === 'password' ? (
-              <Button
-                mode="outlined"
-                onPress={onSubmit}
-                disabled={submitLoading}
-                contentStyle={styles.buttonContent}
-                style={styles.button}
-              >
-                {submitLoading
-                  ? <ActivityIndicator color={theme.colors.onPrimary} size="small" />
-                  : submitLabel}
-              </Button>
-            ) : null}
 
             {tertiaryActionLabel && onTertiaryAction && (!hasAlternativeSignIn || activeAuthMethod === 'password') ? (
               <Button mode="text" onPress={onTertiaryAction} style={styles.linkButton}>
