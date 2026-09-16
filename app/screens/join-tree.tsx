@@ -43,6 +43,14 @@ export default function JoinTreeScreen({ route, navigation }: NativeStackScreenP
   const existingTree = useTreeStore((state) => state.trees.find((item) => item.id === treeId));
   const selectTree = useTreeStore((state) => state.selectTree);
   useEffect(() => {
+    // A normal /login route must never fall through to the invitation shell.
+    // Keep genuine /join/:treeId links here so every auth provider can resume
+    // the invitation flow after authentication.
+    if (userId && !treeId) {
+      navigation.replace('Main', { screen: 'home' });
+    }
+  }, [navigation, treeId, userId]);
+  useEffect(() => {
     if (!userId || !treeId || existingTree) return;
     let active = true;
     setTree(null); setMessage(''); setResolving(true);

@@ -7,6 +7,7 @@ import { I18N_KEYS as K } from '../i18n/keys';
 import type { AppLanguage } from '../i18n';
 import type { ThemePreference } from '../constants/theme';
 import type { KinshipSystem } from './dto/tree';
+import { useThemeStore } from '../stores/theme-store';
 
 const dialogChrome = GlobalStyles.dialogChrome;
 
@@ -37,6 +38,7 @@ export default function StartupModal({
 }: StartupModalProps) {
   const theme = useTheme();
   const { t, languages } = useI18n();
+  const setThemePreference = useThemeStore((state) => state.setPreference);
   const [selectedTheme, setSelectedTheme] = useState<ThemePreference>(initialTheme ?? 'light');
   const [selectedLanguage, setSelectedLanguage] = useState<AppLanguage>(initialLanguage ?? 'en');
   const [selectedKinshipSystem, setSelectedKinshipSystem] = useState<KinshipSystem>(initialKinshipSystem ?? 'auto');
@@ -79,7 +81,11 @@ export default function StartupModal({
                 </Text>
                 <SegmentedButtons
                   value={selectedTheme}
-                  onValueChange={(value) => setSelectedTheme(value as ThemePreference)}
+                  onValueChange={(value) => {
+                    const nextTheme = value as ThemePreference;
+                    setSelectedTheme(nextTheme);
+                    void setThemePreference(nextTheme);
+                  }}
                   buttons={[
                     { value: 'light', label: t(K.common.light), icon: 'white-balance-sunny', disabled: loading },
                     { value: 'dark', label: t(K.common.dark), icon: 'weather-night', disabled: loading },
