@@ -44,7 +44,7 @@ const TAB_LABELS: Record<keyof MainTabParamList, string> = {
 
 function TreeSwitcher({ controller, onManageTrees }: { controller: ReturnType<typeof useMainScreenController>; onManageTrees: () => void }) {
   const [treeMenuVisible, setTreeMenuVisible] = useState(false);
-  return (          <Menu visible={treeMenuVisible} onDismiss={() => setTreeMenuVisible(false)} anchor={<Button icon="chevron-down" compact onPress={() => setTreeMenuVisible(true)}>{controller.selectedTree?.name ?? controller.t('Choose tree')}</Button>}>
+  return (          <Menu visible={treeMenuVisible} onDismiss={() => setTreeMenuVisible(false)} anchor={<Button icon="chevron-down" compact style={Platform.OS === 'web' ? { outlineWidth: 0 } : undefined} onPress={() => setTreeMenuVisible(true)}>{controller.selectedTree?.name ?? controller.t('Choose tree')}</Button>}>
             {(controller.sharedTabProps?.trees ?? []).map(tree => <Menu.Item key={tree.id} title={tree.name} leadingIcon={tree.id === controller.selectedTree?.id ? 'check' : 'family-tree'} onPress={() => { setTreeMenuVisible(false); void controller.sharedTabProps?.onSwitchTree?.(tree); }} />)}
             <Menu.Item title={controller.t('Manage trees')} leadingIcon="cog-outline" onPress={() => { setTreeMenuVisible(false); controller.sharedTabProps?.onOpenTreeSettingsTarget?.({ tab: 'trees', mode: 'trees', itemId: '' }); onManageTrees(); }} />
           </Menu>);
