@@ -17,9 +17,30 @@ export function CompleteFamilyData({ treeId, children, loadingLabel = 'Loading f
   const { t } = useI18n();
   useEffect(() => {
     if (!focused || !ready || complete) return;
-    let active = true; setError('');
-    void loadCompleteTreeGraph(treeId).catch(e => { if (active) setError(e.message); });
-    return () => { active = false; };
+    let active = true;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    setError('');
+
+    const load = async () => {
+      try {
+        await loadCompleteTreeGraph(treeId);
+        const state = useTreeStore.getState();
+        if (active && !(state.graphComplete && state.treeDataTreeId === treeId)) {
+          // A reload can render from persisted tree data before the new
+          // GraphSession exists, or replace that session while subscriptions
+          // settle. The service safely deduplicates concurrent full loads.
+          retryTimer = setTimeout(() => { void load(); }, 250);
+        }
+      } catch (e) {
+        if (active) setError(e instanceof Error ? e.message : String(e));
+      }
+    };
+
+    void load();
+    return () => {
+      active = false;
+      if (retryTimer) clearTimeout(retryTimer);
+    };
   }, [focused, ready, complete, treeId, attempt]);
   if (complete) return <>{children}</>;
   return <View style={{ padding: 24, gap: 12 }}>

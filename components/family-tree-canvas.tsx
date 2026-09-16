@@ -37,7 +37,8 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import { Button, Chip, IconButton, Searchbar, Text, useTheme } from 'react-native-paper';
+import { Button, Chip, IconButton, Text, useTheme } from 'react-native-paper';
+import { AppSearchbar } from './app-searchbar';
 import { translate } from '../i18n';
 import { I18N_KEYS as K } from '../i18n/keys';
 import Svg, { Path, Text as SvgText } from 'react-native-svg';
@@ -1185,7 +1186,7 @@ function FamilyTreeCanvas({
   const renderFloatingControls = (mode: 'inline' | 'fullscreen') => (
       <View pointerEvents="box-none" style={styles.viewportOverlay}>
         <View style={[styles.floatingHintCard, { backgroundColor: theme.colors.surface, width: searchExpanded ? 360 : 'auto', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 28 }]}>
-          {searchExpanded ? <Searchbar
+          {searchExpanded ? <AppSearchbar
             autoFocus
             placeholder={t('Find a family member')}
             accessibilityLabel={t('Find a family member')}

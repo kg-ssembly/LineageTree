@@ -42,9 +42,15 @@ const TAB_LABELS: Record<keyof MainTabParamList, string> = {
   myProfile: K.navigation.profile,
 };
 
+const NAVBAR_FOCUS_RESET = {
+  outlineStyle: 'solid' as const,
+  outlineWidth: 0,
+  outlineColor: 'transparent',
+};
+
 function TreeSwitcher({ controller, onManageTrees }: { controller: ReturnType<typeof useMainScreenController>; onManageTrees: () => void }) {
   const [treeMenuVisible, setTreeMenuVisible] = useState(false);
-  return (          <Menu visible={treeMenuVisible} onDismiss={() => setTreeMenuVisible(false)} anchor={<Button icon="chevron-down" compact style={Platform.OS === 'web' ? { outlineWidth: 0 } : undefined} onPress={() => setTreeMenuVisible(true)}>{controller.selectedTree?.name ?? controller.t('Choose tree')}</Button>}>
+  return (          <Menu visible={treeMenuVisible} onDismiss={() => setTreeMenuVisible(false)} anchor={<Button icon="chevron-down" compact style={NAVBAR_FOCUS_RESET} onPress={() => setTreeMenuVisible(true)}>{controller.selectedTree?.name ?? controller.t('Choose tree')}</Button>}>
             {(controller.sharedTabProps?.trees ?? []).map(tree => <Menu.Item key={tree.id} title={tree.name} leadingIcon={tree.id === controller.selectedTree?.id ? 'check' : 'family-tree'} onPress={() => { setTreeMenuVisible(false); void controller.sharedTabProps?.onSwitchTree?.(tree); }} />)}
             <Menu.Item title={controller.t('Manage trees')} leadingIcon="cog-outline" onPress={() => { setTreeMenuVisible(false); controller.sharedTabProps?.onOpenTreeSettingsTarget?.({ tab: 'trees', mode: 'trees', itemId: '' }); onManageTrees(); }} />
           </Menu>);
@@ -70,7 +76,7 @@ function MobileMainTabBar({ state, navigation, controller }: BottomTabBarProps &
         const selected = activeName === name;
         const centre = name === 'tree';
         const label = name === 'notifications' ? controller.t('Inbox') : controller.t(TAB_LABELS[name]);
-        return <Pressable key={name} accessibilityRole="tab" accessibilityLabel={name === 'notifications' ? `${controller.t('Notifications')}, ${controller.notificationBadgeCount} ${controller.t('need your response')}` : label} accessibilityState={{ selected }} onPress={() => navigate(name)} style={{ flex: 1, minHeight: 62, alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+        return <Pressable key={name} accessibilityRole="tab" accessibilityLabel={name === 'notifications' ? `${controller.t('Notifications')}, ${controller.notificationBadgeCount} ${controller.t('need your response')}` : label} accessibilityState={{ selected }} onPress={() => navigate(name)} style={[NAVBAR_FOCUS_RESET, { flex: 1, minHeight: 62, alignItems: 'center', justifyContent: 'center', gap: 4 }]}>
           <View style={{ width: centre ? 48 : 32, height: centre ? 48 : 30, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: selected ? colors.primaryContainer : colors.surface, marginTop: centre ? -8 : 0 }}>
             <MaterialCommunityIcons name={TAB_ICONS[name] as never} size={centre ? 27 : 23} color={selected ? colors.primary : colors.onSurfaceVariant} />
             {name === 'notifications' && controller.notificationBadgeCount > 0 ? <View style={[webTabBarStyles.badge, webTabBarStyles.iconBadge, { backgroundColor: colors.primary }]}><Text variant="labelSmall" style={{ color: colors.onPrimary }}>{controller.notificationBadgeCount > 99 ? '99+' : controller.notificationBadgeCount}</Text></View> : null}
@@ -80,7 +86,7 @@ function MobileMainTabBar({ state, navigation, controller }: BottomTabBarProps &
       })}
       <View style={{ flex: 1 }}>
         <Menu visible={moreVisible} onDismiss={() => setMoreVisible(false)} anchorPosition="top" anchor={
-          <Pressable accessibilityRole="button" accessibilityLabel={controller.t('More options')} accessibilityState={{ expanded: moreVisible }} onPress={() => setMoreVisible(true)} style={{ minHeight: 62, alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+          <Pressable accessibilityRole="button" accessibilityLabel={controller.t('More options')} accessibilityState={{ expanded: moreVisible }} onPress={() => setMoreVisible(true)} style={[NAVBAR_FOCUS_RESET, { minHeight: 62, alignItems: 'center', justifyContent: 'center', gap: 4 }]}>
             <MaterialCommunityIcons name="dots-horizontal" size={26} color={['myProfile', 'treeSettings'].includes(activeName) ? colors.primary : colors.onSurfaceVariant} />
             <Text variant="labelSmall">{controller.t('More')}</Text>
           </Pressable>
@@ -151,6 +157,7 @@ function WebMainTabBar({
           accessibilityLabel={controller.t(K.notifications.notifications)}
           accessibilityState={isNotificationsFocused ? { selected: true } : {}}
           style={[
+            NAVBAR_FOCUS_RESET,
             webTabBarStyles.menuChip,
             webTabBarStyles.iconChip,
             {
@@ -200,6 +207,7 @@ function WebMainTabBar({
               accessibilityState={isFocused ? { selected: true } : {}}
               accessibilityLabel={descriptor.options.tabBarAccessibilityLabel ?? label}
               style={[
+                NAVBAR_FOCUS_RESET,
                 webTabBarStyles.menuChip,
                 {
                   backgroundColor: isFocused ? controller.theme.colors.primaryContainer : controller.theme.colors.surface,
@@ -384,7 +392,10 @@ export function MainTabNavigator({
           }
 
           const HomeTabContent = getHomeTabContent();
-          return <CompleteFamilyData treeId={controller.sharedTabProps.selectedTree.id} loadingLabel="Preparing your family home…" loadingDescription="Loading family members, relationships, memories, and recent activity."><HomeTabContent {...controller.sharedTabProps} /></CompleteFamilyData>;
+          // Home only needs the initial graph page. Full-tree hydration is
+          // intentionally reserved for directory/statistical screens so a
+          // reload cannot block the dashboard on graph completion.
+          return <HomeTabContent {...controller.sharedTabProps} />;
         }}
       </Tab.Screen>
 

@@ -409,9 +409,6 @@ export const useTreeStore = create<TreeState>()(persist((set, get) => {
       const state = get();
       resetNotificationSourceLoadState();
       const hasCachedTrees = state.currentUserId === userId && state.trees.length > 0;
-      const hasCachedTreeSelection = hasCachedTrees
-        && Boolean(state.selectedTreeId)
-        && state.people.length > 0;
 
       if (state.currentUserId !== userId) {
         set({
@@ -435,7 +432,11 @@ export const useTreeStore = create<TreeState>()(persist((set, get) => {
         set({
           currentUserId: userId,
           loadingTrees: !hasCachedTrees,
-          loadingTreeData: false,
+          // Persisted people/relationships are useful for continuity, but
+          // they do not mean that the new graph session exists after a
+          // reload. Keep the dashboard gated until subscribeToTreeData has
+          // created that session and emitted its first page.
+          loadingTreeData: true,
           loadingNotifications: true,
           error: null,
           notice: null,
@@ -480,10 +481,6 @@ export const useTreeStore = create<TreeState>()(persist((set, get) => {
         },
         (error) => set({ error: normaliseError(error), loadingTrees: false }),
       );
-
-      if (hasCachedTreeSelection && state.selectedTreeId) {
-        set({ loadingTreeData: false });
-      }
 
       unsubscribeNotifications = subscribeToNotifications(
         userId,

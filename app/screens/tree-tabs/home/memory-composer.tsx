@@ -1,8 +1,8 @@
 import React, { useRef, useState } from 'react';
 import { Platform, ScrollView, View } from 'react-native';
-import { Button, Dialog, Portal, Searchbar, SegmentedButtons, Text, TextInput } from 'react-native-paper';
+import { Button, Dialog, Portal, SegmentedButtons, Text, TextInput } from 'react-native-paper';
 import * as ImagePicker from 'expo-image-picker';
-import { CachedImage } from '../../../../components';
+import { AppSearchbar, CachedImage } from '../../../../components';
 import { formatPersonName } from '../../../../components/person-formatting';
 import { MAX_PHOTO_BYTES, MAX_PHOTOS_PER_PERSON, preparePhotoForUpload } from '../../../../components/photo-utils';
 import { useFormDraft } from '../../../../hooks/use-form-draft';
@@ -64,7 +64,7 @@ export function MemoryComposer({ context, initialPersonId, initialKind = 'photo'
       <SegmentedButtons value={value.kind} onValueChange={kind => setValue(current => ({ ...current, kind: kind as 'photo' | 'story' }))} buttons={[{ value: 'photo', label: t('Photo'), disabled: busy }, { value: 'story', label: t('Written memory'), disabled: busy }]} />
       <Text variant="titleSmall">{t('Who is this memory about?')}</Text>
       {person ? <View style={{ gap: 4 }}><Text>{formatPersonName(person)}</Text><Button disabled={busy} onPress={() => setValue(current => ({ ...current, personId: '' }))}>{t('Change person')}</Button></View> : <>
-        <Searchbar placeholder={t('Search family members')} accessibilityLabel={t('Search family members')} value={search} onChangeText={setSearch} />
+        <AppSearchbar placeholder={t('Search family members')} accessibilityLabel={t('Search family members')} value={search} onChangeText={setSearch} />
         {candidates.slice(0, 12).map(item => <Button key={item.id} disabled={busy} onPress={() => setValue(current => ({ ...current, personId: item.id }))}>{formatPersonName(item)}</Button>)}
         {!candidates.length ? <Text>{t('No family members found.')}</Text> : null}
       </>}

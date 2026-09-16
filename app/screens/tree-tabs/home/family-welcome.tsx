@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, useWindowDimensions, View } from 'react-native';
-import { Avatar, Button, Searchbar, Text, useTheme } from 'react-native-paper';
-import { CachedImage, SectionCard } from '../../../../components';
+import { Avatar, Button, Text, useTheme } from 'react-native-paper';
+import { AppSearchbar, CachedImage, SectionCard } from '../../../../components';
 import { formatPersonName } from '../../../../components/person-formatting';
 import { getDisplayPersonPhoto, type PersonRecord } from '../../../../components/dto/person';
 import { useI18n } from '../../../../hooks/use-i18n';
@@ -120,7 +120,7 @@ export function FamilyWelcome(props: SharedTabProps & { onOpenOccasions: () => v
         <Text variant="titleLarge">{t('Our people')}</Text>
         {people.length > 7 ? <Button onPress={() => setAllPeople(value => !value)}>{t(allPeople ? 'Show less' : 'View all')}</Button> : null}
       </View>
-      <Searchbar placeholder={t('Search family members')} accessibilityLabel={t('Search family members')} value={query} onChangeText={setQuery} />
+      <AppSearchbar placeholder={t('Search family members')} accessibilityLabel={t('Search family members')} value={query} onChangeText={setQuery} />
       {recentIds.length && !query ? <Text variant="bodySmall">{t('Recently viewed people appear first.')}</Text> : null}
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 16 }}>
         {(allPeople || query ? directory : directory.slice(0, 7)).map(person => {

@@ -10,11 +10,10 @@ import {
   IconButton,
   Portal,
   Text,
-  TextInput,
   useTheme,
 } from 'react-native-paper';
 import { DatePickerModal } from 'react-native-paper-dates';
-import { BUTTON_CHROME, BUTTON_CONTENT_CHROME, CachedImage, EmptyState, GlobalStyles, InfoDialog, Reveal, ScreenBackground } from '../../../../components';
+import { AppSearchbar, BUTTON_CHROME, BUTTON_CONTENT_CHROME, CachedImage, EmptyState, GlobalStyles, InfoDialog, Reveal, ScreenBackground } from '../../../../components';
 import type { PersonGender, PersonRecord } from '../../../../components/dto/person';
 import {
   formatPersonDate,
@@ -363,14 +362,13 @@ export function FamilyMembersView({
         </View>
 
         <View style={styles.searchRow}>
-          <TextInput
-            mode="outlined"
-            label={t(K.tree.familyMembers.search)}
+          <AppSearchbar
+            placeholder={t(K.tree.familyMembers.search)}
+            accessibilityLabel={t(K.tree.familyMembers.search)}
             value={searchQuery}
             onChangeText={setSearchQuery}
             style={styles.searchBar}
-            left={<TextInput.Icon icon="magnify" />}
-            right={searchQuery ? <TextInput.Icon icon="close" onPress={() => setSearchQuery('')} /> : undefined}
+            onClearIconPress={() => setSearchQuery('')}
           />
           <IconButton
             mode={activeFilterCount > 0 ? 'contained' : 'outlined'}
