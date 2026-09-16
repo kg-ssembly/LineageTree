@@ -544,7 +544,10 @@ function FamilyTreeCanvas({
   const [fullscreenViewportSize, setFullscreenViewportSize] = useState({ width: 0, height: 0 });
   const [activeSurnames, setActiveSurnames] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  useEffect(() => { onSearchQueryChange?.(searchQuery); }, [searchQuery, onSearchQueryChange]);
+  const changeSearchQuery = (value: string) => {
+    setSearchQuery(value);
+    onSearchQueryChange?.(value);
+  };
   const [searchExpanded, setSearchExpanded] = useState(false);
   const [toolsVisibleFor, setToolsVisibleFor] = useState<'inline' | 'fullscreen' | null>(null);
   const [lineOptionsVisible, setLineOptionsVisible] = useState(false);
@@ -1140,7 +1143,7 @@ function FamilyTreeCanvas({
     Keyboard.dismiss();
     if (!positionsByPersonId.has(person.id)) navigateToSurname(extractSurname(person, currentTreeId));
     setSearchFocusId(person.id);
-    setSearchQuery('');
+    changeSearchQuery('');
     setSearchExpanded(false);
     if (positionsByPersonId.has(person.id)) fitTo(activeViewportSize.width, activeViewportSize.height, person.id, mode);
   };
@@ -1187,9 +1190,9 @@ function FamilyTreeCanvas({
             placeholder={t('Find a family member')}
             accessibilityLabel={t('Find a family member')}
             value={searchQuery}
-            onChangeText={setSearchQuery}
+            onChangeText={changeSearchQuery}
             icon="arrow-left"
-            onIconPress={() => { setSearchExpanded(false); setSearchQuery(''); Keyboard.dismiss(); }}
+            onIconPress={() => { setSearchExpanded(false); changeSearchQuery(''); Keyboard.dismiss(); }}
             searchAccessibilityLabel={t('Close search')}
             style={{ backgroundColor: theme.colors.surface, height: 44 }}
             inputStyle={{ minHeight: 44, fontSize: 14 }}
@@ -1200,7 +1203,7 @@ function FamilyTreeCanvas({
               const firstResult = searchResults[0];
               if (!firstResult) return;
               if (onSearchPerson) {
-                setSearchQuery('');
+                changeSearchQuery('');
                 onSearchPerson(firstResult.id);
               } else {
                 focusPerson(firstResult, mode);
@@ -1215,7 +1218,7 @@ function FamilyTreeCanvas({
           {searchExpanded && searchQuery.trim() ? (
             <View style={{ marginTop: 8 }}>
               {searchResults.map((person) => (
-                <Button key={person.id} icon="account-search-outline" contentStyle={{ justifyContent: 'flex-start' }} onPress={() => { if (onSearchPerson) { setSearchQuery(''); onSearchPerson(person.id); } else focusPerson(person, mode); }}>
+                <Button key={person.id} icon="account-search-outline" contentStyle={{ justifyContent: 'flex-start' }} onPress={() => { if (onSearchPerson) { changeSearchQuery(''); onSearchPerson(person.id); } else focusPerson(person, mode); }}>
                   {formatPersonName(person)}
                 </Button>
               ))}
