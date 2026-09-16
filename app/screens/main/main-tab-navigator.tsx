@@ -384,7 +384,7 @@ export function MainTabNavigator({
           }
 
           const HomeTabContent = getHomeTabContent();
-          return <CompleteFamilyData treeId={controller.sharedTabProps.selectedTree.id}><HomeTabContent {...controller.sharedTabProps} /></CompleteFamilyData>;
+          return <CompleteFamilyData treeId={controller.sharedTabProps.selectedTree.id} loadingLabel="Preparing your family home…" loadingDescription="Loading family members, relationships, memories, and recent activity."><HomeTabContent {...controller.sharedTabProps} /></CompleteFamilyData>;
         }}
       </Tab.Screen>
 

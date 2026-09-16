@@ -106,6 +106,8 @@ const LARGE_TREE_CONNECTOR_THRESHOLD = 220;
 interface FamilyTreeCanvasProps {
   compactCards?: boolean;
   searchPeople?: PersonRecord[];
+  searchLoading?: boolean;
+  totalPeopleCount?: number;
   onSearchQueryChange?: (query: string) => void;
   onSearchPerson?: (personId: string) => void;
   hiddenParents?: Map<string, string[]>;
@@ -496,6 +498,8 @@ const PersonNode = React.memo(function PersonNode(props: PersonNodeProps) {
 function FamilyTreeCanvas({
                             compactCards = false,
                             searchPeople,
+                            searchLoading = false,
+                            totalPeopleCount,
                             onSearchQueryChange,
                             onSearchPerson,
                             hiddenParents,
@@ -1205,7 +1209,7 @@ function FamilyTreeCanvas({
           /> : <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
             {!searchControls ? <Text numberOfLines={1} variant="titleSmall" style={{ color: theme.colors.primary, flexShrink: 1, paddingHorizontal: 8 }}>{activeSurnames[0] || t('Family tree')}</Text> : null}
             {searchControls}
-            <Text variant="labelSmall" accessibilityLabel={`${clusterPeople.length} ${t('people')}`} style={{ color: theme.colors.onSurfaceVariant, paddingHorizontal: 4 }}>{clusterPeople.length}</Text>
+            <Text variant="labelSmall" accessibilityLabel={`${clusterPeople.length} ${t('visible')} / ${totalPeopleCount ?? clusterPeople.length} ${t('people')}`} style={{ color: theme.colors.onSurfaceVariant, paddingHorizontal: 4 }}>{clusterPeople.length}/{totalPeopleCount ?? clusterPeople.length}</Text>
             <IconButton icon="magnify" size={23} accessibilityLabel={t('Find a family member')} onPress={() => setSearchExpanded(true)} style={{ margin: 0, width: 44, height: 44 }} />
           </View>}
           {searchExpanded && searchQuery.trim() ? (
@@ -1215,7 +1219,7 @@ function FamilyTreeCanvas({
                   {formatPersonName(person)}
                 </Button>
               ))}
-              {searchResults.length === 0 ? <Text variant="bodySmall">{t('No family members found')}</Text> : null}
+              {searchLoading ? <Text variant="bodySmall" accessibilityLiveRegion="polite">{t('Finding family members…')}</Text> : searchResults.length === 0 ? <Text variant="bodySmall">{t('No family members found')}</Text> : null}
             </View>
           ) : null}
         </View>

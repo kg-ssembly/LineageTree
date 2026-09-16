@@ -1,10 +1,11 @@
-import { expandTreeGraph, loadCompleteTreeGraph, searchTreeGraph } from '../../../../providers/tree-graph-service';
+import { connectTreeGraphSearchResult, expandTreeGraph, loadCompleteTreeGraph, searchTreeGraph } from '../../../../providers/tree-graph-service';
 import { remainingRelativeIds } from '../../../../components/hidden-relative-ids';
 import { useTreeStore } from '../../../../stores/tree-store';
+import { useIsFocused } from '@react-navigation/native';
 import React, { useEffect, useMemo, useState } from 'react';
 import { ScrollView, View } from 'react-native';
-import { ActivityIndicator, Button, IconButton, Text, useTheme } from 'react-native-paper';
-import { EmptyState, FamilyTreeCanvas, GlobalStyles, ScreenBackground, BUTTON_CHROME, BUTTON_CONTENT_CHROME } from '../../../../components';
+import { Button, IconButton, Text, useTheme } from 'react-native-paper';
+import { SharedLoader, EmptyState, FamilyTreeCanvas, GlobalStyles, ScreenBackground, BUTTON_CHROME, BUTTON_CONTENT_CHROME } from '../../../../components';
 import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
 import type { SharedTabProps } from '../shared';
@@ -29,22 +30,31 @@ export function FamilyTreeView({
   onOpenRelationshipDialog,
 }: SharedTabProps) {
   const theme = useTheme();
+  const isFocused = useIsFocused();
   const graphRelatives = useTreeStore(state => state.graphRelatives);
   const graphComplete = useTreeStore(state => state.graphComplete);
+  const graphTotalPeople = useTreeStore(state => state.graphTotalPeople);
   const [pageLoading, setPageLoading] = useState(false);
+  const [pageLoadingLabel, setPageLoadingLabel] = useState('Loading family branch…');
   const [pageError, setPageError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<typeof people>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
   useEffect(() => {
     let active = true;
     const timer = setTimeout(() => {
-      if (!searchTerm.trim()) { setSearchResults([]); return; }
-      void searchTreeGraph(selectedTree.id, searchTerm).then(results => { if (active) setSearchResults(results); }).catch(error => { if (active) setPageError(error.message); });
+      if (!searchTerm.trim()) { setSearchResults([]); setSearchLoading(false); return; }
+      void searchTreeGraph(selectedTree.id, searchTerm).then(results => {
+        if (active) { setSearchResults(results); setSearchLoading(false); }
+      }).catch(error => { if (active) { setPageError(error.message); setSearchLoading(false); } });
     }, 350);
     return () => { active = false; clearTimeout(timer); };
   }, [searchTerm, selectedTree.id]);
-  const load = async (action: () => Promise<unknown>) => {
-    setPageLoading(true); setPageError('');
+  const changeSearch = (term: string) => {
+    setSearchTerm(term); setSearchResults([]); setSearchLoading(Boolean(term.trim()));
+  };
+  const load = async (action: () => Promise<unknown>, label = 'Loading family branch…') => {
+    setPageLoadingLabel(label); setPageLoading(true); setPageError('');
     try { await action(); } catch (error) { setPageError(error instanceof Error ? error.message : 'Could not load this branch. Try again.'); }
     finally { setPageLoading(false); }
   };
@@ -86,26 +96,35 @@ export function FamilyTreeView({
   const hiddenParents = useMemo(() => new Map(visiblePeople.map(p => [p.id,
     remainingRelativeIds(hiddenParentIds(p.id, relationships, visibleIds), !graphComplete ? graphRelatives[p.id]?.parents : undefined, visibleIds)])), [visiblePeople, relationships, visibleIds, graphRelatives, graphComplete]);
   const revealParents = (personId: string) => { void load(async () => {
-    const next = [...(hiddenParents.get(personId) ?? []).filter(id => peopleById.has(id)), ...await expandTreeGraph(selectedTree.id, personId, 'parents')];
+    const hiddenIds = (hiddenParents.get(personId) ?? []).filter(id => peopleById.has(id));
+    const next = [...hiddenIds, ...(!graphComplete && hiddenIds.length < (hiddenParents.get(personId)?.length ?? 0) ? await expandTreeGraph(selectedTree.id, personId, 'parents') : [])];
     setRevealed(current => [...new Set([...current, ...next])]);
     setCollapsed(current => current.filter(id => !next.some(parentId => lineageIds(id, relationships, 'descendants').has(parentId))));
     setTraceFrom(null); setTraceTo(null);
-  }); };
+  }, 'Loading parents…'); };
   const revealChildren = (personId: string) => { void load(async () => {
     const hiddenIds = (moreChildren.get(personId) ?? []).filter(id => peopleById.has(id));
-    const next = hiddenIds.length ? hiddenIds.slice(0, 4) : await expandTreeGraph(selectedTree.id, personId, 'children');
+    const next = [...hiddenIds, ...(!graphComplete && hiddenIds.length < (moreChildren.get(personId)?.length ?? 0) ? await expandTreeGraph(selectedTree.id, personId, 'children') : [])];
     setRevealed(current => [...new Set([...current, ...next])]);
     setCollapsed(current => current.filter(id => !next.some(nextId => lineageIds(id, relationships, 'descendants').has(nextId))));
     setTraceFrom(null); setTraceTo(null);
-  }); };
+  }, 'Loading children…'); };
   const focusBranch = (personId: string) => {
-    void load(() => expandTreeGraph(selectedTree.id, personId));
+    void load(() => expandTreeGraph(selectedTree.id, personId), 'Loading family branch…');
     setRootId(personId); setScope('branch'); setRevealed([]); setCollapsed([]);
     setTraceFrom(null); setTraceTo(null);
     setFocusRequest({ personId, token: Date.now() });
   };
+  const selectSearchPerson = (personId: string) => { void load(async () => {
+    if (!visibleIds.has(personId)) await connectTreeGraphSearchResult(selectedTree.id, personId);
+    const sourceId = currentAssignedPerson?.id ?? focusRoot;
+    setSelectedId(personId);
+    setScope('full'); setRootId(sourceId); setRevealed([]); setCollapsed([]);
+    setTraceFrom(sourceId || null); setTraceTo(sourceId && sourceId !== personId ? personId : null);
+    setFocusRequest({ personId, token: Date.now() });
+  }, 'Finding the connection to this person…'); };
   const selectPerson = (person: typeof people[number]) => { void load(async () => {
-    await loadCompleteTreeGraph(selectedTree.id);
+    if (traceFrom && !traceTo) await loadCompleteTreeGraph(selectedTree.id);
     const relationships = useTreeStore.getState().relationships;
     const peopleById = new Map(useTreeStore.getState().people.map(p => [p.id, p]));
     setSelectedId(person.id);
@@ -116,7 +135,7 @@ export function FamilyTreeView({
     const sentences = !fromId ? [t('Link your profile to see your connection, or compare with someone else.')]
       : fromId === person.id ? [t(person.id === currentAssignedPerson?.id ? 'This is you.' : 'These are the same person.')]
       : connection ? connection.map(step => describeFamilyStep(step, peopleById, t)).filter(Boolean)
-      : [t('No connection is recorded between these people yet.')];
+      : [t(graphComplete ? 'No connection is recorded between these people yet.' : 'Compare these people to check their connection across the full tree.')];
     const parents = relationships.filter(r => r.type === 'parent-child' && r.toPersonId === person.id).map(r => peopleById.get(r.fromPersonId)).filter(p => !!p);
     onOpenPersonQuickActions(person, {
       relationshipSentences: sentences,
@@ -142,7 +161,7 @@ export function FamilyTreeView({
   return (
     <View style={[styles.visualisationTabContainer, { backgroundColor: theme.colors.background }]}>
       <ScreenBackground variant="soft-circles" />
-      {pageLoading ? <View style={{padding: 8, flexDirection: 'row', gap: 8}}><ActivityIndicator /><Text accessibilityLiveRegion="polite">{t('Loading family records…')}</Text></View> : null}
+      <SharedLoader visible={isFocused && (pageLoading || loadingTreeData)} label={t(pageLoading ? pageLoadingLabel : 'Loading your family branch…')} />
       {pageError ? <Text accessibilityRole="alert" style={{padding: 12, color: theme.colors.error}}>{pageError} {t('Use the same control to retry.')}</Text> : null}
       {collapsed.length > 0 || traceFrom ? <View style={{ paddingHorizontal: 12, paddingTop: 8 }}>
         {collapsed.length ? <ScrollView horizontal contentContainerStyle={{ gap: 8 }}>{collapsed.map(id => <Button key={id} compact icon="unfold-more-horizontal" onPress={() => setCollapsed(current => current.filter(item => item !== id))}>{peopleById.get(id)?.firstName}: {hiddenChildIds(id, relationships, visibleIds).length} {t('more children')}</Button>)}</ScrollView> : null}
@@ -161,8 +180,10 @@ export function FamilyTreeView({
           people={visiblePeople}
           compactCards
           searchPeople={searchTerm ? searchResults : people}
-          onSearchQueryChange={setSearchTerm}
-          onSearchPerson={focusBranch}
+          searchLoading={searchLoading}
+          totalPeopleCount={Math.max(graphTotalPeople, people.length)}
+          onSearchQueryChange={changeSearch}
+          onSearchPerson={selectSearchPerson}
           hiddenParents={hiddenParents}
           onRevealParents={revealParents}
           moreChildren={moreChildren}
@@ -190,14 +211,7 @@ export function FamilyTreeView({
           familySwitchRef={familySwitchRef}
           activeFamilyRef={activeFamilyRef}
         />
-      ) : loadingTreeData ? (
-        <View style={[styles.visualisationEmptyState, { backgroundColor: 'transparent', borderWidth: 0, borderColor: 'transparent' }]}>
-          <ActivityIndicator color={theme.colors.primary} />
-          <Text variant="bodyMedium" style={[styles.stateText, { color: theme.colors.onSurfaceVariant, marginTop: 14 }]}>
-            {t(K.tree.familyMembers.loading)}
-          </Text>
-        </View>
-      ) : (
+      ) : loadingTreeData ? null : (
         <View style={[styles.visualisationEmptyState, { backgroundColor: 'transparent', borderWidth: 0, borderColor: 'transparent' }]}>
           <EmptyState
             icon="family-tree"
