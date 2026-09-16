@@ -4,6 +4,8 @@ import { HttpsError } from 'firebase-functions/v2/https';
 import { consumeLimit } from './request-limits';
 import { mapTreeData } from '../shared/admin-family-tree-utils';
 
+const KINSHIP_SYSTEMS = new Set(['auto', 'generic', 'northern-sotho', 'nso', 'ss', 'st', 'tn', 'ts', 've', 'zu']);
+
 export async function createTreeRecord(db: Firestore, actor: string, input: { name: string; operationId: string }) {
   const name = String(input.name ?? '').trim();
   if (!name || name.length > 120 || !/^[\w-]{1,128}$/.test(input.operationId ?? '')) throw new HttpsError('invalid-argument', 'Enter a tree name of up to 120 characters.');
@@ -19,7 +21,8 @@ export async function createTreeRecord(db: Firestore, actor: string, input: { na
     const owner = { userId: actor, email: account.data()?.email ?? '', displayName: account.data()?.displayName ?? '', role: 'owner' };
     const normalized = name.toLowerCase().replace(/[^\p{L}\p{N}\s'-]+/gu, ' ').replace(/\s+/g, ' ');
     const data = { name, ownerId: actor, ownerEmail: owner.email, ownerDisplayName: owner.displayName,
-      discoverable: true, searchKeywords: [...new Set([normalized, ...normalized.split(' ')])], kinshipSystem: 'auto',
+      discoverable: true, searchKeywords: [...new Set([normalized, ...normalized.split(' ')])],
+      kinshipSystem: KINSHIP_SYSTEMS.has(String(account.data()?.preferredKinshipSystem)) ? account.data()?.preferredKinshipSystem : 'auto',
       memberIds: [actor], editorIds: [actor], collaborators: [owner], personAssignments: {}, membershipHistory: [],
       approvalWindowHours: 24, surnameVariantGroups: [], connectedTreeIds: [], createdAt: timestamp, updatedAt: timestamp };
     tx.create(ref, data); return mapTreeData(ref.id, data);

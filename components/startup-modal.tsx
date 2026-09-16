@@ -6,6 +6,7 @@ import { useI18n } from '../hooks/use-i18n';
 import { I18N_KEYS as K } from '../i18n/keys';
 import type { AppLanguage } from '../i18n';
 import type { ThemePreference } from '../constants/theme';
+import type { KinshipSystem } from './dto/tree';
 
 const dialogChrome = GlobalStyles.dialogChrome;
 
@@ -17,7 +18,8 @@ type StartupModalProps = {
   initialTheme?: ThemePreference;
   initialLanguage?: AppLanguage;
   loading?: boolean;
-  onSubmitPreferences: (preferences: { theme: ThemePreference; language: AppLanguage }) => void | Promise<void>;
+  initialKinshipSystem?: KinshipSystem;
+  onSubmitPreferences: (preferences: { theme: ThemePreference; language: AppLanguage; kinshipSystem: KinshipSystem }) => void | Promise<void>;
   onDismissUpdate: () => void | Promise<void>;
 };
 
@@ -28,6 +30,7 @@ export default function StartupModal({
   updateHighlights,
   initialTheme,
   initialLanguage,
+  initialKinshipSystem,
   loading = false,
   onSubmitPreferences,
   onDismissUpdate,
@@ -36,11 +39,13 @@ export default function StartupModal({
   const { t, languages } = useI18n();
   const [selectedTheme, setSelectedTheme] = useState<ThemePreference>(initialTheme ?? 'light');
   const [selectedLanguage, setSelectedLanguage] = useState<AppLanguage>(initialLanguage ?? 'en');
+  const [selectedKinshipSystem, setSelectedKinshipSystem] = useState<KinshipSystem>(initialKinshipSystem ?? 'auto');
 
   useEffect(() => {
     setSelectedTheme(initialTheme ?? 'light');
     setSelectedLanguage(initialLanguage ?? 'en');
-  }, [initialLanguage, initialTheme, visible]);
+    setSelectedKinshipSystem(initialKinshipSystem ?? 'auto');
+  }, [initialKinshipSystem, initialLanguage, initialTheme, visible]);
 
   const title = mode === 'language'
     ? t(K.startup.chooseThemeAndLanguage)
@@ -101,6 +106,44 @@ export default function StartupModal({
                   ))}
                 </View>
               </View>
+
+              <View style={{ gap: 10 }}>
+                <Text variant="titleSmall" style={{ color: theme.colors.onSurface }}>
+                  {t(K.startup.choosePreferredKinship)}
+                </Text>
+                <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
+                  {t(K.startup.kinshipPrompt)}
+                </Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                  <Chip
+                    selected={selectedKinshipSystem === 'auto'}
+                    onPress={() => setSelectedKinshipSystem('auto')}
+                    disabled={loading}
+                    icon={selectedKinshipSystem === 'auto' ? 'check' : 'account-switch'}
+                  >
+                    {t(K.treeSettings.kinshipTermsAuto)}
+                  </Chip>
+                  <Chip
+                    selected={selectedKinshipSystem === 'generic'}
+                    onPress={() => setSelectedKinshipSystem('generic')}
+                    disabled={loading}
+                    icon={selectedKinshipSystem === 'generic' ? 'check' : 'account-group'}
+                  >
+                    {t(K.treeSettings.kinshipTermsGeneric)}
+                  </Chip>
+                  {languages.filter(({ code }) => ['nso', 'ss', 'st', 'tn', 'ts', 've', 'zu'].includes(code)).map((option) => (
+                    <Chip
+                      key={`kinship-${option.code}`}
+                      selected={option.code === selectedKinshipSystem}
+                      onPress={() => setSelectedKinshipSystem(option.code as KinshipSystem)}
+                      disabled={loading}
+                      icon={option.code === selectedKinshipSystem ? 'check' : 'translate'}
+                    >
+                      {option.nativeName}
+                    </Chip>
+                  ))}
+                </View>
+              </View>
             </View>
           ) : (
             <ScrollView style={{ maxHeight: 220 }} contentContainerStyle={{ gap: 10 }}>
@@ -117,7 +160,7 @@ export default function StartupModal({
         </Dialog.Content>
         <Dialog.Actions style={[dialogChrome.dialogActions, { borderTopColor: theme.colors.outlineVariant }]}>
           {mode === 'language' ? (
-            <Button mode="contained" onPress={() => void onSubmitPreferences({ theme: selectedTheme, language: selectedLanguage })} disabled={loading || !canContinue}>
+            <Button mode="contained" onPress={() => void onSubmitPreferences({ theme: selectedTheme, language: selectedLanguage, kinshipSystem: selectedKinshipSystem })} disabled={loading || !canContinue}>
               {t(K.startup.continue)}
             </Button>
           ) : (

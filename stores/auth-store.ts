@@ -23,7 +23,7 @@ import {
 import { auth, db } from '../providers/firebase-provider';
 import { sendPasswordResetEmailNotification, sendWelcomeEmailNotification } from '../providers/email-service';
 import type { UserProfile } from '../components/dto/user';
-import type { TreeRole } from '../components/dto/tree';
+import type { KinshipSystem, TreeRole } from '../components/dto/tree';
 import type { AppLanguage } from '../i18n';
 import { CURRENT_APP_VERSION } from '../constants/app-metadata';
 
@@ -42,6 +42,7 @@ export interface AuthState {
   setDefaultTreeId: (treeId: string | null) => Promise<void>;
   updateDisplayName: (displayName: string) => Promise<void>;
   updatePreferredLanguage: (language: AppLanguage) => Promise<void>;
+  updatePreferredKinshipSystem: (kinshipSystem: KinshipSystem) => Promise<void>;
   markAppVersionSeen: (version: string) => Promise<void>;
   markDiscoverabilityPromptSeen: () => Promise<void>;
   clearError: () => void;
@@ -105,6 +106,12 @@ function isAppLanguage(value: unknown): value is AppLanguage {
     || value === 'fr'
     || value === 'de'
     || value === 'pt';
+}
+
+function isKinshipSystem(value: unknown): value is KinshipSystem {
+  return value === 'auto' || value === 'generic' || value === 'northern-sotho'
+    || value === 'nso' || value === 'ss' || value === 'st' || value === 'tn'
+    || value === 'ts' || value === 've' || value === 'zu';
 }
 
 function buildUserProfileDocument(user: Pick<FirebaseUser, 'uid' | 'email' | 'displayName'>, createdAt?: string) {
@@ -172,6 +179,7 @@ async function ensureUserProfileDocument(fbUser: Pick<FirebaseUser, 'uid' | 'ema
     username,
     defaultTreeId: typeof data.defaultTreeId === 'string' && data.defaultTreeId.trim() ? data.defaultTreeId.trim() : undefined,
     preferredLanguage: isAppLanguage(data.preferredLanguage) ? data.preferredLanguage : undefined,
+    preferredKinshipSystem: isKinshipSystem(data.preferredKinshipSystem) ? data.preferredKinshipSystem : undefined,
     lastSeenAppVersion: typeof data.lastSeenAppVersion === 'string' && data.lastSeenAppVersion.trim()
       ? data.lastSeenAppVersion.trim()
       : undefined,
@@ -213,6 +221,7 @@ async function fetchUserProfile(uid: string, fallbackUser?: FirebaseUser | null)
     username: data.username ?? deriveUsername(email),
     defaultTreeId: typeof data.defaultTreeId === 'string' && data.defaultTreeId.trim() ? data.defaultTreeId.trim() : undefined,
     preferredLanguage: isAppLanguage(data.preferredLanguage) ? data.preferredLanguage : undefined,
+    preferredKinshipSystem: isKinshipSystem(data.preferredKinshipSystem) ? data.preferredKinshipSystem : undefined,
     lastSeenAppVersion: typeof data.lastSeenAppVersion === 'string' && data.lastSeenAppVersion.trim()
       ? data.lastSeenAppVersion.trim()
       : undefined,
@@ -430,6 +439,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     set((state) => ({
       user: state.user ? { ...state.user, preferredLanguage: language } : null,
+    }));
+  },
+
+  updatePreferredKinshipSystem: async (kinshipSystem) => {
+    const { user } = get();
+    if (!user) {
+      return;
+    }
+
+    await setDoc(doc(db, 'users', user.id), { preferredKinshipSystem: kinshipSystem }, { merge: true });
+    set((state) => ({
+      user: state.user ? { ...state.user, preferredKinshipSystem: kinshipSystem } : null,
     }));
   },
 

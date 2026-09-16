@@ -18,6 +18,7 @@ import {
   treeNeedsDiscoverabilityChoice,
   type CollaboratorRole,
   type FamilyTree,
+  type KinshipSystem,
 } from '../../../components/dto/tree';
 import { useI18n } from '../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../i18n/keys';
@@ -135,6 +136,7 @@ export function useMainScreenController({ navigation }: Props) {
     loading: authLoading,
     setDefaultTreeId,
     updatePreferredLanguage,
+    updatePreferredKinshipSystem,
     markAppVersionSeen,
     markDiscoverabilityPromptSeen,
   } = useAuthStore();
@@ -429,16 +431,17 @@ export function useMainScreenController({ navigation }: Props) {
     || shouldShowUpdateModal
     || shouldShowDiscoverabilityPrompt;
 
-  const handleStartupPreferencesSubmit = useCallback(async (preferences: { theme: ThemePreference; language: AppLanguage }) => {
+  const handleStartupPreferencesSubmit = useCallback(async (preferences: { theme: ThemePreference; language: AppLanguage; kinshipSystem: KinshipSystem }) => {
     setStartupModalSubmitting(true);
     try {
       await setThemePreference(preferences.theme);
       await setLanguage(preferences.language);
       await updatePreferredLanguage(preferences.language);
+      await updatePreferredKinshipSystem(preferences.kinshipSystem);
     } finally {
       setStartupModalSubmitting(false);
     }
-  }, [setLanguage, setThemePreference, updatePreferredLanguage]);
+  }, [setLanguage, setThemePreference, updatePreferredKinshipSystem, updatePreferredLanguage]);
 
   const handleUpdateModalDismiss = useCallback(async () => {
     setStartupModalSubmitting(true);
@@ -1754,6 +1757,7 @@ export function useMainScreenController({ navigation }: Props) {
       currentVersion: currentReleaseNote.version,
       initialTheme: themePreference,
       initialLanguage: user?.preferredLanguage ?? language,
+      initialKinshipSystem: user?.preferredKinshipSystem,
       loading: startupModalSubmitting,
       mode: (shouldShowLanguageModal ? 'language' : 'update') as 'language' | 'update',
       updateHighlights: currentReleaseNote.highlights,

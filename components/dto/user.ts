@@ -1,4 +1,5 @@
 import type { AppLanguage } from '../../i18n';
+import type { KinshipSystem } from './tree';
 
 export interface UserProfile {
   id: string;
@@ -9,6 +10,7 @@ export interface UserProfile {
   username?: string;
   defaultTreeId?: string;
   preferredLanguage?: AppLanguage;
+  preferredKinshipSystem?: KinshipSystem;
   lastSeenAppVersion?: string;
   discoverabilityPromptSeenAt?: string;
   createdAt: string;
