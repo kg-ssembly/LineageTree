@@ -15,6 +15,8 @@ class GraphSession {
   relationships = new Map<string, RelationshipRecord>();
   more: Record<string, string | null> = {};
   relatives: NonNullable<Page['relatives']> = {};
+  private fullLoad: Promise<void> | null = null;
+  private collecting = false;
   stopped = false;
   complete = false;
   private stops: Array<() => void> = [];
@@ -23,7 +25,7 @@ class GraphSession {
   private pending = new Map<string, Promise<string[]>>();
   constructor(readonly treeId: string, readonly actor: string, readonly emit: (page: Page, complete: boolean) => void, readonly fail: (error: Error) => void) {}
   valid() { return !this.stopped && auth.currentUser?.uid === this.actor; }
-  publish() { if (this.valid()) this.emit({ people: [...this.people.values()], relationships: [...this.relationships.values()], more: { ...this.more }, relatives: { ...this.relatives }, cursor: null }, this.complete); }
+  publish() { if (this.valid() && !this.collecting) this.emit({ people: [...this.people.values()], relationships: [...this.relationships.values()], more: { ...this.more }, relatives: { ...this.relatives }, cursor: null }, this.complete); }
   merge(page: Page) {
     if (!this.valid()) return;
     Object.assign(this.relatives, page.relatives);
@@ -49,16 +51,21 @@ class GraphSession {
     const key = `${personId ?? ''}:${direction ?? 'initial'}`;
     if (this.pending.has(key)) return this.pending.get(key)!;
     const run = (async () => {
-      const cursor = direction && personId ? this.more[`${personId}:${direction}`] : undefined;
-      if (direction && cursor === null) return [];
-      const page = await read({ treeId: this.treeId, ...(personId ? { personId } : {}), ...(direction ? { direction } : {}), ...(cursor ? { cursor } : {}) });
+      const page = await read({ treeId: this.treeId, ...(personId ? { personId } : {}), ...(direction ? { direction } : {}) });
+      console.info("tree-refresh-debug", JSON.stringify({ people: page.people.length, relationships: page.relationships.length, relativeEntries: Object.keys(page.relatives ?? {}).length, direction: direction ?? "initial" }));
       this.merge(page); return page.people.map(p => p.id);
     })();
     this.pending.set(key, run);
     try { return await run; } finally { this.pending.delete(key); }
   }
-  async all() {
-    if (this.complete) return;
+  all() {
+    if (this.complete) return Promise.resolve();
+    if (!this.fullLoad) this.fullLoad = this.collectAll().finally(() => { this.fullLoad = null; });
+    return this.fullLoad;
+  }
+  private async collectAll() {
+    this.collecting = true;
+    try {
     for (const mode of ['page', 'edges'] as const) {
     let cursor: string | null = null;
     do {
@@ -68,7 +75,8 @@ class GraphSession {
       cursor = page.cursor;
     } while (cursor && this.valid());
     }
-    this.complete = true; this.publish();
+    this.complete = true;
+    } finally { this.collecting = false; this.publish(); }
   }
   stop() { this.stopped = true; this.stops.forEach(stop => stop()); }
 }
@@ -78,11 +86,7 @@ export function subscribeToTreeGraph(treeId: string, emit: (page: Page, complete
   const current = new GraphSession(treeId, auth.currentUser?.uid ?? '', emit, fail); session = current;
   // Membership revocation clears already displayed data, not only future requests.
   const stopAccess = onSnapshot(doc(db, 'trees', treeId), () => {}, error => { current.stop(); emit({ people: [], relationships: [], more: {}, cursor: null }, false); fail(error); });
-  void (async () => {
-    const ids = await current.expand();
-    // Second bounded generation; never enumerate the full tree at startup.
-    for (const id of ids.slice(1, 9)) { if (!current.valid()) return; await current.expand(id); }
-  })().catch(fail);
+  void current.expand().catch(fail);
   return () => { stopAccess(); current.stop(); if (session === current) session = null; };
 }
 export function expandTreeGraph(treeId: string, personId: string, direction?: Input['direction']) {

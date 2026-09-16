@@ -32,41 +32,57 @@ export async function readTreeGraph(db: Firestore, actor: string, input: { treeI
   if (!personId) return { people: [], relationships: [], cursor: null, more: {} };
   const root = await db.collection('persons').doc(personId).get();
   if (!root.exists || root.data()?.treeId !== tree.id) throw new HttpsError('not-found', 'This person is unavailable in this tree.');
-  const directions = input.direction ? [input.direction] : ['parents', 'children', 'spouses'] as const;
-  const edges: FirebaseFirestore.QueryDocumentSnapshot[] = [];
-  const more: Record<string, string | null> = {};
-  for (const direction of directions) {
-    if (!['parents', 'children', 'spouses'].includes(direction)) throw new HttpsError('invalid-argument', 'Invalid expansion.');
-    const base = db.collection('relationships').where('treeId', '==', tree.id);
-    const queries = direction === 'spouses'
-      ? [base.where('type', '==', 'spouse').where('fromPersonId', '==', personId), base.where('type', '==', 'spouse').where('toPersonId', '==', personId)]
-      : [base.where('type', '==', 'parent-child').where(direction === 'children' ? 'fromPersonId' : 'toPersonId', '==', personId)];
-    const combined: FirebaseFirestore.QueryDocumentSnapshot[] = [];
-    for (const baseQuery of queries) {
-      let query = baseQuery.orderBy(FieldPath.documentId()).limit(5);
-      if (input.cursor) query = query.startAfter(input.cursor);
-      combined.push(...(await query.get()).docs);
-    }
-    const sorted = combined.sort((a, b) => a.id.localeCompare(b.id));
-    const page = sorted.slice(0, 4);
-    edges.push(...page);
-    more[`${personId}:${direction}`] = sorted.length > 4 ? page.at(-1)!.id : null;
-  }
-  const ids = [...new Set([personId, ...edges.flatMap(d => [d.data().fromPersonId, d.data().toPersonId])])];
-  const records = await db.getAll(...ids.map(id => db.collection('persons').doc(id)));
-  const people = records.filter(p => p.exists && p.data()?.treeId === tree.id).map(p => mapPersonData(p.id, p.data()!));
-  const visible = new Set(people.map(p => p.id));
+  const edges = new Map<string, ReturnType<typeof mapRelationshipData>>();
+  const cache = new Map<string, Promise<string[]>>();
   const relatives: Record<string, { parents: string[]; children: string[] }> = {};
+  const neighbours = (id: string, direction: 'parents' | 'children' | 'spouses') => {
+    const key = id + ':' + direction;
+    if (!cache.has(key)) cache.set(key, (async () => {
+      const base = db.collection('relationships').where('treeId', '==', tree.id);
+      const queries = direction === 'spouses'
+        ? [base.where('type', '==', 'spouse').where('fromPersonId', '==', id), base.where('type', '==', 'spouse').where('toPersonId', '==', id)]
+        : [base.where('type', '==', 'parent-child').where(direction === 'children' ? 'fromPersonId' : 'toPersonId', '==', id)];
+      const snapshots = await Promise.all(queries.map(q => q.get()));
+      const ids = new Set<string>();
+      snapshots.forEach(snapshot => snapshot.docs.forEach(doc => {
+        const edge = mapRelationshipData(doc.id, doc.data());
+        edges.set(edge.id, edge);
+        ids.add(edge.fromPersonId === id ? edge.toPersonId : edge.fromPersonId);
+      }));
+      return [...ids].sort();
+    })());
+    return cache.get(key)!;
+  };
+  const ids = new Set<string>([personId]);
+  if (input.direction) {
+    if (!['parents', 'children', 'spouses'].includes(input.direction)) throw new HttpsError('invalid-argument', 'Invalid expansion.');
+    (await neighbours(personId, input.direction)).forEach(id => ids.add(id));
+  } else {
+    // Fetch the complete starting filter before publishing any cards. Two
+    // generations in each direction, with the existing four-child branch cap.
+    await Promise.all((['parents', 'children'] as const).map(async direction => {
+      let frontier = [personId!];
+      for (let depth = 0; depth < 2; depth++) {
+        const groups = await Promise.all(frontier.map(id => neighbours(id, direction)));
+        frontier = [...new Set(groups.flatMap(group => direction === 'children' ? group.slice(0, 4) : group))];
+        frontier.forEach(id => ids.add(id));
+      }
+    }));
+    const parents = await neighbours(personId, 'parents');
+    (await Promise.all(parents.map(id => neighbours(id, 'children')))).flat().forEach(id => ids.add(id));
+    // Include partners of the starting family, without following their ancestry.
+    (await Promise.all([...ids].map(id => neighbours(id, 'spouses')))).flat().forEach(id => ids.add(id));
+  }
+  const records: FirebaseFirestore.DocumentSnapshot[] = [];
+  const orderedIds = [...ids];
+  for (let offset = 0; offset < orderedIds.length; offset += 100) {
+    records.push(...await db.getAll(...orderedIds.slice(offset, offset + 100).map(id => db.collection('persons').doc(id))));
+  }
+  const people = records.filter(p => p.exists && p.data()?.treeId === tree.id).map(p => mapPersonData(p.id, p.data()!));
   await Promise.all(people.map(async person => {
-    const base = db.collection('relationships').where('treeId', '==', tree.id).where('type', '==', 'parent-child');
-    const [parents, children] = await Promise.all([
-      base.where('toPersonId', '==', person.id).select('fromPersonId').get(),
-      base.where('fromPersonId', '==', person.id).select('toPersonId').get(),
-    ]);
-    relatives[person.id] = {
-      parents: [...new Set(parents.docs.map(d => d.data().fromPersonId as string))],
-      children: [...new Set(children.docs.map(d => d.data().toPersonId as string))],
-    };
+    const [parents, children] = await Promise.all([neighbours(person.id, 'parents'), neighbours(person.id, 'children')]);
+    relatives[person.id] = { parents, children };
   }));
-  return { people, relationships: edges.map(d => mapRelationshipData(d.id, d.data())).filter(r => visible.has(r.fromPersonId) && visible.has(r.toPersonId)), more, relatives, cursor: null };
+  const visible = new Set(people.map(p => p.id));
+  return { people, relationships: [...edges.values()].filter(r => visible.has(r.fromPersonId) && visible.has(r.toPersonId)), more: {}, relatives, cursor: null };
 }

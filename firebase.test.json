@@ -3,6 +3,7 @@
   "firestore": { "rules": "firestore.rules", "indexes": "firestore.indexes.json" },
   "storage": { "rules": "storage.rules" },
   "emulators": {
+    "functions": { "port": 5009 },
     "auth": { "port": 9098 },
     "firestore": { "port": 8089 },
     "storage": { "port": 9198 },

@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { View } from 'react-native';
-import { ActivityIndicator, Button, Text } from 'react-native-paper';
+import { Button, Text } from 'react-native-paper';
 import { useIsFocused } from '@react-navigation/native';
 import { useTreeStore } from '../stores/tree-store';
 import { loadCompleteTreeGraph } from '../providers/tree-graph-service';
+import SharedLoader from './shared-loader';
 import { useI18n } from '../hooks/use-i18n';
 
 /** Directory/statistical screens must not mistake the loaded branch for the entire family. */
@@ -22,6 +23,6 @@ export function CompleteFamilyData({ treeId, children }: { treeId: string; child
   }, [focused, ready, complete, treeId, attempt]);
   if (complete) return <>{children}</>;
   return <View style={{ padding: 24, gap: 12 }}>
-    {error ? <><Text accessibilityRole="alert">{error}</Text><Button onPress={() => setAttempt(n => n + 1)}>{t('Retry')}</Button></> : <><ActivityIndicator /><Text>{t('Loading family records…')}</Text></>}
+    {error ? <><Text accessibilityRole="alert">{error}</Text><Button onPress={() => setAttempt(n => n + 1)}>{t('Retry')}</Button></> : <SharedLoader visible={focused} />}
   </View>;
 }
