@@ -374,19 +374,15 @@ export function AuthFormView({
               {inlineNoticeMessage ?? ' '}
             </HelperText>
 
-            {accountLinkingLabel && onAccountLinkingHelp ? <Button mode="text" icon="link-variant" disabled={submitLoading} onPress={onAccountLinkingHelp}>
-              {accountLinkingLabel}
-            </Button> : null}
-
-            {activeAuthMethod && backActionLabel && onBackAction ? (
-              <Button mode="text" icon="arrow-left" onPress={onBackAction} style={styles.linkButton}>
-                {backActionLabel}
-              </Button>
-            ) : null}
-
             {(!hasAlternativeSignIn || activeAuthMethod === 'password') ? <Button mode="text" onPress={onSecondaryAction} style={styles.linkButton}>
               {secondaryActionLabel}
             </Button> : null}
+
+            {activeAuthMethod && backActionLabel && onBackAction ? (
+                <Button mode="text" icon="arrow-left" onPress={onBackAction} style={styles.linkButton}>
+                  {backActionLabel}
+                </Button>
+            ) : null}
           </SectionCard>
         </Reveal>
       </ScrollView>
