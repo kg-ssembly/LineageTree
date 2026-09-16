@@ -3,6 +3,10 @@ import { create } from 'zustand';
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  signInWithEmailLink,
+  signInWithPopup,
+  isSignInWithEmailLink,
+  GoogleAuthProvider,
   signOut as firebaseSignOut,
   onAuthStateChanged,
   updateProfile,
@@ -21,7 +25,7 @@ import {
   where,
 } from 'firebase/firestore';
 import { auth, db } from '../providers/firebase-provider';
-import { sendPasswordResetEmailNotification, sendWelcomeEmailNotification } from '../providers/email-service';
+import { sendMagicLinkEmailNotification, sendPasswordResetEmailNotification, sendWelcomeEmailNotification } from '../providers/email-service';
 import type { UserProfile } from '../components/dto/user';
 import type { KinshipSystem, TreeRole } from '../components/dto/tree';
 import type { AppLanguage } from '../i18n';
@@ -36,6 +40,9 @@ export interface AuthState {
   error: string | null;
 
   signIn: (email: string, password: string) => Promise<void>;
+  sendMagicLink: (email: string) => Promise<void>;
+  completeMagicLink: (email: string, link?: string) => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
   signUp: (email: string, password: string, displayName: string) => Promise<void>;
   requestPasswordReset: (email: string) => Promise<{ emailRegistered: boolean }>;
   signOut: () => Promise<void>;
@@ -68,6 +75,24 @@ function humaniseError(code: string): string {
       return 'Too many attempts. Please try again later.';
     case 'auth/network-request-failed':
       return 'Network error. Check your connection and try again.';
+    case 'auth/argument-error':
+      return 'The Google sign-in configuration is invalid. Refresh the page and try again.';
+    case 'auth/popup-closed-by-user':
+      return 'Google sign-in was cancelled.';
+    case 'auth/popup-blocked':
+      return 'Your browser blocked the Google sign-in window. Please allow pop-ups and try again.';
+    case 'auth/cancelled-popup-request':
+      return 'Another Google sign-in window is already open.';
+    case 'auth/operation-not-allowed':
+      return 'This sign-in method is not enabled in Firebase yet.';
+    case 'auth/unauthorized-domain':
+      return 'This website is not authorized for sign-in. Add its domain in Firebase Authentication settings.';
+    case 'auth/invalid-continue-uri':
+    case 'auth/missing-continue-uri':
+      return 'The sign-in link destination is not configured correctly.';
+    case 'auth/invalid-action-code':
+    case 'auth/expired-action-code':
+      return 'That sign-in link is invalid or has expired. Request a new one.';
     default:
       return 'Something went wrong. Please try again.';
   }
@@ -281,7 +306,30 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   clearError: () => set({ error: null }),
 
   init: () => {
+    const startupEmailLink = typeof window !== 'undefined'
+      && isSignInWithEmailLink(auth, window.location.href)
+      ? window.location.href
+      : null;
+    const startupEmail = typeof window !== 'undefined'
+      ? window.localStorage.getItem('lineagetree.emailForSignIn')
+      : null;
+    let startupMagicLinkPending = Boolean(startupEmailLink && startupEmail);
+
+    if (
+      typeof window !== 'undefined'
+      && startupEmailLink
+      && startupEmail
+    ) {
+      void get().completeMagicLink(startupEmail, startupEmailLink)
+        .catch(() => {})
+        .finally(() => {
+          startupMagicLinkPending = false;
+          if (!get().firebaseUser) set({ loading: false });
+        });
+    }
+
     return onAuthStateChanged(auth, async (fbUser) => {
+      if (startupMagicLinkPending) return;
       try {
         if (fbUser) {
           const profile = await fetchUserProfile(fbUser.uid, fbUser);
@@ -440,6 +488,54 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set((state) => ({
       user: state.user ? { ...state.user, preferredLanguage: language } : null,
     }));
+  },
+
+  sendMagicLink: async (email) => {
+    set({ loading: true, error: null });
+    try {
+      if (typeof window === 'undefined') throw new Error('Magic links are available on web only.');
+      const normalizedEmail = normaliseEmail(email);
+      await sendMagicLinkEmailNotification(normalizedEmail);
+      window.localStorage.setItem('lineagetree.emailForSignIn', normalizedEmail);
+      set({ loading: false });
+    } catch (err: any) {
+      console.error('Magic-link email failed', err?.code, err?.message);
+      set({ loading: false, error: humaniseError(err.code ?? '') });
+      throw err;
+    }
+  },
+
+  completeMagicLink: async (email, link) => {
+    set({ loading: true, error: null });
+    try {
+      if (typeof window === 'undefined') throw new Error('Magic links are available on web only.');
+      const emailLink = link ?? window.location.href;
+      if (!isSignInWithEmailLink(auth, emailLink)) throw new Error('That is not a valid sign-in link.');
+      const { user: fbUser } = await signInWithEmailLink(auth, normaliseEmail(email), emailLink);
+      window.localStorage.removeItem('lineagetree.emailForSignIn');
+      const profile = await fetchUserProfile(fbUser.uid, fbUser);
+      window.history.replaceState({}, document.title, `${window.location.origin}/`);
+      set({ firebaseUser: fbUser, user: profile, loading: false });
+    } catch (err: any) {
+      console.error('Magic-link completion failed', err?.code, err?.message);
+      set({ loading: false, error: humaniseError(err.code ?? '') });
+      throw err;
+    }
+  },
+
+  signInWithGoogle: async () => {
+    set({ loading: true, error: null });
+    try {
+      if (typeof window === 'undefined') throw new Error('Google sign-in is available on web only.');
+      const provider = new GoogleAuthProvider();
+      const { user: fbUser } = await signInWithPopup(auth, provider);
+      const profile = await fetchUserProfile(fbUser.uid, fbUser);
+      set({ firebaseUser: fbUser, user: profile, loading: false });
+    } catch (err: any) {
+      console.error('Google sign-in failed', err?.code, err?.message);
+      set({ loading: false, error: humaniseError(err.code ?? '') });
+      throw err;
+    }
   },
 
   updatePreferredKinshipSystem: async (kinshipSystem) => {

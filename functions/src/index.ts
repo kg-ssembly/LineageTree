@@ -19,6 +19,7 @@ import {
   buildInviteEmailTemplate,
   buildNotificationEmailTemplate,
   buildPasswordResetEmailTemplate,
+  buildMagicLinkEmailTemplate,
   buildAccountCreatedEmailTemplate,
 } from '../../constants/email-templates';
 import { ApprovalDecisionFunction } from './services/approval-decision-function';
@@ -358,6 +359,42 @@ export const sendPasswordResetEmail = onCall(
 
       throw error;
     }
+  },
+);
+
+export const sendMagicLinkEmail = onCall(
+  {
+    region: 'us-central1',
+    secrets: [SENDGRID_API_KEY],
+  },
+  async (request) => {
+    const email = typeof request.data?.email === 'string' ? request.data.email.trim().toLowerCase() : '';
+    if (!email || !email.includes('@')) {
+      throw new HttpsError('invalid-argument', 'A valid email address is required.');
+    }
+
+    await consumeLimit(db, 'magic-link-address', email, 3, 3_600_000);
+    await consumeLimit(db, 'magic-link-origin', request.rawRequest.ip ?? 'unknown', 10, 3_600_000);
+
+    const signInUrl = await adminAuth.generateSignInWithEmailLink(email, {
+      url: `${normalizeBaseUrl()}/login`,
+      handleCodeInApp: true,
+    });
+    const template = buildMagicLinkEmailTemplate({
+      ...buildBranding(),
+      signInUrl,
+      expiresIn: '1 hour',
+    });
+
+    await sendTransactionalEmail({
+      to: email,
+      subject: template.subject,
+      html: template.html,
+      text: template.text,
+      category: 'magic-link',
+    });
+
+    return { ok: true };
   },
 );
 

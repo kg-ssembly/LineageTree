@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.lineageTreeEmailTemplates = void 0;
 exports.buildInviteEmailTemplate = buildInviteEmailTemplate;
 exports.buildPasswordResetEmailTemplate = buildPasswordResetEmailTemplate;
+exports.buildMagicLinkEmailTemplate = buildMagicLinkEmailTemplate;
 exports.buildAccountCreatedEmailTemplate = buildAccountCreatedEmailTemplate;
 exports.buildNotificationEmailTemplate = buildNotificationEmailTemplate;
 const defaultBrand = {
@@ -194,6 +195,35 @@ function buildPasswordResetEmailTemplate(data) {
     ].filter(Boolean).join('\n');
     return { subject, preheader, html, text };
 }
+function buildMagicLinkEmailTemplate(data) {
+    const brand = mergeBrand(data);
+    const recipientLabel = data.recipientName?.trim() || 'there';
+    const subject = `Your secure ${brand.appName} sign-in link`;
+    const preheader = `Use this secure link to sign in to ${brand.appName} without a password.`;
+    const html = buildEmailLayout({
+        brand,
+        eyebrow: 'Secure Sign In',
+        title: 'Sign in to your family workspace',
+        intro: `Hello ${recipientLabel}, use the button below to securely sign in to ${brand.appName}.`,
+        bodyHtml: `
+      <p style="margin:0 0 16px;">This one-time link lets you continue without entering a password. If you did not request it, you can safely ignore this email.</p>
+      ${data.expiresIn ? `<p style="margin:0;">For your security, this link expires in <strong>${escapeHtml(data.expiresIn)}</strong>.</p>` : ''}
+    `,
+        actionHtml: buildButton('Sign in securely', data.signInUrl, brand.primaryColor),
+        footerNote: `If the button does not work, copy and paste the link into your browser. Need help? Contact ${brand.supportEmail}.`,
+        preheader,
+    });
+    const text = [
+        `Hello ${recipientLabel},`,
+        '',
+        `Use this secure link to sign in to ${brand.appName} without a password:`,
+        data.signInUrl,
+        data.expiresIn ? `This link expires in ${data.expiresIn}.` : '',
+        '',
+        'If you did not request this, you can safely ignore this email.',
+    ].filter(Boolean).join('\n');
+    return { subject, preheader, html, text };
+}
 function buildAccountCreatedEmailTemplate(data) {
     const brand = mergeBrand(data);
     const recipientLabel = data.recipientName?.trim() || 'there';
@@ -266,6 +296,7 @@ function buildNotificationEmailTemplate(data) {
 exports.lineageTreeEmailTemplates = {
     invite: buildInviteEmailTemplate,
     passwordReset: buildPasswordResetEmailTemplate,
+    magicLink: buildMagicLinkEmailTemplate,
     accountCreated: buildAccountCreatedEmailTemplate,
     notification: buildNotificationEmailTemplate,
 };

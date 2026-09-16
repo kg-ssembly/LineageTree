@@ -1,15 +1,16 @@
-import { connectAuthEmulator } from '@firebase/auth';
+import { connectAuthEmulator } from 'firebase/auth';
 import { connectFirestoreEmulator } from 'firebase/firestore';
 import { connectStorageEmulator } from 'firebase/storage';
 import { connectFunctionsEmulator } from 'firebase/functions';
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import {
   browserLocalPersistence,
+  browserPopupRedirectResolver,
   getAuth,
   initializeAuth,
   type Persistence,
-} from '@firebase/auth';
-import * as FirebaseAuth from '@firebase/auth';
+} from 'firebase/auth';
+import * as FirebaseAuth from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getFunctions } from 'firebase/functions';
 import { getStorage } from 'firebase/storage';
@@ -55,6 +56,7 @@ try {
       persistence: Platform.OS === 'web'
         ? browserLocalPersistence
         : getReactNativePersistence(AsyncStorage),
+      ...(Platform.OS === 'web' ? { popupRedirectResolver: browserPopupRedirectResolver } : {}),
     });
   } else {
     auth = getAuth(app);

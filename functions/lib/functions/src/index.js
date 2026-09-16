@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.expireApprovalRequests = exports.respondToTreeAccessServer = exports.requestTreeAccessServer = exports.archivePersonServer = exports.restorePersonServer = exports.deleteTreeServer = exports.processExpiredApprovalRequestsServer = exports.decideApprovalRequestServer = exports.reviewMergeRequestServer = exports.createMergeRequestServer = exports.sendNotificationEmailOnCreate = exports.sendPasswordResetEmail = exports.sendTreeInviteEmail = exports.sendWelcomeEmail = exports.lookupAccountServer = exports.searchTreeDirectoryServer = exports.submitFamilyChangeServer = exports.unlinkProfilesServer = exports.proposeLinkedProfileUpdates = exports.manageCollaboratorServer = exports.readTreeGraphServer = exports.createSurnameTreeServer = exports.createTreeServer = void 0;
+exports.expireApprovalRequests = exports.respondToTreeAccessServer = exports.requestTreeAccessServer = exports.archivePersonServer = exports.restorePersonServer = exports.deleteTreeServer = exports.processExpiredApprovalRequestsServer = exports.decideApprovalRequestServer = exports.reviewMergeRequestServer = exports.createMergeRequestServer = exports.sendNotificationEmailOnCreate = exports.sendMagicLinkEmail = exports.sendPasswordResetEmail = exports.sendTreeInviteEmail = exports.sendWelcomeEmail = exports.lookupAccountServer = exports.searchTreeDirectoryServer = exports.submitFamilyChangeServer = exports.unlinkProfilesServer = exports.proposeLinkedProfileUpdates = exports.manageCollaboratorServer = exports.readTreeGraphServer = exports.createSurnameTreeServer = exports.createTreeServer = void 0;
 const scheduler_1 = require("firebase-functions/v2/scheduler");
 const tree_directory_function_1 = require("./services/tree-directory-function");
 const request_limits_1 = require("./services/request-limits");
@@ -280,6 +280,34 @@ exports.sendPasswordResetEmail = (0, https_1.onCall)({
         }
         throw error;
     }
+});
+exports.sendMagicLinkEmail = (0, https_1.onCall)({
+    region: 'us-central1',
+    secrets: [SENDGRID_API_KEY],
+}, async (request) => {
+    const email = typeof request.data?.email === 'string' ? request.data.email.trim().toLowerCase() : '';
+    if (!email || !email.includes('@')) {
+        throw new https_1.HttpsError('invalid-argument', 'A valid email address is required.');
+    }
+    await (0, request_limits_1.consumeLimit)(db, 'magic-link-address', email, 3, 3_600_000);
+    await (0, request_limits_1.consumeLimit)(db, 'magic-link-origin', request.rawRequest.ip ?? 'unknown', 10, 3_600_000);
+    const signInUrl = await adminAuth.generateSignInWithEmailLink(email, {
+        url: `${normalizeBaseUrl()}/login`,
+        handleCodeInApp: true,
+    });
+    const template = (0, email_templates_1.buildMagicLinkEmailTemplate)({
+        ...buildBranding(),
+        signInUrl,
+        expiresIn: '1 hour',
+    });
+    await sendTransactionalEmail({
+        to: email,
+        subject: template.subject,
+        html: template.html,
+        text: template.text,
+        category: 'magic-link',
+    });
+    return { ok: true };
 });
 exports.sendNotificationEmailOnCreate = (0, firestore_2.onDocumentCreated)({
     document: 'notifications/{notificationId}',

@@ -15,6 +15,10 @@ type SendPasswordResetEmailResult = {
   emailRegistered: boolean;
 };
 
+type SendMagicLinkEmailPayload = {
+  email: string;
+};
+
 function callFunction<TPayload extends object, TResult extends object = { ok: boolean }>(name: string) {
   return httpsCallable<TPayload, TResult>(functionsApi, name);
 }
@@ -36,4 +40,8 @@ export async function sendPasswordResetEmailNotification(email: string) {
   });
 
   return result.data;
+}
+
+export async function sendMagicLinkEmailNotification(email: string) {
+  await callFunction<SendMagicLinkEmailPayload>('sendMagicLinkEmail')({ email });
 }

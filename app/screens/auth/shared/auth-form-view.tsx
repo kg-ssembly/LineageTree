@@ -1,5 +1,6 @@
 import React from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 import {
   ActivityIndicator,
   Button,
@@ -40,9 +41,25 @@ const styles = StyleSheet.create({
   subtitle: { marginBottom: 20 },
   input: { marginTop: 8 },
   button: { marginTop: 24, ...BUTTON_CHROME },
+  googleButton: { backgroundColor: '#FFFFFF' },
   buttonContent: BUTTON_CONTENT_CHROME,
   linkButton: { marginTop: 12, alignSelf: 'center' },
+  dividerRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 24 },
+  divider: { flex: 1, height: 1 },
+  passwordSectionLabel: { marginTop: 20, marginBottom: 4, fontWeight: '700' },
+  passwordRevealButton: { marginTop: 12, alignSelf: 'flex-start' },
 });
+
+function GoogleMark() {
+  return (
+    <Svg width={18} height={18} viewBox="0 0 24 24" accessibilityLabel="Google">
+      <Path fill="#4285F4" d="M21.35 12.27c0-.79-.07-1.55-.2-2.27H12v4.3h5.24a4.48 4.48 0 0 1-1.94 2.94v2.45h3.14c1.84-1.69 2.91-4.18 2.91-7.42Z" />
+      <Path fill="#34A853" d="M12 21.96c2.59 0 4.76-.86 6.35-2.33l-3.14-2.45c-.87.58-1.98.92-3.21.92-2.47 0-4.56-1.67-5.31-3.91H3.44v2.53A9.6 9.6 0 0 0 12 21.96Z" />
+      <Path fill="#FBBC05" d="M6.69 14.19A5.78 5.78 0 0 1 6.38 12c0-.76.13-1.5.31-2.19V7.28H3.44A9.98 9.98 0 0 0 2.4 12c0 1.61.39 3.14 1.04 4.72l3.25-2.53Z" />
+      <Path fill="#EA4335" d="M12 5.9c1.41 0 2.68.49 3.68 1.45l2.76-2.76C16.75 3 14.59 2.04 12 2.04a9.6 9.6 0 0 0-8.56 5.24l3.25 2.53C6.44 7.57 8.53 5.9 12 5.9Z" />
+    </Svg>
+  );
+}
 
 export type AuthFieldConfig = {
   key: string;
@@ -85,6 +102,14 @@ type AuthFormViewProps = {
   tertiaryActionLabel?: string;
   onTertiaryAction?: () => void;
   inlineNoticeMessage?: string | null;
+  googleActionLabel?: string;
+  onGoogleAction?: () => void;
+  magicLinkActionLabel?: string;
+  onMagicLinkAction?: () => void;
+  passwordSectionLabel?: string;
+  showPasswordForm?: boolean;
+  onShowPasswordForm?: () => void;
+  magicLinkSent?: boolean;
 };
 
 export function AuthFormView({
@@ -108,11 +133,49 @@ export function AuthFormView({
   tertiaryActionLabel,
   onTertiaryAction,
   inlineNoticeMessage,
+  googleActionLabel,
+  onGoogleAction,
+  magicLinkActionLabel,
+  onMagicLinkAction,
+  passwordSectionLabel,
+  showPasswordForm = true,
+  onShowPasswordForm,
+  magicLinkSent = false,
 }: AuthFormViewProps) {
   const theme = useTheme();
   const chipColor = variant === 'login'
     ? theme.colors.secondaryContainer
     : theme.colors.tertiaryContainer;
+  const hasAlternativeSignIn = Boolean(googleActionLabel && onGoogleAction) || Boolean(magicLinkActionLabel && onMagicLinkAction);
+  const alternativeActions = hasAlternativeSignIn ? (
+    <>
+      {googleActionLabel && onGoogleAction ? (
+        <Button
+          mode="outlined"
+          icon={() => <GoogleMark />}
+          onPress={onGoogleAction}
+          disabled={submitLoading}
+          contentStyle={styles.buttonContent}
+          style={[styles.button, styles.googleButton]}
+        >
+          {googleActionLabel}
+        </Button>
+      ) : null}
+
+      {magicLinkActionLabel && onMagicLinkAction ? (
+        <Button
+          mode="contained"
+          icon="email-fast-outline"
+          onPress={onMagicLinkAction}
+          disabled={submitLoading}
+          contentStyle={styles.buttonContent}
+          style={styles.button}
+        >
+          {magicLinkActionLabel}
+        </Button>
+      ) : null}
+    </>
+  ) : null;
 
   return (
     <KeyboardAvoidingView
@@ -148,8 +211,28 @@ export function AuthFormView({
               {subtitle}
             </Text>
 
+            {hasAlternativeSignIn ? (
+              <>
+                {alternativeActions}
+                <View style={styles.dividerRow}>
+                  <View style={[styles.divider, { backgroundColor: theme.colors.outlineVariant }]} />
+                  <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant }}>or</Text>
+                  <View style={[styles.divider, { backgroundColor: theme.colors.outlineVariant }]} />
+                </View>
+                {showPasswordForm ? (
+                  <Text variant="titleMedium" style={[styles.passwordSectionLabel, { color: theme.colors.onSurface }]}>
+                    {passwordSectionLabel}
+                  </Text>
+                ) : onShowPasswordForm ? (
+                  <Button mode="text" onPress={onShowPasswordForm} style={styles.passwordRevealButton}>
+                    {passwordSectionLabel}
+                  </Button>
+                ) : null}
+              </>
+            ) : null}
+
           {fields.map((field) => (
-            <React.Fragment key={field.key}>
+            (!hasAlternativeSignIn || showPasswordForm || (!magicLinkSent && field.key === 'email')) ? <React.Fragment key={field.key}>
               <TextInput
                 label={field.label}
                 accessibilityLabel={field.label}
@@ -174,22 +257,38 @@ export function AuthFormView({
               <HelperText type={field.helperTextType ?? 'error'} visible={Boolean(field.helperText ?? field.error)}>
                 {field.helperText ?? field.error ?? ' '}
               </HelperText>
-            </React.Fragment>
+            </React.Fragment> : null
           ))}
 
-            <Button
-              mode="contained"
-              onPress={onSubmit}
-              disabled={submitLoading}
-              contentStyle={styles.buttonContent}
-              style={styles.button}
-            >
-              {submitLoading
-                ? <ActivityIndicator color={theme.colors.onPrimary} size="small" />
-                : submitLabel}
-            </Button>
+            {!hasAlternativeSignIn && (
+              <Button
+                mode="contained"
+                onPress={onSubmit}
+                disabled={submitLoading}
+                contentStyle={styles.buttonContent}
+                style={styles.button}
+              >
+                {submitLoading
+                  ? <ActivityIndicator color={theme.colors.onPrimary} size="small" />
+                  : submitLabel}
+              </Button>
+            )}
 
-            {tertiaryActionLabel && onTertiaryAction ? (
+            {hasAlternativeSignIn && showPasswordForm ? (
+              <Button
+                mode="outlined"
+                onPress={onSubmit}
+                disabled={submitLoading}
+                contentStyle={styles.buttonContent}
+                style={styles.button}
+              >
+                {submitLoading
+                  ? <ActivityIndicator color={theme.colors.onPrimary} size="small" />
+                  : submitLabel}
+              </Button>
+            ) : null}
+
+            {tertiaryActionLabel && onTertiaryAction && showPasswordForm ? (
               <Button mode="text" onPress={onTertiaryAction} style={styles.linkButton}>
                 {tertiaryActionLabel}
               </Button>

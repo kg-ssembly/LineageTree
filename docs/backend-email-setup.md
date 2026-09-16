@@ -11,6 +11,9 @@ This repo is now wired for Firebase Functions as the backend email sender.
 - Password reset email:
   - Backend callable `sendPasswordResetEmail` is ready.
   - The store now exposes `requestPasswordReset(email)`, but the login UI still needs a "Forgot password?" action to call it.
+- Magic sign-in email:
+  - Backend callable `sendMagicLinkEmail` generates the Firebase sign-in link and sends it through the branded SendGrid template.
+  - This keeps the one-time Firebase link security while matching the rest of the Lineage Tree email design.
 - Notification email:
   - Backend trigger `sendNotificationEmailOnCreate` sends an email when a pending `merge-invite` notification document is created.
 

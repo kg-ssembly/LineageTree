@@ -1,24 +1,33 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { Platform } from 'react-native';
+import { isSignInWithEmailLink } from 'firebase/auth';
 import { TextInput } from 'react-native-paper';
 import { useI18n } from '../../../../hooks/use-i18n';
 import { I18N_KEYS as K } from '../../../../i18n/keys';
 import { useAuthStore } from '../../../../stores/auth-store';
 import { type AuthFieldConfig } from '../shared/auth-form-view';
 import { validateEmail, validateLoginPassword } from '../shared/auth-validation';
+import { auth } from '../../../../providers/firebase-provider';
 
 type LoginNavigation = {
   navigate: (name: string) => void;
 };
 
+const initialWebUrl = typeof window !== 'undefined' ? window.location.href : null;
+
 export function useLoginScreenController(navigation: LoginNavigation) {
   const { t } = useI18n();
-  const { signIn, requestPasswordReset, loading, error, clearError } = useAuthStore();
+  const { signIn, requestPasswordReset, sendMagicLink, completeMagicLink, signInWithGoogle, loading, error, clearError } = useAuthStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [snackVisible, setSnackVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState<string | null>(null);
   const [inlineNoticeMessage, setInlineNoticeMessage] = useState<string | null>(null);
+  const [emailLinkPending, setEmailLinkPending] = useState(false);
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [magicLinkSent, setMagicLinkSent] = useState(false);
+  const [detectedEmailLink, setDetectedEmailLink] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState({
     email: null as string | null,
     password: null as string | null,
@@ -30,6 +39,22 @@ export function useLoginScreenController(navigation: LoginNavigation) {
       setSnackVisible(true);
     }
   }, [error]);
+
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
+    const emailLink = [window.location.href, initialWebUrl]
+      .find((candidate): candidate is string => Boolean(candidate && isSignInWithEmailLink(auth, candidate)));
+    if (!emailLink) return;
+    const savedEmail = window.localStorage.getItem('lineagetree.emailForSignIn');
+    setDetectedEmailLink(emailLink);
+    setEmailLinkPending(true);
+    if (savedEmail) {
+      setEmail(savedEmail);
+      void completeMagicLink(savedEmail, emailLink).catch(() => {});
+    } else {
+      setInlineNoticeMessage(t(K.auth.signInLinkDetected));
+    }
+  }, [completeMagicLink, t]);
 
   const dismissSnackbar = () => {
     setSnackVisible(false);
@@ -68,6 +93,31 @@ export function useLoginScreenController(navigation: LoginNavigation) {
       setInlineNoticeMessage(nextMessage);
       setSnackbarMessage(nextMessage);
       setSnackVisible(true);
+    } catch {
+      // surfaced via store snackbar
+    }
+  };
+
+  const handleMagicLink = async () => {
+    const emailError = validateEmail(email, t);
+    setFieldErrors((current) => ({ ...current, email: emailError }));
+    if (emailError) return;
+    try {
+      if (emailLinkPending) {
+        await completeMagicLink(email.trim(), detectedEmailLink ?? undefined);
+      } else {
+        await sendMagicLink(email.trim());
+        setMagicLinkSent(true);
+        setInlineNoticeMessage(t(K.auth.emailLinkSent));
+      }
+    } catch {
+      // surfaced via store snackbar
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    try {
+      await signInWithGoogle();
     } catch {
       // surfaced via store snackbar
     }
@@ -134,6 +184,20 @@ export function useLoginScreenController(navigation: LoginNavigation) {
     onSubmit: handleSignIn,
     tertiaryActionLabel: t(K.auth.forgotPassword),
     onTertiaryAction: handleForgotPassword,
+    googleActionLabel: Platform.OS === 'web' ? t(K.auth.continueWithGoogle) : undefined,
+    onGoogleAction: Platform.OS === 'web' ? handleGoogleSignIn : undefined,
+    magicLinkActionLabel: Platform.OS === 'web'
+      ? t(emailLinkPending ? K.auth.completeSignInLink : K.auth.sendSignInLink)
+      : undefined,
+    onMagicLinkAction: Platform.OS === 'web' ? handleMagicLink : undefined,
+    passwordSectionLabel: Platform.OS === 'web' ? t(K.auth.useEmailPassword) : undefined,
+    showPasswordForm: Platform.OS !== 'web' || showPasswordForm,
+    onShowPasswordForm: Platform.OS === 'web' ? () => {
+      setShowPasswordForm(true);
+      setMagicLinkSent(false);
+      setInlineNoticeMessage(null);
+    } : undefined,
+    magicLinkSent,
     inlineNoticeMessage,
     onSecondaryAction: () => navigation.navigate('SignUp'),
   };
