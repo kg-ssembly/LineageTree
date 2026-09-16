@@ -10,7 +10,7 @@ function history(treeId: string, userId: string, role: string, action: string, n
   return { id: `${treeId}-${userId}-${Date.now()}`, userId, role, action, note, createdAt: new Date().toISOString() };
 }
 
-export async function manageCollaborator(db: Firestore, actor: string, input: { treeId: string; action: 'add' | 'remove' | 'assign' | 'clear-assignment'; email?: string; userId?: string; personId?: string; role?: Role }) {
+export async function manageCollaborator(db: Firestore, actor: string, input: { treeId: string; action: 'add' | 'remove' | 'assign' | 'clear-assignment'; email?: string; userId?: string; personId?: string; role?: Role; profilePhotoUrl?: string }) {
   if (!input.treeId || input.treeId.includes('/') || !['add', 'remove', 'assign', 'clear-assignment'].includes(input.action)) throw new HttpsError('invalid-argument', 'Invalid collaborator request.');
   await consumeLimit(db, 'collaborator-change', actor, 20);
   return db.runTransaction(async tx => {
@@ -59,6 +59,14 @@ export async function manageCollaborator(db: Firestore, actor: string, input: { 
     const assignments = { ...(data.personAssignments ?? {}) };
     if (Object.entries(assignments).some(([id, personId]) => id !== userId && personId === input.personId)) throw new HttpsError('already-exists', 'That family member is linked to another collaborator.');
     assignments[userId] = input.personId;
-    tx.update(treeRef, { personAssignments: assignments, updatedAt: new Date().toISOString() }); return { ok: true };
+    const profilePhotoUrl = typeof input.profilePhotoUrl === 'string' ? input.profilePhotoUrl.trim() : '';
+    const personData = person.data() ?? {};
+    const hasFamilyPhoto = Array.isArray(personData.photos) && personData.photos.length > 0;
+    const safeProfilePhotoUrl = profilePhotoUrl.startsWith('https://') && profilePhotoUrl.length <= 2048 ? profilePhotoUrl : '';
+    tx.update(treeRef, { personAssignments: assignments, updatedAt: new Date().toISOString() });
+    if (userId === actor && !hasFamilyPhoto && safeProfilePhotoUrl && !personData.profilePhotoUrl) {
+      tx.update(person.ref, { profilePhotoUrl: safeProfilePhotoUrl, updatedAt: new Date().toISOString() });
+    }
+    return { ok: true };
   });
 }

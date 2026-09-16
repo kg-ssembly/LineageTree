@@ -938,7 +938,7 @@ export function useMainScreenController({ navigation }: Props) {
       : await createSelfPersonFromPayload(payload);
     if (!created) throw new Error('The person could not be created. Please try again.');
     pendingSelfAssignment.current = { key, person: created };
-    await assignPersonToUser(user.id, selectedTree.id, user.id, created.id);
+    await assignPersonToUser(user.id, selectedTree.id, user.id, created.id, user.photoUrl);
     pendingSelfAssignment.current = null;
     setFollowUpTreePromptsPending(true);
     setSelfPersonDialogVisible(false);
@@ -951,7 +951,7 @@ export function useMainScreenController({ navigation }: Props) {
     }
 
     try {
-      await assignPersonToUser(user.id, selectedTree.id, targetUserId, personId);
+      await assignPersonToUser(user.id, selectedTree.id, targetUserId, personId, targetUserId === user.id ? user.photoUrl : undefined);
       if (targetUserId === user.id) {
         setFollowUpTreePromptsPending(true);
       }

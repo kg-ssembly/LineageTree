@@ -139,7 +139,7 @@ function isKinshipSystem(value: unknown): value is KinshipSystem {
     || value === 'ts' || value === 've' || value === 'zu';
 }
 
-function buildUserProfileDocument(user: Pick<FirebaseUser, 'uid' | 'email' | 'displayName'>, createdAt?: string) {
+function buildUserProfileDocument(user: Pick<FirebaseUser, 'uid' | 'email' | 'displayName'> & { photoURL?: string | null }, createdAt?: string) {
   const email = user.email ?? '';
   const displayName = user.displayName ?? '';
 
@@ -148,6 +148,7 @@ function buildUserProfileDocument(user: Pick<FirebaseUser, 'uid' | 'email' | 'di
     email,
     normalizedEmail: normaliseEmail(email),
     displayName,
+    ...(user.photoURL ? { photoUrl: user.photoURL } : {}),
     normalizedDisplayName: normaliseDisplayName(displayName),
     username: deriveUsername(email),
     lastSeenAppVersion: CURRENT_APP_VERSION,
@@ -155,7 +156,7 @@ function buildUserProfileDocument(user: Pick<FirebaseUser, 'uid' | 'email' | 'di
   };
 }
 
-async function ensureUserProfileDocument(fbUser: Pick<FirebaseUser, 'uid' | 'email' | 'displayName'>): Promise<UserProfile> {
+async function ensureUserProfileDocument(fbUser: Pick<FirebaseUser, 'uid' | 'email' | 'displayName'> & { photoURL?: string | null }): Promise<UserProfile> {
   const userRef = doc(db, 'users', fbUser.uid);
   const snap = await getDoc(userRef);
   const fallbackProfile: UserProfile = {
@@ -178,6 +179,7 @@ async function ensureUserProfileDocument(fbUser: Pick<FirebaseUser, 'uid' | 'ema
   const normalizedEmail = data.normalizedEmail ?? normaliseEmail(email);
   const normalizedDisplayName = data.normalizedDisplayName ?? normaliseDisplayName(displayName);
   const username = data.username ?? deriveUsername(email);
+  const photoUrl = data.photoUrl ?? fallbackProfile.photoUrl;
 
   if (
     (data.email == null && email)
@@ -185,6 +187,7 @@ async function ensureUserProfileDocument(fbUser: Pick<FirebaseUser, 'uid' | 'ema
     || (data.normalizedEmail == null && normalizedEmail)
     || (data.normalizedDisplayName == null && normalizedDisplayName)
     || (data.username == null && username)
+    || (data.photoUrl == null && photoUrl)
   ) {
     await setDoc(userRef, {
       email,
@@ -192,6 +195,7 @@ async function ensureUserProfileDocument(fbUser: Pick<FirebaseUser, 'uid' | 'ema
       normalizedEmail,
       normalizedDisplayName,
       username,
+      ...(photoUrl ? { photoUrl } : {}),
     }, { merge: true });
   }
 
@@ -202,6 +206,7 @@ async function ensureUserProfileDocument(fbUser: Pick<FirebaseUser, 'uid' | 'ema
     displayName,
     normalizedDisplayName,
     username,
+    photoUrl: typeof photoUrl === 'string' && photoUrl.trim() ? photoUrl.trim() : undefined,
     defaultTreeId: typeof data.defaultTreeId === 'string' && data.defaultTreeId.trim() ? data.defaultTreeId.trim() : undefined,
     preferredLanguage: isAppLanguage(data.preferredLanguage) ? data.preferredLanguage : undefined,
     preferredKinshipSystem: isKinshipSystem(data.preferredKinshipSystem) ? data.preferredKinshipSystem : undefined,
@@ -528,6 +533,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       if (typeof window === 'undefined') throw new Error('Google sign-in is available on web only.');
       const provider = new GoogleAuthProvider();
+      provider.addScope('profile');
       const { user: fbUser } = await signInWithPopup(auth, provider);
       const profile = await fetchUserProfile(fbUser.uid, fbUser);
       set({ firebaseUser: fbUser, user: profile, loading: false });

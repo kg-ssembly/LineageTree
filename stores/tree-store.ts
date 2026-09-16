@@ -229,7 +229,7 @@ interface TreeState {
   requestMergeChanges: (actorUserId: string, requestId: string, comment?: string, selectedMatchIds?: string[], conflictChoices?: MergeConflictChoice[]) => Promise<void>;
   undoMerge: (actorUserId: string, requestId: string) => Promise<void>;
   grantMergeViewerAccess: (actorUserId: string, requestId: string, treeId: string) => Promise<void>;
-  assignPersonToUser: (actorUserId: string, treeId: string, targetUserId: string, personId: string) => Promise<void>;
+  assignPersonToUser: (actorUserId: string, treeId: string, targetUserId: string, personId: string, profilePhotoUrl?: string) => Promise<void>;
   assignSelfToPerson: (treeId: string, userId: string, personId: string) => Promise<void>;
   clearSelfAssignment: (treeId: string, userId: string) => Promise<void>;
   clearError: () => void;
@@ -979,10 +979,10 @@ export const useTreeStore = create<TreeState>()(persist((set, get) => {
       }
     },
 
-    assignPersonToUser: async (actorUserId, treeId, targetUserId, personId) => {
+    assignPersonToUser: async (actorUserId, treeId, targetUserId, personId, profilePhotoUrl) => {
       set({ error: null });
       try {
-        await assignTreePersonToUser(actorUserId, treeId, targetUserId, personId);
+        await assignTreePersonToUser(actorUserId, treeId, targetUserId, personId, profilePhotoUrl);
 
       } catch (error) {
         set({ error: normaliseError(error) });

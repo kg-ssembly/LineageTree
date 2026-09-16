@@ -41,7 +41,19 @@ function getDisplayPersonPhoto(person) {
             }
             : preferredPhoto;
     }
-    return person?.photos[0] ?? null;
+    const firstPhoto = person?.photos[0];
+    if (firstPhoto) {
+        return firstPhoto;
+    }
+    if (person?.profilePhotoUrl) {
+        return {
+            id: 'profile-photo',
+            url: person.profilePhotoUrl,
+            path: '',
+            createdAt: person.updatedAt || person.createdAt,
+        };
+    }
+    return null;
 }
 function getPersonAgeInYears(person) {
     if (!person?.birthDate) {

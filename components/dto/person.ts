@@ -68,6 +68,8 @@ export interface PersonRecord {
   notes: string;
   lifeEvents: PersonLifeEvent[];
   photos: PersonPhoto[];
+  /** Google profile image used as a fallback until the family adds a photo. */
+  profilePhotoUrl?: string;
   preferredPhotoId: string;
   createdAt: string;
   updatedAt: string;
@@ -133,7 +135,21 @@ export function getDisplayPersonPhoto(person?: PersonRecord | null) {
       : preferredPhoto;
   }
 
-  return person?.photos[0] ?? null;
+  const firstPhoto = person?.photos[0];
+  if (firstPhoto) {
+    return firstPhoto;
+  }
+
+  if (person?.profilePhotoUrl) {
+    return {
+      id: 'profile-photo',
+      url: person.profilePhotoUrl,
+      path: '',
+      createdAt: person.updatedAt || person.createdAt,
+    } satisfies PersonPhoto;
+  }
+
+  return null;
 }
 
 function getPersonAgeInYears(person?: PersonRecord | null) {

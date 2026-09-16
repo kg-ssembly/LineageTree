@@ -250,6 +250,7 @@ export function mapPerson(snapshot: QueryDocumentSnapshot): PersonRecord {
     notes: data.notes ?? '',
     lifeEvents: Array.isArray(data.lifeEvents) ? data.lifeEvents.map(mapLifeEvent) : [],
     photos: Array.isArray(data.photos) ? data.photos.map(mapPhoto) : [],
+    profilePhotoUrl: typeof data.profilePhotoUrl === 'string' && data.profilePhotoUrl.trim() ? data.profilePhotoUrl.trim() : undefined,
     preferredPhotoId: data.preferredPhotoId ?? '',
     createdAt: data.createdAt ?? nowIso(),
     updatedAt: data.updatedAt ?? data.createdAt ?? nowIso(),

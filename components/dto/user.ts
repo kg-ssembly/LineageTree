@@ -6,6 +6,7 @@ export interface UserProfile {
   email: string;
   normalizedEmail?: string;
   displayName: string;
+  photoUrl?: string;
   normalizedDisplayName?: string;
   username?: string;
   defaultTreeId?: string;

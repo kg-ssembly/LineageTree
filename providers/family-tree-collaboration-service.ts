@@ -10,8 +10,8 @@ export async function removeCollaboratorFromTree(actorUserId: string, treeId: st
   await httpsCallable(functionsApi, 'manageCollaboratorServer')({ treeId, action: 'remove', userId: collaboratorUserId });
 }
 
-export async function assignTreePersonToUser(actorUserId: string, treeId: string, userId: string, personId: string) {
-  await httpsCallable(functionsApi, 'manageCollaboratorServer')({ treeId, action: 'assign', userId, personId });
+export async function assignTreePersonToUser(actorUserId: string, treeId: string, userId: string, personId: string, profilePhotoUrl?: string) {
+  await httpsCallable(functionsApi, 'manageCollaboratorServer')({ treeId, action: 'assign', userId, personId, profilePhotoUrl });
 }
 
 export async function clearTreePersonAssignment(treeId: string, userId: string) {

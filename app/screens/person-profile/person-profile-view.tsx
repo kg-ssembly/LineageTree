@@ -1005,7 +1005,7 @@ export default function PersonProfileScreen({ navigation, route }: Props) {
     }
 
     try {
-      await assignPersonToUser(user.id, selectedTree.id, user.id, person.id);
+      await assignPersonToUser(user.id, selectedTree.id, user.id, person.id, user.photoUrl);
     } catch {
       // surfaced by store snackbar
     }
