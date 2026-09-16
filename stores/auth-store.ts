@@ -443,11 +443,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   clearError: () => set({ error: null }),
 
   init: () => {
-    const startupEmailLink = typeof window !== 'undefined'
-      && isSignInWithEmailLink(auth, window.location.href)
+    const startupWebUrl = typeof window !== 'undefined'
+      && typeof window.location?.href === 'string'
       ? window.location.href
       : null;
+    const startupEmailLink = startupWebUrl
+      && isSignInWithEmailLink(auth, startupWebUrl)
+      ? startupWebUrl
+      : null;
     const startupEmail = typeof window !== 'undefined'
+      && typeof window.localStorage !== 'undefined'
       ? window.localStorage.getItem('lineagetree.emailForSignIn')
       : null;
     let startupMagicLinkPending = Boolean(startupEmailLink && startupEmail);

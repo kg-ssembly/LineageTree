@@ -1,6 +1,6 @@
 {
   "name": "Lineage Tree",
-  "version": "1.0.16",
+  "version": "1.0.17",
   "main": "index.ts",
   "engines": {
     "node": ">=20 <24"
@@ -43,7 +43,7 @@
     "@react-navigation/material-top-tabs": "^7.4.24",
     "@react-navigation/native": "^7.2.2",
     "@react-navigation/native-stack": "^7.14.11",
-    "expo": "~54.0.34",
+    "expo": "~54.0.37",
     "expo-dev-client": "~6.0.21",
     "expo-font": "~14.0.11",
     "expo-image": "~3.0.11",
@@ -71,7 +71,6 @@
     "@firebase/rules-unit-testing": "^5.0.2",
     "@playwright/test": "^1.63.0",
     "@types/react": "~19.1.0",
-    "@types/react-native": "^0.72.8",
     "@typescript-eslint/eslint-plugin": "^8.62.1",
     "@typescript-eslint/parser": "^8.62.1",
     "eslint": "^10.6.0",
