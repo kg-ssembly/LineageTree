@@ -1,0 +1,62 @@
+{
+  "project_info": {
+    "project_number": "942129733688",
+    "project_id": "lineagetree",
+    "storage_bucket": "lineagetree.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:942129733688:android:2cc442ca6991e3b25986cd",
+        "android_client_info": {
+          "package_name": "com.ssembly.lineagetree"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "942129733688-8ob37dc9j1aemsjsn2m0ebb8nns22big.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ssembly.lineagetree",
+            "certificate_hash": "584540c5ae09749582ff5907bb4a13eeb471becc"
+          }
+        },
+        {
+          "client_id": "942129733688-pggqpds4lotdjl45l4db6g1nbd7f1m19.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ssembly.lineagetree",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "942129733688-mh6cllv4vcrtsk5le7et0mkrco7eviui.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDqp_HL_UQ8289PrWGFzqrvVlPTGz2_R_g"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "942129733688-mh6cllv4vcrtsk5le7et0mkrco7eviui.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "942129733688-3psbbgejlrsk4nm51ij55lghfdp2lbmr.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.ssembly.lineagetree"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -374,6 +374,12 @@ export function AuthFormView({
               {inlineNoticeMessage ?? ' '}
             </HelperText>
 
+            {accountLinkingLabel && onAccountLinkingHelp ? (
+              <Button mode="text" icon="link-variant" disabled={submitLoading} onPress={onAccountLinkingHelp} style={styles.linkButton}>
+                {accountLinkingLabel}
+              </Button>
+            ) : null}
+
             {(!hasAlternativeSignIn || activeAuthMethod === 'password') ? <Button mode="text" onPress={onSecondaryAction} style={styles.linkButton}>
               {secondaryActionLabel}
             </Button> : null}

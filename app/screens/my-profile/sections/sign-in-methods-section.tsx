@@ -63,7 +63,10 @@ export function SignInMethodsSection() {
     try {
       if (method === 'password') await auth.reauthenticatePassword(currentPassword);
       else if (method === 'google.com') await auth.reauthenticateGoogle();
-      else if (!codeSent) { await auth.sendPhoneReauthCode(); setCodeSent(true); return; }
+      else if (!codeSent) {
+        const result = await auth.sendPhoneReauthCode();
+        if (!result.automaticallyVerified) { setCodeSent(true); return; }
+      }
       else await auth.verifyPhoneReauthCode(code);
       auth.cancelAccountPhoneCode();
       setCurrentPassword(''); setCode(''); setCodeSent(false); setStage('change');
@@ -75,7 +78,12 @@ export function SignInMethodsSection() {
       if (action === 'google.com') await auth.linkGoogle();
       else if (action === 'password') await auth.linkEmailPassword(email, password);
       else if (action === 'phone') {
-        if (!codeSent) { await auth.sendPhoneLinkCode(phone); setCodeSent(true); return; }
+        if (!codeSent) {
+          const result = await auth.sendPhoneLinkCode(phone);
+          if (!result.automaticallyVerified) { setCodeSent(true); return; }
+          resetForm();
+          return;
+        }
         await auth.verifyPhoneLinkCode(code);
       } else if (action?.startsWith('remove:')) await auth.removeSignInMethod(action.slice(7));
       resetForm();
@@ -104,18 +112,16 @@ export function SignInMethodsSection() {
         <View style={{ gap: 16, marginTop: 16 }}>
           {METHODS.map(method => {
             const provider = providers.find(entry => entry.providerId === method.id);
-            const available = method.id === 'password' || isWeb;
             return <View key={method.id} style={{ gap: 4 }}>
               <Text variant="titleSmall">{t(method.label)}</Text>
               <Text variant="bodySmall">{provider ? (provider.email || provider.phoneNumber || t('Connected')) : t('Not connected')}</Text>
               {provider && method.id === 'password' ? <Button mode="outlined" disabled={busy} onPress={() => void begin('password')}>{t('Set or change password')}</Button> : null}
               {provider ? <Button icon="link-variant-off" mode="text" disabled={busy || new Set(providers.map(p => p.providerId)).size < 2}
                 accessibilityLabel={`${t('Remove')} ${t(method.label)}`} onPress={() => void begin(`remove:${method.id}`)} style={{ alignSelf: 'flex-start' }}>{t('Remove')}</Button>
-                : <Button icon={method.icon} mode="outlined" disabled={busy || !available} onPress={() => void begin(method.id)}>{t('Connect')} {t(method.label)}</Button>}
+                : <Button icon={method.icon} mode="outlined" disabled={busy} onPress={() => void begin(method.id)}>{t('Connect')} {t(method.label)}</Button>}
             </View>;
           })}
         </View>
-        {!isWeb ? <HelperText type="info">{t('Use Lineage Tree on the web to manage Google and phone sign-in.')}</HelperText> : null}
         {user?.email && !user.emailVerified ? <>
           <HelperText type="info">{t('Your email address has not been verified.')}</HelperText>
           <Button disabled={busy} onPress={() => void auth.verifyAccountEmail().catch(() => {})}>{t('Send verification email')}</Button>
@@ -138,14 +144,13 @@ export function SignInMethodsSection() {
                 <Button disabled={busy || !currentPassword} onPress={() => void verify('password')}>{t('Verify password')}</Button>
                 <Text variant="bodySmall">{t('If you use an email sign-in link, sign out and sign in with a new link, then return here.')}</Text>
               </> : null}
-              {connected('google.com') && isWeb ? <Button icon="google" disabled={busy} onPress={() => void verify('google.com')}>{t('Verify with Google')}</Button> : null}
-              {connected('phone') && isWeb ? <>
+              {connected('google.com') ? <Button icon="google" disabled={busy} onPress={() => void verify('google.com')}>{t('Verify with Google')}</Button> : null}
+              {connected('phone') ? <>
                 <Text>{user?.phoneNumber}</Text>
                 {codeSent ? <TextInput label={t('Verification code')} value={code} onChangeText={setCode} keyboardType="number-pad" autoComplete="one-time-code" maxLength={6} disabled={busy} mode="outlined" /> : null}
                 <Button disabled={busy || (codeSent && !/^\d{6}$/.test(code.trim()))} onPress={() => void verify('phone')}>{t(codeSent ? 'Verify code' : 'Send code')}</Button>
                 {codeSent ? <Button disabled={busy} onPress={() => { auth.cancelAccountPhoneCode(); setCodeSent(false); setCode(''); }}>{t('Request a new code')}</Button> : null}
               </> : null}
-              {!isWeb && !connected('password') ? <Text>{t('Use Lineage Tree on the web to manage Google and phone sign-in.')}</Text> : null}
             </> : removeLabel ? <>
               <Text>{t('Remove')} {t(removeLabel)}?</Text>
               <Text>{t('Use a remaining connected method next time. Signing in with a removed method can create a separate profile.')}</Text>

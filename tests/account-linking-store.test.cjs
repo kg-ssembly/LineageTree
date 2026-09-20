@@ -46,6 +46,7 @@ function fixture(providerIds = ['password']) {
       return { user: target };
     },
     async linkWithPopup(target) { return firebase.linkWithCredential(target, { providerId: 'google.com' }); },
+    async signInWithCredential(_auth, credential) { calls.push(['signIn', credential.providerId]); return { user: auth.currentUser }; },
     async reauthenticateWithCredential(target) { calls.push(['reauthenticate', target.uid]); authTime = Date.now() / 1000; },
     async reauthenticateWithPopup(target) { return firebase.reauthenticateWithCredential(target); },
     async unlink(target, providerId) { calls.push(['unlink', target.uid, providerId]); target.providerData = target.providerData.filter(p => p.providerId !== providerId); },
@@ -53,7 +54,10 @@ function fixture(providerIds = ['password']) {
     async sendEmailVerification() { calls.push(['email']); if (verificationFails) throw new Error('offline'); },
     async updatePassword(target) { calls.push(['password', target.uid]); },
     async signOut() { auth.currentUser = null; },
-    GoogleAuthProvider: class { setCustomParameters() {} addScope() {} },
+    GoogleAuthProvider: class {
+      setCustomParameters() {} addScope() {}
+      static credential(idToken) { return { providerId: 'google.com', idToken }; }
+    },
     EmailAuthProvider: { credential: (email, password) => ({ providerId: 'password', email, password }) },
     PhoneAuthProvider: class {
       async verifyPhoneNumber(number) { calls.push(['sms', number]); return 'verification'; }
@@ -75,6 +79,11 @@ function fixture(providerIds = ['password']) {
     '../providers/firebase-provider': { auth, db: {} },
     '../providers/email-service': {},
     '../providers/account-security': security,
+    '../providers/mobile-auth-provider': {
+      mobileAuthAvailable: false,
+      getMobileGoogleIdToken: async () => { throw new Error('native unavailable'); },
+      requestMobilePhoneVerification: async () => { throw new Error('native unavailable'); },
+    },
     '../constants/app-metadata': { CURRENT_APP_VERSION: '1' },
   }, { document: { getElementById: () => ({}) } });
   store.setState({ user: profile, firebaseUser: user, loading: false });

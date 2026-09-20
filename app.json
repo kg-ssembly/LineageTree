@@ -16,12 +16,14 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.ssembly.lineagetree",
+      "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
       "package": "com.ssembly.lineagetree",
+      "googleServicesFile": "./google-services.json",
       "versionCode": 16,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -43,7 +45,10 @@
           "photosPermission": "Allow Lineage Tree to access your family photos."
         }
       ],
-      "expo-font"
+      "expo-font",
+      "@react-native-google-signin/google-signin",
+      "@react-native-firebase/app",
+      "@react-native-firebase/auth"
     ],
     "web": {
       "favicon": "./assets/favicon.png",

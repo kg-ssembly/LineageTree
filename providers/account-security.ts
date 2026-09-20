@@ -3,6 +3,7 @@ export type AccountPhoneChallenge = {
   verificationId: string;
   purpose: 'link' | 'reauthenticate';
   expiresAt: number;
+  autoCode?: string;
 };
 
 export function accountError(code: string): Error & { code: string } {
@@ -54,7 +55,9 @@ export function accountSecurityErrorMessage(error: unknown): string | null {
     case 'account/busy': return 'Finish the current sign-in change first.';
     case 'account/session-changed': return 'Your signed-in account changed. Start again from your profile.';
     case 'account/last-sign-in-method': return 'Connect another sign-in method before removing this one.';
-    case 'account/web-only': return 'Use Lineage Tree on the web to manage Google and phone sign-in.';
+    case 'account/native-auth-unavailable': return 'Google and phone sign-in require a development or store build. They are not available in Expo Go.';
+    case 'account/google-token-missing': return 'Google did not return a valid sign-in credential. Check the app registration and try again.';
+    case 'auth/missing-verification-id': return 'Phone verification could not start. Check the app registration and try again.';
     case 'account/email-change': return 'Use the email address already attached to this account.';
     case 'auth/credential-already-in-use':
     case 'auth/email-already-in-use':

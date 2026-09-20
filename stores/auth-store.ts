@@ -5,6 +5,7 @@ import {
   signInWithEmailAndPassword,
   signInWithEmailLink,
   signInWithPopup,
+  signInWithCredential,
   linkWithPopup,
   linkWithCredential,
   reauthenticateWithCredential,
@@ -43,6 +44,7 @@ import type { UserProfile } from '../components/dto/user';
 import type { KinshipSystem, TreeRole } from '../components/dto/tree';
 import type { AppLanguage } from '../i18n';
 import { accountError, accountSecurityErrorMessage, assertSameAccount, assertRecentAuthentication, assertPhoneChallenge, assertRemovableProvider, normalizeAccountPhone, type AccountPhoneChallenge } from '../providers/account-security';
+import { getMobileGoogleIdToken, mobileAuthAvailable, requestMobilePhoneVerification } from '../providers/mobile-auth-provider';
 import { CURRENT_APP_VERSION } from '../constants/app-metadata';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -60,7 +62,7 @@ export interface AuthState {
   cancelAccountPhoneCode: () => void;
   reauthenticatePassword: (password: string) => Promise<void>;
   reauthenticateGoogle: () => Promise<void>;
-  sendPhoneReauthCode: () => Promise<void>;
+  sendPhoneReauthCode: () => Promise<{ automaticallyVerified: boolean }>;
   verifyPhoneReauthCode: (code: string) => Promise<void>;
   removeSignInMethod: (providerId: string) => Promise<void>;
   refreshSignInMethods: () => Promise<void>;
@@ -72,9 +74,9 @@ export interface AuthState {
   signInWithGoogle: () => Promise<void>;
   linkGoogle: () => Promise<void>;
   linkEmailPassword: (email: string, password: string) => Promise<void>;
-  sendPhoneLinkCode: (phoneNumber: string) => Promise<void>;
+  sendPhoneLinkCode: (phoneNumber: string) => Promise<{ automaticallyVerified: boolean }>;
   verifyPhoneLinkCode: (code: string) => Promise<void>;
-  sendPhoneCode: (phoneNumber: string) => Promise<void>;
+  sendPhoneCode: (phoneNumber: string) => Promise<{ automaticallyVerified: boolean }>;
   verifyPhoneCode: (code: string) => Promise<void>;
   signUp: (email: string, password: string, displayName: string) => Promise<void>;
   requestPasswordReset: (email: string) => Promise<{ emailRegistered: boolean }>;
@@ -185,6 +187,8 @@ function isAppLanguage(value: unknown): value is AppLanguage {
 }
 
 let phoneConfirmationResult: ConfirmationResult | null = null;
+let mobilePhoneSignInVerificationId: string | null = null;
+let mobilePhoneSignInAutoCode: string | null = null;
 let accountPhoneChallenge: AccountPhoneChallenge | null = null;
 let accountRecaptchaVerifier: RecaptchaVerifier | null = null;
 let accountPhoneGeneration = 0;
@@ -196,7 +200,9 @@ function clearAccountPhoneChallenge() {
   accountRecaptchaVerifier = null;
 }
 
-async function runAccountAction(action: (user: FirebaseUser) => Promise<string | void>, requireRecent = true) {
+type AccountActionOutcome<T> = { notice?: string; value: T };
+
+async function runAccountAction<T = void>(action: (user: FirebaseUser) => Promise<AccountActionOutcome<T> | void>, requireRecent = true): Promise<T> {
   const state = useAuthStore.getState();
   if (state.accountBusy) throw accountError('account/busy');
   useAuthStore.setState({ accountBusy: true, accountError: null, accountNotice: null });
@@ -208,7 +214,8 @@ async function runAccountAction(action: (user: FirebaseUser) => Promise<string |
       assertRecentAuthentication(token.claims.auth_time);
     }
     assertSameAccount(currentUser.uid, auth.currentUser?.uid);
-    const notice = await action(currentUser);
+    const outcome = await action(currentUser);
+    const notice = outcome?.notice;
     assertSameAccount(currentUser.uid, auth.currentUser?.uid);
     let refreshFailed = false;
     try {
@@ -224,6 +231,7 @@ async function runAccountAction(action: (user: FirebaseUser) => Promise<string |
       firebaseUser: currentUser, accountRevision: latest.accountRevision + 1,
       accountNotice: refreshFailed ? 'Your sign-in change was saved. Refresh sign-in methods to check the latest status.' : notice || null,
     }));
+    return outcome?.value as T;
   } catch (error: unknown) {
     if (auth.currentUser?.uid === currentUser?.uid) {
       useAuthStore.setState({ accountError: humaniseError((error as { code?: string }).code ?? '') });
@@ -235,11 +243,18 @@ async function runAccountAction(action: (user: FirebaseUser) => Promise<string |
 }
 
 async function requestAccountPhoneCode(user: FirebaseUser, phone: string, purpose: AccountPhoneChallenge['purpose']) {
-  if (typeof document === 'undefined') throw accountError('account/web-only');
   clearAccountPhoneChallenge();
   const generation = accountPhoneGeneration;
+  if (mobileAuthAvailable) {
+    const mobileChallenge = await requestMobilePhoneVerification(normalizeAccountPhone(phone));
+    assertSameAccount(user.uid, auth.currentUser?.uid);
+    if (generation !== accountPhoneGeneration) throw accountError('auth/code-expired');
+    accountPhoneChallenge = { uid: user.uid, verificationId: mobileChallenge.verificationId, purpose, expiresAt: Date.now() + 5 * 60_000, autoCode: mobileChallenge.code };
+    return;
+  }
+  if (typeof document === 'undefined') throw accountError('account/native-auth-unavailable');
   const anchor = document.getElementById('account-phone-recaptcha');
-  if (!anchor) throw accountError('account/web-only');
+  if (!anchor) throw accountError('account/native-auth-unavailable');
   accountRecaptchaVerifier = new RecaptchaVerifier(auth, anchor, { size: 'invisible' });
   try {
     const verificationId = await new PhoneAuthProvider(auth).verifyPhoneNumber(normalizeAccountPhone(phone), accountRecaptchaVerifier);
@@ -590,6 +605,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const userId = get().user?.id;
       clearAccountPhoneChallenge();
       phoneConfirmationResult = null;
+      mobilePhoneSignInVerificationId = null;
       phoneRecaptchaVerifier?.clear();
       phoneRecaptchaVerifier = null;
       await firebaseSignOut(auth);
@@ -677,10 +693,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   signInWithGoogle: async () => {
     set({ loading: true, error: null });
     try {
-      if (typeof window === 'undefined') throw new Error('Google sign-in is available on web only.');
-      const provider = new GoogleAuthProvider();
-      provider.addScope('profile');
-      const { user: fbUser } = await signInWithPopup(auth, provider);
+      let fbUser: FirebaseUser;
+      if (mobileAuthAvailable) {
+        const idToken = await getMobileGoogleIdToken();
+        ({ user: fbUser } = await signInWithCredential(auth, GoogleAuthProvider.credential(idToken)));
+      } else {
+        if (typeof window === 'undefined') throw accountError('account/native-auth-unavailable');
+        const provider = new GoogleAuthProvider();
+        provider.addScope('profile');
+        ({ user: fbUser } = await signInWithPopup(auth, provider));
+      }
       const profile = await fetchUserProfile(fbUser.uid, fbUser);
       set({ firebaseUser: fbUser, user: profile, loading: false });
     } catch (err: any) {
@@ -691,11 +713,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   linkGoogle: () => runAccountAction(async (currentUser) => {
-    if (typeof document === 'undefined') throw accountError('account/web-only');
+    if (mobileAuthAvailable) {
+      const idToken = await getMobileGoogleIdToken();
+      await linkWithCredential(currentUser, GoogleAuthProvider.credential(idToken));
+      return { notice: 'Google is connected to this profile.', value: undefined };
+    }
+    if (typeof document === 'undefined') throw accountError('account/native-auth-unavailable');
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account' });
     await linkWithPopup(currentUser, provider);
-    return 'Google is connected to this profile.';
+    return { notice: 'Google is connected to this profile.', value: undefined };
   }),
 
   linkEmailPassword: (email, password) => runAccountAction(async (currentUser) => {
@@ -718,28 +745,34 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       } catch {
         // Authentication linking has succeeded. The profile's empty contact
         // fields will be repaired by ensureUserProfileDocument on the next login.
-        return 'Email and password connected. Sign in again to refresh your profile contact details.';
+        return { notice: 'Email and password connected. Sign in again to refresh your profile contact details.', value: undefined };
       }
     }
     if (!currentUser.emailVerified) {
       try {
         await sendEmailVerification(currentUser);
-        return 'Email and password connected. Check your inbox to verify your email.';
+        return { notice: 'Email and password connected. Check your inbox to verify your email.', value: undefined };
       } catch {
-        return 'Email and password connected. Use Send verification email to verify your address.';
+        return { notice: 'Email and password connected. Use Send verification email to verify your address.', value: undefined };
       }
     }
-    return 'Email and password are connected to this profile.';
+    return { notice: 'Email and password are connected to this profile.', value: undefined };
   }),
 
-  sendPhoneLinkCode: (phoneNumber) => runAccountAction(async (user) => {
+  sendPhoneLinkCode: (phoneNumber) => runAccountAction<{ automaticallyVerified: boolean }>(async (user) => {
     await requestAccountPhoneCode(user, phoneNumber, 'link');
+    if (accountPhoneChallenge?.autoCode) {
+      await linkWithCredential(user, accountPhoneCredential(user, accountPhoneChallenge.autoCode, 'link'));
+      clearAccountPhoneChallenge();
+      return { notice: 'Phone number is connected to this profile.', value: { automaticallyVerified: true } };
+    }
+    return { value: { automaticallyVerified: false } };
   }),
 
   verifyPhoneLinkCode: (code) => runAccountAction(async (user) => {
     await linkWithCredential(user, accountPhoneCredential(user, code, 'link'));
     clearAccountPhoneChallenge();
-    return 'Phone number is connected to this profile.';
+    return { notice: 'Phone number is connected to this profile.', value: undefined };
   }),
 
   reauthenticatePassword: (password) => runAccountAction(async (user) => {
@@ -748,14 +781,25 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   }, false),
 
   reauthenticateGoogle: () => runAccountAction(async (user) => {
-    if (typeof document === 'undefined') throw accountError('account/web-only');
+    if (mobileAuthAvailable) {
+      const idToken = await getMobileGoogleIdToken();
+      await reauthenticateWithCredential(user, GoogleAuthProvider.credential(idToken));
+      return;
+    }
+    if (typeof document === 'undefined') throw accountError('account/native-auth-unavailable');
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account', login_hint: user.providerData.find(p => p.providerId === 'google.com')?.email ?? '' });
     await reauthenticateWithPopup(user, provider);
   }, false),
 
-  sendPhoneReauthCode: () => runAccountAction(async (user) => {
+  sendPhoneReauthCode: () => runAccountAction<{ automaticallyVerified: boolean }>(async (user) => {
     await requestAccountPhoneCode(user, user.phoneNumber ?? '', 'reauthenticate');
+    if (accountPhoneChallenge?.autoCode) {
+      await reauthenticateWithCredential(user, accountPhoneCredential(user, accountPhoneChallenge.autoCode, 'reauthenticate'));
+      clearAccountPhoneChallenge();
+      return { value: { automaticallyVerified: true } };
+    }
+    return { value: { automaticallyVerified: false } };
   }, false),
 
   verifyPhoneReauthCode: (code) => runAccountAction(async (user) => {
@@ -768,27 +812,44 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     assertSameAccount(user.uid, auth.currentUser?.uid);
     assertRemovableProvider(user.providerData.map(provider => provider.providerId), providerId);
     await unlink(user, providerId);
-    return 'Sign-in method removed. Use a remaining connected method next time.';
+    return { notice: 'Sign-in method removed. Use a remaining connected method next time.', value: undefined };
   }),
 
   refreshSignInMethods: () => runAccountAction(async () => {}, false),
   verifyAccountEmail: () => runAccountAction(async (user) => {
     await sendEmailVerification(user);
-    return 'Verification email sent. Check your inbox, then refresh your sign-in methods.';
+    return { notice: 'Verification email sent. Check your inbox, then refresh your sign-in methods.', value: undefined };
   }, false),
 
   sendPhoneCode: async (phoneNumber) => {
     set({ loading: true, error: null });
     try {
-      if (typeof window === 'undefined') throw new Error('Phone sign-in is available on web only.');
+      if (mobileAuthAvailable) {
+        const mobileChallenge = await requestMobilePhoneVerification(normalizeAccountPhone(phoneNumber));
+        mobilePhoneSignInVerificationId = mobileChallenge.verificationId;
+        mobilePhoneSignInAutoCode = mobileChallenge.code ?? null;
+        if (mobilePhoneSignInAutoCode) {
+          const { user: fbUser } = await signInWithCredential(auth, PhoneAuthProvider.credential(mobilePhoneSignInVerificationId, mobilePhoneSignInAutoCode));
+          mobilePhoneSignInVerificationId = null;
+          mobilePhoneSignInAutoCode = null;
+          const profile = await fetchUserProfile(fbUser.uid, fbUser);
+          set({ firebaseUser: fbUser, user: profile, loading: false });
+          return { automaticallyVerified: true };
+        }
+        set({ loading: false });
+        return { automaticallyVerified: false };
+      }
+      if (typeof window === 'undefined') throw accountError('account/native-auth-unavailable');
       const anchor = document.getElementById('phone-recaptcha-anchor');
       if (!anchor) throw new Error('Phone sign-in could not initialise. Refresh the page and try again.');
       phoneRecaptchaVerifier?.clear();
       phoneRecaptchaVerifier = new RecaptchaVerifier(auth, anchor, { size: 'invisible' });
       phoneConfirmationResult = await signInWithPhoneNumber(auth, phoneNumber.trim(), phoneRecaptchaVerifier);
       set({ loading: false });
+      return { automaticallyVerified: false };
     } catch (err: any) {
       phoneConfirmationResult = null;
+      mobilePhoneSignInVerificationId = null;
       phoneRecaptchaVerifier?.clear();
       phoneRecaptchaVerifier = null;
       console.error('Phone sign-in code failed', err?.code, err?.message);
@@ -800,9 +861,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   verifyPhoneCode: async (code) => {
     set({ loading: true, error: null });
     try {
-      if (!phoneConfirmationResult) throw new Error('Request a verification code first.');
-      const { user: fbUser } = await phoneConfirmationResult.confirm(code.trim());
+      if (!phoneConfirmationResult && !mobilePhoneSignInVerificationId) throw accountError('auth/code-expired');
+      const result = mobilePhoneSignInVerificationId
+        ? await signInWithCredential(auth, PhoneAuthProvider.credential(mobilePhoneSignInVerificationId, code.trim()))
+        : await phoneConfirmationResult!.confirm(code.trim());
+      const fbUser = result.user;
       phoneConfirmationResult = null;
+      mobilePhoneSignInVerificationId = null;
       phoneRecaptchaVerifier?.clear();
       phoneRecaptchaVerifier = null;
       const profile = await fetchUserProfile(fbUser.uid, fbUser);

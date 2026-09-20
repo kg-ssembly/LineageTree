@@ -191,8 +191,8 @@ export function useLoginScreenController(navigation: LoginNavigation) {
       if (phoneCodeSent) {
         await verifyPhoneCode(phoneCode);
       } else {
-        await sendPhoneCode(normalizePhoneNumber(phone, phoneCountry.dialCode));
-        setPhoneCodeSent(true);
+        const result = await sendPhoneCode(normalizePhoneNumber(phone, phoneCountry.dialCode));
+        setPhoneCodeSent(!result.automaticallyVerified);
       }
     } catch {
       // surfaced via store snackbar
@@ -274,16 +274,16 @@ export function useLoginScreenController(navigation: LoginNavigation) {
     onSubmit: handleSignIn,
     tertiaryActionLabel: t(K.auth.forgotPassword),
     onTertiaryAction: handleForgotPassword,
-    googleActionLabel: Platform.OS === 'web' ? t(K.auth.continueWithGoogle) : undefined,
-    onGoogleAction: Platform.OS === 'web' ? handleGoogleSignIn : undefined,
-    phoneActionLabel: Platform.OS === 'web' ? 'Sign in with phone' : undefined,
-    onPhoneAction: Platform.OS === 'web' ? handlePhoneAction : undefined,
-    phoneFields: Platform.OS === 'web' && showPhoneForm ? phoneFields : undefined,
-    phoneCountry: Platform.OS === 'web' && showPhoneForm ? phoneCountry : undefined,
+    googleActionLabel: t(K.auth.continueWithGoogle),
+    onGoogleAction: handleGoogleSignIn,
+    phoneActionLabel: 'Sign in with phone',
+    onPhoneAction: handlePhoneAction,
+    phoneFields: showPhoneForm ? phoneFields : undefined,
+    phoneCountry: showPhoneForm ? phoneCountry : undefined,
     phoneCountries: PHONE_COUNTRIES,
     onPhoneCountryChange: (country: { label: string; dialCode: string }) => { setPhoneCountry(country); setShowPhoneForm(true); },
     phoneCodeSent,
-    onPhoneCodeAction: Platform.OS === 'web' && showPhoneForm ? handlePhoneAction : undefined,
+    onPhoneCodeAction: showPhoneForm ? handlePhoneAction : undefined,
     phoneCodeActionLabel: phoneCodeSent ? 'Verify code' : 'Send code',
     magicLinkActionLabel: Platform.OS === 'web'
       ? t(emailLinkPending ? K.auth.completeSignInLink : K.auth.sendSignInLink)
