@@ -12,15 +12,7 @@ export function validateEmail(email: string, t: (message: string) => string): st
   return null;
 }
 
-export function validateLoginPassword(password: string, t: (message: string) => string): string | null {
-  if (!password) {
-    return t(K.auth.passwordRequired);
-  }
-
-  return null;
-}
-
-export function validateSignUpPassword(password: string, t: (message: string) => string): string | null {
+export function validatePassword(password: string, t: (message: string) => string): string | null {
   if (!password) {
     return t(K.auth.passwordRequired);
   }
@@ -35,6 +27,9 @@ export function validateSignUpPassword(password: string, t: (message: string) =>
 
   return null;
 }
+
+export const validateLoginPassword = validatePassword;
+export const validateSignUpPassword = validatePassword;
 
 export function validateDisplayName(name: string, t: (message: string) => string): string | null {
   if (!name.trim()) {

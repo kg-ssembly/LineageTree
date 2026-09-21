@@ -131,6 +131,9 @@ type AuthFormViewProps = {
   phoneFields?: AuthFieldConfig[];
   onPhoneCodeAction?: () => void;
   phoneCodeActionLabel?: string;
+  phoneResendActionLabel?: string;
+  onPhoneResendAction?: () => void;
+  phoneResendDisabled?: boolean;
   activeAuthMethod?: 'magic' | 'phone' | 'password' | null;
   phoneCountry?: { label: string; dialCode: string };
   phoneCountries?: Array<{ label: string; dialCode: string }>;
@@ -174,6 +177,9 @@ export function AuthFormView({
   phoneFields = [],
   onPhoneCodeAction,
   phoneCodeActionLabel,
+  phoneResendActionLabel,
+  onPhoneResendAction,
+  phoneResendDisabled = false,
   activeAuthMethod = null,
   phoneCountry,
   phoneCountries = [],
@@ -341,9 +347,16 @@ export function AuthFormView({
           ))}
 
           {activeAuthMethod === 'phone' && onPhoneCodeAction && phoneCodeActionLabel ? (
-            <Button mode="contained" onPress={onPhoneCodeAction} disabled={submitLoading} contentStyle={styles.buttonContent} style={styles.button}>
+            <>
+              <Button mode="contained" onPress={onPhoneCodeAction} disabled={submitLoading} contentStyle={styles.buttonContent} style={styles.button}>
               {submitLoading ? <ActivityIndicator color={theme.colors.onPrimary} size="small" /> : phoneCodeActionLabel}
-            </Button>
+              </Button>
+              {phoneCodeSent && onPhoneResendAction && phoneResendActionLabel ? (
+                <Button mode="text" onPress={onPhoneResendAction} disabled={submitLoading || phoneResendDisabled} style={styles.linkButton}>
+                  {phoneResendActionLabel}
+                </Button>
+              ) : null}
+            </>
           ) : null}
 
             {(!hasAlternativeSignIn || activeAuthMethod === 'password') && (

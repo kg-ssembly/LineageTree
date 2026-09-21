@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Linking, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { isSignInWithEmailLink } from 'firebase/auth';
@@ -80,6 +80,8 @@ export function useLoginScreenController(navigation: LoginNavigation) {
   const [phone, setPhone] = useState('');
   const [phoneCode, setPhoneCode] = useState('');
   const [phoneCodeSent, setPhoneCodeSent] = useState(false);
+  const [phoneResendAt, setPhoneResendAt] = useState<number | null>(null);
+  const [phoneResendSeconds, setPhoneResendSeconds] = useState(0);
   const [showPhoneForm, setShowPhoneForm] = useState(false);
   const [phoneCountry, setPhoneCountry] = useState(PHONE_COUNTRIES[0]);
   const [detectedEmailLink, setDetectedEmailLink] = useState<string | null>(null);
@@ -87,6 +89,36 @@ export function useLoginScreenController(navigation: LoginNavigation) {
     email: null as string | null,
     password: null as string | null,
   });
+
+  const resetAuthMethodState = useCallback(() => {
+    setActiveAuthMethod(null);
+    setShowPhoneForm(false);
+    setPhoneCodeSent(false);
+    setPhoneCode('');
+    setPhoneResendAt(null);
+    setPhoneResendSeconds(0);
+    setEmailLinkPending(false);
+    setDetectedEmailLink(null);
+    setMagicLinkSent(false);
+    setInlineNoticeMessage(null);
+  }, []);
+
+  useEffect(() => () => resetAuthMethodState(), [resetAuthMethodState]);
+
+  useEffect(() => {
+    if (!phoneResendAt) {
+      setPhoneResendSeconds(0);
+      return;
+    }
+    const update = () => {
+      const seconds = Math.max(0, Math.ceil((phoneResendAt - Date.now()) / 1000));
+      setPhoneResendSeconds(seconds);
+      if (seconds === 0) setPhoneResendAt(null);
+    };
+    update();
+    const timer = setInterval(update, 1000);
+    return () => clearInterval(timer);
+  }, [phoneResendAt]);
 
   useEffect(() => {
     if (error) {
@@ -152,7 +184,12 @@ export function useLoginScreenController(navigation: LoginNavigation) {
     try {
       await signIn(email.trim(), password);
     } catch {
-      // surfaced via store snackbar
+      if (emailLinkPending) {
+        setEmailLinkPending(false);
+        setDetectedEmailLink(null);
+        setMagicLinkSent(false);
+        setInlineNoticeMessage(t(K.auth.magicLinkExpired));
+      }
     }
   };
 
@@ -220,7 +257,19 @@ export function useLoginScreenController(navigation: LoginNavigation) {
       } else {
         const result = await sendPhoneCode(normalizePhoneNumber(phone, phoneCountry.dialCode));
         setPhoneCodeSent(!result.automaticallyVerified);
+        if (!result.automaticallyVerified) setPhoneResendAt(Date.now() + 30_000);
       }
+    } catch {
+      // surfaced via store snackbar
+    }
+  };
+
+  const handleResendPhoneCode = async () => {
+    if (phoneResendSeconds > 0) return;
+    try {
+      const result = await sendPhoneCode(normalizePhoneNumber(phone, phoneCountry.dialCode));
+      setPhoneCodeSent(!result.automaticallyVerified);
+      if (!result.automaticallyVerified) setPhoneResendAt(Date.now() + 30_000);
     } catch {
       // surfaced via store snackbar
     }
@@ -270,9 +319,9 @@ export function useLoginScreenController(navigation: LoginNavigation) {
   ], [email, fieldErrors.email, fieldErrors.password, password, passwordVisible, t]);
 
   const phoneFields = useMemo<AuthFieldConfig[]>(() => [
-    { key: 'phone', label: 'Mobile number', value: phone, onChangeText: setPhone, keyboardType: 'phone-pad', autoCapitalize: 'none', autoComplete: 'tel', textContentType: 'telephoneNumber' },
-    { key: 'phone-code', label: 'SMS verification code', value: phoneCode, onChangeText: setPhoneCode, keyboardType: 'number-pad', autoCapitalize: 'none', autoComplete: 'one-time-code', textContentType: 'oneTimeCode' },
-  ], [phone, phoneCode]);
+    { key: 'phone', label: t(K.auth.mobileNumber), value: phone, onChangeText: setPhone, keyboardType: 'phone-pad', autoCapitalize: 'none', autoComplete: 'tel', textContentType: 'telephoneNumber' },
+    { key: 'phone-code', label: t(K.auth.smsVerificationCode), value: phoneCode, onChangeText: setPhoneCode, keyboardType: 'number-pad', autoCapitalize: 'none', autoComplete: 'one-time-code', textContentType: 'oneTimeCode' },
+  ], [phone, phoneCode, t]);
 
   return {
     chipIcon: 'account-heart',
@@ -285,14 +334,8 @@ export function useLoginScreenController(navigation: LoginNavigation) {
     secondaryActionLabel: t(K.auth.dontHaveAccountSignUp),
     submitLoading: loading,
     activeAuthMethod,
-    backActionLabel: activeAuthMethod ? 'Back to login options' : undefined,
-    onBackAction: activeAuthMethod ? () => {
-      setActiveAuthMethod(null);
-      setShowPhoneForm(false);
-      setPhoneCodeSent(false);
-      setPhoneCode('');
-      setInlineNoticeMessage(null);
-    } : undefined,
+    backActionLabel: activeAuthMethod ? t(K.auth.backToLoginOptions) : undefined,
+    onBackAction: activeAuthMethod ? resetAuthMethodState : undefined,
     fields,
     snackbarVisible: snackVisible,
     snackbarMessage,
@@ -303,7 +346,7 @@ export function useLoginScreenController(navigation: LoginNavigation) {
     onTertiaryAction: handleForgotPassword,
     googleActionLabel: t(K.auth.continueWithGoogle),
     onGoogleAction: handleGoogleSignIn,
-    phoneActionLabel: 'Sign in with phone',
+    phoneActionLabel: t(K.auth.signInWithPhone),
     onPhoneAction: handlePhoneAction,
     phoneFields: showPhoneForm ? phoneFields : undefined,
     phoneCountry: showPhoneForm ? phoneCountry : undefined,
@@ -311,7 +354,10 @@ export function useLoginScreenController(navigation: LoginNavigation) {
     onPhoneCountryChange: (country: { label: string; dialCode: string }) => { setPhoneCountry(country); setShowPhoneForm(true); },
     phoneCodeSent,
     onPhoneCodeAction: showPhoneForm ? handlePhoneAction : undefined,
-    phoneCodeActionLabel: phoneCodeSent ? 'Verify code' : 'Send code',
+    phoneCodeActionLabel: phoneCodeSent ? t(K.auth.verifyCode) : t(K.auth.sendCode),
+    phoneResendActionLabel: phoneResendSeconds > 0 ? t(K.auth.resendCodeIn, { seconds: phoneResendSeconds }) : t(K.auth.resendCode),
+    onPhoneResendAction: showPhoneForm ? handleResendPhoneCode : undefined,
+    phoneResendDisabled: phoneResendSeconds > 0,
     magicLinkActionLabel: t(emailLinkPending ? K.auth.completeSignInLink : K.auth.sendSignInLink),
     onMagicLinkAction: handleMagicLink,
     passwordSectionLabel: t(K.auth.useEmailPassword),

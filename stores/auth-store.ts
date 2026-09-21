@@ -530,6 +530,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const { user: fbUser } = await createUserWithEmailAndPassword(auth, email, password);
       await updateProfile(fbUser, { displayName });
+      try {
+        await sendEmailVerification(fbUser);
+      } catch (verificationError) {
+        // Account creation is complete even when the verification email is
+        // temporarily unavailable. Profile settings exposes a retry action.
+        console.warn('Initial verification email request failed', verificationError);
+      }
       const profile = await ensureUserProfileDocument({
         uid: fbUser.uid,
         displayName,
@@ -611,6 +618,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       phoneRecaptchaVerifier?.clear();
       phoneRecaptchaVerifier = null;
       await firebaseSignOut(auth);
+      await AsyncStorage.removeItem(MAGIC_LINK_EMAIL_STORAGE_KEY).catch(() => {});
       if (userId) {
         const keys = await AsyncStorage.getAllKeys();
         await AsyncStorage.multiRemove(keys.filter((key) => key.startsWith(`person-draft:v1:${userId}:`) || key === `profile-cache:${userId}`));
@@ -684,8 +692,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         ? window.location.href
         : null;
       const emailLink = link ?? browserLink;
-      if (!emailLink) throw new Error('Open the sign-in link from your email and try again.');
-      if (!isSignInWithEmailLink(auth, emailLink)) throw new Error('That is not a valid sign-in link.');
+      if (!emailLink) throw accountError('auth/invalid-action-code');
+      if (!isSignInWithEmailLink(auth, emailLink)) throw accountError('auth/invalid-action-code');
       const { user: fbUser } = await signInWithEmailLink(auth, normaliseEmail(email), emailLink);
       await AsyncStorage.removeItem(MAGIC_LINK_EMAIL_STORAGE_KEY);
       const profile = await fetchUserProfile(fbUser.uid, fbUser);
