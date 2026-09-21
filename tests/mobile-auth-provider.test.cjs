@@ -26,6 +26,11 @@ function fixture(phoneSnapshot = { state: 'sent', verificationId: 'verification-
     'react-native': { Platform: { OS: 'android' } },
     './account-security': security,
     '@react-native-google-signin/google-signin': {
+      statusCodes: {
+        SIGN_IN_CANCELLED: '12501',
+        IN_PROGRESS: '12502',
+        PLAY_SERVICES_NOT_AVAILABLE: 'PLAY_SERVICES_NOT_AVAILABLE',
+      },
       GoogleSignin: {
         configure: options => calls.push(['configure', options.webClientId]),
         hasPlayServices: async () => calls.push(['playServices']),
@@ -47,6 +52,21 @@ test('native Google sign-in returns an ID token configured for the Firebase web 
   assert.equal(await provider.getMobileGoogleIdToken(), 'google-id-token');
   assert.ok(calls.some(([name, value]) => name === 'configure' && value.endsWith('.apps.googleusercontent.com')));
   assert.ok(calls.some(([name]) => name === 'playServices'));
+});
+
+test('native Google errors are converted into actionable app errors', () => {
+  const { provider } = fixture();
+  const cases = [
+    ['10', 'account/google-configuration-error'],
+    ['7', 'auth/network-request-failed'],
+    ['12500', 'account/google-sign-in-failed'],
+    ['12501', 'auth/popup-closed-by-user'],
+    ['12502', 'account/google-sign-in-progress'],
+    ['PLAY_SERVICES_NOT_AVAILABLE', 'account/google-play-services-unavailable'],
+  ];
+  for (const [nativeCode, expectedCode] of cases) {
+    assert.equal(provider.normalizeGoogleSignInError({ code: nativeCode }).code, expectedCode);
+  }
 });
 
 test('native phone verification resolves as soon as Firebase sends the code', async () => {

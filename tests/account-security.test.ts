@@ -38,3 +38,10 @@ test('occupied credentials do not promise an automatic merge or expose another a
     assert.match(accountSecurityErrorMessage({ code }) ?? '', /No profiles were merged/);
   }
 });
+
+test('mobile authentication failures have actionable messages', () => {
+  assert.match(accountSecurityErrorMessage({ code: 'account/google-configuration-error' }) ?? '', /latest build/);
+  assert.match(accountSecurityErrorMessage({ code: 'account/google-play-services-unavailable' }) ?? '', /Google Play Services/);
+  assert.match(accountSecurityErrorMessage({ code: 'functions/resource-exhausted' }) ?? '', /Wait an hour/);
+  assert.match(accountSecurityErrorMessage({ code: 'functions/internal' }) ?? '', /could not be sent/);
+});

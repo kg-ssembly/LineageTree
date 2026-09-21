@@ -57,6 +57,16 @@ export function accountSecurityErrorMessage(error: unknown): string | null {
     case 'account/last-sign-in-method': return 'Connect another sign-in method before removing this one.';
     case 'account/native-auth-unavailable': return 'Google and phone sign-in require a development or store build. They are not available in Expo Go.';
     case 'account/google-token-missing': return 'Google did not return a valid sign-in credential. Check the app registration and try again.';
+    case 'account/google-configuration-error': return 'Google sign-in is not configured for this app build. Install the latest build and try again.';
+    case 'account/google-sign-in-failed': return 'Google could not complete sign-in. Check your Google account and try again.';
+    case 'account/google-sign-in-progress': return 'Google sign-in is already open. Finish or cancel it before trying again.';
+    case 'account/google-play-services-unavailable': return 'Google Play Services is unavailable or needs an update on this device.';
+    case 'functions/resource-exhausted': return 'Too many email requests were made. Wait an hour, then try again.';
+    case 'functions/unavailable':
+    case 'functions/deadline-exceeded': return 'The email service is temporarily unavailable. Check your connection and try again.';
+    case 'functions/failed-precondition': return 'The email service is not configured correctly. Please contact support.';
+    case 'functions/internal':
+    case 'functions/unknown': return 'The email could not be sent. Please try again later.';
     case 'auth/missing-verification-id': return 'Phone verification could not start. Check the app registration and try again.';
     case 'account/email-change': return 'Use the email address already attached to this account.';
     case 'auth/credential-already-in-use':

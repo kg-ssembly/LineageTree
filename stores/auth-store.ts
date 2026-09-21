@@ -664,7 +664,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const normalizedEmail = normaliseEmail(email);
       await sendMagicLinkEmailNotification(normalizedEmail);
-      await AsyncStorage.setItem(MAGIC_LINK_EMAIL_STORAGE_KEY, normalizedEmail);
+      // Delivery has already succeeded at this point. A device storage issue
+      // must not turn that success into a misleading "email not sent" error.
+      await AsyncStorage.setItem(MAGIC_LINK_EMAIL_STORAGE_KEY, normalizedEmail).catch((storageError) => {
+        console.warn('Could not remember magic-link email locally', storageError);
+      });
       set({ loading: false });
     } catch (err: any) {
       console.error('Magic-link email failed', err?.code, err?.message);
