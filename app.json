@@ -3,7 +3,7 @@
     "name": "Lineage Tree",
     "slug": "lineage-tree",
     "scheme": "lineagetree",
-    "version": "1.0.17",
+    "version": "1.0.20",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -17,6 +17,9 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.ssembly.lineagetree",
       "googleServicesFile": "./GoogleService-Info.plist",
+      "associatedDomains": [
+        "applinks:lineagetree.firebaseapp.com"
+      ],
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -31,6 +34,23 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "lineagetree.firebaseapp.com",
+              "pathPrefix": "/__/auth/links"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ],
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.READ_MEDIA_IMAGES",

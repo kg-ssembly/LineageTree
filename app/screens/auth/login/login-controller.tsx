@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Platform } from 'react-native';
+import { Linking, Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { isSignInWithEmailLink } from 'firebase/auth';
 import { TextInput } from 'react-native-paper';
 import { useI18n } from '../../../../hooks/use-i18n';
@@ -14,7 +15,12 @@ type LoginNavigation = {
   navigate: (name: string) => void;
 };
 
-const initialWebUrl = typeof window !== 'undefined' ? window.location.href : null;
+// React Native may provide a partial window shim without a location object.
+// Read the URL only when the browser location is actually available.
+const initialWebUrl = typeof window !== 'undefined' && typeof window.location?.href === 'string'
+  ? window.location.href
+  : null;
+const MAGIC_LINK_EMAIL_STORAGE_KEY = 'lineagetree.emailForSignIn';
 
 const PHONE_COUNTRIES = [
   { label: 'South Africa', dialCode: '+27' },
@@ -90,19 +96,40 @@ export function useLoginScreenController(navigation: LoginNavigation) {
   }, [error]);
 
   useEffect(() => {
-    if (Platform.OS !== 'web' || typeof window === 'undefined') return;
-    const emailLink = [window.location.href, initialWebUrl]
-      .find((candidate): candidate is string => Boolean(candidate && isSignInWithEmailLink(auth, candidate)));
-    if (!emailLink) return;
-    const savedEmail = window.localStorage.getItem('lineagetree.emailForSignIn');
-    setDetectedEmailLink(emailLink);
-    setEmailLinkPending(true);
-    if (savedEmail) {
-      setEmail(savedEmail);
-      void completeMagicLink(savedEmail, emailLink).catch(() => {});
-    } else {
-      setInlineNoticeMessage(t(K.auth.signInLinkDetected));
+    let active = true;
+
+    const receiveEmailLink = async (candidate: string | null) => {
+      if (!candidate || !isSignInWithEmailLink(auth, candidate) || !active) return;
+      const savedEmail = await AsyncStorage.getItem(MAGIC_LINK_EMAIL_STORAGE_KEY);
+      if (!active) return;
+      setDetectedEmailLink(candidate);
+      setEmailLinkPending(true);
+      setActiveAuthMethod('magic');
+      setShowPhoneForm(false);
+      if (savedEmail) {
+        setEmail(savedEmail);
+        await completeMagicLink(savedEmail, candidate).catch(() => {});
+      } else {
+        setInlineNoticeMessage(t(K.auth.signInLinkDetected));
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      const currentWebUrl = typeof window !== 'undefined' && typeof window.location?.href === 'string'
+        ? window.location.href
+        : null;
+      void receiveEmailLink([currentWebUrl, initialWebUrl]
+        .find((candidate): candidate is string => Boolean(candidate && isSignInWithEmailLink(auth, candidate))) ?? null)
+        .catch(() => {});
+      return () => { active = false; };
     }
+
+    void Linking.getInitialURL().then(receiveEmailLink).catch(() => {});
+    const subscription = Linking.addEventListener('url', ({ url }) => { void receiveEmailLink(url).catch(() => {}); });
+    return () => {
+      active = false;
+      subscription.remove();
+    };
   }, [completeMagicLink, t]);
 
   const dismissSnackbar = () => {
@@ -285,26 +312,18 @@ export function useLoginScreenController(navigation: LoginNavigation) {
     phoneCodeSent,
     onPhoneCodeAction: showPhoneForm ? handlePhoneAction : undefined,
     phoneCodeActionLabel: phoneCodeSent ? 'Verify code' : 'Send code',
-    magicLinkActionLabel: Platform.OS === 'web'
-      ? t(emailLinkPending ? K.auth.completeSignInLink : K.auth.sendSignInLink)
-      : undefined,
-    onMagicLinkAction: Platform.OS === 'web' ? handleMagicLink : undefined,
-    passwordSectionLabel: Platform.OS === 'web' ? t(K.auth.useEmailPassword) : undefined,
-    showPasswordForm: Platform.OS !== 'web' || activeAuthMethod === 'password',
-    onShowPasswordForm: Platform.OS === 'web' ? () => {
+    magicLinkActionLabel: t(emailLinkPending ? K.auth.completeSignInLink : K.auth.sendSignInLink),
+    onMagicLinkAction: handleMagicLink,
+    passwordSectionLabel: t(K.auth.useEmailPassword),
+    showPasswordForm: activeAuthMethod === 'password',
+    onShowPasswordForm: () => {
       setActiveAuthMethod('password');
       setShowPhoneForm(false);
       setMagicLinkSent(false);
       setInlineNoticeMessage(null);
-    } : undefined,
+    },
     magicLinkSent,
     inlineNoticeMessage,
-    accountLinkingLabel: t('Already have a profile? Connect another sign-in method'),
-    onAccountLinkingHelp: () => {
-      setActiveAuthMethod(null);
-      setShowPhoneForm(false);
-      setInlineNoticeMessage(t('Sign in with your original method first. Then open My Profile, Account & preferences, Sign-in methods to connect another method to that same profile.'));
-    },
     onSecondaryAction: () => navigation.navigate('SignUp'),
   };
 }

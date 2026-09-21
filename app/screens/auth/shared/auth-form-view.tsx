@@ -141,8 +141,6 @@ type AuthFormViewProps = {
   showPasswordForm?: boolean;
   onShowPasswordForm?: () => void;
   magicLinkSent?: boolean;
-  accountLinkingLabel?: string;
-  onAccountLinkingHelp?: () => void;
 };
 
 export function AuthFormView({
@@ -186,8 +184,6 @@ export function AuthFormView({
   showPasswordForm = true,
   onShowPasswordForm,
   magicLinkSent = false,
-  accountLinkingLabel,
-  onAccountLinkingHelp,
 }: AuthFormViewProps) {
   const theme = useTheme();
   const chipColor = variant === 'login'
@@ -373,12 +369,6 @@ export function AuthFormView({
             <HelperText type="info" visible={Boolean(inlineNoticeMessage)}>
               {inlineNoticeMessage ?? ' '}
             </HelperText>
-
-            {accountLinkingLabel && onAccountLinkingHelp ? (
-              <Button mode="text" icon="link-variant" disabled={submitLoading} onPress={onAccountLinkingHelp} style={styles.linkButton}>
-                {accountLinkingLabel}
-              </Button>
-            ) : null}
 
             {(!hasAlternativeSignIn || activeAuthMethod === 'password') ? <Button mode="text" onPress={onSecondaryAction} style={styles.linkButton}>
               {secondaryActionLabel}

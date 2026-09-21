@@ -294,6 +294,13 @@ exports.sendMagicLinkEmail = (0, https_1.onCall)({
     const signInUrl = await adminAuth.generateSignInWithEmailLink(email, {
         url: `${normalizeBaseUrl()}/login`,
         handleCodeInApp: true,
+        android: {
+            packageName: 'com.ssembly.lineagetree',
+            installApp: false,
+        },
+        iOS: {
+            bundleId: 'com.ssembly.lineagetree',
+        },
     });
     const template = (0, email_templates_1.buildMagicLinkEmailTemplate)({
         ...buildBranding(),

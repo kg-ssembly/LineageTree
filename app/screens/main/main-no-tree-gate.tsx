@@ -355,6 +355,14 @@ export function MainNoTreeGate({
           >
             {controller.t(K.app.startOwnFamilyTree)}
           </Button>
+          <Button
+            mode="text"
+            icon="link-variant"
+            onPress={() => controller.navigation.navigate('Main', { screen: 'myProfile' })}
+            style={localStyles.secondaryAction}
+          >
+            {controller.t('Already have a profile? Connect another sign-in method')}
+          </Button>
           </SectionCard>
         </Reveal>
       </View>

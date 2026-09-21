@@ -28,6 +28,7 @@ function fixture(providerIds = ['password']) {
   let authTime = Date.now() / 1000;
   let verificationFails = false;
   let reloadHook;
+  const storedValues = {};
   const user = {
     uid: 'original', email: 'original@example.test', displayName: 'Chosen name', photoURL: 'chosen-photo',
     phoneNumber: '+27821234567', emailVerified: true,
@@ -47,6 +48,8 @@ function fixture(providerIds = ['password']) {
     },
     async linkWithPopup(target) { return firebase.linkWithCredential(target, { providerId: 'google.com' }); },
     async signInWithCredential(_auth, credential) { calls.push(['signIn', credential.providerId]); return { user: auth.currentUser }; },
+    async signInWithEmailLink(_auth, email, link) { calls.push(['emailLinkSignIn', email, link]); return { user: auth.currentUser }; },
+    isSignInWithEmailLink: (_auth, link) => link.includes('mode=signIn'),
     async reauthenticateWithCredential(target) { calls.push(['reauthenticate', target.uid]); authTime = Date.now() / 1000; },
     async reauthenticateWithPopup(target) { return firebase.reauthenticateWithCredential(target); },
     async unlink(target, providerId) { calls.push(['unlink', target.uid, providerId]); target.providerData = target.providerData.filter(p => p.providerId !== providerId); },
@@ -65,7 +68,13 @@ function fixture(providerIds = ['password']) {
     },
     RecaptchaVerifier: class { clear() { calls.push(['clearCaptcha']); } },
   };
-  const storage = { setItem: async () => {}, getItem: async () => null, getAllKeys: async () => [], multiRemove: async () => {} };
+  const storage = {
+    setItem: async (key, value) => { storedValues[key] = value; },
+    getItem: async key => storedValues[key] ?? null,
+    removeItem: async key => { delete storedValues[key]; },
+    getAllKeys: async () => Object.keys(storedValues),
+    multiRemove: async keys => { keys.forEach(key => { delete storedValues[key]; }); },
+  };
   const firestore = {
     doc: (_db, collection, id) => `${collection}/${id}`,
     getDoc: async path => ({ exists: () => !!documents[path], data: () => documents[path] }),
@@ -77,7 +86,9 @@ function fixture(providerIds = ['password']) {
     zustand: { create: createStore },
     'firebase/auth': firebase, 'firebase/firestore': firestore,
     '../providers/firebase-provider': { auth, db: {} },
-    '../providers/email-service': {},
+    '../providers/email-service': {
+      sendMagicLinkEmailNotification: async email => { calls.push(['sendMagicLink', email]); },
+    },
     '../providers/account-security': security,
     '../providers/mobile-auth-provider': {
       mobileAuthAvailable: false,
@@ -88,13 +99,25 @@ function fixture(providerIds = ['password']) {
   }, { document: { getElementById: () => ({}) } });
   store.setState({ user: profile, firebaseUser: user, loading: false });
   return {
-    store, auth, user, profile, calls, documents,
+    store, auth, user, profile, calls, documents, storedValues,
     setOldLogin: () => { authTime = 1; },
     setCollision: code => { linkError = code; },
     failEmail: () => { verificationFails = true; },
     onReload: hook => { reloadHook = hook; },
   };
 }
+
+test('magic links can be requested and completed without browser globals', async () => {
+  const f = fixture();
+  await f.store.getState().sendMagicLink(' Mobile@Example.test ');
+  assert.deepEqual(f.calls.find(call => call[0] === 'sendMagicLink'), ['sendMagicLink', 'mobile@example.test']);
+  assert.equal(f.storedValues['lineagetree.emailForSignIn'], 'mobile@example.test');
+
+  const link = 'https://lineagetree.firebaseapp.com/__/auth/links?mode=signIn&oobCode=code';
+  await f.store.getState().completeMagicLink('mobile@example.test', link);
+  assert.deepEqual(f.calls.find(call => call[0] === 'emailLinkSignIn'), ['emailLinkSignIn', 'mobile@example.test', link]);
+  assert.equal(f.storedValues['lineagetree.emailForSignIn'], undefined);
+});
 
 test('Google linking retains the original UID, tree, name and photo without global loading', async () => {
   const f = fixture();

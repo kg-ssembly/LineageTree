@@ -8,21 +8,12 @@ import { useAuthStore } from '../../stores/auth-store';
 import { useTreeStore } from '../../stores/tree-store';
 import LoginScreen from '../screens/auth/login';
 import SignUpScreen from '../screens/auth/sign-up';
+import MainScreen from '../screens/main';
+import TreeDetailScreen from '../screens/tree-detail';
+import PersonProfileScreen from '../screens/person-profile';
 import type { RootStackParamList } from '../../components/dto/navigation';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
-
-function getMainScreen() {
-  return require('../screens/main').default;
-}
-
-function getTreeDetailScreen() {
-  return require('../screens/tree-detail').default;
-}
-
-function getPersonProfileScreen() {
-  return require('../screens/person-profile').default;
-}
 
 export default function RootNavigator() {
   const theme = useTheme();
@@ -63,9 +54,9 @@ export default function RootNavigator() {
         <Stack.Screen name="JoinTree" component={JoinTreeScreen} options={{ headerShown: false }} />
         {user ? (
           <>
-            <Stack.Screen name="Main" getComponent={getMainScreen} options={{ headerShown: false }} />
-            <Stack.Screen name="TreeDetail" getComponent={getTreeDetailScreen} options={{ headerShown: false }} />
-            <Stack.Screen name="PersonProfile" getComponent={getPersonProfileScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="Main" component={MainScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="TreeDetail" component={TreeDetailScreen} options={{ headerShown: false }} />
+            <Stack.Screen name="PersonProfile" component={PersonProfileScreen} options={{ headerShown: false }} />
           </>
         ) : (
           <>

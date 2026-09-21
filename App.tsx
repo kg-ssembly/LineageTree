@@ -11,6 +11,7 @@ import * as Updates from 'expo-updates';
 import { en as paperDatesEn, registerTranslation } from 'react-native-paper-dates';
 import { getAppThemes } from './constants/theme';
 import linking from './app/navigation/app-linking';
+import RootNavigator from './app/navigation/root-navigator';
 import { setActiveLanguage } from './i18n';
 import { useLanguageStore } from './stores/language-store';
 import { useThemeStore } from './stores/theme-store';
@@ -64,11 +65,6 @@ class StartupErrorBoundary extends Component<{ children: ReactNode }, StartupErr
       </ScrollView>
     );
   }
-}
-
-function RootNavigatorLoader() {
-  const RootNavigator = require('./app/navigation/root-navigator').default;
-  return <RootNavigator />;
 }
 
 startMetric('startup.ready.ms');
@@ -154,7 +150,7 @@ function AppShell() {
       <PaperProvider theme={paperTheme}>
         <StatusBar style={resolvedTheme === 'dark' ? 'light' : 'dark'} />
         <NavigationContainer theme={navigationTheme} linking={linking}>
-          <RootNavigatorLoader />
+          <RootNavigator />
         </NavigationContainer>
       </PaperProvider>
     </SafeAreaProvider>

@@ -47,6 +47,8 @@ import { accountError, accountSecurityErrorMessage, assertSameAccount, assertRec
 import { getMobileGoogleIdToken, mobileAuthAvailable, requestMobilePhoneVerification } from '../providers/mobile-auth-provider';
 import { CURRENT_APP_VERSION } from '../constants/app-metadata';
 
+const MAGIC_LINK_EMAIL_STORAGE_KEY = 'lineagetree.emailForSignIn';
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface AuthState {
@@ -660,10 +662,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   sendMagicLink: async (email) => {
     set({ loading: true, error: null });
     try {
-      if (typeof window === 'undefined') throw new Error('Magic links are available on web only.');
       const normalizedEmail = normaliseEmail(email);
       await sendMagicLinkEmailNotification(normalizedEmail);
-      window.localStorage.setItem('lineagetree.emailForSignIn', normalizedEmail);
+      await AsyncStorage.setItem(MAGIC_LINK_EMAIL_STORAGE_KEY, normalizedEmail);
       set({ loading: false });
     } catch (err: any) {
       console.error('Magic-link email failed', err?.code, err?.message);
@@ -675,13 +676,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   completeMagicLink: async (email, link) => {
     set({ loading: true, error: null });
     try {
-      if (typeof window === 'undefined') throw new Error('Magic links are available on web only.');
-      const emailLink = link ?? window.location.href;
+      const browserLink = typeof window !== 'undefined' && typeof window.location?.href === 'string'
+        ? window.location.href
+        : null;
+      const emailLink = link ?? browserLink;
+      if (!emailLink) throw new Error('Open the sign-in link from your email and try again.');
       if (!isSignInWithEmailLink(auth, emailLink)) throw new Error('That is not a valid sign-in link.');
       const { user: fbUser } = await signInWithEmailLink(auth, normaliseEmail(email), emailLink);
-      window.localStorage.removeItem('lineagetree.emailForSignIn');
+      await AsyncStorage.removeItem(MAGIC_LINK_EMAIL_STORAGE_KEY);
       const profile = await fetchUserProfile(fbUser.uid, fbUser);
-      window.history.replaceState({}, document.title, `${window.location.origin}/`);
+      if (typeof window !== 'undefined' && window.history && typeof window.location?.origin === 'string') {
+        window.history.replaceState({}, document.title, `${window.location.origin}/`);
+      }
       set({ firebaseUser: fbUser, user: profile, loading: false });
     } catch (err: any) {
       console.error('Magic-link completion failed', err?.code, err?.message);

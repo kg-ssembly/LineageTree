@@ -10,7 +10,10 @@ const linking: LinkingOptions<RootStackParamList> = {
   config: {
     screens: {
       JoinTree: 'join/:treeId',
-      Login: 'login',
+      Login: {
+        path: 'login',
+        alias: ['__/auth/links'],
+      },
       SignUp: 'signup',
       Main: {
         path: '',
