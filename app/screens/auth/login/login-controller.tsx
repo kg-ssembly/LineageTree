@@ -76,7 +76,6 @@ export function useLoginScreenController(navigation: LoginNavigation) {
   const [inlineNoticeMessage, setInlineNoticeMessage] = useState<string | null>(null);
   const [emailLinkPending, setEmailLinkPending] = useState(false);
   const [activeAuthMethod, setActiveAuthMethod] = useState<'magic' | 'phone' | 'password' | null>(null);
-  const [magicLinkSent, setMagicLinkSent] = useState(false);
   const [phone, setPhone] = useState('');
   const [phoneCode, setPhoneCode] = useState('');
   const [phoneCodeSent, setPhoneCodeSent] = useState(false);
@@ -99,7 +98,6 @@ export function useLoginScreenController(navigation: LoginNavigation) {
     setPhoneResendSeconds(0);
     setEmailLinkPending(false);
     setDetectedEmailLink(null);
-    setMagicLinkSent(false);
     setInlineNoticeMessage(null);
   }, []);
 
@@ -187,7 +185,6 @@ export function useLoginScreenController(navigation: LoginNavigation) {
       if (emailLinkPending) {
         setEmailLinkPending(false);
         setDetectedEmailLink(null);
-        setMagicLinkSent(false);
         setInlineNoticeMessage(t(K.auth.magicLinkExpired));
       }
     }
@@ -226,7 +223,6 @@ export function useLoginScreenController(navigation: LoginNavigation) {
         await completeMagicLink(email.trim(), detectedEmailLink ?? undefined);
       } else {
         await sendMagicLink(email.trim());
-        setMagicLinkSent(true);
         setInlineNoticeMessage(t(K.auth.emailLinkSent));
       }
     } catch {
@@ -365,10 +361,8 @@ export function useLoginScreenController(navigation: LoginNavigation) {
     onShowPasswordForm: () => {
       setActiveAuthMethod('password');
       setShowPhoneForm(false);
-      setMagicLinkSent(false);
       setInlineNoticeMessage(null);
     },
-    magicLinkSent,
     inlineNoticeMessage,
     onSecondaryAction: () => navigation.navigate('SignUp'),
   };

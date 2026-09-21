@@ -943,7 +943,7 @@ export function useMainScreenController({ navigation }: Props) {
     setFollowUpTreePromptsPending(true);
     setSelfPersonDialogVisible(false);
     return created;
-  }, [assignPersonToUser, createSelfPersonFromPayload, selectedTree, user?.id]);
+  }, [assignPersonToUser, createSelfPersonFromPayload, selectedTree, user?.id, user?.photoUrl]);
 
   const handleAssignPersonToUser = useCallback(async (targetUserId: string, personId: string) => {
     if (!user?.id || !selectedTree) {
@@ -958,7 +958,7 @@ export function useMainScreenController({ navigation }: Props) {
     } catch {
       // snackbar
     }
-  }, [assignPersonToUser, selectedTree, user?.id]);
+  }, [assignPersonToUser, selectedTree, user?.id, user?.photoUrl]);
 
   const handleClearSelfAssignment = useCallback(async () => {
     if (!user?.id || !selectedTree) {

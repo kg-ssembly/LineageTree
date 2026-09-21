@@ -1,6 +1,5 @@
 import React from 'react';
 import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
 import {
   ActivityIndicator,
   Button,
@@ -69,17 +68,6 @@ const styles = StyleSheet.create({
 
 const APP_LOGO = require('../../../../assets/logo-transparent.png');
 
-function GoogleMark() {
-  return (
-    <Svg width={18} height={18} viewBox="0 0 24 24" accessibilityLabel="Google">
-      <Path fill="#4285F4" d="M21.35 12.27c0-.79-.07-1.55-.2-2.27H12v4.3h5.24a4.48 4.48 0 0 1-1.94 2.94v2.45h3.14c1.84-1.69 2.91-4.18 2.91-7.42Z" />
-      <Path fill="#34A853" d="M12 21.96c2.59 0 4.76-.86 6.35-2.33l-3.14-2.45c-.87.58-1.98.92-3.21.92-2.47 0-4.56-1.67-5.31-3.91H3.44v2.53A9.6 9.6 0 0 0 12 21.96Z" />
-      <Path fill="#FBBC05" d="M6.69 14.19A5.78 5.78 0 0 1 6.38 12c0-.76.13-1.5.31-2.19V7.28H3.44A9.98 9.98 0 0 0 2.4 12c0 1.61.39 3.14 1.04 4.72l3.25-2.53Z" />
-      <Path fill="#EA4335" d="M12 5.9c1.41 0 2.68.49 3.68 1.45l2.76-2.76C16.75 3 14.59 2.04 12 2.04a9.6 9.6 0 0 0-8.56 5.24l3.25 2.53C6.44 7.57 8.53 5.9 12 5.9Z" />
-    </Svg>
-  );
-}
-
 export type AuthFieldConfig = {
   key: string;
   label: string;
@@ -143,7 +131,6 @@ type AuthFormViewProps = {
   passwordSectionLabel?: string;
   showPasswordForm?: boolean;
   onShowPasswordForm?: () => void;
-  magicLinkSent?: boolean;
 };
 
 export function AuthFormView({
@@ -189,12 +176,8 @@ export function AuthFormView({
   passwordSectionLabel,
   showPasswordForm = true,
   onShowPasswordForm,
-  magicLinkSent = false,
 }: AuthFormViewProps) {
   const theme = useTheme();
-  const chipColor = variant === 'login'
-    ? theme.colors.secondaryContainer
-    : theme.colors.tertiaryContainer;
   const hasAlternativeSignIn = Boolean(googleActionLabel && onGoogleAction) || Boolean(magicLinkActionLabel && onMagicLinkAction) || Boolean(phoneActionLabel && onPhoneAction);
   const [countryMenuVisible, setCountryMenuVisible] = React.useState(false);
   const renderField = (field: AuthFieldConfig) => (
@@ -230,7 +213,7 @@ export function AuthFormView({
       {googleActionLabel && onGoogleAction ? (
         <Button
           mode="outlined"
-          icon={() => <GoogleMark />}
+          icon="google"
           onPress={onGoogleAction}
           disabled={submitLoading}
           contentStyle={styles.buttonContent}
@@ -281,8 +264,15 @@ export function AuthFormView({
               <Image source={APP_LOGO} style={styles.logo} resizeMode="contain" accessibilityLabel="Lineage Tree logo" />
             </View>
             <View style={{ flex: 1 }}>
-              <Text variant="titleLarge" style={{ color: theme.colors.primary, fontWeight: '800' }}>Lineage Tree - Your family story</Text>
-              <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant, marginTop: 4 }}>Connected across generations.</Text>
+              <Chip
+                icon={chipIcon}
+                compact
+                style={{ alignSelf: 'flex-start', backgroundColor: variant === 'login' ? theme.colors.secondaryContainer : theme.colors.tertiaryContainer }}
+              >
+                {chipLabel}
+              </Chip>
+              <Text variant="titleLarge" style={[styles.heroTitle, { color: theme.colors.primary }]}>{heroTitle}</Text>
+              <Text variant="bodyMedium" style={[styles.heroSubtitle, { color: theme.colors.onSurfaceVariant }]}>{heroSubtitle}</Text>
             </View>
           </View>
         </View>

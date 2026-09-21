@@ -777,7 +777,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     setFollowUpTreePromptsPending(true);
     setSelfPersonDialogVisible(false);
     return created;
-  }, [assignPersonToUser, createSelfPersonFromPayload, selectedTree, user?.id]);
+  }, [assignPersonToUser, createSelfPersonFromPayload, selectedTree, user?.id, user?.photoUrl]);
 
   const selfPersonInitialValues = useMemo(
     () => buildSelfPersonInitialValues(user),
@@ -801,7 +801,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
     } catch {
       // surfaced by store snackbar
     }
-  }, [assignPersonToUser, selectedTree, user?.id]);
+  }, [assignPersonToUser, selectedTree, user?.id, user?.photoUrl]);
 
   const handleClearSelfAssignment = useCallback(async () => {
     if (!user?.id || !selectedTree) {
