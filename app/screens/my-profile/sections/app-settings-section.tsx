@@ -53,6 +53,11 @@ const styles = StyleSheet.create({
   card: {
     marginBottom: 0,
   },
+  dangerActions: {
+    alignItems: 'flex-start',
+    gap: 12,
+    marginTop: 16,
+  },
 });
 
 export function AppSettingsSection({ onSignOut, authLoading }: UserProfileTabProps) {
@@ -61,12 +66,14 @@ export function AppSettingsSection({ onSignOut, authLoading }: UserProfileTabPro
   const [languageError, setLanguageError] = useState('');
   const [savingLanguage, setSavingLanguage] = useState(false);
   const { language, languages, setLanguage, t } = useI18n();
-  const { user, updateDisplayName, updatePreferredLanguage, accountBusy } = useAuthStore();
+  const { user, updateDisplayName, updatePreferredLanguage, accountBusy, accountError, clearAccountFeedback, deleteAccount } = useAuthStore();
   const preference = useThemeStore((state) => state.preference);
   const setPreference = useThemeStore((state) => state.setPreference);
   const [editName, setEditName] = useState(user?.displayName ?? '');
   const [savingName, setSavingName] = useState(false);
   const [nameError, setNameError] = useState<string | null>(null);
+  const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
   useEffect(() => {
     setEditName(user?.displayName ?? '');
   }, [user?.displayName]);
@@ -164,6 +171,65 @@ export function AppSettingsSection({ onSignOut, authLoading }: UserProfileTabPro
       <SignInMethodsSection />
 
       <PerformanceDiagnostics />
+
+      <Reveal delay={140}>
+        <SectionCard variant="tree" style={[getFamilyMemberCardStyle(theme), styles.card, { borderColor: theme.colors.error }]}>
+          <Text variant="headlineSmall" style={{ color: theme.colors.error }}>{t('Delete account')}</Text>
+          <Text variant="bodySmall" style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
+            {t('Permanently remove an unused login and its personal account data. Accounts with shared family activity are handled through support so family history is not damaged.')}
+          </Text>
+          <View style={styles.dangerActions}>
+            <Button
+              mode="outlined"
+              icon="delete-forever-outline"
+              textColor={theme.colors.error}
+              disabled={accountBusy}
+              onPress={() => {
+                clearAccountFeedback();
+                setDeleteConfirmation('');
+                setDeleteDialogVisible(true);
+              }}
+            >
+              {t('Delete my account')}
+            </Button>
+          </View>
+        </SectionCard>
+      </Reveal>
+
+      <Portal>
+        <Dialog
+          visible={deleteDialogVisible}
+          onDismiss={() => { if (!accountBusy) setDeleteDialogVisible(false); }}
+          style={[GlobalStyles.dialogChrome.dialog, { maxWidth: 480, backgroundColor: theme.colors.surface }]}
+        >
+          <Dialog.Title>{t('Permanently delete account?')}</Dialog.Title>
+          <Dialog.Content style={{ gap: 12 }}>
+            <Text>{t('This cannot be undone. Type DELETE to confirm. For security, you may be asked to sign out and sign in again first.')}</Text>
+            <TextInput
+              mode="outlined"
+              label={t('Type DELETE')}
+              autoCapitalize="characters"
+              value={deleteConfirmation}
+              onChangeText={(value) => { setDeleteConfirmation(value); clearAccountFeedback(); }}
+              disabled={accountBusy}
+            />
+            {accountError ? <Text style={{ color: theme.colors.error }}>{accountError}</Text> : null}
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button disabled={accountBusy} onPress={() => setDeleteDialogVisible(false)}>{t(K.common.cancel)}</Button>
+            <Button
+              mode="contained"
+              buttonColor={theme.colors.error}
+              loading={accountBusy}
+              disabled={accountBusy || deleteConfirmation.trim().toUpperCase() !== 'DELETE'}
+              onPress={() => { void deleteAccount().catch(() => {}); }}
+            >
+              {t('Delete permanently')}
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
+
       <Button mode="outlined" icon="logout" onPress={onSignOut} disabled={authLoading || accountBusy} contentStyle={styles.signOutButtonContent} style={styles.signOutButton} buttonColor={theme.colors.surface} textColor={theme.colors.primary}>
         {t(K.common.logOut)}
       </Button>

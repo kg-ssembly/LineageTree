@@ -42,7 +42,15 @@ yarn-error.*
 /ios
 /android
 
-/functions/lib/
+# Functions output is normally ignored, while the small set of historically
+# tracked entry files and this lifecycle service remain deployable before a
+# fresh build has run.
+/functions/lib/**
+!/functions/lib/functions/
+!/functions/lib/functions/src/
+!/functions/lib/functions/src/services/
+/functions/lib/functions/src/services/**
+!/functions/lib/functions/src/services/account-lifecycle-function.js
 playwright-report/
 test-results/
 *-debug.log

@@ -14,6 +14,11 @@ export interface UserProfile {
   preferredKinshipSystem?: KinshipSystem;
   lastSeenAppVersion?: string;
   discoverabilityPromptSeenAt?: string;
+  lastActiveAt?: string;
+  firstMeaningfulUseAt?: string;
+  deletionWarningSentAt?: string;
+  scheduledDeletionAt?: string;
+  accountLifecycleStatus?: 'active' | 'warned';
   createdAt: string;
 }
 

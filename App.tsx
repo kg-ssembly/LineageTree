@@ -1,6 +1,6 @@
 import { startMetric, finishMetric } from './components/performance-metrics';
 import React, { Component, type ErrorInfo, type ReactNode, useEffect, useState } from 'react';
-import { ActivityIndicator, Platform, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, AppState, Platform, ScrollView, Text, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFonts } from 'expo-font';
@@ -71,6 +71,9 @@ startMetric('startup.ready.ms');
 function AppShell() {
   const authLoading = useAuthStore((state) => state.loading);
   const initAuth = useAuthStore((state) => state.init);
+  const userId = useAuthStore((state) => state.user?.id);
+  const lastActiveAt = useAuthStore((state) => state.user?.lastActiveAt);
+  const markAccountActive = useAuthStore((state) => state.markAccountActive);
   const [authReady, setAuthReady] = useState(!authLoading);
   const [updateCheckComplete, setUpdateCheckComplete] = useState(false);
   const preference = useThemeStore((state) => state.preference);
@@ -89,6 +92,24 @@ function AppShell() {
 
   useEffect(() => initAuth(), [initAuth]);
   useEffect(() => { if (!authLoading) setAuthReady(true); }, [authLoading]);
+
+  useEffect(() => {
+    if (!userId) return undefined;
+    let lastPing = lastActiveAt ? Date.parse(lastActiveAt) : 0;
+    const ping = () => {
+      if (Date.now() - lastPing < 24 * 60 * 60 * 1000) return;
+      lastPing = Date.now();
+      void markAccountActive().catch((error) => {
+        lastPing = 0;
+        console.warn('Unable to record account activity', error);
+      });
+    };
+    ping();
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') ping();
+    });
+    return () => subscription.remove();
+  }, [lastActiveAt, markAccountActive, userId]);
 
   useEffect(() => {
     let cancelled = false;

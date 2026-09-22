@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.expireApprovalRequests = exports.respondToTreeAccessServer = exports.requestTreeAccessServer = exports.archivePersonServer = exports.restorePersonServer = exports.deleteTreeServer = exports.processExpiredApprovalRequestsServer = exports.decideApprovalRequestServer = exports.reviewMergeRequestServer = exports.createMergeRequestServer = exports.sendNotificationEmailOnCreate = exports.sendMagicLinkEmail = exports.sendPasswordResetEmail = exports.sendTreeInviteEmail = exports.sendWelcomeEmail = exports.lookupAccountServer = exports.searchTreeDirectoryServer = exports.submitFamilyChangeServer = exports.unlinkProfilesServer = exports.proposeLinkedProfileUpdates = exports.manageCollaboratorServer = exports.readTreeGraphServer = exports.createSurnameTreeServer = exports.createTreeServer = void 0;
+exports.processUnusedAccounts = exports.deleteMyAccountServer = exports.markAccountActiveServer = exports.expireApprovalRequests = exports.respondToTreeAccessServer = exports.requestTreeAccessServer = exports.archivePersonServer = exports.restorePersonServer = exports.deleteTreeServer = exports.processExpiredApprovalRequestsServer = exports.decideApprovalRequestServer = exports.reviewMergeRequestServer = exports.createMergeRequestServer = exports.sendNotificationEmailOnCreate = exports.sendMagicLinkEmail = exports.sendPasswordResetEmail = exports.sendTreeInviteEmail = exports.sendWelcomeEmail = exports.lookupAccountServer = exports.searchTreeDirectoryServer = exports.submitFamilyChangeServer = exports.unlinkProfilesServer = exports.proposeLinkedProfileUpdates = exports.manageCollaboratorServer = exports.readTreeGraphServer = exports.createSurnameTreeServer = exports.createTreeServer = void 0;
 const scheduler_1 = require("firebase-functions/v2/scheduler");
 const tree_directory_function_1 = require("./services/tree-directory-function");
 const request_limits_1 = require("./services/request-limits");
@@ -25,6 +25,7 @@ const email_templates_1 = require("../../constants/email-templates");
 const approval_decision_function_1 = require("./services/approval-decision-function");
 const merge_review_function_1 = require("./services/merge-review-function");
 const tree_deletion_function_1 = require("./services/tree-deletion-function");
+const account_lifecycle_function_1 = require("./services/account-lifecycle-function");
 (0, app_1.initializeApp)();
 const db = (0, firestore_1.getFirestore)();
 const adminAuth = (0, auth_1.getAuth)();
@@ -34,12 +35,16 @@ const treeDeletionFunction = new tree_deletion_function_1.TreeDeletionFunction(d
 exports.createTreeServer = (0, https_1.onCall)({ region: 'us-central1' }, async (request) => {
     if (!request.auth)
         throw new https_1.HttpsError('unauthenticated', 'Sign in to create a tree.');
-    return (0, tree_creation_function_1.createTreeRecord)(db, request.auth.uid, request.data ?? {});
+    const result = await (0, tree_creation_function_1.createTreeRecord)(db, request.auth.uid, request.data ?? {});
+    await recordMeaningfulUse(request.auth.uid);
+    return result;
 });
 exports.createSurnameTreeServer = (0, https_1.onCall)({ region: 'us-central1', timeoutSeconds: 540 }, async (request) => {
     if (!request.auth)
         throw new https_1.HttpsError('unauthenticated', 'Sign in to create a tree.');
-    return (0, tree_creation_function_1.createSurnameTree)(db, request.auth.uid, String(request.data?.sourceTreeId ?? ''), String(request.data?.surname ?? ''));
+    const result = await (0, tree_creation_function_1.createSurnameTree)(db, request.auth.uid, String(request.data?.sourceTreeId ?? ''), String(request.data?.surname ?? ''));
+    await recordMeaningfulUse(request.auth.uid);
+    return result;
 });
 exports.readTreeGraphServer = (0, https_1.onCall)({ region: 'us-central1' }, async (request) => {
     if (!request.auth)
@@ -64,7 +69,9 @@ exports.unlinkProfilesServer = (0, https_1.onCall)({ region: 'us-central1' }, as
 exports.submitFamilyChangeServer = (0, https_1.onCall)({ region: 'us-central1' }, async (request) => {
     if (!request.auth)
         throw new https_1.HttpsError('unauthenticated', 'Sign in to submit a change.');
-    return new approval_submission_function_1.ApprovalSubmissionFunction(db).submit(request.auth.uid, request.data);
+    const result = await new approval_submission_function_1.ApprovalSubmissionFunction(db).submit(request.auth.uid, request.data);
+    await recordMeaningfulUse(request.auth.uid);
+    return result;
 });
 exports.searchTreeDirectoryServer = (0, https_1.onCall)({ region: 'us-central1' }, async (request) => {
     if (!request.auth)
@@ -82,6 +89,9 @@ const SENDGRID_FROM_NAME = (0, params_1.defineString)('SENDGRID_FROM_NAME');
 const APP_BASE_URL = (0, params_1.defineString)('APP_BASE_URL');
 const SUPPORT_EMAIL = (0, params_1.defineString)('SUPPORT_EMAIL');
 const EMAIL_LOGO_URL = (0, params_1.defineString)('EMAIL_LOGO_URL');
+const ACCOUNT_CLEANUP_MODE = (0, params_1.defineString)('ACCOUNT_CLEANUP_MODE', { default: 'report' });
+const ACCOUNT_UNUSED_DAYS = (0, params_1.defineString)('ACCOUNT_UNUSED_DAYS', { default: '90' });
+const ACCOUNT_GRACE_DAYS = (0, params_1.defineString)('ACCOUNT_GRACE_DAYS', { default: '30' });
 function now() {
     return firestore_1.Timestamp.now();
 }
@@ -146,6 +156,7 @@ async function sendTransactionalEmail(options) {
     if (options.deliveryId) {
         await recordDelivery(options.deliveryId, {
             category: options.category,
+            ...(options.accountUserId ? { accountUserId: options.accountUserId } : {}),
             status: 'sent',
             to: options.to,
             subject: options.subject,
@@ -153,6 +164,36 @@ async function sendTransactionalEmail(options) {
         });
     }
     return { deduplicated: false };
+}
+async function sendAccountDeletionWarning(user, deletionDate) {
+    if (!user.email)
+        throw new Error('A deliverable email address is required before scheduling account deletion.');
+    const template = (0, email_templates_1.buildAccountDeletionWarningEmailTemplate)({
+        ...buildBranding(),
+        recipientName: user.displayName,
+        deletionDate: deletionDate.toLocaleDateString('en-ZA', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }),
+        keepAccountUrl: buildLoginUrl(),
+    });
+    await sendTransactionalEmail({
+        deliveryId: `account-deletion-warning-${user.uid}`,
+        accountUserId: user.uid,
+        to: user.email,
+        subject: template.subject,
+        html: template.html,
+        text: template.text,
+        category: 'account-retention',
+    });
+}
+const accountLifecycleFunction = new account_lifecycle_function_1.AccountLifecycleFunction(db, adminAuth, sendAccountDeletionWarning);
+async function recordMeaningfulUse(userId) {
+    try {
+        await accountLifecycleFunction.markMeaningfulUse(userId);
+    }
+    catch (error) {
+        // The product action already succeeded. Activity telemetry must never turn
+        // that success into a client-visible failure.
+        console.error('Unable to record meaningful account use', { userId, error });
+    }
 }
 async function getUserById(userId) {
     const snapshot = await db.collection('users').doc(userId).get();
@@ -198,6 +239,7 @@ exports.sendWelcomeEmail = (0, https_1.onCall)({
     });
     await sendTransactionalEmail({
         deliveryId: `welcome-${request.auth.uid}`,
+        accountUserId: request.auth.uid,
         to: user.email,
         subject: template.subject,
         html: template.html,
@@ -436,7 +478,9 @@ exports.archivePersonServer = (0, https_1.onCall)(async (request) => {
 exports.requestTreeAccessServer = (0, https_1.onCall)(async (request) => {
     if (!request.auth)
         throw new https_1.HttpsError('unauthenticated', 'Sign in to request access.');
-    return (0, tree_access_function_1.requestTreeAccess)(db, request.auth.uid, String(request.data?.treeId ?? ''));
+    const result = await (0, tree_access_function_1.requestTreeAccess)(db, request.auth.uid, String(request.data?.treeId ?? ''));
+    await recordMeaningfulUse(request.auth.uid);
+    return result;
 });
 exports.respondToTreeAccessServer = (0, https_1.onCall)(async (request) => {
     if (!request.auth)
@@ -445,4 +489,43 @@ exports.respondToTreeAccessServer = (0, https_1.onCall)(async (request) => {
 });
 exports.expireApprovalRequests = (0, scheduler_1.onSchedule)({ schedule: "every 5 minutes", timeZone: "UTC", timeoutSeconds: 540, maxInstances: 1, retryCount: 3 }, async () => {
     await approvalDecisionFunction.processScheduledExpirations();
+});
+exports.markAccountActiveServer = (0, https_1.onCall)({ region: 'us-central1' }, async (request) => {
+    assertAuthenticated(request.auth?.uid);
+    await accountLifecycleFunction.markActive(request.auth.uid);
+    return { ok: true };
+});
+exports.deleteMyAccountServer = (0, https_1.onCall)({ region: 'us-central1' }, async (request) => {
+    assertAuthenticated(request.auth?.uid);
+    const authenticatedAtSeconds = Number(request.auth?.token.auth_time ?? 0);
+    if (!authenticatedAtSeconds || Date.now() - authenticatedAtSeconds * 1000 > 10 * 60 * 1000) {
+        throw new https_1.HttpsError('failed-precondition', 'For security, sign out and sign in again before deleting your account.');
+    }
+    const user = await adminAuth.getUser(request.auth.uid);
+    try {
+        await accountLifecycleFunction.deleteAccount(user.uid, user.email);
+    }
+    catch (error) {
+        const message = error instanceof Error ? error.message : 'The account could not be deleted.';
+        if (message.includes('shared family activity'))
+            throw new https_1.HttpsError('failed-precondition', message);
+        throw error;
+    }
+    return { ok: true };
+});
+exports.processUnusedAccounts = (0, scheduler_1.onSchedule)({
+    schedule: '0 3 * * *',
+    timeZone: 'UTC',
+    region: 'us-central1',
+    timeoutSeconds: 540,
+    maxInstances: 1,
+    retryCount: 1,
+    secrets: [SENDGRID_API_KEY],
+}, async () => {
+    const configuredMode = getStringParam(ACCOUNT_CLEANUP_MODE, 'report');
+    const mode = configuredMode === 'warn' || configuredMode === 'delete' ? configuredMode : 'report';
+    const unusedDays = Math.max(30, Number.parseInt(getStringParam(ACCOUNT_UNUSED_DAYS, '90'), 10) || 90);
+    const graceDays = Math.max(14, Number.parseInt(getStringParam(ACCOUNT_GRACE_DAYS, '30'), 10) || 30);
+    const summary = await accountLifecycleFunction.run({ mode, unusedDays, graceDays });
+    console.info('Unused account lifecycle completed', { mode, unusedDays, graceDays, ...summary });
 });

@@ -46,6 +46,7 @@ import type { AppLanguage } from '../i18n';
 import { accountError, accountSecurityErrorMessage, assertSameAccount, assertRecentAuthentication, assertPhoneChallenge, assertRemovableProvider, normalizeAccountPhone, type AccountPhoneChallenge } from '../providers/account-security';
 import { getMobileGoogleIdToken, mobileAuthAvailable, requestMobilePhoneVerification } from '../providers/mobile-auth-provider';
 import { CURRENT_APP_VERSION } from '../constants/app-metadata';
+import { deleteMyAccountServer, markAccountActiveServer } from '../providers/account-lifecycle-service';
 
 const MAGIC_LINK_EMAIL_STORAGE_KEY = 'lineagetree.emailForSignIn';
 
@@ -89,6 +90,8 @@ export interface AuthState {
   updatePreferredKinshipSystem: (kinshipSystem: KinshipSystem) => Promise<void>;
   markAppVersionSeen: (version: string) => Promise<void>;
   markDiscoverabilityPromptSeen: () => Promise<void>;
+  markAccountActive: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
   clearError: () => void;
   /** Call once on app mount to listen for auth state changes */
   init: () => () => void;
@@ -299,6 +302,11 @@ function buildUserProfileDocument(user: Pick<FirebaseUser, 'uid' | 'email' | 'di
   };
 }
 
+function profileDate(value: any): string | undefined {
+  if (typeof value === 'string' && value.trim()) return value.trim();
+  return value?.toDate?.().toISOString();
+}
+
 async function ensureUserProfileDocument(fbUser: Pick<FirebaseUser, 'uid' | 'email' | 'displayName'> & { photoURL?: string | null }): Promise<UserProfile> {
   const userRef = doc(db, 'users', fbUser.uid);
   const snap = await getDoc(userRef);
@@ -359,6 +367,11 @@ async function ensureUserProfileDocument(fbUser: Pick<FirebaseUser, 'uid' | 'ema
     discoverabilityPromptSeenAt: typeof data.discoverabilityPromptSeenAt === 'string' && data.discoverabilityPromptSeenAt.trim()
       ? data.discoverabilityPromptSeenAt.trim()
       : undefined,
+    lastActiveAt: profileDate(data.lastActiveAt),
+    firstMeaningfulUseAt: profileDate(data.firstMeaningfulUseAt),
+    deletionWarningSentAt: profileDate(data.deletionWarningSentAt),
+    scheduledDeletionAt: profileDate(data.scheduledDeletionAt),
+    accountLifecycleStatus: data.accountLifecycleStatus === 'warned' ? 'warned' : 'active',
     createdAt: data.createdAt?.toDate?.().toISOString() ?? data.createdAt ?? fallbackProfile.createdAt,
   };
 }
@@ -401,6 +414,11 @@ async function fetchUserProfile(uid: string, fallbackUser?: FirebaseUser | null)
     discoverabilityPromptSeenAt: typeof data.discoverabilityPromptSeenAt === 'string' && data.discoverabilityPromptSeenAt.trim()
       ? data.discoverabilityPromptSeenAt.trim()
       : undefined,
+    lastActiveAt: profileDate(data.lastActiveAt),
+    firstMeaningfulUseAt: profileDate(data.firstMeaningfulUseAt),
+    deletionWarningSentAt: profileDate(data.deletionWarningSentAt),
+    scheduledDeletionAt: profileDate(data.scheduledDeletionAt),
+    accountLifecycleStatus: data.accountLifecycleStatus === 'warned' ? 'warned' : 'active',
     createdAt: data.createdAt?.toDate?.().toISOString() ?? data.createdAt,
   };
 }
@@ -938,5 +956,39 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set((state) => ({
       user: state.user ? { ...state.user, discoverabilityPromptSeenAt: timestamp } : null,
     }));
+  },
+
+  markAccountActive: async () => {
+    const { user } = get();
+    if (!user) return;
+    await markAccountActiveServer();
+    const timestamp = new Date().toISOString();
+    set((state) => ({
+      user: state.user ? {
+        ...state.user,
+        lastActiveAt: timestamp,
+        accountLifecycleStatus: 'active',
+        deletionWarningSentAt: undefined,
+        scheduledDeletionAt: undefined,
+      } : null,
+    }));
+  },
+
+  deleteAccount: async () => {
+    const userId = get().user?.id;
+    if (!userId) return;
+    set({ accountBusy: true, accountError: null, accountNotice: null });
+    try {
+      await deleteMyAccountServer();
+      const keys = await AsyncStorage.getAllKeys();
+      await AsyncStorage.multiRemove(keys.filter((key) => key.includes(userId) || key === MAGIC_LINK_EMAIL_STORAGE_KEY));
+      await firebaseSignOut(auth).catch(() => {});
+      set({ user: null, firebaseUser: null, loading: false, accountBusy: false });
+    } catch (error: any) {
+      const message = error?.message?.replace(/^Firebase(?:Error)?:\s*/i, '').replace(/\s*\(functions\/[^)]+\)\.?$/i, '')
+        || 'Your account could not be deleted. Please try again.';
+      set({ accountBusy: false, accountError: message });
+      throw error;
+    }
   },
 }));

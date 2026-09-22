@@ -42,6 +42,12 @@ export interface AccountCreatedEmailTemplateData extends BaseTemplateData {
   createdByName?: string;
 }
 
+export interface AccountDeletionWarningEmailTemplateData extends BaseTemplateData {
+  recipientName?: string;
+  deletionDate: string;
+  keepAccountUrl: string;
+}
+
 export interface NotificationEmailTemplateData extends BaseTemplateData {
   recipientName?: string;
   title: string;
@@ -340,6 +346,37 @@ export function buildAccountCreatedEmailTemplate(data: AccountCreatedEmailTempla
   return { subject, preheader, html, text };
 }
 
+export function buildAccountDeletionWarningEmailTemplate(data: AccountDeletionWarningEmailTemplateData): EmailTemplateResult {
+  const brand = mergeBrand(data);
+  const recipientLabel = data.recipientName?.trim() || 'there';
+  const subject = `Keep your ${brand.appName} account active`;
+  const preheader = `Sign in before ${data.deletionDate} if you want to keep your account.`;
+  const html = buildEmailLayout({
+    brand,
+    eyebrow: 'Account Retention',
+    title: 'Your unused account is scheduled for deletion',
+    intro: `Hello ${recipientLabel}, this ${brand.appName} account has not been used beyond its original registration session.`,
+    bodyHtml: `
+      <p style="margin:0 0 16px;">To minimise the personal information we retain, the account is scheduled for permanent deletion on <strong>${escapeHtml(data.deletionDate)}</strong>.</p>
+      <p style="margin:0 0 16px;">Signing in before that date automatically cancels the deletion. If you no longer want the account, no action is required.</p>
+      <p style="margin:0;">Accounts connected to a family tree are excluded from this automatic cleanup.</p>
+    `,
+    actionHtml: buildButton('Keep My Account', data.keepAccountUrl, brand.primaryColor),
+    footerNote: `If you did not create this account or need help, contact ${brand.supportEmail}.`,
+    preheader,
+  });
+  const text = [
+    `Hello ${recipientLabel},`,
+    '',
+    `Your unused ${brand.appName} account is scheduled for permanent deletion on ${data.deletionDate}.`,
+    'Sign in before that date to cancel the deletion automatically:',
+    data.keepAccountUrl,
+    '',
+    `Need help? Contact ${brand.supportEmail}.`,
+  ].join('\n');
+  return { subject, preheader, html, text };
+}
+
 export function buildNotificationEmailTemplate(data: NotificationEmailTemplateData): EmailTemplateResult {
   const brand = mergeBrand(data);
   const recipientLabel = data.recipientName?.trim() || 'there';
@@ -382,5 +419,6 @@ export const lineageTreeEmailTemplates = {
   passwordReset: buildPasswordResetEmailTemplate,
   magicLink: buildMagicLinkEmailTemplate,
   accountCreated: buildAccountCreatedEmailTemplate,
+  accountDeletionWarning: buildAccountDeletionWarningEmailTemplate,
   notification: buildNotificationEmailTemplate,
 };

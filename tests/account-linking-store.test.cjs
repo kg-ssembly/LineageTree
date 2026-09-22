@@ -90,6 +90,10 @@ function fixture(providerIds = ['password']) {
       sendMagicLinkEmailNotification: async email => { calls.push(['sendMagicLink', email]); },
     },
     '../providers/account-security': security,
+    '../providers/account-lifecycle-service': {
+      markAccountActiveServer: async () => { calls.push(['markAccountActive']); },
+      deleteMyAccountServer: async () => { calls.push(['deleteAccount']); },
+    },
     '../providers/mobile-auth-provider': {
       mobileAuthAvailable: false,
       getMobileGoogleIdToken: async () => { throw new Error('native unavailable'); },
