@@ -20,6 +20,12 @@ const styles = StyleSheet.create({
   heroWrap: {
     marginBottom: 28,
   },
+  loginHero: {
+    minHeight: 260,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loginLogo: { width: '100%', height: 400 },
   logoRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 18 },
   logoBadge: {
     width: 92,
@@ -258,24 +264,30 @@ export function AuthFormView({
     >
       <ScreenBackground />
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-        <View style={styles.heroWrap}>
-          <View style={styles.logoRow}>
-            <View style={[styles.logoBadge, { backgroundColor: theme.colors.secondaryContainer }]}>
-              <Image source={APP_LOGO} style={styles.logo} resizeMode="contain" accessibilityLabel="Lineage Tree logo" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Chip
-                icon={chipIcon}
-                compact
-                style={{ alignSelf: 'flex-start', backgroundColor: variant === 'login' ? theme.colors.secondaryContainer : theme.colors.tertiaryContainer }}
-              >
-                {chipLabel}
-              </Chip>
-              <Text variant="titleLarge" style={[styles.heroTitle, { color: theme.colors.primary }]}>{heroTitle}</Text>
-              <Text variant="bodyMedium" style={[styles.heroSubtitle, { color: theme.colors.onSurfaceVariant }]}>{heroSubtitle}</Text>
+        {variant === 'login' ? (
+          <View style={[styles.heroWrap, styles.loginHero]}>
+            <Image source={APP_LOGO} style={styles.loginLogo} resizeMode="contain" accessibilityLabel="Lineage Tree logo" />
+          </View>
+        ) : (
+          <View style={styles.heroWrap}>
+            <View style={styles.logoRow}>
+              <View style={[styles.logoBadge, { backgroundColor: theme.colors.secondaryContainer }]}>
+                <Image source={APP_LOGO} style={styles.logo} resizeMode="contain" accessibilityLabel="Lineage Tree logo" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Chip
+                  icon={chipIcon}
+                  compact
+                  style={{ alignSelf: 'flex-start', backgroundColor: theme.colors.tertiaryContainer }}
+                >
+                  {chipLabel}
+                </Chip>
+                <Text variant="titleLarge" style={[styles.heroTitle, { color: theme.colors.primary }]}>{heroTitle}</Text>
+                <Text variant="bodyMedium" style={[styles.heroSubtitle, { color: theme.colors.onSurfaceVariant }]}>{heroSubtitle}</Text>
+              </View>
             </View>
           </View>
-        </View>
+        )}
 
         <Reveal delay={70}>
           <SectionCard
