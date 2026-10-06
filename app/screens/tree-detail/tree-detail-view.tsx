@@ -40,7 +40,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { buildPeopleDirectory, buildTreeAssignmentContext, getTreeById } from '../tree-tabs/shared';
 import {
   buildSelfAssignmentSuggestions,
-  PeopleRelationshipsTabContent,
+  FamilyMembersView,
   TreeSettingsTabContent,
   VisualisationTabContent,
   type SharedTabProps,
@@ -1194,7 +1194,7 @@ export default function TreeDetailScreen({ navigation, route }: Props) {
         })}
       >
         <Tab.Screen name="PeopleRelationshipsTab" options={{ title: t(K.tree.familyMembers.title) }}>
-          {() => <PeopleRelationshipsTabContent {...sharedTabProps} />}
+          {() => <FamilyMembersView {...sharedTabProps} />}
         </Tab.Screen>
         <Tab.Screen name="VisualisationTab" options={{ title: t(K.navigation.tree) }}>
           {() => <VisualisationTabContent {...sharedTabProps} />}

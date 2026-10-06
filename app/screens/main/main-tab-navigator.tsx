@@ -310,8 +310,8 @@ function getVisualisationTabContent(): TabContentComponent {
   return require('../tree-tabs/family-tree').VisualisationTabContent;
 }
 
-function getPeopleRelationshipsTabContent(): TabContentComponent {
-  return require('../tree-tabs/family-members').PeopleRelationshipsTabContent;
+function getFamilyMembersView(): TabContentComponent {
+  return require('../tree-tabs/family-members').FamilyMembersView;
 }
 
 function getNotificationsTabContent(): TabContentComponent {
@@ -442,8 +442,8 @@ export function MainTabNavigator({
             );
           }
 
-          const PeopleRelationshipsTabContent = getPeopleRelationshipsTabContent();
-          return <CompleteFamilyData treeId={controller.sharedTabProps.selectedTree.id}><PeopleRelationshipsTabContent {...controller.sharedTabProps} /></CompleteFamilyData>;
+          const FamilyMembersView = getFamilyMembersView();
+          return <CompleteFamilyData treeId={controller.sharedTabProps.selectedTree.id}><FamilyMembersView {...controller.sharedTabProps} /></CompleteFamilyData>;
         }}
       </Tab.Screen>
 

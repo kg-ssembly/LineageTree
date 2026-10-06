@@ -363,8 +363,8 @@ export function FamilyMembersView({
 
         <View style={styles.searchRow}>
           <AppSearchbar
-            placeholder={t(K.tree.familyMembers.search)}
-            accessibilityLabel={t(K.tree.familyMembers.search)}
+            placeholder={t(K.common.searchFamilyMembers)}
+            accessibilityLabel={t(K.common.searchFamilyMembers)}
             value={searchQuery}
             onChangeText={setSearchQuery}
             style={styles.searchBar}

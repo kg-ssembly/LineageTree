@@ -1,7 +1,7 @@
 export type { SharedTabProps } from './tree-tabs/shared';
 export {
   HomeTabContent,
-  PeopleRelationshipsTabContent,
+  FamilyMembersView,
   VisualisationTabContent,
   TreeSettingsTabContent,
   buildSelfAssignmentSuggestions,
