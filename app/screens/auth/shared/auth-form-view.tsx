@@ -25,7 +25,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  loginLogo: { width: '100%', height: 400 },
+  loginLogo: { width: '100%', height: 320 },
   logoRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 18 },
   logoBadge: {
     width: 92,
